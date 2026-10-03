@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-
 namespace HealthApp.Infrastructure.Data;
 
 public static class DatabaseInitializer
