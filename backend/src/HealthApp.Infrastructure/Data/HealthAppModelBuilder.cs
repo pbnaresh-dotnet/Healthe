@@ -301,6 +301,8 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.Status).HasConversion<int>();
         e.Property(x => x.TotalDistanceKm).HasPrecision(12,3);
         e.Property(x => x.TotalDurationMinutes).HasPrecision(12,2);
+        e.Property(x => x.RoutingSource).HasMaxLength(50).IsRequired();
+        e.Property(x => x.GeometryJson).HasColumnType("nvarchar(max)").IsRequired();
         e.HasIndex(x => new { x.OutletId, x.DeliveryDate });
         e.HasIndex(x => new { x.DriverId, x.DeliveryDate });
     }
