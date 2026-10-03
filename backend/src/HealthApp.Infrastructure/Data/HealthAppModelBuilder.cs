@@ -303,8 +303,8 @@ internal static class HealthAppModelBuilder
         e.HasKey(x => x.Id);
         e.Property(x => x.MealSlot).HasConversion<int>();
         e.Property(x => x.Status).HasConversion<int>();
-        e.Property(x => x.TotalDistanceKm).HasPrecision(12,3);
-        e.Property(x => x.TotalDurationMinutes).HasPrecision(12,2);
+        e.Property(x => x.TotalDistanceKm).HasColumnType("float");
+        e.Property(x => x.TotalDurationMinutes).HasColumnType("float");
         e.Property(x => x.RoutingSource).HasMaxLength(50).IsRequired();
         e.Property(x => x.GeometryJson).HasColumnType("nvarchar(max)").IsRequired();
         e.HasIndex(x => new { x.OutletId, x.DeliveryDate });
@@ -318,6 +318,8 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.Status).HasConversion<int>();
         e.Property(x => x.CustomerName).HasMaxLength(200);
         e.Property(x => x.Address).HasMaxLength(1000);
+        e.Property(x => x.Latitude).HasColumnType("float");
+        e.Property(x => x.Longitude).HasColumnType("float");
         e.HasIndex(x => new { x.RouteId, x.StopSequence }).IsUnique();
         e.HasIndex(x => x.DeliveryAddressId);
         e.HasOne<DeliveryRoute>().WithMany(x => x.Stops).HasForeignKey(x => x.RouteId).OnDelete(DeleteBehavior.Cascade);
