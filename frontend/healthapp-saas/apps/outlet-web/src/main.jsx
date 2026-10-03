@@ -18,7 +18,7 @@ function Table({columns,rows,empty}){return rows.length?<div className="dataTabl
 function App(){
  const[user,setUser]=useState(currentUser()),[login,setLogin]=useState({email:'admin@fitfood.test',password:'demo'}),[active,setActive]=useState('dashboard'),[dash,setDash]=useState(null);
  const[recipes,setRecipes]=useState([]),[ingredients,setIngredients]=useState([]),[allergens,setAllergens]=useState([]),[pricing,setPricing]=useState([]),[areas,setAreas]=useState([]),[selectedAreas,setSelectedAreas]=useState([]),[tiers,setTiers]=useState([]);
- const[customers,setCustomers]=useState([]),[subs,setSubs]=useState([]),[orders,setOrders]=useState([]),[deliveries,setDeliveries]=useState([]),[menu,setMenu]=useState([]),[billing,setBilling]=useState(null);
+ const[customers,setCustomers]=useState([]),[subs,setSubs]=useState([]),[orders,setOrders]=useState([]),[deliveries,setDeliveries]=useState([]),[menu,setMenu]=useState([]),[billing,setBilling]=useState(null),[selectedSub,setSelectedSub]=useState(null),[kitchen,setKitchen]=useState(null),[kitchenDate,setKitchenDate]=useState(new Date().toISOString().slice(0,10));
  const[error,setError]=useState(''),[busy,setBusy]=useState(false),[toast,setToast]=useState(''),[search,setSearch]=useState(''),[category,setCategory]=useState('All'),[city,setCity]=useState('Bengaluru');
  const[recipeOpen,setRecipeOpen]=useState(false),[editRecipe,setEditRecipe]=useState(null),[recipeForm,setRecipeForm]=useState(emptyRecipe),[uploading,setUploading]=useState(false);
  const[pricingOpen,setPricingOpen]=useState(false),[priceForm,setPriceForm]=useState({maxDistanceKm:'',fee:''});
