@@ -38,10 +38,10 @@ function App(){
  const[selectedAddressId,setSelectedAddressId]=useState('');
  const[authMode,setAuthMode]=useState('login');
  const[authForm,setAuthForm]=useState({email:'customer@healthapp.test',password:'demo',firstName:'Demo',lastName:'Customer'});
- const[profileForm,setProfileForm]=useState({weightKg:'',heightCm:'',dateOfBirth:'',goal:'WeightLoss',activityLevel:'Moderate',allergies:'',diet:'Veg'});
+ const[profileForm,setProfileForm]=useState({weightKg:'',heightCm:'',dateOfBirth:'',goal:'WeightLoss',activityLevel:'Moderate',allergyIds:[],diet:'Veg'});
  const[addressModal,setAddressModal]=useState(null);
  const[addressForm,setAddressForm]=useState({id:null,city:'Bengaluru',cityAreaId:'',label:'Home',addressLine1:'',addressLine2:'',contactName:'',contactPhone:'',latitude:'',longitude:'',isDefault:false});
- const[builder,setBuilder]=useState({outlet:null,duration:'OneWeek',deliveryMode:'OneDeliveryPerDay',startDate:nextMonday(),weeks:1,weekActiveDays:blankWeeks,selections:{},dayAddresses:{},discountCode:'',quote:null,step:1});
+ const[builder,setBuilder]=useState({outlet:null,duration:'OneWeek',deliveryMode:'OneDeliveryPerDay',startDate:nextMonday(),weeks:1,weekActiveDays:blankWeeks,selections:{},allergyAcknowledged:{},dayAddresses:{},discountCode:'',quote:null,step:1});
  const[picker,setPicker]=useState(null);
  const[subs,setSubs]=useState([]);
  const[selectedSubId,setSelectedSubId]=useState('');
