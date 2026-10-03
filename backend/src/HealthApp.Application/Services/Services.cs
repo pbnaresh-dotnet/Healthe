@@ -87,7 +87,7 @@ IPlatformServiceFeeStrategy platformFee, ITaxStrategy taxStrategy, IPackageDisco
 IDeliveryModeStrategyFactory deliveryModeFactory, IMealPriceStrategy mealPrice, ILateSkipFeePolicy lateSkipPolicy,
 IPlatformTransactionRepository transactions, IDomainEventDispatcher events, IUnitOfWork unitOfWork,
 ICustomerAddressRepository addresses, ISubscriptionDiscountTierRepository discountTiers, IMealSelectionHistoryRepository selectionHistory,
-IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety) : ICustomerService
+IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments) : ICustomerService
 {
     public async Task<UserDto?> GetProfileAsync()
     {
@@ -392,7 +392,11 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if(current.UserId is not Guid uid||s.CustomerId!=uid)throw new UnauthorizedAccessException("Subscription does not belong to the current customer.");
         return s;
     }
-    private async Task<SubscriptionDto> ToDto(Subscription x)=>new(x.Id,x.CustomerId,x.OutletId,x.MealPlanId,x.PlanName,x.DeliveryMode.ToString(),x.Price,x.DeliveryFee,x.CustomerTransactionFeePercent,x.TransactionFee,x.TotalCharged,x.OutletAmount,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Status.ToString(),x.NextDeliveryDate,await credits.GetBalanceAsync(x.CustomerId));
+    private async Task<SubscriptionDto> ToDto(Subscription x)
+    {
+        var payment=await payments.GetLatestBySubscriptionAsync(x.Id);
+        return new(x.Id,x.CustomerId,x.OutletId,x.MealPlanId,x.PlanName,x.DeliveryMode.ToString(),x.Price,x.DeliveryFee,x.CustomerTransactionFeePercent,x.TransactionFee,x.TotalCharged,x.OutletAmount,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Status.ToString(),x.NextDeliveryDate,await credits.GetBalanceAsync(x.CustomerId),payment?.Status??"Pending");
+    }
     private async Task<IReadOnlyList<MealSelectionDto>> MapSelections(IEnumerable<SubscriptionMealSelection> rows) {
         var result=new List<MealSelectionDto>();
         foreach(var x in rows) {
