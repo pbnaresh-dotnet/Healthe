@@ -58,14 +58,18 @@ public sealed class MealPlanRepository(HealthAppDbContext db) : EfRepository(db)
 
 public sealed class RecipeRepository(HealthAppDbContext db) : EfRepository(db), IRecipeRepository
 {
-    public async Task<IReadOnlyList<Recipe>> GetByOutletAsync(Guid outletId) => await db.Recipes.AsNoTracking().Where(x => x.OutletId == outletId).OrderBy(x => x.Name).ToListAsync();
+    private IQueryable<Recipe> Details(IQueryable<Recipe> query) => query
+        .Include(x => x.RecipeIngredients).ThenInclude(x => x.Ingredient).ThenInclude(x => x.Allergens).ThenInclude(x => x.Allergen)
+        .Include(x => x.RecipeAllergens).ThenInclude(x => x.Allergen);
+
+    public async Task<IReadOnlyList<Recipe>> GetByOutletAsync(Guid outletId) => await Details(db.Recipes.AsNoTracking().Where(x => x.OutletId == outletId)).OrderBy(x => x.Name).ToListAsync();
     public async Task<IReadOnlyList<Recipe>> GetByOutletAndCategoryAsync(Guid outletId, string? category)
     {
-        var q = db.Recipes.AsNoTracking().Where(x => x.OutletId == outletId);
+        var q = Details(db.Recipes.AsNoTracking().Where(x => x.OutletId == outletId));
         if (!string.IsNullOrWhiteSpace(category) && Enum.TryParse<RecipeCategory>(category, true, out var parsed)) q = q.Where(x => x.Category == parsed);
         return await q.OrderBy(x => x.Name).ToListAsync();
     }
-    public Task<Recipe?> GetAsync(Guid id) => db.Recipes.FirstOrDefaultAsync(x => x.Id == id);
+    public Task<Recipe?> GetAsync(Guid id) => Details(db.Recipes.Where(x => x.Id == id)).FirstOrDefaultAsync();
     public async Task AddAsync(Recipe recipe) { db.Recipes.Add(recipe); await SaveAsync(); }
     public async Task UpdateAsync(Recipe recipe) { db.Recipes.Update(recipe); await SaveAsync(); }
     public async Task DeleteAsync(Guid id)
@@ -137,11 +141,42 @@ public sealed class DeliveryRepository(HealthAppDbContext db) : EfRepository(db)
 
 public sealed class CustomerProfileRepository(HealthAppDbContext db) : EfRepository(db), ICustomerProfileRepository
 {
-    public Task<CustomerProfile?> GetAsync(Guid customerId) => db.CustomerProfiles.FirstOrDefaultAsync(x => x.CustomerId == customerId);
+    public Task<CustomerProfile?> GetAsync(Guid customerId) => db.CustomerProfiles
+        .Include(x => x.Allergies).ThenInclude(x => x.Allergen)
+        .FirstOrDefaultAsync(x => x.CustomerId == customerId);
     public async Task AddOrUpdateAsync(CustomerProfile profile)
     {
         var existing = await db.CustomerProfiles.FirstOrDefaultAsync(x => x.CustomerId == profile.CustomerId);
         if (existing is null) db.CustomerProfiles.Add(profile); else db.Entry(existing).CurrentValues.SetValues(profile);
+        await SaveAsync();
+    }
+    public async Task ReplaceAllergiesAsync(Guid customerId, IReadOnlyCollection<Guid> allergenIds)
+    {
+        var existing = await db.CustomerAllergies.Where(x => x.CustomerId == customerId).ToListAsync();
+        db.CustomerAllergies.RemoveRange(existing);
+        db.CustomerAllergies.AddRange(allergenIds.Distinct().Select(allergenId => new CustomerAllergy { Id=Guid.NewGuid(), CustomerId=customerId, AllergenId=allergenId }));
+        await SaveAsync();
+    }
+}
+
+public sealed class IngredientRepository(HealthAppDbContext db) : EfRepository(db), IIngredientRepository
+{
+    public async Task<IReadOnlyList<Ingredient>> GetActiveAsync() => await db.Ingredients.AsNoTracking().Where(x=>x.IsActive).OrderBy(x=>x.Name).ToListAsync();
+    public async Task<IReadOnlyList<Ingredient>> GetByIdsAsync(IEnumerable<Guid> ids) => await db.Ingredients.Where(x=>ids.Contains(x.Id)&&x.IsActive).ToListAsync();
+}
+public sealed class AllergenRepository(HealthAppDbContext db) : EfRepository(db), IAllergenRepository
+{
+    public async Task<IReadOnlyList<Allergen>> GetActiveAsync() => await db.Allergens.AsNoTracking().Where(x=>x.IsActive).OrderBy(x=>x.Name).ToListAsync();
+    public async Task<IReadOnlyList<Allergen>> GetByIdsAsync(IEnumerable<Guid> ids) => await db.Allergens.Where(x=>ids.Contains(x.Id)&&x.IsActive).ToListAsync();
+}
+public sealed class CustomerAllergyRepository(HealthAppDbContext db) : EfRepository(db), ICustomerAllergyRepository
+{
+    public async Task<IReadOnlyList<CustomerAllergy>> GetByCustomerAsync(Guid customerId) => await db.CustomerAllergies.AsNoTracking().Include(x=>x.Allergen).Where(x=>x.CustomerId==customerId).ToListAsync();
+    public async Task ReplaceAsync(Guid customerId, IReadOnlyCollection<Guid> allergenIds)
+    {
+        var old = await db.CustomerAllergies.Where(x=>x.CustomerId==customerId).ToListAsync();
+        db.CustomerAllergies.RemoveRange(old);
+        db.CustomerAllergies.AddRange(allergenIds.Distinct().Select(x=>new CustomerAllergy{Id=Guid.NewGuid(),CustomerId=customerId,AllergenId=x}));
         await SaveAsync();
     }
 }
