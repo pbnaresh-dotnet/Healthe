@@ -92,11 +92,6 @@ public sealed class CustomerProfile
         set;
     }
     = DateTime.UtcNow;
-    public ICollection<CustomerAllergy> Allergies {
-        get;
-        set;
-    }
-    = new List<CustomerAllergy>();
 }
 
 public sealed class CityArea
