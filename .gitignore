@@ -1,0 +1,24 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Frontend
+**/node_modules/
+**/dist/
+**/.vite/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

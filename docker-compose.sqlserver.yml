@@ -1,0 +1,14 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: healthapp-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "CHANGE_ME_SQL_PASSWORD"
+    ports:
+      - "1433:1433"
+    volumes:
+      - healthapp-sql-data:/var/opt/mssql
+    restart: unless-stopped
+volumes:
+  healthapp-sql-data:

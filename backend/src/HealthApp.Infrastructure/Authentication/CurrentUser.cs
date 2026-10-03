@@ -1,0 +1,3 @@
+using System.Security.Claims; using HealthApp.Application.Abstractions; using Microsoft.AspNetCore.Http;
+namespace HealthApp.Infrastructure.Authentication;
+public sealed class CurrentUser(IHttpContextAccessor accessor):ICurrentUser { private ClaimsPrincipal User=>accessor.HttpContext?.User??new ClaimsPrincipal(); public bool IsAuthenticated=>User.Identity?.IsAuthenticated==true; public Guid? UserId=>Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier),out var x)?x:null; public Guid? OutletId=>Guid.TryParse(User.FindFirstValue("outlet_id"),out var x)?x:null; public string? Role=>User.FindFirstValue(ClaimTypes.Role); }

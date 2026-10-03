@@ -1,0 +1,69 @@
+using HealthApp.Application.Abstractions;
+using HealthApp.Domain.Entities;
+using HealthApp.Domain.Enums;
+using HealthApp.Shared.DTOs;
+
+namespace HealthApp.Application.Services;
+
+public sealed class CustomerProfileService(ICurrentUser current, ICustomerProfileRepository profiles) : ICustomerProfileService
+{
+    public async Task<CustomerProfileDto?> GetAsync(){if(current.UserId is not Guid id)return null;var p=await profiles.GetAsync(id);return p is null?null:Map(p);}
+    public async Task<CustomerProfileDto?> SaveAsync(SaveCustomerProfileRequest r){if(current.UserId is not Guid id)return null;if(r.WeightKg is <=0||r.HeightCm is <=0)throw new ArgumentException("Weight and height must be positive.");decimal? bmi=r.WeightKg.HasValue&&r.HeightCm.HasValue?Math.Round(r.WeightKg.Value/((r.HeightCm.Value/100m)*(r.HeightCm.Value/100m)),2):null;var p=await profiles.GetAsync(id)??new CustomerProfile{Id=Guid.NewGuid(),CustomerId=id};p.WeightKg=r.WeightKg;p.HeightCm=r.HeightCm;p.Bmi=bmi;p.DateOfBirth=r.DateOfBirth;p.Goal=r.Goal;p.ActivityLevel=r.ActivityLevel;p.Allergies=r.Allergies;p.Diet=r.Diet;p.UpdatedAtUtc=DateTime.UtcNow;await profiles.AddOrUpdateAsync(p);return Map(p);}
+    private static CustomerProfileDto Map(CustomerProfile p)=>new(p.Id,p.CustomerId,p.WeightKg,p.HeightCm,p.Bmi,p.Goal,p.ActivityLevel,p.Allergies,p.Diet,p.UpdatedAtUtc);
+}
+
+public sealed class CustomerAddressService(ICurrentUser current,ICustomerAddressRepository addresses,ICityAreaRepository areas,IOutletDeliveryAreaRepository outletAreas,IDeliveryPricingRepository pricing,IOutletRepository outlets,IDeliveryCalculator calculator) : ICustomerAddressService
+{
+    public async Task<IReadOnlyList<CustomerAddressDto>> GetAsync()=>current.UserId is not Guid id?[]:await Map(await addresses.GetByCustomerAsync(id));
+    public async Task<CustomerAddressDto?> CreateAsync(CreateCustomerAddressRequest r){if(current.UserId is not Guid id)return null;_=await areas.GetAsync(r.CityAreaId)??throw new KeyNotFoundException("Area not found.");var a=new CustomerAddress{Id=Guid.NewGuid(),CustomerId=id,CityAreaId=r.CityAreaId,Label=r.Label,AddressLine1=r.AddressLine1,AddressLine2=r.AddressLine2,ContactName=r.ContactName,ContactPhone=r.ContactPhone,Latitude=r.Latitude,Longitude=r.Longitude,IsDefault=r.IsDefault};await addresses.AddAsync(a);return(await Map(new[]{a})).First();}
+    public async Task<CustomerAddressDto?> UpdateAsync(Guid addressId,UpdateCustomerAddressRequest r){if(current.UserId is not Guid id)return null;var a=await addresses.GetAsync(id,addressId);if(a is null)return null;_=await areas.GetAsync(r.CityAreaId)??throw new KeyNotFoundException("Area not found.");a.CityAreaId=r.CityAreaId;a.Label=r.Label;a.AddressLine1=r.AddressLine1;a.AddressLine2=r.AddressLine2;a.ContactName=r.ContactName;a.ContactPhone=r.ContactPhone;a.Latitude=r.Latitude;a.Longitude=r.Longitude;a.IsDefault=r.IsDefault;await addresses.UpdateAsync(a);return(await Map(new[]{a})).First();}
+    public async Task<bool> DeleteAsync(Guid id){if(current.UserId is not Guid uid)return false;var a=await addresses.GetAsync(uid,id);if(a is null)return false;await addresses.DeleteAsync(uid,id);return true;}
+    public async Task<IReadOnlyList<DeliveryQuoteDto>> QuoteAsync(Guid outletId){if(current.UserId is not Guid id)return[];var result=new List<DeliveryQuoteDto>();foreach(var a in await addresses.GetByCustomerAsync(id)){try{result.Add(await calculator.QuoteAsync(outletId,id,a.Id));}catch{}}return result;}
+    private async Task<IReadOnlyList<CustomerAddressDto>> Map(IEnumerable<CustomerAddress> rows){var result=new List<CustomerAddressDto>();foreach(var a in rows){var area=await areas.GetAsync(a.CityAreaId);result.Add(new(a.Id,a.Label,area?.Name??"",area?.City??"",area?.Pincode??"",a.AddressLine1,a.AddressLine2,a.ContactName,a.ContactPhone,a.Latitude,a.Longitude,a.IsDefault));}return result;}
+}
+
+public sealed class OutletDeliveryService(ICurrentUser current,ICityAreaRepository cityAreas,IOutletDeliveryAreaRepository outletAreas,IDeliveryPricingRepository pricing) : IOutletDeliveryService
+{
+    public async Task<IReadOnlyList<CityAreaDto>> GetAvailableAreasAsync(string? city)=>(await cityAreas.GetActiveAsync(city)).Select(x=>new CityAreaDto(x.Id,x.City,x.State,x.Name,x.Pincode,x.Latitude,x.Longitude,x.IsActive)).ToList();
+    public async Task<IReadOnlyList<OutletDeliveryAreaDto>> GetAreasAsync(){if(current.OutletId is not Guid id)return[];var rows=await outletAreas.GetByOutletAsync(id);var areas=await cityAreas.GetActiveAsync();return rows.Select(x=>{var a=areas.FirstOrDefault(y=>y.Id==x.CityAreaId);return new OutletDeliveryAreaDto(x.Id,x.OutletId,x.CityAreaId,a?.Name??"",a?.City??"",a?.Pincode??"",x.IsActive);}).ToList();}
+    public async Task<IReadOnlyList<DeliveryPricingRuleDto>> GetPricingAsync()=>current.OutletId is not Guid id?[]:(await pricing.GetByOutletAsync(id)).Select(x=>new DeliveryPricingRuleDto(x.Id,x.OutletId,x.MaxDistanceKm,x.Fee,x.IsActive)).ToList();
+    public async Task<IReadOnlyList<OutletDeliveryAreaDto>> SaveAreasAsync(SaveOutletDeliveryAreasRequest r){if(current.OutletId is not Guid id)return[];var all=await cityAreas.GetActiveAsync();if(r.CityAreaIds.Except(all.Select(x=>x.Id)).Any())throw new ArgumentException("One or more areas are invalid.");await outletAreas.ReplaceAsync(id,r.CityAreaIds.Distinct().Select(x=>new OutletDeliveryArea{Id=Guid.NewGuid(),OutletId=id,CityAreaId=x,IsActive=true}));return await GetAreasAsync();}
+    public async Task<DeliveryPricingRuleDto?> AddPricingAsync(CreateDeliveryPricingRuleRequest r){if(current.OutletId is not Guid id)return null;if(r.MaxDistanceKm<=0||r.Fee<0)throw new ArgumentException("Distance and fee must be valid.");var x=new DeliveryPricingRule{Id=Guid.NewGuid(),OutletId=id,MaxDistanceKm=r.MaxDistanceKm,Fee=r.Fee};await pricing.AddAsync(x);return new(x.Id,x.OutletId,x.MaxDistanceKm,x.Fee,x.IsActive);}
+    public async Task<bool> DeletePricingAsync(Guid id){if(current.OutletId is not Guid oid)return false;await pricing.DeleteAsync(id,oid);return true;}
+}
+
+public sealed class DiscountConfigurationService(ICurrentUser current,ISubscriptionDiscountTierRepository tiers) : IDiscountConfigurationService
+{
+    public async Task<IReadOnlyList<SubscriptionDiscountTierDto>> GetTiersAsync()=>current.OutletId is not Guid id?[]:(await tiers.GetByOutletAsync(id)).Select(Map).ToList();
+    public async Task<SubscriptionDiscountTierDto?> AddTierAsync(SaveSubscriptionDiscountTierRequest r){if(current.OutletId is not Guid id)return null;Validate(r);var x=new SubscriptionDiscountTier{Id=Guid.NewGuid(),OutletId=id,MinMeals=r.MinMeals,MaxMeals=r.MaxMeals,OneWeekPercent=r.OneWeekPercent,TwoWeeksPercent=r.TwoWeeksPercent,OneMonthPercent=r.OneMonthPercent,IsActive=r.IsActive};await tiers.AddAsync(x);return Map(x);}
+    public async Task<SubscriptionDiscountTierDto?> UpdateTierAsync(Guid id,SaveSubscriptionDiscountTierRequest r){if(current.OutletId is not Guid oid)return null;var x=(await tiers.GetByOutletAsync(oid)).FirstOrDefault(y=>y.Id==id);if(x is null)return null;Validate(r);x.MinMeals=r.MinMeals;x.MaxMeals=r.MaxMeals;x.OneWeekPercent=r.OneWeekPercent;x.TwoWeeksPercent=r.TwoWeeksPercent;x.OneMonthPercent=r.OneMonthPercent;x.IsActive=r.IsActive;await tiers.UpdateAsync(x);return Map(x);}
+    public async Task<bool> DeleteTierAsync(Guid id){if(current.OutletId is not Guid oid)return false;await tiers.DeleteAsync(oid,id);return true;}
+    private static void Validate(SaveSubscriptionDiscountTierRequest r){if(r.MinMeals<1||(r.MaxMeals.HasValue&&r.MaxMeals.Value<r.MinMeals)||new[]{r.OneWeekPercent,r.TwoWeeksPercent,r.OneMonthPercent}.Any(x=>x<0||x>100))throw new ArgumentException("Invalid discount tier.");}
+    private static SubscriptionDiscountTierDto Map(SubscriptionDiscountTier x)=>new(x.Id,x.OutletId,x.MinMeals,x.MaxMeals,x.OneWeekPercent,x.TwoWeeksPercent,x.OneMonthPercent,x.IsActive);
+}
+
+public sealed class CityAreaAdminService(ICityAreaRepository areas) : ICityAreaAdminService
+{
+    public async Task<IReadOnlyList<CityAreaDto>> GetAsync(string? city)=>(await areas.GetActiveAsync(city)).Select(x=>new CityAreaDto(x.Id,x.City,x.State,x.Name,x.Pincode,x.Latitude,x.Longitude,x.IsActive)).ToList();
+    public async Task<CityAreaDto?> CreateAsync(CreateCityAreaRequest r){var x=new CityArea{Id=Guid.NewGuid(),City=r.City,State=r.State,Name=r.Name,Pincode=r.Pincode,Latitude=r.Latitude,Longitude=r.Longitude};await areas.AddAsync(x);return new(x.Id,x.City,x.State,x.Name,x.Pincode,x.Latitude,x.Longitude,x.IsActive);}
+}
+
+public sealed class PaymentService(ICurrentUser current,IPaymentTransactionRepository payments,ISubscriptionRepository subscriptions,IOrderRepository orders) : IPaymentService
+{
+    public async Task<PaymentDto?> CreateAsync(CreatePaymentRequest r){if(current.UserId is not Guid id)return null;if(string.IsNullOrWhiteSpace(r.IdempotencyKey))throw new ArgumentException("Idempotency key is required.");var s=await subscriptions.GetAsync(r.SubscriptionId)??throw new KeyNotFoundException("Subscription not found.");if(s.CustomerId!=id)throw new UnauthorizedAccessException();var existing=await payments.GetByIdempotencyKeyAsync(r.IdempotencyKey);if(existing is not null)return Map(existing);var now=DateTime.UtcNow;var p=new PaymentTransaction{Id=Guid.NewGuid(),CustomerId=id,SubscriptionId=s.Id,Provider=r.Provider,ProviderPaymentId=$"mock_{Guid.NewGuid():N}",IdempotencyKey=r.IdempotencyKey,Amount=s.TotalCharged,Currency="INR",Status="Paid",CreatedAtUtc=now,PaidAtUtc=now};await payments.AddAsync(p);var order=await orders.GetBySubscriptionAsync(s.Id);if(order is not null){order.Status=OrderStatus.Confirmed;await orders.UpdateAsync(order);}return Map(p);}
+    public async Task<PaymentDto?> GetAsync(Guid id){if(current.UserId is not Guid uid)return null;var p=await payments.GetAsync(id);return p is null||p.CustomerId!=uid?null:Map(p);}
+    private static PaymentDto Map(PaymentTransaction p)=>new(p.Id,p.SubscriptionId,p.Provider,p.ProviderPaymentId,p.Amount,p.Currency,p.Status,p.CreatedAtUtc,p.PaidAtUtc);
+}
+
+public sealed class DeliveryLabelService(ICurrentUser current,IDeliveryRepository deliveries,IOutletRepository outlets,ISubscriptionMealSelectionRepository selections,IRecipeRepository recipes,ICustomerAddressRepository addresses,ICityAreaRepository areas,IUserRepository users) : IDeliveryLabelService
+{
+    public async Task<IReadOnlyList<DeliveryLabelDto>> GetLabelsAsync(DateTime? date){if(current.OutletId is not Guid id)return[];var outlet=await outlets.GetByIdAsync(id);if(outlet is null)return[];var rows=await deliveries.GetByOutletAsync(id);if(date.HasValue)rows=rows.Where(x=>x.ScheduledDate.Date==date.Value.Date&&x.Status!=DeliveryStatus.Skipped).ToList();var result=new List<DeliveryLabelDto>();foreach(var d in rows){var ss=(await selections.GetBySubscriptionAndDateRangeAsync(d.SubscriptionId,d.ScheduledDate.Date,d.ScheduledDate.Date.AddDays(1))).Where(x=>x.Status==MealSelectionStatus.Scheduled||x.Status==MealSelectionStatus.Prepared||x.Status==MealSelectionStatus.OutForDelivery).ToList();var address=d.DeliveryAddressId.HasValue?await addresses.GetAsync(d.CustomerId,d.DeliveryAddressId.Value):null;var area=address is null?null:await areas.GetAsync(address.CityAreaId);var customer=await users.FindByIdAsync(d.CustomerId);foreach(var s in ss){var recipe=await recipes.GetAsync(s.RecipeId);result.Add(new(d.SubscriptionId,s.Id,s.MealDate,(int)s.MealSlot,outlet.Name,outlet.LogoUrl,customer is null?d.CustomerName:$"{customer.FirstName} {customer.LastName}".Trim(),address?.ContactPhone??"",recipe?.Name??"",recipe?.Category.ToString()??"",address?.Label??"",address is null?d.Address:$"{address.AddressLine1}, {address.AddressLine2}".Trim(' ',','),area?.Name??"",area?.Pincode??"",s.MealPrice,d.DeliveryFee));}}return result;}
+}
+
+public sealed class OutletDiscountCodeService(ICurrentUser current,IDiscountCodeRepository codes) : IOutletDiscountCodeService
+{
+    public async Task<IReadOnlyList<DiscountCodeDto>> GetAsync()=>current.OutletId is not Guid id?[]:(await codes.GetByOutletAsync(id)).Select(Map).ToList();
+    public async Task<DiscountCodeDto?> CreateAsync(CreateDiscountCodeRequest r){if(current.OutletId is not Guid id)return null;if(string.IsNullOrWhiteSpace(r.Code)||r.Percent<=0||r.Percent>100)throw new ArgumentException("Invalid discount code.");var x=new DiscountCode{Id=Guid.NewGuid(),OutletId=id,Code=r.Code.Trim().ToUpperInvariant(),Percent=r.Percent,MaxAmount=r.MaxAmount,MaxRedemptions=r.MaxRedemptions,StartsAtUtc=r.StartsAtUtc,EndsAtUtc=r.EndsAtUtc,IsActive=r.IsActive};await codes.AddAsync(x);return Map(x);}
+    public async Task<bool> DisableAsync(Guid id){if(current.OutletId is not Guid oid)return false;var x=(await codes.GetByOutletAsync(oid)).FirstOrDefault(y=>y.Id==id);if(x is null)return false;x.IsActive=false;await codes.UpdateAsync(x);return true;}
+    private static DiscountCodeDto Map(DiscountCode x)=>new(x.Id,x.OutletId,x.Code,x.Percent,x.MaxAmount,x.MaxRedemptions,x.RedemptionCount,x.StartsAtUtc,x.EndsAtUtc,x.IsActive);
+}

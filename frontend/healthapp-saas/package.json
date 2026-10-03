@@ -1,0 +1,7 @@
+{
+  "name":"healthapp-india-saas",
+  "private":true,
+  "version":"1.0.0",
+  "workspaces":["apps/*","packages/*"],
+  "scripts":{"dev:customer":"npm run dev --workspace @healthapp/customer-web","dev:outlet":"npm run dev --workspace @healthapp/outlet-web","dev:admin":"npm run dev --workspace @healthapp/admin-web","build":"npm run build --workspaces --if-present","build:customer":"npm run build --workspace @healthapp/customer-web","build:outlet":"npm run build --workspace @healthapp/outlet-web","build:admin":"npm run build --workspace @healthapp/admin-web"}
+}
