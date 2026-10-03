@@ -16,8 +16,8 @@ public sealed class OutletDeliveryRoutesController(IDeliveryRouteService service
         => Ok(await service.CreateDriverAsync(request));
 
     [HttpGet]
-    public async Task<IActionResult> Plan([FromQuery] DateTime? date)
-        => Ok(await service.GetPlanAsync((date ?? DateTime.UtcNow).Date));
+    public async Task<IActionResult> Plan([FromQuery] DateTime? date, [FromQuery] int? mealSlot)
+        => Ok(await service.GetPlanAsync((date ?? DateTime.UtcNow).Date, mealSlot ?? 2));
 
     [HttpPost("plan")]
     public async Task<IActionResult> PlanRoutes(PlanDeliveryRoutesRequest request)
