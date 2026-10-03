@@ -68,7 +68,7 @@ public interface IDeliveryRouteService
 {
     Task<IReadOnlyList<DriverDto>> GetDriversAsync();
     Task<DriverDto?> CreateDriverAsync(CreateDriverRequest request);
-    Task<DeliveryRoutePlanDto> GetPlanAsync(DateTime date);
+    Task<DeliveryRoutePlanDto> GetPlanAsync(DateTime date, int mealSlot = 2);
     Task<DeliveryRoutePlanDto> PlanRoutesAsync(PlanDeliveryRoutesRequest request);
 }
 public interface IOutletDiscountCodeService { Task<IReadOnlyList<DiscountCodeDto>> GetAsync(); Task<DiscountCodeDto?> CreateAsync(CreateDiscountCodeRequest request); Task<bool> DisableAsync(Guid id); }
