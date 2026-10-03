@@ -203,12 +203,12 @@ public sealed class DeliveryRepository(HealthAppDbContext db) : EfRepository(db)
 
 public sealed class DeliveryRouteRepository(HealthAppDbContext db) : EfRepository(db), IDeliveryRouteRepository
 {
-    public async Task<IReadOnlyList<DeliveryRoute>> GetByOutletAndDateAsync(Guid outletId, DateTime date)
-        => await db.DeliveryRoutes.AsNoTracking().Include(x => x.Stops).Where(x => x.OutletId == outletId && x.DeliveryDate >= date.Date && x.DeliveryDate < date.Date.AddDays(1)).OrderBy(x => x.DriverId).ToListAsync();
+    public async Task<IReadOnlyList<DeliveryRoute>> GetByOutletAndDateAsync(Guid outletId, DateTime date, MealSlot mealSlot)
+        => await db.DeliveryRoutes.AsNoTracking().Include(x => x.Stops).Where(x => x.OutletId == outletId && x.DeliveryDate >= date.Date && x.DeliveryDate < date.Date.AddDays(1) && x.MealSlot == mealSlot).OrderBy(x => x.DriverId).ToListAsync();
 
-    public async Task DeleteByOutletAndDateAsync(Guid outletId, DateTime date)
+    public async Task DeleteByOutletAndDateAsync(Guid outletId, DateTime date, MealSlot mealSlot)
     {
-        var routes = await db.DeliveryRoutes.Where(x => x.OutletId == outletId && x.DeliveryDate >= date.Date && x.DeliveryDate < date.Date.AddDays(1)).ToListAsync();
+        var routes = await db.DeliveryRoutes.Where(x => x.OutletId == outletId && x.DeliveryDate >= date.Date && x.DeliveryDate < date.Date.AddDays(1) && x.MealSlot == mealSlot).ToListAsync();
         if (routes.Count == 0) return;
         var routeIds = routes.Select(x => x.Id).ToList();
         var linkedDeliveries = await db.Deliveries.Where(x => x.RouteId.HasValue && routeIds.Contains(x.RouteId.Value)).ToListAsync();
