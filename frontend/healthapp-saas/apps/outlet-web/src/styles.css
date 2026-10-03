@@ -123,3 +123,15 @@
  .labelGrid{grid-template-columns:repeat(3,1fr);gap:4mm}
  .labelCard{border:1px solid #222;break-inside:avoid;background:#fff}
 }
+
+/* Delivery route window selector */
+.routeSlotPicker{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:2px 0 16px}
+.routeSlotChoice{border:1px solid #dce6df;background:#fff;border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-width:0}
+.routeSlotChoice b{font-size:10px;color:#35463c}
+.routeSlotChoice small{font-size:8px;color:#7a877f}
+.routeSlotChoice.active{border-color:#176534;background:#eaf5ed;box-shadow:inset 0 0 0 1px #176534}
+.routeSlotChoice.active b{color:#176534}
+.routeSlotChoice.active small{color:#4d6957}
+.routeDriverHead{margin-top:4px}
+@media(max-width:900px){.routeSlotPicker{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.routeSlotPicker{grid-template-columns:1fr 1fr}.routeSlotChoice{min-height:54px}}
