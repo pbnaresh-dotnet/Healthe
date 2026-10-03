@@ -1,4 +1,5 @@
 using HealthApp.Application.Orchestration;
+using Microsoft.EntityFrameworkCore;
 
 namespace HealthApp.Infrastructure.Data;
 
