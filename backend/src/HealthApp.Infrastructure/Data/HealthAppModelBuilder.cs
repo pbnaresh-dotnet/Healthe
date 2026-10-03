@@ -298,6 +298,7 @@ internal static class HealthAppModelBuilder
     {
         e.ToTable("DeliveryRoutes");
         e.HasKey(x => x.Id);
+        e.Property(x => x.MealSlot).HasConversion<int>();
         e.Property(x => x.Status).HasConversion<int>();
         e.Property(x => x.TotalDistanceKm).HasPrecision(12,3);
         e.Property(x => x.TotalDurationMinutes).HasPrecision(12,2);
@@ -310,6 +311,7 @@ internal static class HealthAppModelBuilder
     {
         e.ToTable("DeliveryRouteStops");
         e.HasKey(x => x.Id);
+        e.Property(x => x.MealSlot).HasConversion<int>();
         e.Property(x => x.Status).HasConversion<int>();
         e.Property(x => x.CustomerName).HasMaxLength(200);
         e.Property(x => x.Address).HasMaxLength(1000);
