@@ -25,9 +25,9 @@ public sealed class CustomerProfile
     public DateTime? DateOfBirth { get; set; }
     public string Goal { get; set; } = "WeightLoss";
     public string ActivityLevel { get; set; } = "Moderate";
-    public string Allergies { get; set; } = "";
     public string Diet { get; set; } = "";
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+    public ICollection<CustomerAllergy> Allergies { get; set; } = new List<CustomerAllergy>();
 }
 
 public sealed class CityArea
@@ -222,11 +222,66 @@ public sealed class Recipe
     public decimal PricePerMeal { get; set; }
     public decimal LargePricePerMeal { get; set; }
     public string Description { get; set; } = "";
-    public string Ingredients { get; set; } = "";
     public string ImageUrl { get; set; } = "";
-    public string Allergens { get; set; } = "";
     public string Tags { get; set; } = "";
     public bool IsActive { get; set; } = true;
+    public ICollection<RecipeIngredient> RecipeIngredients { get; set; } = new List<RecipeIngredient>();
+    public ICollection<RecipeAllergen> RecipeAllergens { get; set; } = new List<RecipeAllergen>();
+}
+
+public sealed class Ingredient
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = "";
+    public string DefaultUnit { get; set; } = "g";
+    public bool IsActive { get; set; } = true;
+    public ICollection<IngredientAllergen> Allergens { get; set; } = new List<IngredientAllergen>();
+}
+
+public sealed class Allergen
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = "";
+    public bool IsActive { get; set; } = true;
+    public ICollection<IngredientAllergen> Ingredients { get; set; } = new List<IngredientAllergen>();
+    public ICollection<RecipeAllergen> Recipes { get; set; } = new List<RecipeAllergen>();
+    public ICollection<CustomerAllergy> Customers { get; set; } = new List<CustomerAllergy>();
+}
+
+public sealed class RecipeIngredient
+{
+    public Guid Id { get; set; }
+    public Guid RecipeId { get; set; }
+    public Guid IngredientId { get; set; }
+    public decimal Quantity { get; set; }
+    public string Unit { get; set; } = "g";
+    public Recipe Recipe { get; set; } = null!;
+    public Ingredient Ingredient { get; set; } = null!;
+}
+
+public sealed class RecipeAllergen
+{
+    public Guid RecipeId { get; set; }
+    public Guid AllergenId { get; set; }
+    public Recipe Recipe { get; set; } = null!;
+    public Allergen Allergen { get; set; } = null!;
+}
+
+public sealed class IngredientAllergen
+{
+    public Guid IngredientId { get; set; }
+    public Guid AllergenId { get; set; }
+    public Ingredient Ingredient { get; set; } = null!;
+    public Allergen Allergen { get; set; } = null!;
+}
+
+public sealed class CustomerAllergy
+{
+    public Guid Id { get; set; }
+    public Guid CustomerId { get; set; }
+    public Guid AllergenId { get; set; }
+    public User Customer { get; set; } = null!;
+    public Allergen Allergen { get; set; } = null!;
 }
 
 public sealed class OutletMenuItem
