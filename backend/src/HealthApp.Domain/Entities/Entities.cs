@@ -1323,6 +1323,35 @@ public sealed class Delivery
     }
 }
 
+public sealed class DeliveryRoute
+{
+    public Guid Id { get; set; }
+    public Guid OutletId { get; set; }
+    public Guid DriverId { get; set; }
+    public DateTime DeliveryDate { get; set; }
+    public RouteStatus Status { get; set; } = RouteStatus.Planned;
+    public double TotalDistanceKm { get; set; }
+    public double TotalDurationMinutes { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+    public ICollection<DeliveryRouteStop> Stops { get; set; } = new List<DeliveryRouteStop>();
+}
+
+public sealed class DeliveryRouteStop
+{
+    public Guid Id { get; set; }
+    public Guid RouteId { get; set; }
+    public int StopSequence { get; set; }
+    public Guid DeliveryAddressId { get; set; }
+    public Guid CustomerId { get; set; }
+    public string CustomerName { get; set; } = "";
+    public string Address { get; set; } = "";
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public int DeliveryCount { get; set; }
+    public DeliveryStatus Status { get; set; } = DeliveryStatus.Scheduled;
+}
+
 public sealed class PlatformTransaction
 {
     public Guid Id {
