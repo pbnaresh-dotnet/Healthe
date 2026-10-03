@@ -52,4 +52,23 @@ public interface IDiscountConfigurationService { Task<IReadOnlyList<Subscription
 public interface ICityAreaAdminService { Task<IReadOnlyList<CityAreaDto>> GetAsync(string? city); Task<CityAreaDto?> CreateAsync(CreateCityAreaRequest request); }
 public interface IPaymentService { Task<PaymentDto?> CreateAsync(CreatePaymentRequest request); Task<PaymentDto?> GetAsync(Guid id); }
 public interface IDeliveryLabelService { Task<IReadOnlyList<DeliveryLabelDto>> GetLabelsAsync(DateTime? date); }
+public interface IDeliveryRouteRepository
+{
+    Task<IReadOnlyList<DeliveryRoute>> GetByOutletAndDateAsync(Guid outletId, DateTime date);
+    Task DeleteByOutletAndDateAsync(Guid outletId, DateTime date);
+    Task AddAsync(DeliveryRoute route);
+}
+public record RouteOptimizationStop(Guid Id, double Latitude, double Longitude);
+public record RouteOptimizationResult(double DistanceKm, double DurationMinutes, IReadOnlyList<Guid> OrderedStopIds, IReadOnlyList<IReadOnlyList<double>> Geometry);
+public interface IRouteOptimizationService
+{
+    Task<RouteOptimizationResult> OptimizeAsync(double outletLatitude, double outletLongitude, IReadOnlyList<RouteOptimizationStop> stops, CancellationToken cancellationToken = default);
+}
+public interface IDeliveryRouteService
+{
+    Task<IReadOnlyList<DriverDto>> GetDriversAsync();
+    Task<DriverDto?> CreateDriverAsync(CreateDriverRequest request);
+    Task<DeliveryRoutePlanDto> GetPlanAsync(DateTime date);
+    Task<DeliveryRoutePlanDto> PlanRoutesAsync(PlanDeliveryRoutesRequest request);
+}
 public interface IOutletDiscountCodeService { Task<IReadOnlyList<DiscountCodeDto>> GetAsync(); Task<DiscountCodeDto?> CreateAsync(CreateDiscountCodeRequest request); Task<bool> DisableAsync(Guid id); }
