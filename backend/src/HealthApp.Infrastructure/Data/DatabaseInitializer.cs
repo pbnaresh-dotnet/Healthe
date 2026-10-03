@@ -124,9 +124,9 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_Deliveries_RouteId' AND 
     CREATE INDEX IX_Deliveries_RouteId ON dbo.Deliveries(RouteId);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_Deliveries_RouteStopId' AND object_id=OBJECT_ID('dbo.Deliveries'))
     CREATE INDEX IX_Deliveries_RouteStopId ON dbo.Deliveries(RouteStopId);
-IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_Deliveries_Routes')
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id=OBJECT_ID('dbo.Deliveries') AND referenced_object_id=OBJECT_ID('dbo.DeliveryRoutes'))
     ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_Routes FOREIGN KEY(RouteId) REFERENCES dbo.DeliveryRoutes(Id) ON DELETE SET NULL;
-IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_Deliveries_RouteStops')
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id=OBJECT_ID('dbo.Deliveries') AND referenced_object_id=OBJECT_ID('dbo.DeliveryRouteStops'))
     ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_RouteStops FOREIGN KEY(RouteStopId) REFERENCES dbo.DeliveryRouteStops(Id) ON DELETE SET NULL;
 ", cancellationToken);
         // Keep the old text columns harmless for older databases; normalized values are now authoritative.
