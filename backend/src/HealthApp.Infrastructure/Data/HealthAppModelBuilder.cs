@@ -89,7 +89,7 @@ internal static class HealthAppModelBuilder
     {
         e.ToTable("Recipes"); e.HasKey(x => x.Id); e.Property(x => x.Name).HasMaxLength(200).IsRequired(); e.Property(x => x.Category).HasConversion<int>();
         e.Property(x => x.PricePerMeal).HasPrecision(18,2); e.Property(x => x.LargePricePerMeal).HasPrecision(18,2);
-        e.Property(x => x.Description).HasMaxLength(2000); e.Property(x => x.ImageUrl).HasMaxLength(1000); e.Property(x => x.Allergens).HasMaxLength(1000); e.Property(x => x.Tags).HasMaxLength(1000);
+        e.Property(x => x.Description).HasMaxLength(2000); e.Property(x => x.ImageUrl).HasMaxLength(1000); e.Property(x => x.Ingredients).HasMaxLength(3000); e.Property(x => x.Allergens).HasMaxLength(1000); e.Property(x => x.Tags).HasMaxLength(1000);
         e.HasIndex(x => new { x.OutletId, x.IsActive });
     }
     private static void ConfigureMenu(EntityTypeBuilder<OutletMenuItem> e)
