@@ -526,7 +526,9 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
         await plans.AddAsync(x);
         return new(x.Id,x.OutletId,x.Name,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Price,x.Currency,x.Description,x.IsActive);
     }
-    public async Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(string? category)=>current.OutletId is not Guid id?[]:(await recipes.GetByOutletAndCategoryAsync(id,category)).Select(MapRecipe).ToList();
+    public async Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(string? category) => current.OutletId is not Guid id
+        ? []
+        : (await recipes.GetByOutletAndCategoryAsync(id, category)).Select(Map).ToList();
     public async Task<RecipeDto?> CreateRecipeAsync(CreateRecipeRequest r) {
         if(current.OutletId is not Guid id)return null;
         var cat=Enum.TryParse<RecipeCategory>(r.Category,true,out var c)?c:RecipeCategory.Veg;
