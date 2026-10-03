@@ -27,7 +27,6 @@ function App(){
  const load=async p=>{setBusy(true);setError('');try{
   if(p==='dashboard'){setDash(await outletAdmin.dashboard());setRecipes(await outletAdmin.recipes());setPricing(await outletAdmin.pricingRules());}
   if(p==='kitchen')setKitchen(await outletAdmin.kitchen(kitchenDate));
-  if(p==='kitchen')setKitchen(await outletAdmin.kitchen(kitchenDate));
   if(p==='recipes'){const x=await Promise.all([outletAdmin.recipes(),catalog.ingredients(),catalog.allergens()]);setRecipes(x[0]);setIngredients(x[1]);setAllergens(x[2]);}
   if(p==='customers')setCustomers(await outletAdmin.customers());
   if(p==='subscriptions')setSubs(await outletAdmin.subscriptions());
@@ -42,8 +41,6 @@ function App(){
  useEffect(()=>{if(user)load(active)},[user,active]);
  useEffect(()=>{if(user&&active==='delivery-areas')load('delivery-areas')},[city]);
  const nav=p=>{setActive(p);setError('')};
- const openSubscription=async id=>{try{setBusy(true);setSelectedSub(await outletAdmin.subscriptionDetail(id))}catch(e){fail(e)}finally{setBusy(false)}};
- const refreshKitchen=async date=>{try{setBusy(true);setKitchen(await outletAdmin.kitchen(date))}catch(e){fail(e)}finally{setBusy(false)}};
  const openSubscription=async id=>{try{setBusy(true);setSelectedSub(await outletAdmin.subscriptionDetail(id))}catch(e){fail(e)}finally{setBusy(false)}};
  const refreshKitchen=async date=>{try{setBusy(true);setKitchen(await outletAdmin.kitchen(date))}catch(e){fail(e)}finally{setBusy(false)}};
  const signIn=async e=>{e.preventDefault();try{const x=await auth.login(login);setUser(x.user)}catch(e){fail(e)}};
