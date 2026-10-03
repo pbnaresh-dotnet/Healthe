@@ -290,6 +290,27 @@ internal static class HealthAppModelBuilder
         });
         e.HasIndex(x => x.DeliveryAddressId);
     }
+    private static void ConfigureDeliveryRoute(EntityTypeBuilder<DeliveryRoute> e)
+    {
+        e.ToTable("DeliveryRoutes");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Status).HasConversion<int>();
+        e.Property(x => x.TotalDistanceKm).HasPrecision(12,3);
+        e.Property(x => x.TotalDurationMinutes).HasPrecision(12,2);
+        e.HasIndex(x => new { x.OutletId, x.DeliveryDate });
+        e.HasIndex(x => new { x.DriverId, x.DeliveryDate });
+    }
+    private static void ConfigureDeliveryRouteStop(EntityTypeBuilder<DeliveryRouteStop> e)
+    {
+        e.ToTable("DeliveryRouteStops");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Status).HasConversion<int>();
+        e.Property(x => x.CustomerName).HasMaxLength(200);
+        e.Property(x => x.Address).HasMaxLength(1000);
+        e.HasIndex(x => new { x.RouteId, x.StopSequence }).IsUnique();
+        e.HasIndex(x => e.Property(x => x.DeliveryAddressId).Metadata.Name);
+        e.HasOne<DeliveryRoute>().WithMany(x => x.Stops).HasForeignKey(x => x.RouteId).OnDelete(DeleteBehavior.Cascade);
+    }
     private static void ConfigureCustomerProfile(EntityTypeBuilder<CustomerProfile> e)
     {
         e.ToTable("CustomerProfiles");
