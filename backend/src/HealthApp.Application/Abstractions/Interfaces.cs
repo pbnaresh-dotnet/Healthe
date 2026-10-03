@@ -54,8 +54,8 @@ public interface IPaymentService { Task<PaymentDto?> CreateAsync(CreatePaymentRe
 public interface IDeliveryLabelService { Task<IReadOnlyList<DeliveryLabelDto>> GetLabelsAsync(DateTime? date); }
 public interface IDeliveryRouteRepository
 {
-    Task<IReadOnlyList<DeliveryRoute>> GetByOutletAndDateAsync(Guid outletId, DateTime date);
-    Task DeleteByOutletAndDateAsync(Guid outletId, DateTime date);
+    Task<IReadOnlyList<DeliveryRoute>> GetByOutletAndDateAsync(Guid outletId, DateTime date, MealSlot mealSlot);
+    Task DeleteByOutletAndDateAsync(Guid outletId, DateTime date, MealSlot mealSlot);
     Task AddAsync(DeliveryRoute route);
 }
 public record RouteOptimizationStop(Guid Id, double Latitude, double Longitude);
