@@ -154,16 +154,79 @@ function SubscriptionDetail({data}) {
 }
 
 function KitchenPage({data,date,setDate,refresh}) {
- const print=()=>window.print();
+ const [printOpen,setPrintOpen]=useState(false);
+ const [printMode,setPrintMode]=useState('');
+ const [printSlots,setPrintSlots]=useState([2,3]);
+ const slots=[
+  {value:1,name:'Morning'},
+  {value:2,name:'Afternoon'},
+  {value:3,name:'Evening'},
+  {value:4,name:'Night'}
+ ];
+ const selectedLabels=useMemo(()=>data?.labels?.filter(l=>printSlots.includes(Number(l.mealSlot)))||[],[data,printSlots]);
+ const production=useMemo(()=>{
+  const map=new Map();
+  selectedLabels.forEach(l=>{
+   const key=[l.mealName,l.category,l.portionSize].join('|');
+   const current=map.get(key);
+   map.set(key,{mealName:l.mealName,category:l.category,portionSize:l.portionSize,quantity:(current?.quantity||0)+1});
+  });
+  return [...map.values()].sort((a,b)=>a.mealName.localeCompare(b.mealName)||a.portionSize.localeCompare(b.portionSize));
+ },[selectedLabels]);
+ const toggleSlot=value=>setPrintSlots(x=>x.includes(value)?x.filter(v=>v!==value):[...x,value]);
+ const doPrint=mode=>{
+  if(mode==='kitchen'&&!production.length)return;
+  if(mode==='labels'&&!selectedLabels.length)return;
+  setPrintMode(mode);
+  setPrintOpen(false);
+ };
+ useEffect(()=>{
+  if(!printMode)return;
+  const timer=setTimeout(()=>{window.print();setPrintMode('')},120);
+  return()=>clearTimeout(timer);
+ },[printMode]);
  return <div className="page">
-  <div className="pageHead no-print"><div><h1>Kitchen & Labels</h1><p>Daily production report and customer box labels.</p></div><div className="pageActions"><input type="date" value={date} onChange={e=>{setDate(e.target.value);refresh(e.target.value)}}/><button className="secondary" onClick={()=>refresh(date)}>Refresh</button><button className="primary" onClick={print}>Print labels</button></div></div>
+  <div className="pageHead no-print"><div><span className="eyebrow">KITCHEN OPERATIONS</span><h1>Kitchen & Labels</h1><p>Daily production quantities and concise delivery labels for {new Date(date).toLocaleDateString()}.</p></div><div className="pageActions"><input type="date" value={date} onChange={e=>{setDate(e.target.value);refresh(e.target.value)}}/><button className="secondary" onClick={()=>refresh(date)}>Refresh</button><button className="primary" onClick={()=>setPrintOpen(true)} disabled={!data}>Print options</button></div></div>
   {!data?<Empty title="No kitchen report loaded" text="Select a date and refresh the report."/>:<>
-   <div className="statGrid no-print"><div className="statCard static"><div><span>Meal boxes</span><b>{data.totalMeals}</b></div></div><div className="statCard static"><div><span>Customers</span><b>{data.uniqueCustomers}</b></div></div><div className="statCard static"><div><span>Subscriptions</span><b>{data.activeSubscriptions}</b></div></div></div>
-   <section className="panel no-print"><div className="panelHead"><div><h3>Production plan</h3><p>Prepare these quantities for {new Date(data.date).toLocaleDateString()}.</p></div></div>{data.production.length?<div className="productionGrid">{data.production.map(p=><div className="productionCard" key={p.mealName+p.portionSize}><div><b>{p.mealName}</b><span>{p.category} · {p.portionSize}</span></div><strong>{p.quantity}</strong></div>)}</div>:<Empty title="No scheduled meals" text="There are no active meal boxes for this date."/>}</section>
-   <section className="printArea"><div className="printHeader"><div className="healthLogo">H</div><div><b>HealthApp</b><span>Meal box labels · {new Date(data.date).toLocaleDateString()}</span></div></div><div className="labelGrid">{data.labels.map(l=><article className="labelCard" key={l.selectionId}><div className="labelBrand"><div className="healthLogo smLogo">H</div>{l.logoUrl?<img src={img(l.logoUrl)} alt={l.outletName}/>:<div className="outletLogo">{(l.outletName||'O')[0]}</div>}<div className="labelOutlet"><b>{l.outletName}</b><span>{l.subscriptionPlanName}</span></div></div><div className="labelCustomer"><span>Customer</span><b>{l.customerName}</b></div><div className="labelMeal"><span>{l.category} · {l.portionSize}</span><b>{l.mealName}</b></div><div className="labelTime"><b>{new Date(l.mealDate).toLocaleDateString()}</b><span>{l.mealSlotName} · {l.deliveryWindow}</span></div><div className="labelAddress"><b>{l.addressLabel||'Delivery address'}</b><span>{l.address}</span><span>{l.areaName + (l.pincode ? ' · ' + l.pincode : '')}</span><span>☎ {l.customerPhone||'—'}</span></div><div className="labelFooter">Prepared for scheduled delivery · Please handle according to food-safety requirements</div></article>)}</div></section>
+   <div className="statGrid no-print">
+    <div className="statCard static"><div><span>Meal boxes</span><b>{data.totalMeals}</b></div></div>
+    <div className="statCard static"><div><span>Customers</span><b>{data.uniqueCustomers}</b></div></div>
+    <div className="statCard static"><div><span>Subscriptions</span><b>{data.activeSubscriptions}</b></div></div>
+   </div>
+   <section className="panel no-print">
+    <div className="panelHead"><div><h3>Production plan</h3><p>Prepare total quantities across the selected delivery windows.</p></div><span className="pill">{production.reduce((sum,x)=>sum+x.quantity,0)} meals</span></div>
+    {production.length?<div className="productionTable"><div className="productionTableRow header"><span>Meal</span><span>Category</span><span>Portion</span><span>Qty</span></div>{production.map(p=><div className="productionTableRow" key={p.mealName+p.category+p.portionSize}><b>{p.mealName}</b><span>{p.category}</span><span>{p.portionSize}</span><strong>{p.quantity}</strong></div>)}</div>:<Empty title="No Afternoon / Evening meals" text="Choose another date or delivery window."/>}
+   </section>
+   <section className="no-print slotSummary"><span>Print window:</span>{slots.filter(s=>printSlots.includes(s.value)).map(s=><button key={s.value} className="slotChip active" onClick={()=>toggleSlot(s.value)}>{s.name} ×</button>)}{slots.filter(s=>!printSlots.includes(s.value)).map(s=><button key={s.value} className="slotChip" onClick={()=>toggleSlot(s.value)}>+ {s.name}</button>)}</section>
+
+   <section className={printMode==='kitchen'?'kitchenPrintArea printTarget':'kitchenPrintArea'}>
+    <div className="kitchenPrintHeader"><div className="healthLogo printLogo">H</div><div><b>HealthApp · Kitchen Production</b><span>{data.outletName} · {new Date(date).toLocaleDateString()} · {printSlots.map(v=>slots.find(s=>s.value===v)?.name).join(' + ')}</span></div></div>
+    <table className="kitchenPrintTable"><thead><tr><th>Meal</th><th>Category</th><th>Portion</th><th>Qty</th></tr></thead><tbody>{production.map(p=><tr key={p.mealName+p.category+p.portionSize}><td>{p.mealName}</td><td>{p.category}</td><td>{p.portionSize}</td><td><b>{p.quantity}</b></td></tr>)}</tbody></table>
+    <div className="kitchenPrintFooter">Production total: <b>{production.reduce((sum,x)=>sum+x.quantity,0)} meal boxes</b></div>
+   </section>
+
+   <section className={printMode==='labels'?'labelPrintArea printTarget':'labelPrintArea'}>
+    <div className="labelsPrintHeader"><div className="healthLogo printLogo">H</div><div><b>{data.outletName}</b><span>Delivery labels · {new Date(date).toLocaleDateString()} · {printSlots.map(v=>slots.find(s=>s.value===v)?.name).join(' + ')}</span></div></div>
+    <div className="labelGrid">{selectedLabels.map(l=><article className="labelCard" key={l.selectionId}>
+      <div className="labelTop"><div className="labelOutletBrand">{l.logoUrl?<img src={img(l.logoUrl)} alt=""/>:<div className="outletLogo">{(l.outletName||'O')[0]}</div>}<b>{l.outletName}</b></div><span>{l.subscriptionPlanName}</span></div>
+      <div className="labelCustomerCompact"><span>{l.addressLabel||'DELIVERY'}</span><b>{l.customerName}</b></div>
+      <div className="labelMealCompact"><b>{l.mealName}</b><span>{l.category} · {l.portionSize}</span></div>
+      <div className="labelMetaRow"><span>{l.mealSlotName}</span><b>{l.deliveryWindow}</b></div>
+      <div className="labelAddressCompact"><b>{l.address}</b><span>{[l.areaName,l.pincode].filter(Boolean).join(' · ')}</span>{l.customerPhone&&<span>☎ {l.customerPhone}</span>}</div>
+      <div className="labelFooterCompact"><span>HealthApp</span><b>#{String(l.selectionId).slice(0,6).toUpperCase()}</b></div>
+    </article>)}</div>
+   </section>
   </>}
+  {printOpen&&<Modal title="Print options" onClose={()=>setPrintOpen(false)}>
+   <div className="printOptions">
+    <div className="printOptionBlock"><div><b>Delivery windows</b><small>Select the meal windows for both the kitchen sheet and labels.</small></div><div className="printSlotChoices">{slots.map(s=><button type="button" key={s.value} className={printSlots.includes(s.value)?'printSlotChoice checked':'printSlotChoice'} onClick={()=>toggleSlot(s.value)}>{printSlots.includes(s.value)?'✓':'+'} {s.name}</button>)}</div></div>
+    <div className="printChoice"><div><b>Kitchen production sheet</b><small>One consolidated table: meal, category, portion and total quantity.</small></div><button className="primary" onClick={()=>doPrint('kitchen')} disabled={!production.length}>Print kitchen</button></div>
+    <div className="printChoice"><div><b>Meal-box labels</b><small>{selectedLabels.length} concise labels for the selected windows.</small></div><button className="primary" onClick={()=>doPrint('labels')} disabled={!selectedLabels.length}>Print labels</button></div>
+   </div>
+  </Modal>}
  </div>
 }
+
 function MapBounds({coords}){const map=useMap();useEffect(()=>{if(!coords.length)return;const bounds=coords.map(x=>[x[0],x[1]]);map.fitBounds(bounds,{padding:[30,30],maxZoom:13})},[map,coords]);return null}
 function DeliveryRoutesPage({plan,drivers,date,setDate,selectedDriverIds,setSelectedDriverIds,planRoutes,addDriver}){
  const routeColor=i=>`hsl(${(i*67)%360} 65% 42%)`;
