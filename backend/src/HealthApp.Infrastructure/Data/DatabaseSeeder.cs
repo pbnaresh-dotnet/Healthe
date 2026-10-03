@@ -59,6 +59,7 @@ public static class DatabaseSeeder
         var abcId=Guid.NewGuid();
         var customerId=Guid.NewGuid();
         var fitAdminId=Guid.NewGuid();
+        var driverId=Guid.NewGuid();
         var superId=Guid.NewGuid();
         db.Outlets.AddRange(
         new Outlet {
@@ -73,6 +74,9 @@ public static class DatabaseSeeder
         },
         new User {
             Id=fitAdminId, Email="admin@fitfood.test", PasswordHash=passwords.Hash("demo"), FirstName="FitFood", LastName="Admin", Role=UserRole.OutletAdmin, OutletId=fitId
+        },
+        new User {
+            Id=driverId, Email="driver@fitfood.test", PasswordHash=passwords.Hash("demo"), FirstName="FitFood", LastName="Driver", Role=UserRole.Driver, OutletId=fitId
         },
         new User {
             Id=superId, Email="admin@healthapp.test", PasswordHash=passwords.Hash("demo"), FirstName="HealthApp", LastName="Admin", Role=UserRole.SuperAdmin
