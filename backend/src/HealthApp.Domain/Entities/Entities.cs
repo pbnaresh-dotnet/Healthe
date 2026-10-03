@@ -1335,6 +1335,8 @@ public sealed class DeliveryRoute
     public RouteStatus Status { get; set; } = RouteStatus.Planned;
     public double TotalDistanceKm { get; set; }
     public double TotalDurationMinutes { get; set; }
+    public string RoutingSource { get; set; } = "OSRM";
+    public string GeometryJson { get; set; } = "[]";
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public ICollection<DeliveryRouteStop> Stops { get; set; } = new List<DeliveryRouteStop>();
