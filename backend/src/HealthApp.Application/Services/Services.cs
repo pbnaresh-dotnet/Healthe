@@ -262,7 +262,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     }
     public async Task<IReadOnlyList<RecipeDto>> GetSubscriptionRecipesAsync(Guid subscriptionId,string? category) {
         var s=await GetOwnedSubscription(subscriptionId);
-        return(await recipes.GetByOutletAndCategoryAsync(s.OutletId,category)).Where(x=>x.IsActive).Select(Map).ToList();
+        return(await recipes.GetByOutletAndCategoryAsync(s.OutletId,category)).Where(x=>x.IsActive).Select(MapRecipe).ToList();
     }
     public async Task<IReadOnlyList<MenuItemDto>> GetSubscriptionMenuAsync(Guid subscriptionId)=>await MapMenu((await GetOwnedSubscription(subscriptionId)).OutletId);
     public async Task<IReadOnlyList<MealSelectionDto>> GetMealSelectionsAsync(Guid subscriptionId,DateTime? weekStart) {
