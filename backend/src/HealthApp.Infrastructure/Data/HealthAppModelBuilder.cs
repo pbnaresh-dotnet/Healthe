@@ -431,7 +431,6 @@ internal static class HealthAppModelBuilder
         e.HasKey(x => x.Id);
         e.HasIndex(x => x.OrderId).IsUnique();
         e.Property(x => x.GrossMealAmount).HasPrecision(18,2);
-        e.Property(x => x.GrossMealAmount).HasPrecision(18,2);
         e.Property(x => x.DiscountAmount).HasPrecision(18,2);
         e.Property(x => x.NetMealAmount).HasPrecision(18,2);
         e.Property(x => x.DeliveryAmount).HasPrecision(18,2);
