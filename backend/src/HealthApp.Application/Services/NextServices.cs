@@ -88,9 +88,115 @@ public sealed class PaymentService(ICurrentUser current,IPaymentTransactionRepos
     private static PaymentDto Map(PaymentTransaction p)=>new(p.Id,p.SubscriptionId,p.Provider,p.ProviderPaymentId,p.Amount,p.Currency,p.Status,p.CreatedAtUtc,p.PaidAtUtc);
 }
 
-public sealed class DeliveryLabelService(ICurrentUser current,IDeliveryRepository deliveries,IOutletRepository outlets,ISubscriptionMealSelectionRepository selections,IRecipeRepository recipes,ICustomerAddressRepository addresses,ICityAreaRepository areas,IUserRepository users) : IDeliveryLabelService
+public sealed class DeliveryLabelService(
+    ICurrentUser current,
+    IDeliveryRepository deliveries,
+    IOutletRepository outlets,
+    ISubscriptionRepository subscriptions,
+    ISubscriptionMealSelectionRepository selections,
+    IRecipeRepository recipes,
+    ICustomerAddressRepository addresses,
+    ICityAreaRepository areas,
+    IUserRepository users) : IDeliveryLabelService
 {
-    public async Task<IReadOnlyList<DeliveryLabelDto>> GetLabelsAsync(DateTime? date){if(current.OutletId is not Guid id)return[];var outlet=await outlets.GetByIdAsync(id);if(outlet is null)return[];var rows=await deliveries.GetByOutletAsync(id);if(date.HasValue)rows=rows.Where(x=>x.ScheduledDate.Date==date.Value.Date&&x.Status!=DeliveryStatus.Skipped).ToList();var result=new List<DeliveryLabelDto>();foreach(var d in rows){var ss=(await selections.GetBySubscriptionAndDateRangeAsync(d.SubscriptionId,d.ScheduledDate.Date,d.ScheduledDate.Date.AddDays(1))).Where(x=>x.Status==MealSelectionStatus.Scheduled||x.Status==MealSelectionStatus.Prepared||x.Status==MealSelectionStatus.OutForDelivery).ToList();var address=d.DeliveryAddressId.HasValue?await addresses.GetAsync(d.CustomerId,d.DeliveryAddressId.Value):null;var area=address is null?null:await areas.GetAsync(address.CityAreaId);var customer=await users.FindByIdAsync(d.CustomerId);foreach(var s in ss){var recipe=await recipes.GetAsync(s.RecipeId);result.Add(new(d.SubscriptionId,s.Id,s.MealDate,(int)s.MealSlot,outlet.Name,outlet.LogoUrl,customer is null?d.CustomerName:$"{customer.FirstName} {customer.LastName}".Trim(),address?.ContactPhone??"",recipe?.Name??"",recipe?.Category.ToString()??"",address?.Label??"",address is null?d.Address:$"{address.AddressLine1}, {address.AddressLine2}".Trim(' ',','),area?.Name??"",area?.Pincode??"",s.MealPrice,d.DeliveryFee));}}return result;}
+    public async Task<IReadOnlyList<DeliveryLabelDto>> GetLabelsAsync(DateTime? date)
+    {
+        if(current.OutletId is not Guid id)
+            return [];
+
+        var outlet=await outlets.GetByIdAsync(id);
+        if(outlet is null)
+            return [];
+
+        var subscriptionRows=await subscriptions.GetByOutletAsync(id);
+        var subscriptionMap=subscriptionRows.ToDictionary(x=>x.Id);
+        var rows=await deliveries.GetByOutletAsync(id);
+
+        if(date.HasValue)
+            rows=rows.Where(x=>x.ScheduledDate.Date==date.Value.Date).ToList();
+
+        var result=new List<DeliveryLabelDto>();
+
+        foreach(var delivery in rows.Where(x=>x.Status!=DeliveryStatus.Skipped))
+        {
+            if(!subscriptionMap.TryGetValue(delivery.SubscriptionId,out var subscription))
+                continue;
+
+            var selectionsForDay=await selections.GetBySubscriptionAndDateRangeAsync(
+                delivery.SubscriptionId,
+                delivery.ScheduledDate.Date,
+                delivery.ScheduledDate.Date.AddDays(1));
+
+            var mealRows=selectionsForDay
+                .Where(x=>x.Status==MealSelectionStatus.Scheduled||
+                          x.Status==MealSelectionStatus.Prepared||
+                          x.Status==MealSelectionStatus.OutForDelivery)
+                .ToList();
+
+            if(subscription.DeliveryMode!=SubscriptionDeliveryMode.OneDeliveryPerDay)
+            {
+                mealRows=mealRows
+                    .Where(x=>x.MealSlot==delivery.MealSlot&&
+                              x.AddressId==delivery.DeliveryAddressId)
+                    .ToList();
+            }
+
+            var address=delivery.DeliveryAddressId.HasValue
+                ? await addresses.GetAsync(delivery.CustomerId,delivery.DeliveryAddressId.Value)
+                : null;
+            var area=address is null ? null : await areas.GetAsync(address.CityAreaId);
+            var customer=await users.FindByIdAsync(delivery.CustomerId);
+
+            foreach(var meal in mealRows)
+            {
+                var recipe=await recipes.GetAsync(meal.RecipeId);
+                var slot=GetMealSlotInfo(delivery.MealSlot);
+
+                result.Add(new DeliveryLabelDto(
+                    subscription.Id,
+                    meal.Id,
+                    meal.MealDate,
+                    (int)delivery.MealSlot,
+                    slot.Name,
+                    slot.Window,
+                    outlet.Name,
+                    outlet.LogoUrl,
+                    customer is null
+                        ? delivery.CustomerName
+                        : $"{customer.FirstName} {customer.LastName}".Trim(),
+                    address?.ContactPhone??"",
+                    recipe?.Name??"Meal",
+                    recipe?.Category.ToString()??"",
+                    meal.PortionSize.ToString(),
+                    subscription.PlanName,
+                    address?.Label??"",
+                    address is null
+                        ? delivery.Address
+                        : $"{address.AddressLine1}, {address.AddressLine2}".Trim(' ',','),
+                    area?.Name??"",
+                    area?.Pincode??"",
+                    meal.MealPrice,
+                    delivery.DeliveryFee));
+            }
+        }
+
+        return result
+            .OrderBy(x=>x.MealDate)
+            .ThenBy(x=>x.MealSlot)
+            .ThenBy(x=>x.CustomerName)
+            .ThenBy(x=>x.MealName)
+            .ToList();
+    }
+
+    private static (string Name,string Window) GetMealSlotInfo(MealSlot slot) =>
+        slot switch
+        {
+            MealSlot.Morning => ("Morning","07:00 - 09:00"),
+            MealSlot.Afternoon => ("Afternoon","12:00 - 14:00"),
+            MealSlot.Evening => ("Evening","17:00 - 19:00"),
+            MealSlot.Night => ("Night","20:00 - 22:00"),
+            _ => (slot.ToString(),"")
+        };
 }
 
 public sealed class OutletDiscountCodeService(ICurrentUser current,IDiscountCodeRepository codes) : IOutletDiscountCodeService
