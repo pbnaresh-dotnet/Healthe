@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HealthApp.Infrastructure.Repositories;
 
-internal abstract class EfRepository(HealthAppDbContext Db)
+public abstract class EfRepository(HealthAppDbContext Db)
 {
     protected HealthAppDbContext Context => Db;
     protected Task<int> SaveAsync(CancellationToken ct = default) => Db.SaveChangesAsync(ct);
