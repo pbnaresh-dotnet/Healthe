@@ -1332,6 +1332,7 @@ public sealed class DeliveryRoute
     public Guid OutletId { get; set; }
     public Guid DriverId { get; set; }
     public DateTime DeliveryDate { get; set; }
+    public MealSlot MealSlot { get; set; } = MealSlot.Morning;
     public RouteStatus Status { get; set; } = RouteStatus.Planned;
     public double TotalDistanceKm { get; set; }
     public double TotalDurationMinutes { get; set; }
@@ -1347,6 +1348,7 @@ public sealed class DeliveryRouteStop
     public Guid Id { get; set; }
     public Guid RouteId { get; set; }
     public int StopSequence { get; set; }
+    public MealSlot MealSlot { get; set; } = MealSlot.Morning;
     public Guid DeliveryAddressId { get; set; }
     public Guid CustomerId { get; set; }
     public string CustomerName { get; set; } = "";
