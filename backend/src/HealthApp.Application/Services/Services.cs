@@ -74,7 +74,7 @@ public sealed class CustomerService(
     IDeliveryModeStrategyFactory deliveryModeFactory, IMealPriceStrategy mealPrice, ILateSkipFeePolicy lateSkipPolicy,
     IPlatformTransactionRepository transactions, IDomainEventDispatcher events, IUnitOfWork unitOfWork,
     ICustomerAddressRepository addresses, ISubscriptionDiscountTierRepository discountTiers, IMealSelectionHistoryRepository selectionHistory,
-    IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries) : ICustomerService
+    IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety) : ICustomerService
 {
     public async Task<UserDto?> GetProfileAsync()
     {
@@ -105,6 +105,8 @@ public sealed class CustomerService(
         var meals = BuildSelections(r.Selections, outlet.Id, menuItems, rs);
         ValidateDeliveryMode(deliveryMode, meals);
         ValidateSelectionWindow(duration, meals);
+        var selectedRecipes = meals.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
+        var allergyWarnings = await allergySafety.GetWarningsAsync(customerId, selectedRecipes);
         foreach (var m in meals) if (!m.AddressId.HasValue) throw new ArgumentException("Every scheduled meal requires a delivery address.");
         var tiers = await discountTiers.GetByOutletAsync(outlet.Id);
         var packageDiscount = discountStrategy.Calculate(new(duration, meals), tiers);
@@ -120,7 +122,7 @@ public sealed class CustomerService(
         var quotes = new List<DeliveryQuoteDto>();
         foreach (var addressId in meals.Select(x => x.AddressId!.Value).Distinct()) quotes.Add(await deliveryCalculator.QuoteAsync(outlet.Id, customerId, addressId));
         var payable = net + taxes.RestaurantAmount + delivery + service + taxes.PlatformAmount;
-        return new(gross, gross == 0 ? 0 : Math.Round(totalDiscount / gross * 100m, 4), totalDiscount, net, taxes.RestaurantAmount, delivery, service, taxes.PlatformAmount, payable, commissionRate, commission, service + commission, quotes);
+        return new(gross, gross == 0 ? 0 : Math.Round(totalDiscount / gross * 100m, 4), totalDiscount, net, taxes.RestaurantAmount, delivery, service, taxes.PlatformAmount, payable, commissionRate, commission, service + commission, quotes, allergyWarnings, allergyWarnings.Count>0 && !allergyWarnings.All(x=>(r.ConfirmedAllergyRecipeIds??[]).Contains(x.RecipeId)));
     }
 
     public async Task<SubscriptionDto?> SubscribeAsync(CreateSubscriptionRequest r)
@@ -136,6 +138,8 @@ public sealed class CustomerService(
         var mealEntities = BuildSelections(r.Selections, outlet.Id, await menu.GetByOutletAsync(outlet.Id), rs);
         ValidateDeliveryMode(deliveryMode, mealEntities);
         ValidateSelectionWindow(duration, mealEntities);
+        var selectedRecipes = mealEntities.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
+        await allergySafety.EnsureConfirmedAsync(customerId, selectedRecipes, r.ConfirmedAllergyRecipeIds);
         foreach (var meal in mealEntities)
         {
             if (!meal.AddressId.HasValue) throw new ArgumentException("Select a delivery address for every meal.");
