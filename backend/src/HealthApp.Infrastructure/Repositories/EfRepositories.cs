@@ -201,6 +201,34 @@ public sealed class DeliveryRepository(HealthAppDbContext db) : EfRepository(db)
     public async Task<IReadOnlyList<Delivery>> GetBySubscriptionAsync(Guid subscriptionId) => await db.Deliveries.AsNoTracking().Where(x => x.SubscriptionId == subscriptionId).OrderBy(x => x.ScheduledDate).ThenBy(x => x.MealSlot).ToListAsync();
 }
 
+public sealed class DeliveryRouteRepository(HealthAppDbContext db) : EfRepository(db), IDeliveryRouteRepository
+{
+    public async Task<IReadOnlyList<DeliveryRoute>> GetByOutletAndDateAsync(Guid outletId, DateTime date)
+        => await db.DeliveryRoutes.AsNoTracking().Include(x => x.Stops).Where(x => x.OutletId == outletId && x.DeliveryDate >= date.Date && x.DeliveryDate < date.Date.AddDays(1)).OrderBy(x => x.DriverId).ToListAsync();
+
+    public async Task DeleteByOutletAndDateAsync(Guid outletId, DateTime date)
+    {
+        var routes = await db.DeliveryRoutes.Where(x => x.OutletId == outletId && x.DeliveryDate >= date.Date && x.DeliveryDate < date.Date.AddDays(1)).ToListAsync();
+        if (routes.Count == 0) return;
+        var routeIds = routes.Select(x => x.Id).ToList();
+        var linkedDeliveries = await db.Deliveries.Where(x => x.RouteId.HasValue && routeIds.Contains(x.RouteId.Value)).ToListAsync();
+        foreach (var delivery in linkedDeliveries)
+        {
+            delivery.RouteId = null;
+            delivery.RouteStopId = null;
+            delivery.RouteSequence = null;
+        }
+        db.DeliveryRoutes.RemoveRange(routes);
+        await SaveAsync();
+    }
+
+    public async Task AddAsync(DeliveryRoute route)
+    {
+        db.DeliveryRoutes.Add(route);
+        await SaveAsync();
+    }
+}
+
 public sealed class CustomerProfileRepository(HealthAppDbContext db) : EfRepository(db), ICustomerProfileRepository
 {
     public Task<CustomerProfile?> GetAsync(Guid customerId) => db.CustomerProfiles
