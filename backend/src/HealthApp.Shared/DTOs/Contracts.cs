@@ -24,7 +24,7 @@ public record CreateMealPlanRequest(string Name, string Frequency, int MealsPerD
 public record CreateRecipeRequest(string Name, string Category, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, decimal PricePerMeal, decimal LargePricePerMeal, string Description = "", string ImageUrl = "", string Tags = "", IReadOnlyList<RecipeIngredientInput>? Ingredients = null, IReadOnlyList<Guid>? AllergenIds = null);
 public record UpdateRecipeRequest(string Name, string Category, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, decimal PricePerMeal, decimal LargePricePerMeal, string Description = "", string ImageUrl = "", string Tags = "", IReadOnlyList<RecipeIngredientInput>? Ingredients = null, IReadOnlyList<Guid>? AllergenIds = null, bool IsActive = true);
 public record MealSelectionItem(DateTime MealDate, int MealSlot, Guid RecipeId, int PortionSize = 1, Guid? AddressId = null);
-public record SaveMealSelectionsRequest(IReadOnlyList<MealSelectionItem> Selections);
+public record SaveMealSelectionsRequest(IReadOnlyList<MealSelectionItem> Selections, IReadOnlyList<Guid>? ConfirmedAllergyRecipeIds = null);
 public record MealSelectionDto(Guid Id, Guid SubscriptionId, DateTime MealDate, int MealSlot, Guid RecipeId, string RecipeName, string Category, int PortionSize, string Status, decimal MealPrice, decimal DeliveryFee, decimal LateSkipFee = 0m, DateTime? SkippedAtUtc = null, DateTime? RescheduledAtUtc = null);
 public record SkipMealRequest(string Reason = "Customer skipped meal");
 public record SkipDayRequest(string Reason = "Customer skipped day");
