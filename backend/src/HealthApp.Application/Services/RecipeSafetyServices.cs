@@ -23,18 +23,26 @@ public sealed class AllergySafetyService(ICustomerProfileRepository profiles) : 
         foreach(var recipe in recipes)
         {
             var matched=new Dictionary<Guid,string>();
+            var matchedIngredients=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach(var ra in recipe.RecipeAllergens)
                 if(customerAllergens.TryGetValue(ra.AllergenId,out var allergen)) matched[allergen.Id]=allergen.Name;
             foreach(var ri in recipe.RecipeIngredients)
                 foreach(var ia in ri.Ingredient.Allergens)
-                    if(customerAllergens.TryGetValue(ia.AllergenId,out var allergen)) matched[allergen.Id]=allergen.Name;
+                    if(customerAllergens.TryGetValue(ia.AllergenId,out var allergen))
+                    {
+                        matched[allergen.Id]=allergen.Name;
+                        matchedIngredients.Add($"{ri.Ingredient.Name} ({ri.Quantity:0.###} {ri.Unit})");
+                    }
             if(matched.Count>0)
             {
+                var allergyNames=matched.Values.OrderBy(x=>x).ToList();
+                var ingredients=matchedIngredients.OrderBy(x=>x).ToList();
                 warnings.Add(new AllergyWarningDto(
                     recipe.Id,
                     recipe.Name,
-                    matched.Values.OrderBy(x=>x).ToList(),
-                    $"This meal may contain {string.Join(", ",matched.Values.OrderBy(x=>x))} that matches an allergy in your profile. Please review the ingredients before continuing."));
+                    allergyNames,
+                    ingredients,
+                    $"This meal contains or may contain ingredients associated with {string.Join(", ",allergyNames)} in your profile. Please review the ingredient list before continuing."));
             }
         }
         return warnings;
