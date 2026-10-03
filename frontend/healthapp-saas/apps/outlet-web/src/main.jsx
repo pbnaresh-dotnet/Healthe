@@ -7,7 +7,7 @@ import'./styles.css';
 const ORIGIN=API_URL.replace(/\/api\/?$/,'');
 const img=u=>u?(u.startsWith('http')?u:ORIGIN+u):'';
 const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-const SLOTS=[['Breakfast',0],['Lunch',1],['Dinner',2],['Snack',3]];
+const SLOTS=[['Morning',1],['Afternoon',2],['Evening',3],['Night',4]];
 const emptyRecipe={name:'',category:'Veg',calories:0,proteinGrams:0,carbsGrams:0,fatGrams:0,pricePerMeal:0,largePricePerMeal:0,description:'',ingredients:[],allergenIds:[],tags:'',imageUrl:'',isActive:true};
 
 function Modal({title,onClose,children,wide}){return <div className="overlay" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><div className={wide?'modal wide':'modal'}><div className="modalHead"><h3>{title}</h3><button className="iconBtn" onClick={onClose}>×</button></div>{children}</div></div>}
