@@ -198,7 +198,10 @@ public sealed class CustomerService(
     public async Task<IReadOnlyList<MealSelectionDto>> SaveMealSelectionsAsync(Guid subscriptionId,SaveMealSelectionsRequest r)
     {
         var s=await GetOwnedSubscription(subscriptionId); if(s.Status!=SubscriptionStatus.Active)throw new InvalidOperationException("Only active subscriptions can be changed."); if(r.Selections.Count==0)throw new ArgumentException("At least one meal selection is required.");
-        var newRows=BuildSelections(r.Selections,s.OutletId,await menu.GetByOutletAsync(s.OutletId),(await recipes.GetByOutletAsync(s.OutletId)).Where(x=>x.IsActive).ToDictionary(x=>x.Id),s.Id);ValidateDeliveryMode(s.DeliveryMode,newRows);
+        var recipeLookup=(await recipes.GetByOutletAsync(s.OutletId)).Where(x=>x.IsActive).ToDictionary(x=>x.Id);
+        var newRows=BuildSelections(r.Selections,s.OutletId,await menu.GetByOutletAsync(s.OutletId),recipeLookup,s.Id);ValidateDeliveryMode(s.DeliveryMode,newRows);
+        var selectedRecipes=newRows.Select(x=>recipeLookup[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
+        await allergySafety.EnsureConfirmedAsync(s.CustomerId,selectedRecipes,r.ConfirmedAllergyRecipeIds);
         foreach(var x in newRows){if(!x.AddressId.HasValue)throw new ArgumentException("Every meal requires an address.");var q=await deliveryCalculator.QuoteAsync(s.OutletId,s.CustomerId,x.AddressId.Value);x.DeliveryFee=q.DeliveryFee;}
         var from=newRows.Min(x=>x.MealDate).Date;var to=newRows.Max(x=>x.MealDate).Date.AddDays(1);
         await unitOfWork.ExecuteAsync(async()=>{await selections.DeleteBySubscriptionAndDateRangeAsync(s.Id,from,to);await selections.AddRangeAsync(newRows);});
