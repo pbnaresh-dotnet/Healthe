@@ -7,7 +7,12 @@ namespace HealthApp.Application.Services;
 
 public sealed class CustomerProfileService(ICurrentUser current, ICustomerProfileRepository profiles, IAllergenRepository allergens, ICustomerAllergyRepository customerAllergies) : ICustomerProfileService
 {
-    public async Task<CustomerProfileDto?> GetAsync(){if(current.UserId is not Guid id)return null;var p=await profiles.GetAsync(id);return p is null?null:Map(p);}
+    public async Task<CustomerProfileDto?> GetAsync()
+    {
+        if(current.UserId is not Guid id)return null;
+        var p=await profiles.GetAsync(id);
+        return p is null?null:await Map(p,id);
+    }
     public async Task<CustomerProfileDto?> SaveAsync(SaveCustomerProfileRequest r)
     {
         if(current.UserId is not Guid id)return null;
@@ -21,9 +26,23 @@ public sealed class CustomerProfileService(ICurrentUser current, ICustomerProfil
         await profiles.AddOrUpdateAsync(p);
         await customerAllergies.ReplaceAsync(id,requested);
         p=await profiles.GetAsync(id)??p;
-        return Map(p);
+        return await Map(p,id);
     }
-    private static CustomerProfileDto Map(CustomerProfile p)=>new(p.Id,p.CustomerId,p.WeightKg,p.HeightCm,p.Bmi,p.Goal,p.ActivityLevel,p.Diet,p.UpdatedAtUtc,p.Allergies.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).OrderBy(a=>a.Name).ToList());
+    private async Task<CustomerProfileDto> Map(CustomerProfile p,Guid customerId)
+    {
+        var allergies=await customerAllergies.GetByCustomerAsync(customerId);
+        return new(
+            p.Id,
+            p.CustomerId,
+            p.WeightKg,
+            p.HeightCm,
+            p.Bmi,
+            p.Goal,
+            p.ActivityLevel,
+            p.Diet,
+            p.UpdatedAtUtc,
+            allergies.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).OrderBy(a=>a.Name).ToList());
+    }
 }
 
 public sealed class CustomerAddressService(ICurrentUser current,ICustomerAddressRepository addresses,ICityAreaRepository areas,IOutletDeliveryAreaRepository outletAreas,IDeliveryPricingRepository pricing,IOutletRepository outlets,IDeliveryCalculator calculator) : ICustomerAddressService
