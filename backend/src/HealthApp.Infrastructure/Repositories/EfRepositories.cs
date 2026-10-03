@@ -211,13 +211,16 @@ public sealed class DeliveryRouteRepository(HealthAppDbContext db) : EfRepositor
         var routes = await db.DeliveryRoutes.Where(x => x.OutletId == outletId && x.DeliveryDate >= date.Date && x.DeliveryDate < date.Date.AddDays(1) && x.MealSlot == mealSlot).ToListAsync();
         if (routes.Count == 0) return;
         var routeIds = routes.Select(x => x.Id).ToList();
-        var linkedDeliveries = await db.Deliveries.Where(x => x.RouteId.HasValue && routeIds.Contains(x.RouteId.Value)).ToListAsync();
-        foreach (var delivery in linkedDeliveries)
-        {
-            delivery.RouteId = null;
-            delivery.RouteStopId = null;
-            delivery.RouteSequence = null;
-        }
+        // Clear route links with a bulk SQL UPDATE so the deliveries are not tracked.
+        // PlanRoutesAsync reloads eligible deliveries as no-tracking and later updates those
+        // instances. Keeping another tracked instance here causes EF identity-map conflicts.
+        await db.Deliveries
+            .Where(x => x.RouteId.HasValue && routeIds.Contains(x.RouteId.Value))
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.RouteId, (Guid?)null)
+                .SetProperty(x => x.RouteStopId, (Guid?)null)
+                .SetProperty(x => x.RouteSequence, (int?)null));
+
         db.DeliveryRoutes.RemoveRange(routes);
         await SaveAsync();
     }
