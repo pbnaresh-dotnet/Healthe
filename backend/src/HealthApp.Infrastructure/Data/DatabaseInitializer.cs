@@ -84,6 +84,7 @@ BEGIN
         OutletId uniqueidentifier NOT NULL,
         DriverId uniqueidentifier NOT NULL,
         DeliveryDate datetime2 NOT NULL,
+        MealSlot int NOT NULL CONSTRAINT DF_DeliveryRoutes_MealSlot DEFAULT 1,
         Status int NOT NULL CONSTRAINT DF_DeliveryRoutes_Status DEFAULT 0,
         TotalDistanceKm float NOT NULL CONSTRAINT DF_DeliveryRoutes_Distance DEFAULT 0,
         TotalDurationMinutes float NOT NULL CONSTRAINT DF_DeliveryRoutes_Duration DEFAULT 0,
@@ -101,6 +102,7 @@ BEGIN
         Id uniqueidentifier NOT NULL CONSTRAINT PK_DeliveryRouteStops PRIMARY KEY,
         RouteId uniqueidentifier NOT NULL,
         StopSequence int NOT NULL,
+        MealSlot int NOT NULL CONSTRAINT DF_DeliveryRouteStops_MealSlot DEFAULT 1,
         DeliveryAddressId uniqueidentifier NOT NULL,
         CustomerId uniqueidentifier NOT NULL,
         CustomerName nvarchar(200) NOT NULL,
@@ -114,6 +116,10 @@ BEGIN
     CREATE UNIQUE INDEX IX_DeliveryRouteStops_Route_Sequence ON dbo.DeliveryRouteStops(RouteId,StopSequence);
     CREATE INDEX IX_DeliveryRouteStops_Address ON dbo.DeliveryRouteStops(DeliveryAddressId);
 END;
+IF COL_LENGTH('dbo.DeliveryRoutes','MealSlot') IS NULL
+    ALTER TABLE dbo.DeliveryRoutes ADD MealSlot int NOT NULL CONSTRAINT DF_DeliveryRoutes_MealSlot_Compat DEFAULT 1;
+IF COL_LENGTH('dbo.DeliveryRouteStops','MealSlot') IS NULL
+    ALTER TABLE dbo.DeliveryRouteStops ADD MealSlot int NOT NULL CONSTRAINT DF_DeliveryRouteStops_MealSlot_Compat DEFAULT 1;
 IF COL_LENGTH('dbo.Deliveries','RouteId') IS NULL
     ALTER TABLE dbo.Deliveries ADD RouteId uniqueidentifier NULL;
 IF COL_LENGTH('dbo.Deliveries','RouteStopId') IS NULL
