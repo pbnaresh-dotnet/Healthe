@@ -421,10 +421,9 @@ public static class DatabaseSeeder
     }
     private static async Task EnsureExistingRecipeCatalogLinksAsync(HealthAppDbContext db,CancellationToken ct)
     {
-        var recipes=await db.Recipes.ToListAsync(ct);
-        var ingredients=await db.Ingredients.ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
-        var wanted=new Dictionary<string,
-        (string Name,decimal Quantity,string Unit)[]>
+        var recipes=await db.Recipes.AsNoTracking().ToListAsync(ct);
+        var ingredients=await db.Ingredients.AsNoTracking().ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
+        var wanted=new Dictionary<string,(string Name,decimal Quantity,string Unit)[]>
         {
             ["Paneer Power Bowl"]=[("Paneer",120,"g"),("Brown Rice",150,"g"),("Broccoli",80,"g"),("Olive Oil",10,"g")],
             ["Chicken Tikka Bowl"]=[("Chicken Breast",150,"g"),("Brown Rice",150,"g"),("Broccoli",80,"g"),("Olive Oil",10,"g")],
@@ -433,24 +432,54 @@ public static class DatabaseSeeder
             ["Prawn Noodles"]=[("Prawns",140,"g"),("Wheat Noodles",150,"g"),("Broccoli",80,"g"),("Olive Oil",10,"g")],
             ["Mutton Curry"]=[("Mutton",150,"g"),("Brown Rice",150,"g"),("Broccoli",70,"g"),("Olive Oil",10,"g")]
         };
+
         foreach(var recipe in recipes)
         {
-            if(!wanted.TryGetValue(recipe.Name,out var items)) continue;
-            var existing=await db.RecipeIngredients.Where(x=>x.RecipeId==recipe.Id).ToListAsync(ct);
-            if(existing.Count==0) AddRecipeIngredients(recipe,items,ingredients);
+            if(!wanted.TryGetValue(recipe.Name,out var items))
+                continue;
+
+            foreach(var item in items)
+            {
+                if(!ingredients.TryGetValue(item.Name,out var ingredient))
+                    continue;
+
+                await db.Database.ExecuteSqlInterpolatedAsync($@"
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.RecipeIngredients
+    WHERE RecipeId={recipe.Id} AND IngredientId={ingredient.Id}
+)
+BEGIN
+    INSERT INTO dbo.RecipeIngredients
+        (Id,RecipeId,IngredientId,Quantity,Unit)
+    VALUES
+        ({Guid.NewGuid()},{recipe.Id},{ingredient.Id},{item.Quantity},{item.Unit});
+END",ct);
+            }
         }
-        var customer=await db.Users.FirstOrDefaultAsync(x=>x.Email=="customer@healthapp.test",ct);
-        if(customer is not null)
+
+        var customer=await db.Users.AsNoTracking().FirstOrDefaultAsync(x=>x.Email=="customer@healthapp.test",ct);
+        if(customer is null)
+            return;
+
+        var all=await db.Allergens.AsNoTracking().ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
+        foreach(var name in new[] {"Milk","Shellfish"})
         {
-            var all=await db.Allergens.ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
-            foreach(var name in new[] {
-                "Milk","Shellfish"
-            })
-            if(all.TryGetValue(name,out var a)&&!await db.CustomerAllergies.AnyAsync(x=>x.CustomerId==customer.Id&&x.AllergenId==a.Id,ct))
-            db.CustomerAllergies.Add(new CustomerAllergy {
-                Id=Guid.NewGuid(),CustomerId=customer.Id,AllergenId=a.Id
-            });
+            if(!all.TryGetValue(name,out var allergen))
+                continue;
+
+            await db.Database.ExecuteSqlInterpolatedAsync($@"
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.CustomerAllergies
+    WHERE CustomerId={customer.Id} AND AllergenId={allergen.Id}
+)
+BEGIN
+    INSERT INTO dbo.CustomerAllergies
+        (Id,CustomerId,AllergenId)
+    VALUES
+        ({Guid.NewGuid()},{customer.Id},{allergen.Id});
+END",ct);
         }
-        await db.SaveChangesAsync(ct);
     }
 }
