@@ -27,6 +27,8 @@ internal static class HealthAppModelBuilder
         ConfigureCredit(b.Entity<CustomerCreditTransaction>());
         ConfigureOrder(b.Entity<Order>());
         ConfigureDelivery(b.Entity<Delivery>());
+        ConfigureDeliveryRoute(b.Entity<DeliveryRoute>());
+        ConfigureDeliveryRouteStop(b.Entity<DeliveryRouteStop>());
         ConfigureCustomerProfile(b.Entity<CustomerProfile>());
         ConfigureCityArea(b.Entity<CityArea>());
         ConfigureOutletDeliveryArea(b.Entity<OutletDeliveryArea>());
