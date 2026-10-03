@@ -234,8 +234,6 @@ public sealed class DeliveryRouteService(
                 link.Delivery.RouteSequence = link.Sequence;
                 await deliveries.UpdateAsync(link.Delivery);
             }
-
-            await routes.AddAsync(route);
         }
 
         return await GetPlanAsync(date, request.MealSlot);
