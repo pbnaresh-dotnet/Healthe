@@ -242,7 +242,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             {
                 var first = group.First();  var address = await addresses.GetAsync(customerId, first.AddressId!.Value) ?? throw new InvalidOperationException("Delivery address could not be resolved.");
                 await deliveries.AddAsync(new Delivery {
-                    Id=Guid.NewGuid(),OrderId=order.Id,SubscriptionId=subscription.Id,OutletId=outlet.Id,CustomerId=customerId,DeliveryAddressId=address.Id,ScheduledDate=first.MealDate,MealSlot=first.MealSlot,CustomerName=customer is null?"":$"{customer.FirstName} {customer.LastName}".Trim(),Address=$"{address.AddressLine1}, {address.AddressLine2}, {address.ContactPhone}".Trim(' ',','),DeliveryFee=first.DeliveryFee,Status=DeliveryStatus.Scheduled
+                    Id=Guid.NewGuid(),OrderId=order.Id,SubscriptionId=subscription.Id,OutletId=outlet.Id,CustomerId=customerId,DeliveryAddressId=address.Id,ScheduledDate=first.MealDate,MealSlot=deliveryMode==SubscriptionDeliveryMode.OneDeliveryPerDay?MealSlot.Afternoon:first.MealSlot,CustomerName=customer is null?"":$"{customer.FirstName} {customer.LastName}".Trim(),Address=$"{address.AddressLine1}, {address.AddressLine2}, {address.ContactPhone}".Trim(' ',','),DeliveryFee=first.DeliveryFee,Status=DeliveryStatus.Scheduled
                 });
             }
             await transactions.AddAsync(new PlatformTransaction {
@@ -376,7 +376,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             }); await selectionHistory.AddAsync(new MealSelectionHistory {
                 Id=Guid.NewGuid(),MealSelectionId=item.Id,SubscriptionId=s.Id,Action="Rescheduled",OccurredAtUtc=DateTime.UtcNow,FromMealDate=oldDate,ToMealDate=newDate,Reason="Customer rescheduled unused meal",Amount=0
             }); var address=await addresses.GetAsync(s.CustomerId,addressId.Value); var customer=await users.FindByIdAsync(s.CustomerId); var existing=await deliveries.GetBySubscriptionAsync(s.Id); var reuse=s.DeliveryMode==SubscriptionDeliveryMode.OneDeliveryPerDay&&existing.Any(x=>x.ScheduledDate.Date==newDate&&x.Status==DeliveryStatus.Scheduled&&x.DeliveryAddressId==addressId.Value); if(!reuse&&address is not null)await deliveries.AddAsync(new Delivery {
-                Id=Guid.NewGuid(),OrderId=existing.FirstOrDefault()?.OrderId??Guid.Empty,SubscriptionId=s.Id,OutletId=s.OutletId,CustomerId=s.CustomerId,DeliveryAddressId=address.Id,ScheduledDate=newDate,MealSlot=(MealSlot)r.NewMealSlot,CustomerName=customer is null?"":$"{customer.FirstName} {customer.LastName}".Trim(),Address=$"{address.AddressLine1}, {address.AddressLine2}, {address.ContactPhone}".Trim(' ',','),DeliveryFee=q.DeliveryFee,Status=DeliveryStatus.Scheduled
+                Id=Guid.NewGuid(),OrderId=existing.FirstOrDefault()?.OrderId??Guid.Empty,SubscriptionId=s.Id,OutletId=s.OutletId,CustomerId=s.CustomerId,DeliveryAddressId=address.Id,ScheduledDate=newDate,MealSlot=s.DeliveryMode==SubscriptionDeliveryMode.OneDeliveryPerDay?MealSlot.Afternoon:(MealSlot)r.NewMealSlot,CustomerName=customer is null?"":$"{customer.FirstName} {customer.LastName}".Trim(),Address=$"{address.AddressLine1}, {address.AddressLine2}, {address.ContactPhone}".Trim(' ',','),DeliveryFee=q.DeliveryFee,Status=DeliveryStatus.Scheduled
             }); await events.PublishAsync(new MealRescheduledEvent(s.Id,replacement.Id,oldDate,newDate,s.CustomerId,s.OutletId));
         });
         return (await MapSelections(new[] {
@@ -474,31 +474,42 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
 }
 public sealed class OutletService(ICurrentUser current,IOutletRepository outlets,IOutletSubscriptionRepository outletSubs,ISaaSPlanRepository saasPlans,IMealPlanRepository plans,IRecipeRepository recipes,IOutletMenuRepository menu,IUserRepository users,ISubscriptionRepository subscriptions,IOrderRepository orders,IDeliveryRepository deliveries,IIngredientRepository ingredients,IAllergenRepository allergens,ISubscriptionMealSelectionRepository selections,ICustomerAddressRepository addresses,ICityAreaRepository areas,IDeliveryLabelService deliveryLabels) : IOutletService
 {
-    public async Task<object> GetDashboardAsync()
+    public async Task<OutletDashboardDto> GetDashboardAsync()
     {
-        if(current.OutletId is not Guid id)
+        if (current.OutletId is not Guid id)
             throw new UnauthorizedAccessException("The current user is not associated with an outlet.");
 
-        var outlet=await GetCurrentAsync()??throw new KeyNotFoundException("Outlet not found.");
-        var subscriptionsList=await subscriptions.GetByOutletAsync(id);
-        var plansList=await plans.GetByOutletAsync(id);
-        var recipesList=await recipes.GetByOutletAsync(id);
-        var customersList=await users.GetAllAsync();
-        var ordersList=await orders.GetByOutletAsync(id);
-        var customerIds=subscriptionsList.Select(x=>x.CustomerId).ToHashSet();
-        var customerMap=customersList.Where(x=>customerIds.Contains(x.Id)).ToDictionary(x=>x.Id);
-        var windowStart=DateTime.UtcNow.Date.AddDays(-6);
-        var newSubscriptions=subscriptionsList.Where(x=>x.StartDate.Date>=windowStart).ToList();
-        var newCustomers=subscriptionsList
-            .GroupBy(x=>x.CustomerId)
-            .Count(g=>g.Min(x=>x.StartDate).Date>=windowStart);
-        var recentSubscriptions=newSubscriptions
-            .OrderByDescending(x=>x.StartDate)
+        var outlet = await GetCurrentAsync() ?? throw new KeyNotFoundException("Outlet not found.");
+        var subscriptionsList = await subscriptions.GetByOutletAsync(id);
+        var plansList = await plans.GetByOutletAsync(id);
+        var recipesList = await recipes.GetByOutletAsync(id);
+        var customersList = await users.GetAllAsync();
+        var ordersList = await orders.GetByOutletAsync(id);
+        var deliveriesList = await deliveries.GetByOutletAsync(id);
+
+        var windowStart = DateTime.UtcNow.Date.AddDays(-6);
+        var today = DateTime.UtcNow.Date;
+
+        var customerIds = subscriptionsList
+            .Where(x => x.Status == SubscriptionStatus.Active)
+            .Select(x => x.CustomerId)
+            .ToHashSet();
+
+        var newSubscriptions = subscriptionsList
+            .Where(x => x.StartDate.Date >= windowStart)
+            .ToList();
+
+        var newCustomers = subscriptionsList
+            .GroupBy(x => x.CustomerId)
+            .Count(g => g.Min(x => x.StartDate).Date >= windowStart);
+
+        var recentSubscriptions = newSubscriptions
+            .OrderByDescending(x => x.StartDate)
             .Take(8)
-            .Select(x=>new OutletDashboardSubscriptionDto(
+            .Select(x => new OutletDashboardSubscriptionDto(
                 x.Id,
                 x.CustomerId,
-                customerMap.TryGetValue(x.CustomerId,out var customer)
+                customersList.FirstOrDefault(c => c.Id == x.CustomerId) is { } customer
                     ? $"{customer.FirstName} {customer.LastName}".Trim()
                     : "Customer",
                 x.PlanName,
@@ -507,21 +518,70 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
                 x.MealsPerWeek,
                 x.Status.ToString()))
             .ToList();
-        var todayLabels=await deliveryLabels.GetLabelsAsync(DateTime.UtcNow.Date);
 
-        return new
+        var todayDeliveries = deliveriesList
+            .Where(x => x.ScheduledDate.Date == today && x.Status != DeliveryStatus.Skipped)
+            .ToList();
+
+        var todayDeliveryPoints = todayDeliveries
+            .Where(x => x.DeliveryAddressId.HasValue)
+            .Select(x => x.DeliveryAddressId!.Value)
+            .Distinct()
+            .Count();
+
+        var pendingStatuses = new[]
         {
-            outlet,
-            mealPlans=plansList.Count(x=>x.IsActive),
-            recipes=recipesList.Count(x=>x.IsActive),
-            customers=customerIds.Count,
-            subscriptions=subscriptionsList.Count,
-            orders=ordersList.Count,
-            newCustomers,
-            newSubscriptions=newSubscriptions.Count,
-            todayMeals=todayLabels.Count,
-            recentSubscriptions
+            DeliveryStatus.Scheduled,
+            DeliveryStatus.Preparing,
+            DeliveryStatus.OutForDelivery
         };
+
+        var todayPending = todayDeliveries.Count(x => pendingStatuses.Contains(x.Status));
+
+        var todaySlots = Enum.GetValues<MealSlot>()
+            .Select(slot =>
+            {
+                var rows = todayDeliveries.Where(x => x.MealSlot == slot).ToList();
+                var window = slot switch
+                {
+                    MealSlot.Morning => "07:00–09:00",
+                    MealSlot.Afternoon => "12:00–14:00",
+                    MealSlot.Evening => "17:00–19:00",
+                    MealSlot.Night => "20:00–22:00",
+                    _ => "Scheduled"
+                };
+
+                return new OutletDashboardDeliverySlotDto(
+                    slot.ToString(),
+                    window,
+                    rows.Count,
+                    rows.Count(x => pendingStatuses.Contains(x.Status)),
+                    rows.Count(x => x.Status == DeliveryStatus.Delivered));
+            })
+            .ToList();
+
+        var sales7d = ordersList
+            .Where(x => x.DeliveryDate.Date >= windowStart && x.Status != OrderStatus.Cancelled)
+            .Sum(x => x.Total);
+
+        var todayLabels = await deliveryLabels.GetLabelsAsync(today);
+
+        return new OutletDashboardDto(
+            outlet,
+            plansList.Count(x => x.IsActive),
+            recipesList.Count(x => x.IsActive),
+            customerIds.Count,
+            subscriptionsList.Count(x => x.Status == SubscriptionStatus.Active),
+            newCustomers,
+            newSubscriptions.Count,
+            ordersList.Count(x => x.DeliveryDate.Date >= windowStart && x.Status != OrderStatus.Cancelled),
+            Math.Round(sales7d, 2),
+            todayLabels.Count,
+            todayDeliveries.Count,
+            todayDeliveryPoints,
+            todayPending,
+            todaySlots,
+            recentSubscriptions);
     }
 
     public async Task<OutletSubscriptionDetailDto?> GetSubscriptionDetailAsync(Guid subscriptionId)
