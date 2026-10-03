@@ -11,13 +11,15 @@ public sealed class CatalogService(IIngredientRepository ingredients,IAllergenRe
     (await allergens.GetActiveAsync()).Select(x=>new AllergenDto(x.Id,x.Name)).ToList();
 }
 
-public sealed class AllergySafetyService(ICustomerProfileRepository profiles) : IAllergySafetyService
+public sealed class AllergySafetyService(ICustomerProfileRepository profiles,ICustomerAllergyRepository customerAllergies) : IAllergySafetyService
 {
     public async Task<IReadOnlyList<AllergyWarningDto>> GetWarningsAsync(Guid customerId,IReadOnlyCollection<Recipe> recipes)
     {
-        var profile=await profiles.GetAsync(customerId);
-        var customerAllergens=profile?.Allergies.Select(x=>x.Allergen).Where(x=>x is not null).ToDictionary(x=>x.Id)??new Dictionary<Guid,
-        Allergen>();
+        _ = profiles;
+        var customerAllergens=(await customerAllergies.GetByCustomerAsync(customerId))
+            .Select(x=>x.Allergen)
+            .Where(x=>x is not null)
+            .ToDictionary(x=>x.Id);
         var warnings=new List<AllergyWarningDto>();
         foreach(var recipe in recipes)
         {
