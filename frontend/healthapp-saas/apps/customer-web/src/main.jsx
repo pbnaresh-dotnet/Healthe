@@ -57,7 +57,7 @@ function App(){
    const[os,as,ads,p,allergens,ss,orders,credit,transactions]=await Promise.all([outlets.list(),locations.areas(cityFilter),customer.addresses(),customer.profile(),catalog.allergens(),customer.subscriptions(),customer.orders(),customer.credit(),customer.creditTransactions()]);
    setGlobal({outlets:os,areas:as,addresses:ads,profile:p,allergens,subscriptions:ss,orders,credit,transactions});setSubs(ss);
    setSelectedAddressId(ads.find(x=>x.isDefault)?.id||ads[0]?.id||'');
-   if(p)setProfileForm({weightKg:p.weightKg??'',heightCm:p.heightCm??'',dateOfBirth:p.dateOfBirth?.slice?.(0,10)||'',goal:p.goal||'WeightLoss',activityLevel:p.activityLevel||'Moderate',allergies:p.allergies||'',diet:p.diet||'Veg'});
+   if(p)setProfileForm({weightKg:p.weightKg??'',heightCm:p.heightCm??'',dateOfBirth:p.dateOfBirth?.slice?.(0,10)||'',goal:p.goal||'WeightLoss',activityLevel:p.activityLevel||'Moderate',allergyIds:(p.allergies||[]).map(a=>a.id),diet:p.diet||'Veg'});
  });
  useEffect(()=>{if(user)reload().catch(()=>{})},[user]);
  useEffect(()=>{if(user&&cityFilter)locations.areas(cityFilter).then(x=>setGlobal(g=>({...g,areas:x}))).catch(()=>{})},[cityFilter,user]);
