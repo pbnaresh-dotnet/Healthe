@@ -222,6 +222,7 @@ public sealed class Recipe
     public decimal PricePerMeal { get; set; }
     public decimal LargePricePerMeal { get; set; }
     public string Description { get; set; } = "";
+    public string Ingredients { get; set; } = "";
     public string ImageUrl { get; set; } = "";
     public string Allergens { get; set; } = "";
     public string Tags { get; set; } = "";
