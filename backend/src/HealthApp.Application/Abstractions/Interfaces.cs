@@ -2,13 +2,13 @@ using HealthApp.Domain.Entities;
 using HealthApp.Domain.Enums;
 using HealthApp.Shared.DTOs;
 
+namespace HealthApp.Application.Abstractions;
+
 public interface IIngredientRepository { Task<IReadOnlyList<Ingredient>> GetActiveAsync(); Task<IReadOnlyList<Ingredient>> GetByIdsAsync(IEnumerable<Guid> ids); }
 public interface IAllergenRepository { Task<IReadOnlyList<Allergen>> GetActiveAsync(); Task<IReadOnlyList<Allergen>> GetByIdsAsync(IEnumerable<Guid> ids); }
 public interface ICustomerAllergyRepository { Task<IReadOnlyList<CustomerAllergy>> GetByCustomerAsync(Guid customerId); Task ReplaceAsync(Guid customerId, IReadOnlyCollection<Guid> allergenIds); }
 public interface ICatalogService { Task<IReadOnlyList<IngredientDto>> GetIngredientsAsync(); Task<IReadOnlyList<AllergenDto>> GetAllergensAsync(); }
 public interface IAllergySafetyService { Task<IReadOnlyList<AllergyWarningDto>> GetWarningsAsync(Guid customerId, IReadOnlyCollection<Recipe> recipes); Task EnsureConfirmedAsync(Guid customerId, IReadOnlyCollection<Recipe> recipes, IReadOnlyCollection<Guid>? confirmedRecipeIds); }
-
-namespace HealthApp.Application.Abstractions;
 
 public interface IUserRepository { Task<User?> FindByEmailAsync(string email); Task<User?> FindByIdAsync(Guid id); Task AddAsync(User user); Task<IReadOnlyList<User>> GetAllAsync(); }
 public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); Task<Outlet?> GetByIdAsync(Guid id); Task<Outlet?> GetBySlugAsync(string slug); Task<Outlet?> GetBySubdomainAsync(string subdomain); Task AddAsync(Outlet outlet); }
