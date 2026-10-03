@@ -19,6 +19,13 @@ public record MenuItemDto(Guid Id, Guid OutletId, Guid RecipeId, string RecipeNa
 public record SubscriptionDto(Guid Id, Guid CustomerId, Guid OutletId, Guid MealPlanId, string PlanName, string DeliveryMode, decimal Price, decimal DeliveryFee, decimal CustomerTransactionFeePercent, decimal TransactionFee, decimal TotalCharged, decimal OutletAmount, string Frequency, int MealsPerDay, int MealsPerWeek, string Status, DateTime NextDeliveryDate, decimal AvailableCredit);
 public record OrderDto(Guid Id, Guid CustomerId, Guid OutletId, decimal Total, string Status, DateTime DeliveryDate, string Address);
 public record DeliveryDto(Guid Id, Guid OrderId, Guid OutletId, string CustomerName, string Address, DateTime ScheduledDate, string MealSlot, decimal DeliveryFee, string Status);
+public record DriverDto(Guid Id, string Name, string Email, bool IsActive);
+public record CreateDriverRequest(string FirstName, string LastName, string Email, string Password);
+public record PlanDeliveryRoutesRequest(DateTime Date, IReadOnlyList<Guid> DriverIds);
+public record DeliveryMapPointDto(Guid DeliveryId, Guid CustomerId, string CustomerName, Guid AddressId, string Address, double Latitude, double Longitude, string MealSlot, string Status, Guid? RouteId, int? StopSequence);
+public record DeliveryRouteStopDto(Guid Id, int StopSequence, Guid AddressId, Guid CustomerId, string CustomerName, string Address, double Latitude, double Longitude, int DeliveryCount, string Status, IReadOnlyList<Guid> DeliveryIds);
+public record DeliveryRouteDto(Guid Id, Guid DriverId, string DriverName, DateTime DeliveryDate, string Status, double TotalDistanceKm, double TotalDurationMinutes, string RoutingSource, IReadOnlyList<DeliveryRouteStopDto> Stops, IReadOnlyList<IReadOnlyList<double>> Geometry);
+public record DeliveryRoutePlanDto(DateTime Date, string OutletName, double OutletLatitude, double OutletLongitude, int TotalDeliveryPoints, int TotalDeliveries, int UnassignedPoints, IReadOnlyList<DeliveryMapPointDto> Points, IReadOnlyList<DeliveryRouteDto> Routes);
 public record CreateSubscriptionRequest(Guid OutletId, string DeliveryMode, string Frequency, IReadOnlyList<MealSelectionItem> Selections, string Duration = "OneWeek", string? DiscountCode = null, IReadOnlyList<Guid>? ConfirmedAllergyRecipeIds = null);
 public record CreateMealPlanRequest(string Name, string Frequency, int MealsPerDay, decimal Price, string Description);
 public record CreateRecipeRequest(string Name, string Category, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, decimal PricePerMeal, decimal LargePricePerMeal, string Description = "", string ImageUrl = "", string Tags = "", IReadOnlyList<RecipeIngredientInput>? Ingredients = null, IReadOnlyList<Guid>? AllergenIds = null);
