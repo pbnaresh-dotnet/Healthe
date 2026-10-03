@@ -29,7 +29,7 @@ function App(){
   if(p==='kitchen')setKitchen(await outletAdmin.kitchen(kitchenDate));
   if(p==='recipes'){const x=await Promise.all([outletAdmin.recipes(),catalog.ingredients(),catalog.allergens()]);setRecipes(x[0]);setIngredients(x[1]);setAllergens(x[2]);}
   if(p==='customers')setCustomers(await outletAdmin.customers());
-  if(p==='subscriptions')setSubs(await outletAdmin.subscriptions());
+  if(p==='subscriptions'){const x=await Promise.all([outletAdmin.subscriptions(),outletAdmin.customers()]);setSubs(x[0]);setCustomers(x[1])}
   if(p==='orders')setOrders(await outletAdmin.orders());
   if(p==='deliveries')setDeliveries(await outletAdmin.deliveries());
   if(p==='menu'){const x=await Promise.all([outletAdmin.menu(),outletAdmin.recipes()]);setMenu(x[0]);setRecipes(x[1])}
@@ -68,7 +68,7 @@ function App(){
  {active==='recipes'&&<Recipes items={filtered} total={recipes.length} search={search} setSearch={setSearch} category={category} setCategory={setCategory} openNew={openNew} openEdit={openEdit} remove={removeRecipe}/>}
  {active==='menu'&&<MenuPage recipes={recipes} menu={menu} setMenu={setMenu} onSave={async()=>{try{await outletAdmin.saveMenu(menu.map(x=>({recipeId:x.recipeId,dayOfWeek:Number(x.dayOfWeek),mealSlot:Number(x.mealSlot),isAvailable:x.isAvailable,displayOrder:x.displayOrder||0})));notify('Weekly menu saved')}catch(e){fail(e)}}}/>}
  {active==='customers'&&<Page title="Customers" text="Customers connected to this outlet." content={<Table columns={['Name','Email','Role']} rows={customers.map(x=>[x.firstName+' '+x.lastName,x.email,x.role])} empty="No customers yet."/>}/>}
- {active==='subscriptions'&&<SubscriptionsPage items={subs} onOpen={openSubscription}/>} 
+ {active==='subscriptions'&&<SubscriptionsPage items={subs} customers={customers} onOpen={openSubscription}/>} 
  {active==='kitchen'&&<KitchenPage data={kitchen} date={kitchenDate} setDate={setKitchenDate} refresh={refreshKitchen}/>}
  {active==='orders'&&<Page title="Orders" text="Orders generated from customer subscriptions." content={<Table columns={['Order','Customer','Status','Delivery date','Total']} rows={orders.map(x=>[String(x.id).slice(0,8)+'…',String(x.customerId).slice(0,8)+'…',x.status,new Date(x.deliveryDate).toLocaleDateString(),money(x.total)])} empty="No orders yet."/>}/>}
  {active==='deliveries'&&<Page title="Deliveries" text="Scheduled delivery jobs for this outlet." content={<Table columns={['Customer','Address','Date','Slot','Fee','Status']} rows={deliveries.map(x=>[x.customerName,x.address,new Date(x.scheduledDate).toLocaleDateString(),x.mealSlot,money(x.deliveryFee),x.status])} empty="No deliveries yet."/>}/>}
@@ -89,7 +89,7 @@ function Dashboard({dash,recipes,pricing,nav,openSubscription}) {
   ['recipes','Recipes',dash?.recipes??recipes.length],
   ['customers','Customers',dash?.customers??0],
   ['subscriptions','Subscriptions',dash?.subscriptions??0],
-  ['subscriptions','New customers · 7d',dash?.newCustomers??0],
+  ['customers','New customers · 7d',dash?.newCustomers??0],
   ['subscriptions','New subscriptions · 7d',dash?.newSubscriptions??0],
   ['kitchen','Today’s meals',dash?.todayMeals??0]
  ];
@@ -121,10 +121,11 @@ function Dashboard({dash,recipes,pricing,nav,openSubscription}) {
   </div>
  </div>
 }
-function SubscriptionsPage({items,onOpen}) {
+function SubscriptionsPage({items,customers,onOpen}) {
+ const names=new Map(customers.map(x=>[x.id,(x.firstName+' '+x.lastName).trim()]));
  return <div className="page"><div className="pageHead"><div><h1>Subscriptions</h1><p>Customer packages with the complete meal-by-day schedule.</p></div></div>
  <section className="panel">{items.length?<div className="subscriptionList">{items.map(x=><button className="subscriptionCard" key={x.id} onClick={()=>onOpen(x.id)}>
-   <div className="subscriptionMain"><div className="avatar">{(String(x.customerId).slice(0,1)||'C').toUpperCase()}</div><div><b>{x.planName}</b><span>Customer · {String(x.customerId).slice(0,8)}…</span></div></div>
+   <div className="subscriptionMain"><div className="avatar">{(names.get(x.customerId)||'C').slice(0,1).toUpperCase()}</div><div><b>{x.planName}</b><span>{names.get(x.customerId)||'Customer'} · {String(x.customerId).slice(0,8)}…</span></div></div>
    <div><span className="pill green">{x.status}</span><b>{x.mealsPerWeek} meals</b><span>{new Date(x.nextDeliveryDate).toLocaleDateString()}</span><i>→</i></div>
  </button>)}</div>:<Empty title="No subscriptions yet" text="Customer packages will appear here."/>}</section></div>
 }
