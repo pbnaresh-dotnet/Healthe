@@ -14,7 +14,9 @@ public sealed class DeliveryRouteService(
     IDeliveryRepository deliveries,
     ICustomerAddressRepository addresses,
     IDeliveryRouteRepository routes,
-    IRouteOptimizationService optimizer) : IDeliveryRouteService
+    IRouteOptimizationService optimizer,
+    IRouteMatrixService matrix,
+    IMultiDriverRoutePlanningService planner) : IDeliveryRouteService
 {
     public async Task<IReadOnlyList<DriverDto>> GetDriversAsync()
     {
@@ -75,6 +77,11 @@ public sealed class DeliveryRouteService(
             .Select(x => x.DeliveryAddressId)
             .ToHashSet();
 
+        var plannedDistanceKm = existingRoutes.Sum(x => x.TotalDistanceKm);
+        var plannedDurationMinutes = existingRoutes.Sum(x => x.TotalDurationMinutes);
+        var optimizationSources = existingRoutes.Select(x => x.RoutingSource).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
+        var optimizationSource = optimizationSources.Count == 0 ? "Not calculated" : string.Join(" + ", optimizationSources);
+
         return new DeliveryRoutePlanDto(
             date.Date,
             outlet.Name,
@@ -83,6 +90,9 @@ public sealed class DeliveryRouteService(
             pointGroups.Count,
             eligible.Count,
             Math.Max(0, pointGroups.Count - assignedPointKeys.Count),
+            Math.Round(plannedDistanceKm, 2),
+            Math.Round(plannedDurationMinutes, 1),
+            optimizationSource,
             pointGroups.Select(x => new DeliveryMapPointDto(
                 x.Representative.Id,
                 x.Representative.CustomerId,
@@ -110,8 +120,12 @@ public sealed class DeliveryRouteService(
         var mealSlot = (MealSlot)request.MealSlot;
         var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
         var selectedDriverIds = request.DriverIds?.Distinct().ToList() ?? [];
+
         var selectedDrivers = (await users.GetAllAsync())
-            .Where(x => x.OutletId == outletId && x.Role == UserRole.Driver && x.IsActive && selectedDriverIds.Contains(x.Id))
+            .Where(x => x.OutletId == outletId &&
+                        x.Role == UserRole.Driver &&
+                        x.IsActive &&
+                        selectedDriverIds.Contains(x.Id))
             .OrderBy(x => x.FirstName)
             .ThenBy(x => x.LastName)
             .ToList();
@@ -124,7 +138,6 @@ public sealed class DeliveryRouteService(
         var date = request.Date.Date;
         var eligible = await GetEligibleDeliveriesAsync(outletId, date, mealSlot);
 
-        // Recalculate only the selected meal slot. Existing routes for other slots remain untouched.
         await routes.DeleteByOutletAndDateAsync(outletId, date, mealSlot);
 
         if (eligible.Count == 0)
@@ -134,73 +147,91 @@ public sealed class DeliveryRouteService(
         if (pointGroups.Count == 0)
             return await GetPlanAsync(date, request.MealSlot);
 
-        var usableDriverCount = Math.Min(selectedDrivers.Count, pointGroups.Count);
-        var angular = pointGroups
-            .OrderBy(x => Math.Atan2(
-                x.Address.Latitude - outlet.Latitude,
-                x.Address.Longitude - outlet.Longitude))
-            .ThenBy(x => Haversine(outlet.Latitude, outlet.Longitude, x.Address.Latitude, x.Address.Longitude))
-            .ToList();
+        var matrixPoints = new List<RouteOptimizationStop> {
+            new(Guid.Empty, outlet.Latitude, outlet.Longitude)
+        };
+        matrixPoints.AddRange(pointGroups.Select(x =>
+            new RouteOptimizationStop(x.Address.Id, x.Address.Latitude, x.Address.Longitude)));
 
-        var chunkSize = (int)Math.Ceiling(angular.Count / (double)usableDriverCount);
+        MultiDriverRoutePlan multiPlan;
+        var globalRoutingSource = "OR-Tools + OSRM matrix";
 
-        for (var driverIndex = 0; driverIndex < usableDriverCount; driverIndex++)
+        try
         {
-            var chunk = angular
-                .Skip(driverIndex * chunkSize)
-                .Take(chunkSize)
+            var matrixResult = await matrix.BuildAsync(matrixPoints);
+            multiPlan = await planner.OptimizeAsync(
+                selectedDrivers.Select(x => x.Id).ToList(),
+                matrixPoints,
+                matrixResult);
+        }
+        catch
+        {
+            multiPlan = BuildFallbackMultiDriverPlan(outlet, pointGroups, selectedDrivers);
+            globalRoutingSource = "Geographic fallback";
+        }
+
+        var byAddressId = pointGroups.ToDictionary(x => x.Address.Id);
+
+        foreach (var assignment in multiPlan.Routes)
+        {
+            var orderedGroups = assignment.StopIds
+                .Where(byAddressId.ContainsKey)
+                .Select(id => byAddressId[id])
                 .ToList();
 
-            if (chunk.Count == 0) continue;
-
-            var routeId = Guid.NewGuid();
-            var routePoints = chunk
-                .Select(x => new RouteOptimizationStop(x.Address.Id, x.Address.Latitude, x.Address.Longitude))
-                .ToList();
+            if (orderedGroups.Count == 0)
+                continue;
 
             RouteOptimizationResult optimized;
-            var source = "OSRM";
+            var routeSource = globalRoutingSource + " + OSRM road route";
 
             try
             {
-                optimized = await optimizer.OptimizeAsync(outlet.Latitude, outlet.Longitude, routePoints);
+                optimized = await optimizer.RouteInOrderAsync(
+                    outlet.Latitude,
+                    outlet.Longitude,
+                    orderedGroups.Select(x => new RouteOptimizationStop(
+                        x.Address.Id,
+                        x.Address.Latitude,
+                        x.Address.Longitude)).ToList());
             }
             catch
             {
-                optimized = BuildFallbackRoute(outlet, chunk);
-                source = "Haversine fallback";
+                optimized = BuildFallbackRoute(outlet, orderedGroups);
+                routeSource = globalRoutingSource + " + straight-line fallback";
             }
 
-            var byId = chunk.ToDictionary(x => x.Address.Id);
+            var routeId = Guid.NewGuid();
             var route = new DeliveryRoute
             {
                 Id = routeId,
                 OutletId = outletId,
-                DriverId = selectedDrivers[driverIndex].Id,
+                DriverId = assignment.DriverId,
                 DeliveryDate = date,
                 MealSlot = mealSlot,
                 Status = RouteStatus.Planned,
                 TotalDistanceKm = Math.Round(optimized.DistanceKm, 2),
                 TotalDurationMinutes = Math.Round(optimized.DurationMinutes, 1),
-                RoutingSource = source,
+                RoutingSource = routeSource,
                 GeometryJson = JsonSerializer.Serialize(optimized.Geometry),
                 CreatedAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
             };
 
-            var orderedIds = optimized.OrderedStopIds.Count == chunk.Count
+            var orderedIds = optimized.OrderedStopIds.Count == orderedGroups.Count
                 ? optimized.OrderedStopIds
-                : chunk.Select(x => x.Address.Id).ToList();
+                : orderedGroups.Select(x => x.Address.Id).ToList();
 
             var sequence = 1;
             var deliveryLinks = new List<(Delivery Delivery, Guid StopId, int Sequence)>();
 
             foreach (var addressId in orderedIds)
             {
-                if (!byId.TryGetValue(addressId, out var point)) continue;
+                if (!byAddressId.TryGetValue(addressId, out var point))
+                    continue;
 
                 var stopId = Guid.NewGuid();
-                var stop = new DeliveryRouteStop
+                route.Stops.Add(new DeliveryRouteStop
                 {
                     Id = stopId,
                     RouteId = routeId,
@@ -214,8 +245,7 @@ public sealed class DeliveryRouteService(
                     Longitude = point.Address.Longitude,
                     DeliveryCount = point.Deliveries.Count,
                     Status = ParseDeliveryStatus(point.GroupStatus)
-                };
-                route.Stops.Add(stop);
+                });
 
                 foreach (var delivery in point.Deliveries)
                     deliveryLinks.Add((delivery, stopId, sequence));
@@ -223,8 +253,6 @@ public sealed class DeliveryRouteService(
                 sequence++;
             }
 
-            // Persist the route and its stops before setting Delivery.RouteId / RouteStopId.
-            // SQL Server requires the referenced route to exist before the delivery FK is saved.
             await routes.AddAsync(route);
 
             foreach (var link in deliveryLinks)
@@ -348,6 +376,44 @@ public sealed class DeliveryRouteService(
 
     private static DeliveryStatus ParseDeliveryStatus(string value)
         => Enum.TryParse<DeliveryStatus>(value, true, out var result) ? result : DeliveryStatus.Scheduled;
+
+    private static MultiDriverRoutePlan BuildFallbackMultiDriverPlan(
+        Outlet outlet,
+        IReadOnlyList<DeliveryPointGroup> points,
+        IReadOnlyList<User> drivers)
+    {
+        var usableDriverCount = Math.Min(drivers.Count, points.Count);
+        if (usableDriverCount == 0)
+            return new MultiDriverRoutePlan([]);
+
+        var angular = points
+            .OrderBy(x => Math.Atan2(
+                x.Address.Latitude - outlet.Latitude,
+                x.Address.Longitude - outlet.Longitude))
+            .ThenBy(x => Haversine(
+                outlet.Latitude,
+                outlet.Longitude,
+                x.Address.Latitude,
+                x.Address.Longitude))
+            .ToList();
+
+        var chunkSize = (int)Math.Ceiling(angular.Count / (double)usableDriverCount);
+        var assignments = new List<DriverRouteAssignment>();
+
+        for (var i = 0; i < usableDriverCount; i++)
+        {
+            var stopIds = angular
+                .Skip(i * chunkSize)
+                .Take(chunkSize)
+                .Select(x => x.Address.Id)
+                .ToList();
+
+            if (stopIds.Count > 0)
+                assignments.Add(new DriverRouteAssignment(drivers[i].Id, stopIds));
+        }
+
+        return new MultiDriverRoutePlan(assignments);
+    }
 
     private static RouteOptimizationResult BuildFallbackRoute(Outlet outlet, IReadOnlyList<DeliveryPointGroup> points)
     {
