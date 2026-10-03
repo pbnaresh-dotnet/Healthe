@@ -9,7 +9,12 @@ public static class DatabaseSeeder
 {
     public static async Task SeedAsync(HealthAppDbContext db, IPasswordService passwords, CancellationToken ct = default)
     {
-        if (await db.Outlets.AnyAsync(ct)) return;
+        await SeedCatalogAsync(db, ct);
+        if (await db.Outlets.AnyAsync(ct))
+        {
+            await EnsureExistingRecipeCatalogLinksAsync(db, ct);
+            return;
+        }
 
         var free = new SaaSPlan { Id=Guid.NewGuid(), Name="Free", MonthlyFee=0, AnnualFee=0, IncludedActiveCustomers=10, AdditionalCustomerFee=0, CustomerTransactionFeePercent=3m, Description="Free plan for up to 10 active customers." };
         var basic = new SaaSPlan { Id=Guid.NewGuid(), Name="Basic", MonthlyFee=999, AnnualFee=9990, IncludedActiveCustomers=50, AdditionalCustomerFee=15, CustomerTransactionFeePercent=2m, Description="For small meal businesses." };
@@ -39,6 +44,16 @@ public static class DatabaseSeeder
         var prawn=new Recipe{Id=Guid.NewGuid(),OutletId=fitId,Name="Prawn Noodles",Calories=610,ProteinGrams=31,CarbsGrams=66,FatGrams=22,Category=RecipeCategory.NonVeg,PricePerMeal=240,LargePricePerMeal=280,Description="Wok-tossed prawns, vegetables and noodles.",Tags="High Protein,Seafood"};
         var mutton=new Recipe{Id=Guid.NewGuid(),OutletId=fitId,Name="Mutton Curry",Calories=650,ProteinGrams=38,CarbsGrams=48,FatGrams=29,Category=RecipeCategory.NonVeg,PricePerMeal=260,LargePricePerMeal=310,Description="Slow-cooked mutton curry with aromatic spices.",Tags="High Protein"};
         db.Recipes.AddRange(paneer,chicken,chickpea,dal,prawn,mutton);
+
+        var ing=await db.Ingredients.ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
+        var alg=await db.Allergens.ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
+        AddRecipeIngredients(paneer,[("Paneer",120m,"g"),("Brown Rice",150m,"g"),("Broccoli",80m,"g"),("Olive Oil",10m,"g")],ing);
+        AddRecipeIngredients(chicken,[("Chicken Breast",150m,"g"),("Brown Rice",150m,"g"),("Broccoli",80m,"g"),("Olive Oil",10m,"g")],ing);
+        AddRecipeIngredients(chickpea,[("Chickpeas",140m,"g"),("Brown Rice",120m,"g"),("Broccoli",70m,"g"),("Tahini",20m,"g")],ing);
+        AddRecipeIngredients(dal,[("Lentils",120m,"g"),("Brown Rice",160m,"g"),("Broccoli",60m,"g"),("Olive Oil",8m,"g")],ing);
+        AddRecipeIngredients(prawn,[("Prawns",140m,"g"),("Wheat Noodles",150m,"g"),("Broccoli",80m,"g"),("Olive Oil",10m,"g")],ing);
+        AddRecipeIngredients(mutton,[("Mutton",150m,"g"),("Brown Rice",150m,"g"),("Broccoli",70m,"g"),("Olive Oil",10m,"g")],ing);
+        
         foreach(var day in new[]{DayOfWeek.Monday,DayOfWeek.Tuesday,DayOfWeek.Wednesday,DayOfWeek.Thursday,DayOfWeek.Friday,DayOfWeek.Saturday})
         {
             db.OutletMenuItems.AddRange(
@@ -78,6 +93,85 @@ public static class DatabaseSeeder
             new SubscriptionDiscountTier{Id=Guid.NewGuid(),OutletId=fitId,MinMeals=50,MaxMeals=null,OneWeekPercent=6,TwoWeeksPercent=7,OneMonthPercent=6});
         db.CustomerAddresses.Add(new CustomerAddress{Id=Guid.NewGuid(),CustomerId=customerId,CityAreaId=areas.First(x=>x.Name=="Indiranagar").Id,Label="Home",AddressLine1="100 12th Main Road",AddressLine2="Indiranagar",ContactName="Demo Customer",ContactPhone="9999999999",Latitude=12.9784,Longitude=77.6408,IsDefault=true});
 
+        var demoCustomer=await db.Users.FirstAsync(x=>x.Email=="customer@healthapp.test",ct);
+        foreach(var name in new[]{"Milk","Shellfish"})
+        {
+            var a=alg[name];
+            if(!await db.CustomerAllergies.AnyAsync(x=>x.CustomerId==demoCustomer.Id&&x.AllergenId==a.Id,ct))
+                db.CustomerAllergies.Add(new CustomerAllergy{Id=Guid.NewGuid(),CustomerId=demoCustomer.Id,AllergenId=a.Id});
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task SeedCatalogAsync(HealthAppDbContext db,CancellationToken ct)
+    {
+        var allergenNames=new[]{"Milk","Egg","Peanuts","Tree Nuts","Soy","Wheat/Gluten","Sesame","Fish","Shellfish"};
+        var allergens=await db.Allergens.ToListAsync(ct);
+        foreach(var name in allergenNames)
+            if(!allergens.Any(x=>x.Name.Equals(name,StringComparison.OrdinalIgnoreCase)))
+                db.Allergens.Add(new Allergen{Id=Guid.NewGuid(),Name=name});
+        var ingredientNames=new[]{
+            ("Chicken Breast","g"),("Olive Oil","g"),("Paneer","g"),("Brown Rice","g"),("Broccoli","g"),
+            ("Chickpeas","g"),("Tahini","g"),("Lentils","g"),("Prawns","g"),("Wheat Noodles","g"),("Mutton","g")
+        };
+        var ingredients=await db.Ingredients.ToListAsync(ct);
+        foreach(var item in ingredientNames)
+            if(!ingredients.Any(x=>x.Name.Equals(item.Item1,StringComparison.OrdinalIgnoreCase)))
+                db.Ingredients.Add(new Ingredient{Id=Guid.NewGuid(),Name=item.Item1,DefaultUnit=item.Item2});
+        await db.SaveChangesAsync(ct);
+
+        var all=await db.Allergens.ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
+        var ing=await db.Ingredients.ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
+        LinkIngredientAllergen(db,ing["Paneer"],all["Milk"]);
+        LinkIngredientAllergen(db,ing["Tahini"],all["Sesame"]);
+        LinkIngredientAllergen(db,ing["Prawns"],all["Shellfish"]);
+        LinkIngredientAllergen(db,ing["Wheat Noodles"],all["Wheat/Gluten"]);
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static void LinkIngredientAllergen(HealthAppDbContext db,Ingredient ingredient,Allergen allergen)
+    {
+        if(!db.IngredientAllergens.Any(x=>x.IngredientId==ingredient.Id&&x.AllergenId==allergen.Id))
+            db.IngredientAllergens.Add(new IngredientAllergen{IngredientId=ingredient.Id,AllergenId=allergen.Id});
+    }
+
+    private static void AddRecipeIngredients(Recipe recipe,(string Name,decimal Quantity,string Unit)[] items,Dictionary<string,Ingredient> ingredients)
+    {
+        foreach(var item in items)
+        {
+            var ingredient=ingredients[item.Name];
+            recipe.RecipeIngredients.Add(new RecipeIngredient{Id=Guid.NewGuid(),RecipeId=recipe.Id,IngredientId=ingredient.Id,Quantity=item.Quantity,Unit=item.Unit});
+        }
+    }
+
+    private static async Task EnsureExistingRecipeCatalogLinksAsync(HealthAppDbContext db,CancellationToken ct)
+    {
+        var recipes=await db.Recipes.ToListAsync(ct);
+        var ingredients=await db.Ingredients.ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
+        var wanted=new Dictionary<string,(string Name,decimal Quantity,string Unit)[]>
+        {
+            ["Paneer Power Bowl"]=[("Paneer",120,"g"),("Brown Rice",150,"g"),("Broccoli",80,"g"),("Olive Oil",10,"g")],
+            ["Chicken Tikka Bowl"]=[("Chicken Breast",150,"g"),("Brown Rice",150,"g"),("Broccoli",80,"g"),("Olive Oil",10,"g")],
+            ["Chickpea Buddha Bowl"]=[("Chickpeas",140,"g"),("Brown Rice",120,"g"),("Broccoli",70,"g"),("Tahini",20,"g")],
+            ["Dal Khichdi"]=[("Lentils",120,"g"),("Brown Rice",160,"g"),("Broccoli",60,"g"),("Olive Oil",8,"g")],
+            ["Prawn Noodles"]=[("Prawns",140,"g"),("Wheat Noodles",150,"g"),("Broccoli",80,"g"),("Olive Oil",10,"g")],
+            ["Mutton Curry"]=[("Mutton",150,"g"),("Brown Rice",150,"g"),("Broccoli",70,"g"),("Olive Oil",10,"g")]
+        };
+        foreach(var recipe in recipes)
+        {
+            if(!wanted.TryGetValue(recipe.Name,out var items)) continue;
+            var existing=await db.RecipeIngredients.Where(x=>x.RecipeId==recipe.Id).ToListAsync(ct);
+            if(existing.Count==0) AddRecipeIngredients(recipe,items,ingredients);
+        }
+        var customer=await db.Users.FirstOrDefaultAsync(x=>x.Email=="customer@healthapp.test",ct);
+        if(customer is not null)
+        {
+            var all=await db.Allergens.ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
+            foreach(var name in new[]{"Milk","Shellfish"})
+                if(all.TryGetValue(name,out var a)&&!await db.CustomerAllergies.AnyAsync(x=>x.CustomerId==customer.Id&&x.AllergenId==a.Id,ct))
+                    db.CustomerAllergies.Add(new CustomerAllergy{Id=Guid.NewGuid(),CustomerId=customer.Id,AllergenId=a.Id});
+        }
         await db.SaveChangesAsync(ct);
     }
 }
