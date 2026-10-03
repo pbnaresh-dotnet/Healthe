@@ -292,7 +292,10 @@ internal static class HealthAppModelBuilder
         e.HasIndex(x => x.RouteId);
         e.HasIndex(x => x.RouteStopId);
         e.HasOne<DeliveryRoute>().WithMany().HasForeignKey(x => x.RouteId).OnDelete(DeleteBehavior.SetNull);
-        e.HasOne<DeliveryRouteStop>().WithMany().HasForeignKey(x => x.RouteStopId).OnDelete(DeleteBehavior.SetNull);
+        // RouteStop is intentionally NO ACTION because DeliveryRoute -> DeliveryRouteStops is
+        // already cascading. A SET NULL FK here would create two SQL Server cascade paths
+        // from DeliveryRoutes to Deliveries (directly and via DeliveryRouteStops).
+        e.HasOne<DeliveryRouteStop>().WithMany().HasForeignKey(x => x.RouteStopId).OnDelete(DeleteBehavior.NoAction);
     }
     private static void ConfigureDeliveryRoute(EntityTypeBuilder<DeliveryRoute> e)
     {
@@ -427,6 +430,7 @@ internal static class HealthAppModelBuilder
         e.ToTable("OrderFinancialBreakdowns");
         e.HasKey(x => x.Id);
         e.HasIndex(x => x.OrderId).IsUnique();
+        e.Property(x => x.GrossMealAmount).HasPrecision(18,2);
         e.Property(x => x.GrossMealAmount).HasPrecision(18,2);
         e.Property(x => x.DiscountAmount).HasPrecision(18,2);
         e.Property(x => x.NetMealAmount).HasPrecision(18,2);
