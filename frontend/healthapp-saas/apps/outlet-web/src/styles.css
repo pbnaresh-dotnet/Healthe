@@ -135,3 +135,37 @@
 .routeDriverHead{margin-top:4px}
 @media(max-width:900px){.routeSlotPicker{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.routeSlotPicker{grid-template-columns:1fr 1fr}.routeSlotChoice{min-height:54px}}
+
+/* Polished outlet operations dashboard */
+.dashboardStats{grid-template-columns:repeat(6,minmax(0,1fr))}
+.dashboardGrid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(330px,.8fr);gap:18px;margin-bottom:18px}
+.deliveryOverview,.operationsSummary{min-height:100%}
+.deliverySlotList{display:grid;gap:7px}
+.deliverySlotRow{display:grid;grid-template-columns:125px 44px 1fr 58px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #edf1ee}
+.deliverySlotRow>div:first-child{display:flex;flex-direction:column;gap:2px}
+.deliverySlotRow>div:first-child b{font-size:11px}
+.deliverySlotRow>div:first-child span{font-size:9px;color:#7b887f}
+.deliverySlotRow>strong{text-align:center;font-size:15px}
+.deliverySlotProgress{height:7px;border-radius:99px;background:#edf2ee;overflow:hidden}
+.deliverySlotProgress span{display:block;height:100%;border-radius:99px;background:#176534}
+.slotCompleted{font-size:9px;color:#6f7d74;text-align:right}
+.deliveryOverviewFooter{display:flex;align-items:center;gap:14px;padding-top:12px;font-size:9px;color:#6f7d74}
+.deliveryOverviewFooter .linkBtn{margin-left:auto;padding:0}
+.pill.amber{background:#fff3d6;color:#8a5a00}
+.opsMetric{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid #edf1ee}
+.opsMetric:last-child{border-bottom:0}
+.opsIcon{width:30px;height:30px;border-radius:9px;background:#eef4ef;color:#176534;display:grid;place-items:center;font-weight:900}
+.opsMetric b,.opsMetric span{display:block}
+.opsMetric b{font-size:15px}
+.opsMetric div:nth-child(2) span{font-size:9px;color:#7b887f;margin-top:2px}
+.opsMetric .linkBtn{padding:4px 0;font-size:9px}
+.pulseGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pulseGrid>div{border:1px solid #e3eae4;border-radius:10px;background:#fafcfb;padding:12px}
+.pulseGrid span,.pulseGrid b{display:block}
+.pulseGrid span{font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:#7b887f}
+.pulseGrid b{font-size:17px;margin-top:4px}
+.panelCallout{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px;padding:10px 12px;border:1px solid #dce9df;background:#eef6f0;border-radius:10px}
+.panelCallout b{font-size:9px}.panelCallout span{font-size:9px;color:#617168;text-align:right}
+@media(max-width:1200px){.dashboardStats{grid-template-columns:repeat(3,minmax(0,1fr))}.dashboardGrid{grid-template-columns:1fr}}
+@media(max-width:900px){.deliverySlotRow{grid-template-columns:105px 35px 1fr 48px}.deliveryOverviewFooter{flex-wrap:wrap}.panelCallout{align-items:flex-start;flex-direction:column}.panelCallout span{text-align:left}}
+@media(max-width:620px){.dashboardStats{grid-template-columns:1fr 1fr}.deliverySlotRow{grid-template-columns:92px 30px 1fr 42px;gap:7px}.pulseGrid{grid-template-columns:1fr}}
