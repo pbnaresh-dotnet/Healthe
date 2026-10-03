@@ -1,9 +1,12 @@
 using Microsoft.Extensions.Configuration;
-
 namespace HealthApp.Application.Strategies;
 
 public sealed record TaxBreakdown(decimal RestaurantRate, decimal RestaurantAmount, decimal PlatformRate, decimal PlatformAmount);
-public interface ITaxStrategy { TaxBreakdown Calculate(decimal netMealAmount, decimal platformServiceFee); }
+
+public interface ITaxStrategy {
+    TaxBreakdown Calculate(decimal netMealAmount, decimal platformServiceFee);
+}
+
 public sealed class ConfigurableTaxStrategy(IConfiguration configuration) : ITaxStrategy
 {
     public TaxBreakdown Calculate(decimal netMealAmount, decimal platformServiceFee)
