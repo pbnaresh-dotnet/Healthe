@@ -3,7 +3,9 @@ namespace HealthApp.Application.Strategies;
 
 public interface IPlatformServiceFeeStrategy
 {
-    decimal Percent { get; }
+    decimal Percent {
+        get;
+    }
     decimal Calculate(decimal netMealAmount);
 }
 
