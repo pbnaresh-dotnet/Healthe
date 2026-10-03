@@ -12,6 +12,12 @@ public sealed class HealthAppDbContext(DbContextOptions<HealthAppDbContext> opti
     public DbSet<PlatformTransaction> PlatformTransactions => Set<PlatformTransaction>();
     public DbSet<MealPlan> MealPlans => Set<MealPlan>();
     public DbSet<Recipe> Recipes => Set<Recipe>();
+    public DbSet<Ingredient> Ingredients => Set<Ingredient>();
+    public DbSet<Allergen> Allergens => Set<Allergen>();
+    public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
+    public DbSet<RecipeAllergen> RecipeAllergens => Set<RecipeAllergen>();
+    public DbSet<IngredientAllergen> IngredientAllergens => Set<IngredientAllergen>();
+    public DbSet<CustomerAllergy> CustomerAllergies => Set<CustomerAllergy>();
     public DbSet<OutletMenuItem> OutletMenuItems => Set<OutletMenuItem>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<SubscriptionMealSelection> SubscriptionMealSelections => Set<SubscriptionMealSelection>();
