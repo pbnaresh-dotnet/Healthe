@@ -380,6 +380,7 @@ public sealed class MealSelectionHistoryRepository(HealthAppDbContext db) : EfRe
 public sealed class PaymentTransactionRepository(HealthAppDbContext db) : EfRepository(db), IPaymentTransactionRepository
 {
     public Task<PaymentTransaction?> GetAsync(Guid id) => db.PaymentTransactions.FirstOrDefaultAsync(x=>x.Id==id);
+    public Task<PaymentTransaction?> GetLatestBySubscriptionAsync(Guid subscriptionId) => db.PaymentTransactions.AsNoTracking().Where(x=>x.SubscriptionId==subscriptionId).OrderByDescending(x=>x.CreatedAtUtc).FirstOrDefaultAsync();
     public Task<PaymentTransaction?> GetByIdempotencyKeyAsync(string key) => db.PaymentTransactions.FirstOrDefaultAsync(x=>x.IdempotencyKey==key);
     public async Task AddAsync(PaymentTransaction payment) {
         db.PaymentTransactions.Add(payment);
