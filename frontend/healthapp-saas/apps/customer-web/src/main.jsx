@@ -1,4 +1,5 @@
 import React,{useEffect,useMemo,useState}from'react';
+import{createRoot}from'react-dom/client';
 import{auth,outlets,locations,recipes,menu,customer,money,currentUser}from'@healthapp/shared';
 import'./styles.css';
 
