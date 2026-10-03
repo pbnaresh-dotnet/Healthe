@@ -204,7 +204,6 @@ public sealed class DeliveryRepository(HealthAppDbContext db) : EfRepository(db)
 public sealed class CustomerProfileRepository(HealthAppDbContext db) : EfRepository(db), ICustomerProfileRepository
 {
     public Task<CustomerProfile?> GetAsync(Guid customerId) => db.CustomerProfiles
-    .Include(x => x.Allergies).ThenInclude(x => x.Allergen)
     .FirstOrDefaultAsync(x => x.CustomerId == customerId);
     public async Task AddOrUpdateAsync(CustomerProfile profile)
     {
