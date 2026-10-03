@@ -9,15 +9,20 @@ public record SaaSPlanDto(Guid Id, string Name, decimal MonthlyFee, decimal Annu
 public record OutletBillingDto(Guid OutletId, Guid SaaSPlanId, string PlanName, string BillingCycle, decimal SubscriptionFee, decimal SetupFee, decimal TransactionFeePercent, int ActiveCustomers, int IncludedActiveCustomers, decimal AdditionalCustomerFee, decimal EstimatedAdditionalCustomerFee, DateTime RenewalDate, string Status);
 public record PlatformRevenueDto(decimal OutletSubscriptionRevenue, decimal CustomerTransactionRevenue, decimal TotalRevenue, decimal LateSkipFeeRevenue = 0m, decimal CustomerServiceFeeRevenue = 0m, decimal OutletCommissionRevenue = 0m);
 public record MealPlanDto(Guid Id, Guid OutletId, string Name, string Frequency, int MealsPerDay, int MealsPerWeek, decimal Price, string Currency, string Description, bool IsActive);
-public record RecipeDto(Guid Id, Guid OutletId, string Name, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, string Category, decimal PricePerMeal, decimal LargePricePerMeal, string Description, string ImageUrl, string Allergens, string Tags, bool IsActive, string Ingredients = "");
+public record IngredientDto(Guid Id, string Name, string DefaultUnit);
+public record AllergenDto(Guid Id, string Name);
+public record RecipeIngredientInput(Guid IngredientId, decimal Quantity, string Unit);
+public record RecipeIngredientDto(Guid IngredientId, string Name, decimal Quantity, string Unit);
+public record AllergyWarningDto(Guid RecipeId, string RecipeName, IReadOnlyList<string> MatchedAllergies, string Message);
+public record RecipeDto(Guid Id, Guid OutletId, string Name, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, string Category, decimal PricePerMeal, decimal LargePricePerMeal, string Description, string ImageUrl, string Tags, bool IsActive, IReadOnlyList<RecipeIngredientDto> Ingredients, IReadOnlyList<AllergenDto> Allergens);
 public record MenuItemDto(Guid Id, Guid OutletId, Guid RecipeId, string RecipeName, DayOfWeek DayOfWeek, string MealSlot, int MealSlotValue, decimal PricePerMeal, decimal LargePricePerMeal, int Calories, int ProteinGrams, string Category, string ImageUrl, bool IsAvailable, int DisplayOrder);
 public record SubscriptionDto(Guid Id, Guid CustomerId, Guid OutletId, Guid MealPlanId, string PlanName, string DeliveryMode, decimal Price, decimal DeliveryFee, decimal CustomerTransactionFeePercent, decimal TransactionFee, decimal TotalCharged, decimal OutletAmount, string Frequency, int MealsPerDay, int MealsPerWeek, string Status, DateTime NextDeliveryDate, decimal AvailableCredit);
 public record OrderDto(Guid Id, Guid CustomerId, Guid OutletId, decimal Total, string Status, DateTime DeliveryDate, string Address);
 public record DeliveryDto(Guid Id, Guid OrderId, Guid OutletId, string CustomerName, string Address, DateTime ScheduledDate, string MealSlot, decimal DeliveryFee, string Status);
-public record CreateSubscriptionRequest(Guid OutletId, string DeliveryMode, string Frequency, IReadOnlyList<MealSelectionItem> Selections, string Duration = "OneWeek", string? DiscountCode = null);
+public record CreateSubscriptionRequest(Guid OutletId, string DeliveryMode, string Frequency, IReadOnlyList<MealSelectionItem> Selections, string Duration = "OneWeek", string? DiscountCode = null, IReadOnlyList<Guid>? ConfirmedAllergyRecipeIds = null);
 public record CreateMealPlanRequest(string Name, string Frequency, int MealsPerDay, decimal Price, string Description);
-public record CreateRecipeRequest(string Name, string Category, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, decimal PricePerMeal, decimal LargePricePerMeal, string Description = "", string ImageUrl = "", string Allergens = "", string Tags = "", string Ingredients = "");
-public record UpdateRecipeRequest(string Name, string Category, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, decimal PricePerMeal, decimal LargePricePerMeal, string Description = "", string ImageUrl = "", string Allergens = "", string Tags = "", bool IsActive = true, string Ingredients = "");
+public record CreateRecipeRequest(string Name, string Category, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, decimal PricePerMeal, decimal LargePricePerMeal, string Description = "", string ImageUrl = "", string Tags = "", IReadOnlyList<RecipeIngredientInput>? Ingredients = null, IReadOnlyList<Guid>? AllergenIds = null);
+public record UpdateRecipeRequest(string Name, string Category, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, decimal PricePerMeal, decimal LargePricePerMeal, string Description = "", string ImageUrl = "", string Tags = "", IReadOnlyList<RecipeIngredientInput>? Ingredients = null, IReadOnlyList<Guid>? AllergenIds = null, bool IsActive = true);
 public record MealSelectionItem(DateTime MealDate, int MealSlot, Guid RecipeId, int PortionSize = 1, Guid? AddressId = null);
 public record SaveMealSelectionsRequest(IReadOnlyList<MealSelectionItem> Selections);
 public record MealSelectionDto(Guid Id, Guid SubscriptionId, DateTime MealDate, int MealSlot, Guid RecipeId, string RecipeName, string Category, int PortionSize, string Status, decimal MealPrice, decimal DeliveryFee, decimal LateSkipFee = 0m, DateTime? SkippedAtUtc = null, DateTime? RescheduledAtUtc = null);
@@ -31,8 +36,8 @@ public record ChangeOutletSubscriptionRequest(Guid SaaSPlanId, string BillingCyc
 public record SaveMenuItemRequest(Guid RecipeId, DayOfWeek DayOfWeek, int MealSlot, bool IsAvailable = true, int DisplayOrder = 0);
 public record BulkMenuRequest(IReadOnlyList<SaveMenuItemRequest> Items);
 
-public record CustomerProfileDto(Guid Id, Guid CustomerId, decimal? WeightKg, decimal? HeightCm, decimal? Bmi, string Goal, string ActivityLevel, string Allergies, string Diet, DateTime UpdatedAtUtc);
-public record SaveCustomerProfileRequest(decimal? WeightKg, decimal? HeightCm, DateTime? DateOfBirth, string Goal, string ActivityLevel, string Allergies, string Diet);
+public record CustomerProfileDto(Guid Id, Guid CustomerId, decimal? WeightKg, decimal? HeightCm, decimal? Bmi, string Goal, string ActivityLevel, string Diet, DateTime UpdatedAtUtc, IReadOnlyList<AllergenDto> Allergies);
+public record SaveCustomerProfileRequest(decimal? WeightKg, decimal? HeightCm, DateTime? DateOfBirth, string Goal, string ActivityLevel, string Diet, IReadOnlyList<Guid>? AllergyIds = null);
 public record CityAreaDto(Guid Id, string City, string State, string Name, string Pincode, double Latitude, double Longitude, bool IsActive);
 public record CreateCityAreaRequest(string City, string State, string Name, string Pincode, double Latitude, double Longitude);
 public record OutletDeliveryAreaDto(Guid Id, Guid OutletId, Guid CityAreaId, string AreaName, string City, string Pincode, bool IsActive);
@@ -43,8 +48,8 @@ public record CustomerAddressDto(Guid Id, string Label, string AreaName, string 
 public record CreateCustomerAddressRequest(Guid CityAreaId, string Label, string AddressLine1, string AddressLine2, string ContactName, string ContactPhone, double Latitude, double Longitude, bool IsDefault = false);
 public record UpdateCustomerAddressRequest(Guid CityAreaId, string Label, string AddressLine1, string AddressLine2, string ContactName, string ContactPhone, double Latitude, double Longitude, bool IsDefault = false);
 public record DeliveryQuoteDto(Guid AddressId, double DistanceKm, decimal DeliveryFee, string AreaName);
-public record SubscriptionQuoteRequest(Guid OutletId, string DeliveryMode, string Duration, IReadOnlyList<MealSelectionItem> Selections, string? DiscountCode = null);
-public record SubscriptionQuoteDto(decimal GrossMealAmount, decimal SubscriptionDiscountPercent, decimal SubscriptionDiscountAmount, decimal NetMealAmount, decimal RestaurantGstAmount, decimal DeliveryFee, decimal PlatformServiceFee, decimal PlatformServiceGst, decimal TotalCharged, decimal OutletCommissionPercent, decimal OutletCommissionAmount, decimal HealthAppRevenue, IReadOnlyList<DeliveryQuoteDto> DeliveryQuotes);
+public record SubscriptionQuoteRequest(Guid OutletId, string DeliveryMode, string Duration, IReadOnlyList<MealSelectionItem> Selections, string? DiscountCode = null, IReadOnlyList<Guid>? ConfirmedAllergyRecipeIds = null);
+public record SubscriptionQuoteDto(decimal GrossMealAmount, decimal SubscriptionDiscountPercent, decimal SubscriptionDiscountAmount, decimal NetMealAmount, decimal RestaurantGstAmount, decimal DeliveryFee, decimal PlatformServiceFee, decimal PlatformServiceGst, decimal TotalCharged, decimal OutletCommissionPercent, decimal OutletCommissionAmount, decimal HealthAppRevenue, IReadOnlyList<DeliveryQuoteDto> DeliveryQuotes, IReadOnlyList<AllergyWarningDto> AllergyWarnings, bool RequiresAllergyConfirmation);
 public record SubscriptionDiscountTierDto(Guid Id, Guid OutletId, int MinMeals, int? MaxMeals, decimal OneWeekPercent, decimal TwoWeeksPercent, decimal OneMonthPercent, bool IsActive);
 public record SaveSubscriptionDiscountTierRequest(int MinMeals, int? MaxMeals, decimal OneWeekPercent, decimal TwoWeeksPercent, decimal OneMonthPercent, bool IsActive = true);
 public record DiscountCodeDto(Guid Id, Guid? OutletId, string Code, decimal Percent, decimal? MaxAmount, int? MaxRedemptions, int RedemptionCount, DateTime? StartsAtUtc, DateTime? EndsAtUtc, bool IsActive);
