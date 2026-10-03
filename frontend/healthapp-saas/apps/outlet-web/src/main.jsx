@@ -27,6 +27,7 @@ function App(){
  const load=async p=>{setBusy(true);setError('');try{
   if(p==='dashboard'){setDash(await outletAdmin.dashboard());setRecipes(await outletAdmin.recipes());setPricing(await outletAdmin.pricingRules());}
   if(p==='kitchen')setKitchen(await outletAdmin.kitchen(kitchenDate));
+  if(p==='kitchen')setKitchen(await outletAdmin.kitchen(kitchenDate));
   if(p==='recipes'){const x=await Promise.all([outletAdmin.recipes(),catalog.ingredients(),catalog.allergens()]);setRecipes(x[0]);setIngredients(x[1]);setAllergens(x[2]);}
   if(p==='customers')setCustomers(await outletAdmin.customers());
   if(p==='subscriptions')setSubs(await outletAdmin.subscriptions());
@@ -41,6 +42,8 @@ function App(){
  useEffect(()=>{if(user)load(active)},[user,active]);
  useEffect(()=>{if(user&&active==='delivery-areas')load('delivery-areas')},[city]);
  const nav=p=>{setActive(p);setError('')};
+ const openSubscription=async id=>{try{setBusy(true);setSelectedSub(await outletAdmin.subscriptionDetail(id))}catch(e){fail(e)}finally{setBusy(false)}};
+ const refreshKitchen=async date=>{try{setBusy(true);setKitchen(await outletAdmin.kitchen(date))}catch(e){fail(e)}finally{setBusy(false)}};
  const openSubscription=async id=>{try{setBusy(true);setSelectedSub(await outletAdmin.subscriptionDetail(id))}catch(e){fail(e)}finally{setBusy(false)}};
  const refreshKitchen=async date=>{try{setBusy(true);setKitchen(await outletAdmin.kitchen(date))}catch(e){fail(e)}finally{setBusy(false)}};
  const signIn=async e=>{e.preventDefault();try{const x=await auth.login(login);setUser(x.user)}catch(e){fail(e)}};
@@ -69,7 +72,7 @@ function App(){
  {active==='menu'&&<MenuPage recipes={recipes} menu={menu} setMenu={setMenu} onSave={async()=>{try{await outletAdmin.saveMenu(menu.map(x=>({recipeId:x.recipeId,dayOfWeek:Number(x.dayOfWeek),mealSlot:Number(x.mealSlot),isAvailable:x.isAvailable,displayOrder:x.displayOrder||0})));notify('Weekly menu saved')}catch(e){fail(e)}}}/>}
  {active==='customers'&&<Page title="Customers" text="Customers connected to this outlet." content={<Table columns={['Name','Email','Role']} rows={customers.map(x=>[x.firstName+' '+x.lastName,x.email,x.role])} empty="No customers yet."/>}/>}
  {active==='subscriptions'&&<SubscriptionsPage items={subs} onOpen={openSubscription}/>} 
- {active==='kitchen'&&<KitchenPage data={kitchen} date={kitchenDate} setDate={setKitchenDate} refresh={refreshKitchen}/>} />}
+ {active==='kitchen'&&<KitchenPage data={kitchen} date={kitchenDate} setDate={setKitchenDate} refresh={refreshKitchen}/>}
  {active==='orders'&&<Page title="Orders" text="Orders generated from customer subscriptions." content={<Table columns={['Order','Customer','Status','Delivery date','Total']} rows={orders.map(x=>[String(x.id).slice(0,8)+'…',String(x.customerId).slice(0,8)+'…',x.status,new Date(x.deliveryDate).toLocaleDateString(),money(x.total)])} empty="No orders yet."/>}/>}
  {active==='deliveries'&&<Page title="Deliveries" text="Scheduled delivery jobs for this outlet." content={<Table columns={['Customer','Address','Date','Slot','Fee','Status']} rows={deliveries.map(x=>[x.customerName,x.address,new Date(x.scheduledDate).toLocaleDateString(),x.mealSlot,money(x.deliveryFee),x.status])} empty="No deliveries yet."/>}/>}
  {active==='delivery-areas'&&<Areas city={city} setCity={setCity} areas={areas} selected={selectedAreas} setSelected={setSelectedAreas} save={saveAreas}/>}
