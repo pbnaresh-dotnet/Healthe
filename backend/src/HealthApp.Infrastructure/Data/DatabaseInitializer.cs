@@ -77,6 +77,57 @@ BEGIN
     );
     CREATE UNIQUE INDEX IX_CustomerAllergies_Customer_Allergen ON dbo.CustomerAllergies(CustomerId,AllergenId);
 END;
+IF OBJECT_ID('dbo.DeliveryRoutes','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.DeliveryRoutes(
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_DeliveryRoutes PRIMARY KEY,
+        OutletId uniqueidentifier NOT NULL,
+        DriverId uniqueidentifier NOT NULL,
+        DeliveryDate datetime2 NOT NULL,
+        Status int NOT NULL CONSTRAINT DF_DeliveryRoutes_Status DEFAULT 0,
+        TotalDistanceKm float NOT NULL CONSTRAINT DF_DeliveryRoutes_Distance DEFAULT 0,
+        TotalDurationMinutes float NOT NULL CONSTRAINT DF_DeliveryRoutes_Duration DEFAULT 0,
+        RoutingSource nvarchar(50) NOT NULL CONSTRAINT DF_DeliveryRoutes_RoutingSource DEFAULT 'OSRM',
+        GeometryJson nvarchar(max) NOT NULL CONSTRAINT DF_DeliveryRoutes_Geometry DEFAULT '[]',
+        CreatedAtUtc datetime2 NOT NULL,
+        UpdatedAtUtc datetime2 NOT NULL
+    );
+    CREATE INDEX IX_DeliveryRoutes_Outlet_Date ON dbo.DeliveryRoutes(OutletId,DeliveryDate);
+    CREATE INDEX IX_DeliveryRoutes_Driver_Date ON dbo.DeliveryRoutes(DriverId,DeliveryDate);
+END;
+IF OBJECT_ID('dbo.DeliveryRouteStops','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.DeliveryRouteStops(
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_DeliveryRouteStops PRIMARY KEY,
+        RouteId uniqueidentifier NOT NULL,
+        StopSequence int NOT NULL,
+        DeliveryAddressId uniqueidentifier NOT NULL,
+        CustomerId uniqueidentifier NOT NULL,
+        CustomerName nvarchar(200) NOT NULL,
+        Address nvarchar(1000) NOT NULL,
+        Latitude float NOT NULL,
+        Longitude float NOT NULL,
+        DeliveryCount int NOT NULL,
+        Status int NOT NULL CONSTRAINT DF_DeliveryRouteStops_Status DEFAULT 0,
+        CONSTRAINT FK_DeliveryRouteStops_Routes FOREIGN KEY(RouteId) REFERENCES dbo.DeliveryRoutes(Id) ON DELETE CASCADE
+    );
+    CREATE UNIQUE INDEX IX_DeliveryRouteStops_Route_Sequence ON dbo.DeliveryRouteStops(RouteId,StopSequence);
+    CREATE INDEX IX_DeliveryRouteStops_Address ON dbo.DeliveryRouteStops(DeliveryAddressId);
+END;
+IF COL_LENGTH('dbo.Deliveries','RouteId') IS NULL
+    ALTER TABLE dbo.Deliveries ADD RouteId uniqueidentifier NULL;
+IF COL_LENGTH('dbo.Deliveries','RouteStopId') IS NULL
+    ALTER TABLE dbo.Deliveries ADD RouteStopId uniqueidentifier NULL;
+IF COL_LENGTH('dbo.Deliveries','RouteSequence') IS NULL
+    ALTER TABLE dbo.Deliveries ADD RouteSequence int NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_Deliveries_RouteId' AND object_id=OBJECT_ID('dbo.Deliveries'))
+    CREATE INDEX IX_Deliveries_RouteId ON dbo.Deliveries(RouteId);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_Deliveries_RouteStopId' AND object_id=OBJECT_ID('dbo.Deliveries'))
+    CREATE INDEX IX_Deliveries_RouteStopId ON dbo.Deliveries(RouteStopId);
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_Deliveries_Routes')
+    ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_Routes FOREIGN KEY(RouteId) REFERENCES dbo.DeliveryRoutes(Id) ON DELETE SET NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_Deliveries_RouteStops')
+    ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_RouteStops FOREIGN KEY(RouteStopId) REFERENCES dbo.DeliveryRouteStops(Id) ON DELETE SET NULL;
 ", cancellationToken);
         // Keep the old text columns harmless for older databases; normalized values are now authoritative.
         await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(), cancellationToken);
