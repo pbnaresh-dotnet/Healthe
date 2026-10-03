@@ -49,7 +49,14 @@ Other apps: `npm run dev:outlet` and `npm run dev:admin`.
 
 - Customer: `customer@healthapp.test` / `demo`
 - Outlet Admin: `admin@fitfood.test` / `demo`
+- In-house Driver: `driver@fitfood.test` / `demo` (fresh database seed)
 - Super Admin: `admin@healthapp.test` / `demo`
+
+## Delivery routing
+
+Outlet Admins can select a delivery date, view eligible delivery points on a map, select active in-house drivers, and generate road-optimized driver routes. Deliveries sharing the same address are grouped into one route stop, and each delivery is persisted with its assigned route and stop sequence.
+
+The route adapter defaults to OSRM. Set `Routing:OsrmBaseUrl` to another compatible routing service or replace the adapter for a production routing provider.
 
 ## Main business capabilities
 
