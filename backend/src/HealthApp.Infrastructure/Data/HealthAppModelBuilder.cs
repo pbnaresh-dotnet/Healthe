@@ -184,7 +184,7 @@ internal static class HealthAppModelBuilder
     {
         e.ToTable("CustomerProfiles"); e.HasKey(x => x.Id); e.HasIndex(x => x.CustomerId).IsUnique();
         e.Property(x => x.WeightKg).HasPrecision(8,2); e.Property(x => x.HeightCm).HasPrecision(8,2); e.Property(x => x.Bmi).HasPrecision(8,2);
-        e.Property(x => x.Goal).HasMaxLength(50); e.Property(x => x.ActivityLevel).HasMaxLength(50); e.Property(x => x.Allergies).HasMaxLength(2000); e.Property(x => x.Diet).HasMaxLength(1000); e.HasOne<User>().WithOne(x=>x.CustomerProfile).HasForeignKey<CustomerProfile>(x=>x.CustomerId).OnDelete(DeleteBehavior.Cascade);
+        e.Property(x => x.Goal).HasMaxLength(50); e.Property(x => x.ActivityLevel).HasMaxLength(50); e.Property(x => x.Diet).HasMaxLength(1000); e.HasOne<User>().WithOne(x=>x.CustomerProfile).HasForeignKey<CustomerProfile>(x=>x.CustomerId).OnDelete(DeleteBehavior.Cascade);
     }
     private static void ConfigureCityArea(EntityTypeBuilder<CityArea> e)
     {
