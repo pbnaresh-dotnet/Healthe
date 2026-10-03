@@ -24,6 +24,8 @@ public sealed class HealthAppDbContext(DbContextOptions<HealthAppDbContext> opti
     public DbSet<CustomerCreditTransaction> CustomerCreditTransactions => Set<CustomerCreditTransaction>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<Delivery> Deliveries => Set<Delivery>();
+    public DbSet<DeliveryRoute> DeliveryRoutes => Set<DeliveryRoute>();
+    public DbSet<DeliveryRouteStop> DeliveryRouteStops => Set<DeliveryRouteStop>();
     public DbSet<CustomerProfile> CustomerProfiles => Set<CustomerProfile>();
     public DbSet<CityArea> CityAreas => Set<CityArea>();
     public DbSet<OutletDeliveryArea> OutletDeliveryAreas => Set<OutletDeliveryArea>();
