@@ -13,7 +13,7 @@ public record IngredientDto(Guid Id, string Name, string DefaultUnit);
 public record AllergenDto(Guid Id, string Name);
 public record RecipeIngredientInput(Guid IngredientId, decimal Quantity, string Unit);
 public record RecipeIngredientDto(Guid IngredientId, string Name, decimal Quantity, string Unit);
-public record AllergyWarningDto(Guid RecipeId, string RecipeName, IReadOnlyList<string> MatchedAllergies, string Message);
+public record AllergyWarningDto(Guid RecipeId, string RecipeName, IReadOnlyList<string> MatchedAllergies, IReadOnlyList<string> MatchedIngredients, string Message);
 public record RecipeDto(Guid Id, Guid OutletId, string Name, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, string Category, decimal PricePerMeal, decimal LargePricePerMeal, string Description, string ImageUrl, string Tags, bool IsActive, IReadOnlyList<RecipeIngredientDto> Ingredients, IReadOnlyList<AllergenDto> Allergens);
 public record MenuItemDto(Guid Id, Guid OutletId, Guid RecipeId, string RecipeName, DayOfWeek DayOfWeek, string MealSlot, int MealSlotValue, decimal PricePerMeal, decimal LargePricePerMeal, int Calories, int ProteinGrams, string Category, string ImageUrl, bool IsAvailable, int DisplayOrder);
 public record SubscriptionDto(Guid Id, Guid CustomerId, Guid OutletId, Guid MealPlanId, string PlanName, string DeliveryMode, decimal Price, decimal DeliveryFee, decimal CustomerTransactionFeePercent, decimal TransactionFee, decimal TotalCharged, decimal OutletAmount, string Frequency, int MealsPerDay, int MealsPerWeek, string Status, DateTime NextDeliveryDate, decimal AvailableCredit);
