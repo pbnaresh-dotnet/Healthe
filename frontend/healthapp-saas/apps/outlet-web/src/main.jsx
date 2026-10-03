@@ -95,37 +95,70 @@ function App(){
 }
 function Dashboard({dash,recipes,pricing,nav,openSubscription}) {
  const stats=[
-  ['recipes','Recipes',dash?.recipes??recipes.length],
-  ['customers','Customers',dash?.customers??0],
-  ['subscriptions','Subscriptions',dash?.subscriptions??0],
+  ['kitchen','Today’s meal boxes',dash?.todayMealBoxes??0],
+  ['routes','Delivery points',dash?.todayDeliveryPoints??0],
+  ['subscriptions','Active subscriptions',dash?.activeSubscriptions??0],
   ['customers','New customers · 7d',dash?.newCustomers??0],
   ['subscriptions','New subscriptions · 7d',dash?.newSubscriptions??0],
-  ['kitchen','Today’s meals',dash?.todayMeals??0]
+  ['orders','7-day sales',money(dash?.sales7d??0)]
  ];
+ const slotRows=dash?.todayDeliverySlots||[];
+ const pending=dash?.todayPendingDeliveries??0;
  return <div className="page">
   <div className="hero">
-   <div><div className="eyebrow">OUTLET OPERATIONS</div><h1>Good morning 👋</h1><p>See new business, review customer subscriptions and prepare today’s meals from one workspace.</p></div>
-   <div className="heroActions"><button className="secondary" onClick={()=>nav('kitchen')}>Open kitchen</button><button className="primary" onClick={()=>nav('recipes')}>+ Add recipe</button></div>
+   <div><div className="eyebrow">OUTLET OPERATIONS</div><h1>Today at {dash?.outlet?.name||'your outlet'}</h1><p>Run production, deliveries and customer activity from one operational view.</p></div>
+   <div className="heroActions"><button className="secondary" onClick={()=>nav('routes')}>Plan deliveries</button><button className="primary" onClick={()=>nav('kitchen')}>Open kitchen</button></div>
   </div>
-  <div className="statGrid">{stats.map(s=><button className="statCard" key={s[1]} onClick={()=>nav(s[0])}><div><span>{s[1]}</span><b>{s[2]}</b></div><i>→</i></button>)}</div>
+  <div className="statGrid dashboardStats">{stats.map(s=><button className="statCard" key={s[1]} onClick={()=>nav(s[0])}><div><span>{s[1]}</span><b>{s[2]}</b></div><i>→</i></button>)}</div>
+
+  <div className="dashboardGrid">
+   <section className="panel deliveryOverview">
+    <div className="panelHead"><div><h3>Today’s delivery windows</h3><p>Live workload by scheduled meal window</p></div><span className={pending>0?'pill amber':'pill green'}>{pending} pending</span></div>
+    <div className="deliverySlotList">
+     {slotRows.map(s=><div className="deliverySlotRow" key={s.mealSlot}>
+      <div><b>{s.mealSlot}</b><span>{s.deliveryWindow}</span></div>
+      <strong>{s.deliveryJobs}</strong>
+      <div className="deliverySlotProgress"><span style={{width:s.deliveryJobs ? (Math.round((s.completedJobs/s.deliveryJobs)*100)+'%') : '0%'}}/></div>
+      <span className="slotCompleted">{s.completedJobs} done</span>
+     </div>)}
+    </div>
+    <div className="deliveryOverviewFooter"><span>{dash?.todayDeliveryJobs??0} delivery jobs</span><span>{dash?.todayDeliveryPoints??0} physical stops</span><button className="linkBtn" onClick={()=>nav('routes')}>Open routes →</button></div>
+   </section>
+
+   <section className="panel operationsSummary">
+    <div className="panelHead"><div><h3>Operations summary</h3><p>What needs attention today</p></div></div>
+    <div className="opsMetric"><div className="opsIcon">□</div><div><b>{dash?.todayMealBoxes??0}</b><span>meal boxes to prepare</span></div><button className="linkBtn" onClick={()=>nav('kitchen')}>Kitchen →</button></div>
+    <div className="opsMetric"><div className="opsIcon">↗</div><div><b>{dash?.todayDeliveryJobs??0}</b><span>delivery jobs scheduled</span></div><button className="linkBtn" onClick={()=>nav('deliveries')}>Deliveries →</button></div>
+    <div className="opsMetric"><div className="opsIcon">⌖</div><div><b>{dash?.todayDeliveryPoints??0}</b><span>physical delivery stops</span></div><button className="linkBtn" onClick={()=>nav('routes')}>Routes →</button></div>
+    <div className="opsMetric"><div className="opsIcon">!</div><div><b>{pending}</b><span>pending deliveries</span></div><span className={pending>0?'pill amber':'pill green'}>{pending>0?'Needs action':'On track'}</span></div>
+   </section>
+  </div>
+
   <div className="twoCol">
    <section className="panel">
-    <div className="panelHead"><div><h3>New subscriptions</h3><p>Started in the last 7 days</p></div><button className="linkBtn" onClick={()=>nav('subscriptions')}>View all →</button></div>
+    <div className="panelHead"><div><h3>Latest customer activity</h3><p>Most recent subscription starts</p></div><button className="linkBtn" onClick={()=>nav('subscriptions')}>Open subscriptions →</button></div>
     {(dash?.recentSubscriptions||[]).map(s=><button className="miniRow clickable" key={s.id} onClick={()=>openSubscription(s.id)}>
       <div className="avatar sm">{(s.customerName||'C')[0]}</div>
       <div><b>{s.customerName}</b><span>{s.planName} · {s.mealCount} meals · {new Date(s.startDate).toLocaleDateString()}</span></div>
       <span className="pill green">{s.status}</span>
     </button>)}
-    {!(dash?.recentSubscriptions||[]).length&&<Empty title="No new subscriptions" text="New customer packages will appear here."/>}
+    {!(dash?.recentSubscriptions||[]).length&&<Empty title="No recent subscription activity" text="New customer packages will appear here."/>}
    </section>
+
    <section className="panel">
-    <div className="panelHead"><div><h3>Today’s kitchen</h3><p>Meals scheduled for today</p></div><button className="linkBtn" onClick={()=>nav('kitchen')}>Prepare →</button></div>
-    <div className="kitchenQuick"><div><b>{dash?.todayMeals??0}</b><span>meal boxes</span></div><div><b>{dash?.newCustomers??0}</b><span>new customers · 7d</span></div><div><b>{dash?.newSubscriptions??0}</b><span>new subscriptions · 7d</span></div></div>
-    <p className="muted">Open Kitchen to group production by meal and portion, then print customer labels for the boxes.</p>
+    <div className="panelHead"><div><h3>Business pulse · last 7 days</h3><p>Commercial activity across the outlet</p></div></div>
+    <div className="pulseGrid">
+     <div><span>Sales</span><b>{money(dash?.sales7d??0)}</b></div>
+     <div><span>Orders</span><b>{dash?.orders7d??0}</b></div>
+     <div><span>New customers</span><b>{dash?.newCustomers??0}</b></div>
+     <div><span>New subscriptions</span><b>{dash?.newSubscriptions??0}</b></div>
+    </div>
+    <div className="panelCallout"><b>Active customer base</b><span>{dash?.activeCustomers??0} customers across {dash?.activeSubscriptions??0} active subscriptions.</span></div>
    </section>
   </div>
+
   <div className="twoCol">
-   <section className="panel"><div className="panelHead"><div><h3>Recipe catalogue</h3><p>Meals customers can select</p></div><button className="linkBtn" onClick={()=>nav('recipes')}>Manage →</button></div>{recipes.slice(0,6).map(r=><div className="miniRow" key={r.id}><div className="thumb">{r.imageUrl?<img src={img(r.imageUrl)}/>:r.name[0]}</div><div><b>{r.name}</b><span>{r.category} · {r.calories} kcal · {money(r.pricePerMeal)}</span></div><span className="pill green">Active</span></div>)}{!recipes.length&&<Empty title="No recipes" text="Create your first meal."/>}</section>
+   <section className="panel"><div className="panelHead"><div><h3>Recipe catalogue</h3><p>{dash?.recipes??recipes.length} active meals customers can select</p></div><button className="linkBtn" onClick={()=>nav('recipes')}>Manage →</button></div>{recipes.slice(0,6).map(r=><div className="miniRow" key={r.id}><div className="thumb">{r.imageUrl?<img src={img(r.imageUrl)} alt=""/>:r.name[0]}</div><div><b>{r.name}</b><span>{r.category} · {r.calories} kcal · {money(r.pricePerMeal)}</span></div><span className="pill green">Active</span></div>)}{!recipes.length&&<Empty title="No recipes" text="Create your first meal."/>}</section>
    <section className="panel"><div className="panelHead"><div><h3>Delivery pricing</h3><p>Distance-based fees</p></div><button className="linkBtn" onClick={()=>nav('pricing')}>Configure →</button></div>{pricing.map(p=><div className="priceRow" key={p.id}><span>Up to {p.maxDistanceKm} km</span><b>{money(p.fee)}</b></div>)}{!pricing.length&&<Empty title="No slabs" text="Add the first pricing rule."/>}</section>
   </div>
  </div>
@@ -238,28 +271,28 @@ function DeliveryRoutesPage({plan,drivers,date,mealSlot,setDate,setMealSlot,sele
  const points=plan?.points||[];
  const unassigned=points.filter(p=>!assigned.has(p.addressId));
  return <div className="page">
-  <div className="pageHead"><div><span className="eyebrow">LAST-MILE OPERATIONS</span><h1>Delivery Routes</h1><p>Choose a delivery window, review every stop on the map, then calculate road routes across the selected drivers.</p></div><div className="pageActions"><input type="date" value={date} onChange={e=>setDate(e.target.value)}/><button className="secondary" onClick={addDriver}>+ Driver</button><button className="primary" onClick={planRoutes} disabled={!drivers.length||!points.length}>Calculate routes</button></div></div>
+  <div className="pageHead"><div><span className="eyebrow">LAST-MILE OPERATIONS</span><h1>Delivery Routes</h1><p>Choose a delivery window, review every stop on the map, then calculate road routes across the selected drivers.</p></div><div className="pageActions"><input type="date" value={date} onChange={e=>setDate(e.target.value)}/><button className="secondary" onClick={addDriver}>+ Driver</button><button className="primary" onClick={planRoutes} disabled={!drivers.length||!points.length}>Optimize routes</button></div></div>
   <section className="panel routeControls">
-   <div className="panelHead"><div><h3>Delivery window</h3><p>{slotName} deliveries for {new Date(date+'T00:00:00').toLocaleDateString()} · {slotWindow}</p></div><span className="count">{plan?.totalDeliveryPoints||0} points · {plan?.totalDeliveries||0} meals</span></div>
+   <div className="panelHead"><div><h3>Delivery window</h3><p>{slotName} deliveries for {new Date(date+'T00:00:00').toLocaleDateString()} · {slotWindow}</p></div><span className="count">{plan?.totalDeliveryPoints||0} stops · {plan?.totalDeliveries||0} delivery jobs</span></div>
    <div className="routeSlotPicker">{SLOTS.map(s=><button type="button" key={s[1]} className={Number(mealSlot)===s[1]?'routeSlotChoice active':'routeSlotChoice'} onClick={()=>setMealSlot(s[1])}><b>{s[0]}</b><small>{s[0]==='Morning'?'07:00–09:00':s[0]==='Afternoon'?'12:00–14:00':s[0]==='Evening'?'17:00–19:00':'20:00–22:00'}</small></button>)}</div>
-   <div className="panelHead routeDriverHead"><div><h3>Drivers</h3><p>Each driver receives a geographically grouped road route. Multiple meals at one address stay together as one stop.</p></div><span className="count">{selectedDriverIds.length} selected · {drivers.length} active</span></div>
+   <div className="panelHead routeDriverHead"><div><h3>Drivers</h3><p>Each driver receives a geographically grouped road route. Multiple delivery jobs at the same address stay together as one physical stop.</p></div><span className="count">{selectedDriverIds.length} selected · {drivers.length} active</span></div>
    <div className="driverPicker">{drivers.map(d=><label key={d.id} className={selectedDriverIds.includes(d.id)?'driverChoice checked':'driverChoice'}><input type="checkbox" checked={selectedDriverIds.includes(d.id)} onChange={e=>setSelectedDriverIds(e.target.checked?[...selectedDriverIds,d.id]:selectedDriverIds.filter(x=>x!==d.id))}/><span><b>{d.name}</b><small>{d.email}</small></span></label>)}</div>
    {!drivers.length&&<div className="notice"><b>No drivers yet.</b><span>Add an in-house driver, then calculate the route.</span></div>}
   </section>
   {!plan?<Empty title="No route plan loaded" text="Select a date and delivery window to load delivery points."/>:<>
-   <div className="statGrid routeStats"><div className="statCard static"><div><span>Delivery points</span><b>{plan.totalDeliveryPoints}</b></div></div><div className="statCard static"><div><span>Meal boxes</span><b>{plan.totalDeliveries}</b></div></div><div className="statCard static"><div><span>Driver routes</span><b>{plan.routes?.length||0}</b></div></div><div className="statCard static"><div><span>Unassigned</span><b>{plan.unassignedPoints}</b></div></div></div>
+   <div className="statGrid routeStats"><div className="statCard static"><div><span>Delivery points</span><b>{plan.totalDeliveryPoints}</b></div></div><div className="statCard static"><div><span>Delivery jobs</span><b>{plan.totalDeliveries}</b></div></div><div className="statCard static"><div><span>Driver routes</span><b>{plan.routes?.length||0}</b></div></div><div className="statCard static"><div><span>Unassigned</span><b>{plan.unassignedPoints}</b></div></div></div>
    <section className="mapRouteGrid">
     <div className="panel mapPanel"><div className="panelHead"><div><h3>{plan.outletName} → delivery points</h3><p>{slotName} · {slotWindow} · blue marker is the outlet; every delivery point represents one address.</p></div><span className="routeLegend"><i/>Outlet <em/>Unassigned</span></div>
      <MapContainer center={[plan.outletLatitude,plan.outletLongitude]} zoom={12} scrollWheelZoom className="deliveryMap">
       <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
       <MapBounds coords={bounds}/>
       <CircleMarker center={[plan.outletLatitude,plan.outletLongitude]} radius={12} pathOptions={{color:'#14532d',fillColor:'#14532d',fillOpacity:1,weight:3}}><Popup><b>{plan.outletName}</b><br/>Dispatch / outlet location<br/><small>{plan.totalDeliveryPoints} delivery points · {plan.totalDeliveries} meals</small></Popup></CircleMarker>
-      {(plan.routes||[]).map((route,ri)=><React.Fragment key={route.id}><Polyline positions={(route.geometry||[]).map(p=>[p[1],p[0]])} pathOptions={{color:routeColor(ri),weight:6,opacity:.8}}/>{(route.stops||[]).map(stop=><CircleMarker key={stop.id} center={[stop.latitude,stop.longitude]} radius={9} pathOptions={{color:routeColor(ri),fillColor:routeColor(ri),fillOpacity:.9,weight:2}}><Popup><b>Stop {stop.stopSequence} · {stop.customerName}</b><br/>{stop.deliveryCount} meal{stop.deliveryCount===1?'':'s'} at this address.<br/>{stop.address}<br/><small>{route.driverName} · {route.mealSlot} · {route.deliveryWindow}</small></Popup></CircleMarker>)}</React.Fragment>)}
+      {(plan.routes||[]).map((route,ri)=><React.Fragment key={route.id}><Polyline positions={(route.geometry||[]).map(p=>[p[1],p[0]])} pathOptions={{color:routeColor(ri),weight:6,opacity:.8}}/>{(route.stops||[]).map(stop=><CircleMarker key={stop.id} center={[stop.latitude,stop.longitude]} radius={9} pathOptions={{color:routeColor(ri),fillColor:routeColor(ri),fillOpacity:.9,weight:2}}><Popup><b>Stop {stop.stopSequence} · {stop.customerName}</b><br/>{stop.deliveryCount} delivery job{stop.deliveryCount===1?'':'s'} at this address.<br/>{stop.address}<br/><small>{route.driverName} · {route.mealSlot} · {route.deliveryWindow}</small></Popup></CircleMarker>)}</React.Fragment>)}
       {unassigned.map(p=><CircleMarker key={p.deliveryId} center={[p.latitude,p.longitude]} radius={8} pathOptions={{color:'#64748b',fillColor:'#64748b',fillOpacity:.85,weight:2}}><Popup><b>{p.customerName}</b><br/>{p.deliveryCount} meal{p.deliveryCount===1?'':'s'} at this address.<br/>{p.address}<br/><small>Unassigned · {p.mealSlot}</small></Popup></CircleMarker>)}
      </MapContainer>
-     <div className="mapNote">Map tiles: OpenStreetMap · Road routing: {plan.routes?.[0]?.routingSource||'not calculated yet'} · Route planning starts at the outlet and optimizes delivery-stop order for each driver.</div>
+     <div className="mapNote">Map tiles: OpenStreetMap · Road routing: {plan.routes?.[0]?.routingSource||'not calculated yet'} · Optimization: {plan.optimizationSource||'not calculated yet'} · planned travel {plan.plannedDistanceKm||0} km / ≈ {Math.round(plan.plannedDurationMinutes||0)} min. OR-Tools assigns stops across drivers using OSRM road travel times; OSRM draws the final road geometry.</div>
     </div>
-    <div className="panel routeListPanel"><div className="panelHead"><div><h3>Driver routes</h3><p>Routes are calculated separately for {slotName}. One stop can carry multiple meal boxes.</p></div></div>
+    <div className="panel routeListPanel"><div className="panelHead"><div><h3>Driver routes</h3><p>Routes are calculated separately for {slotName}. One physical stop can carry multiple delivery jobs.</p></div></div>
      {(plan.routes||[]).map((route,ri)=><article className="routeCard" key={route.id}><div className="routeCardHead"><div><span className="routeColor" style={{background:routeColor(ri)}}/><div><b>{route.driverName}</b><small>Route {ri+1} · {route.mealSlot} · {route.deliveryWindow} · {route.stops.length} stops</small></div></div><span className="pill green">{route.status}</span></div><div className="routeMetrics"><b>{route.totalDistanceKm} km</b><span>≈ {Math.round(route.totalDurationMinutes)} min</span><span>{route.routingSource}</span></div><div className="stopList">{route.stops.map(stop=><div className="stopRow" key={stop.id}><strong>{stop.stopSequence}</strong><div><b>{stop.customerName}</b><span>{stop.deliveryCount} meal{stop.deliveryCount===1?'':'s'} · {stop.address}</span></div></div>)}</div></article>)}
      {!(plan.routes||[]).length&&<Empty title="Routes not calculated yet" text={points.length?"Choose drivers and calculate the "+slotName.toLowerCase()+" routes.":"There are no eligible deliveries for this window."}/>}
     </div>
