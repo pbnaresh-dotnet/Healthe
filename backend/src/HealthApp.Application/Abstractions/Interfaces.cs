@@ -60,9 +60,21 @@ public interface IDeliveryRouteRepository
 }
 public record RouteOptimizationStop(Guid Id, double Latitude, double Longitude);
 public record RouteOptimizationResult(double DistanceKm, double DurationMinutes, IReadOnlyList<Guid> OrderedStopIds, IReadOnlyList<IReadOnlyList<double>> Geometry);
+public record RouteTravelMatrix(long[,] DurationSeconds, double[,] DistanceMeters);
+public record DriverRouteAssignment(Guid DriverId, IReadOnlyList<Guid> StopIds);
+public record MultiDriverRoutePlan(IReadOnlyList<DriverRouteAssignment> Routes);
+
 public interface IRouteOptimizationService
 {
-    Task<RouteOptimizationResult> OptimizeAsync(double outletLatitude, double outletLongitude, IReadOnlyList<RouteOptimizationStop> stops, CancellationToken cancellationToken = default);
+    Task<RouteOptimizationResult> RouteInOrderAsync(double outletLatitude, double outletLongitude, IReadOnlyList<RouteOptimizationStop> stops, CancellationToken cancellationToken = default);
+}
+public interface IRouteMatrixService
+{
+    Task<RouteTravelMatrix> BuildAsync(IReadOnlyList<RouteOptimizationStop> points, CancellationToken cancellationToken = default);
+}
+public interface IMultiDriverRoutePlanningService
+{
+    Task<MultiDriverRoutePlan> OptimizeAsync(IReadOnlyList<Guid> driverIds, IReadOnlyList<RouteOptimizationStop> points, RouteTravelMatrix matrix, CancellationToken cancellationToken = default);
 }
 public interface IDeliveryRouteService
 {
