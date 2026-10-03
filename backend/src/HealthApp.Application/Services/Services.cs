@@ -560,9 +560,9 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             RecipeId=x.Id,AllergenId=a
         });
         await recipes.AddAsync(x);
-        return (await recipes.GetAsync(x.Id)) is {
-        }
-        saved ? Map(saved) : Map(x);
+        return (await recipes.GetAsync(x.Id)) is { } saved
+            ? Map(saved)
+            : Map(x);
     }
     public async Task<RecipeDto?> UpdateRecipeAsync(Guid id,UpdateRecipeRequest r) {
         if(current.OutletId is not Guid outletId)return null;
