@@ -193,6 +193,8 @@ public sealed class DeliveryRouteService(
                 : chunk.Select(x => x.Address.Id).ToList();
 
             var sequence = 1;
+            var deliveryLinks = new List<(Delivery Delivery, Guid StopId, int Sequence)>();
+
             foreach (var addressId in orderedIds)
             {
                 if (!byId.TryGetValue(addressId, out var point)) continue;
@@ -216,14 +218,21 @@ public sealed class DeliveryRouteService(
                 route.Stops.Add(stop);
 
                 foreach (var delivery in point.Deliveries)
-                {
-                    delivery.RouteId = routeId;
-                    delivery.RouteStopId = stopId;
-                    delivery.RouteSequence = sequence;
-                    await deliveries.UpdateAsync(delivery);
-                }
+                    deliveryLinks.Add((delivery, stopId, sequence));
 
                 sequence++;
+            }
+
+            // Persist the route and its stops before setting Delivery.RouteId / RouteStopId.
+            // SQL Server requires the referenced route to exist before the delivery FK is saved.
+            await routes.AddAsync(route);
+
+            foreach (var link in deliveryLinks)
+            {
+                link.Delivery.RouteId = routeId;
+                link.Delivery.RouteStopId = link.StopId;
+                link.Delivery.RouteSequence = link.Sequence;
+                await deliveries.UpdateAsync(link.Delivery);
             }
 
             await routes.AddAsync(route);
