@@ -47,6 +47,7 @@ public static class DependencyInjection
         services.AddScoped<ISubscriptionMealSelectionRepository, SubscriptionMealSelectionRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IDeliveryRepository, DeliveryRepository>();
+        services.AddScoped<IDeliveryRouteRepository, DeliveryRouteRepository>();
         services.AddScoped<ICustomerProfileRepository, CustomerProfileRepository>();
         services.AddScoped<ICityAreaRepository, CityAreaRepository>();
         services.AddScoped<IOutletDeliveryAreaRepository, OutletDeliveryAreaRepository>();
@@ -58,6 +59,11 @@ public static class DependencyInjection
         services.AddScoped<IDiscountCodeRepository, DiscountCodeRepository>();
         services.AddScoped<IOrderFinancialRepository, OrderFinancialRepository>();
         services.AddScoped<IDeliveryCalculator, DeliveryCalculator>();
+        services.AddHttpClient<IRouteOptimizationService, OsrmRouteOptimizationService>((_, client) =>
+        {
+            client.BaseAddress = new Uri(config["Routing:OsrmBaseUrl"] ?? "https://router.project-osrm.org");
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
 
         services.AddScoped<ICurrentUser, CurrentUser>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
@@ -87,6 +93,7 @@ public static class DependencyInjection
         services.AddScoped<ICityAreaAdminService, CityAreaAdminService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IDeliveryLabelService, DeliveryLabelService>();
+        services.AddScoped<IDeliveryRouteService, DeliveryRouteService>();
         services.AddScoped<IOutletDiscountCodeService, OutletDiscountCodeService>();
         return services;
     }
