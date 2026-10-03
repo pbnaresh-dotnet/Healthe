@@ -148,6 +148,8 @@ IF NOT EXISTS (
       AND referenced_object_id=OBJECT_ID('dbo.DeliveryRouteStops')
 )
     ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_RouteStops FOREIGN KEY(RouteStopId) REFERENCES dbo.DeliveryRouteStops(Id) ON DELETE NO ACTION;
+IF COL_LENGTH('dbo.CustomerProfiles','Allergies') IS NOT NULL
+    ALTER TABLE dbo.CustomerProfiles ALTER COLUMN Allergies nvarchar(max) NULL;
 ", cancellationToken);
         // Keep the old text columns harmless for older databases; normalized values are now authoritative.
         await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(), cancellationToken);
