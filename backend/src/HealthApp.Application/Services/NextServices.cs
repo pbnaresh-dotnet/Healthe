@@ -5,11 +5,25 @@ using HealthApp.Shared.DTOs;
 
 namespace HealthApp.Application.Services;
 
-public sealed class CustomerProfileService(ICurrentUser current, ICustomerProfileRepository profiles) : ICustomerProfileService
+public sealed class CustomerProfileService(ICurrentUser current, ICustomerProfileRepository profiles, IAllergenRepository allergens, ICustomerAllergyRepository customerAllergies) : ICustomerProfileService
 {
     public async Task<CustomerProfileDto?> GetAsync(){if(current.UserId is not Guid id)return null;var p=await profiles.GetAsync(id);return p is null?null:Map(p);}
-    public async Task<CustomerProfileDto?> SaveAsync(SaveCustomerProfileRequest r){if(current.UserId is not Guid id)return null;if(r.WeightKg is <=0||r.HeightCm is <=0)throw new ArgumentException("Weight and height must be positive.");decimal? bmi=r.WeightKg.HasValue&&r.HeightCm.HasValue?Math.Round(r.WeightKg.Value/((r.HeightCm.Value/100m)*(r.HeightCm.Value/100m)),2):null;var p=await profiles.GetAsync(id)??new CustomerProfile{Id=Guid.NewGuid(),CustomerId=id};p.WeightKg=r.WeightKg;p.HeightCm=r.HeightCm;p.Bmi=bmi;p.DateOfBirth=r.DateOfBirth;p.Goal=r.Goal;p.ActivityLevel=r.ActivityLevel;p.Allergies=r.Allergies;p.Diet=r.Diet;p.UpdatedAtUtc=DateTime.UtcNow;await profiles.AddOrUpdateAsync(p);return Map(p);}
-    private static CustomerProfileDto Map(CustomerProfile p)=>new(p.Id,p.CustomerId,p.WeightKg,p.HeightCm,p.Bmi,p.Goal,p.ActivityLevel,p.Allergies,p.Diet,p.UpdatedAtUtc);
+    public async Task<CustomerProfileDto?> SaveAsync(SaveCustomerProfileRequest r)
+    {
+        if(current.UserId is not Guid id)return null;
+        if(r.WeightKg is <=0||r.HeightCm is <=0)throw new ArgumentException("Weight and height must be positive.");
+        var requested=(r.AllergyIds??[]).Distinct().ToList();
+        var valid=await allergens.GetByIdsAsync(requested);
+        if(valid.Count!=requested.Count)throw new ArgumentException("One or more selected allergies are invalid.");
+        decimal? bmi=r.WeightKg.HasValue&&r.HeightCm.HasValue?Math.Round(r.WeightKg.Value/((r.HeightCm.Value/100m)*(r.HeightCm.Value/100m)),2):null;
+        var p=await profiles.GetAsync(id)??new CustomerProfile{Id=Guid.NewGuid(),CustomerId=id};
+        p.WeightKg=r.WeightKg;p.HeightCm=r.HeightCm;p.Bmi=bmi;p.DateOfBirth=r.DateOfBirth;p.Goal=r.Goal;p.ActivityLevel=r.ActivityLevel;p.Diet=r.Diet;p.UpdatedAtUtc=DateTime.UtcNow;
+        await profiles.AddOrUpdateAsync(p);
+        await customerAllergies.ReplaceAsync(id,requested);
+        p=await profiles.GetAsync(id)??p;
+        return Map(p);
+    }
+    private static CustomerProfileDto Map(CustomerProfile p)=>new(p.Id,p.CustomerId,p.WeightKg,p.HeightCm,p.Bmi,p.Goal,p.ActivityLevel,p.Diet,p.UpdatedAtUtc,p.Allergies.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).OrderBy(a=>a.Name).ToList());
 }
 
 public sealed class CustomerAddressService(ICurrentUser current,ICustomerAddressRepository addresses,ICityAreaRepository areas,IOutletDeliveryAreaRepository outletAreas,IDeliveryPricingRepository pricing,IOutletRepository outlets,IDeliveryCalculator calculator) : ICustomerAddressService
