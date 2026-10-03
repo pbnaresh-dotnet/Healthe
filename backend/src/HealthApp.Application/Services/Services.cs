@@ -595,9 +595,9 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             RecipeId=x.Id,AllergenId=a
         });
         await recipes.UpdateAsync(x);
-        return (await recipes.GetAsync(x.Id)) is {
-        }
-        saved?MapRecipe(saved):MapRecipe(x);
+        return (await recipes.GetAsync(x.Id)) is { } saved
+            ? Map(saved)
+            : Map(x);
     }
     public async Task<bool> DeleteRecipeAsync(Guid id) {
         if(current.OutletId is not Guid outletId)return false;
