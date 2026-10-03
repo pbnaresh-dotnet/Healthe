@@ -36,6 +36,9 @@ public static class DependencyInjection
         services.AddScoped<ISaaSPlanRepository, SaaSPlanRepository>();
         services.AddScoped<IOutletSubscriptionRepository, OutletSubscriptionRepository>();
         services.AddScoped<IPlatformTransactionRepository, PlatformTransactionRepository>();
+        services.AddScoped<IIngredientRepository, IngredientRepository>();
+        services.AddScoped<IAllergenRepository, AllergenRepository>();
+        services.AddScoped<ICustomerAllergyRepository, CustomerAllergyRepository>();
         services.AddScoped<IMealPlanRepository, MealPlanRepository>();
         services.AddScoped<IRecipeRepository, RecipeRepository>();
         services.AddScoped<IOutletMenuRepository, OutletMenuRepository>();
@@ -72,6 +75,8 @@ public static class DependencyInjection
 
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IMarketplaceService, MarketplaceService>();
+        services.AddScoped<ICatalogService, CatalogService>();
+        services.AddScoped<IAllergySafetyService, AllergySafetyService>();
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IOutletService, OutletService>();
         services.AddScoped<IAdminService, AdminService>();
