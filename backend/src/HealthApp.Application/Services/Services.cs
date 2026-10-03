@@ -19,7 +19,7 @@ public sealed class AuthService(IUserRepository users, IOutletRepository outlets
         if (string.IsNullOrWhiteSpace(r.Password) || r.Password.Length < 6) throw new ArgumentException("Password must be at least 6 characters.");
         if (await users.FindByEmailAsync(r.Email) is not null) throw new InvalidOperationException("Email is already registered.");
         var role = Enum.TryParse<UserRole>(r.Role, true, out var parsed) ? parsed : UserRole.Customer;
-        if (role == UserRole.SuperAdmin) throw new UnauthorizedAccessException("SuperAdmin accounts cannot be self-registered.");
+        if (role is UserRole.SuperAdmin or UserRole.Driver) throw new UnauthorizedAccessException("This role cannot be self-registered.");
         Guid? outletId = null;
         if (role == UserRole.OutletAdmin)
         {
