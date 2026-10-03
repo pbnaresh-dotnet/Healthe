@@ -16,6 +16,12 @@ internal static class HealthAppModelBuilder
         ConfigurePlatformTransaction(b.Entity<PlatformTransaction>());
         ConfigureMealPlan(b.Entity<MealPlan>());
         ConfigureRecipe(b.Entity<Recipe>());
+        ConfigureIngredient(b.Entity<Ingredient>());
+        ConfigureAllergen(b.Entity<Allergen>());
+        ConfigureRecipeIngredient(b.Entity<RecipeIngredient>());
+        ConfigureRecipeAllergen(b.Entity<RecipeAllergen>());
+        ConfigureIngredientAllergen(b.Entity<IngredientAllergen>());
+        ConfigureCustomerAllergy(b.Entity<CustomerAllergy>());
         ConfigureMenu(b.Entity<OutletMenuItem>());
         ConfigureSubscription(b.Entity<Subscription>());
         ConfigureSelection(b.Entity<SubscriptionMealSelection>());
@@ -89,8 +95,49 @@ internal static class HealthAppModelBuilder
     {
         e.ToTable("Recipes"); e.HasKey(x => x.Id); e.Property(x => x.Name).HasMaxLength(200).IsRequired(); e.Property(x => x.Category).HasConversion<int>();
         e.Property(x => x.PricePerMeal).HasPrecision(18,2); e.Property(x => x.LargePricePerMeal).HasPrecision(18,2);
-        e.Property(x => x.Description).HasMaxLength(2000); e.Property(x => x.ImageUrl).HasMaxLength(1000); e.Property(x => x.Ingredients).HasMaxLength(3000); e.Property(x => x.Allergens).HasMaxLength(1000); e.Property(x => x.Tags).HasMaxLength(1000);
+        e.Property(x => x.Description).HasMaxLength(2000); e.Property(x => x.ImageUrl).HasMaxLength(1000); e.Property(x => x.Tags).HasMaxLength(1000);
         e.HasIndex(x => new { x.OutletId, x.IsActive });
+    }
+    private static void ConfigureIngredient(EntityTypeBuilder<Ingredient> e)
+    {
+        e.ToTable("Ingredients"); e.HasKey(x => x.Id);
+        e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+        e.Property(x => x.DefaultUnit).HasMaxLength(20).IsRequired();
+        e.HasIndex(x => x.Name).IsUnique();
+    }
+    private static void ConfigureAllergen(EntityTypeBuilder<Allergen> e)
+    {
+        e.ToTable("Allergens"); e.HasKey(x => x.Id);
+        e.Property(x => x.Name).HasMaxLength(100).IsRequired();
+        e.HasIndex(x => x.Name).IsUnique();
+    }
+    private static void ConfigureRecipeIngredient(EntityTypeBuilder<RecipeIngredient> e)
+    {
+        e.ToTable("RecipeIngredients"); e.HasKey(x => x.Id);
+        e.Property(x => x.Quantity).HasPrecision(18,3);
+        e.Property(x => x.Unit).HasMaxLength(20).IsRequired();
+        e.HasIndex(x => new { x.RecipeId, x.IngredientId }).IsUnique();
+        e.HasOne(x => x.Recipe).WithMany(x => x.RecipeIngredients).HasForeignKey(x => x.RecipeId).OnDelete(DeleteBehavior.Cascade);
+        e.HasOne(x => x.Ingredient).WithMany().HasForeignKey(x => x.IngredientId).OnDelete(DeleteBehavior.Restrict);
+    }
+    private static void ConfigureRecipeAllergen(EntityTypeBuilder<RecipeAllergen> e)
+    {
+        e.ToTable("RecipeAllergens"); e.HasKey(x => new { x.RecipeId, x.AllergenId });
+        e.HasOne(x => x.Recipe).WithMany(x => x.RecipeAllergens).HasForeignKey(x => x.RecipeId).OnDelete(DeleteBehavior.Cascade);
+        e.HasOne(x => x.Allergen).WithMany(x => x.Recipes).HasForeignKey(x => x.AllergenId).OnDelete(DeleteBehavior.Restrict);
+    }
+    private static void ConfigureIngredientAllergen(EntityTypeBuilder<IngredientAllergen> e)
+    {
+        e.ToTable("IngredientAllergens"); e.HasKey(x => new { x.IngredientId, x.AllergenId });
+        e.HasOne(x => x.Ingredient).WithMany(x => x.Allergens).HasForeignKey(x => x.IngredientId).OnDelete(DeleteBehavior.Cascade);
+        e.HasOne(x => x.Allergen).WithMany(x => x.Ingredients).HasForeignKey(x => x.AllergenId).OnDelete(DeleteBehavior.Restrict);
+    }
+    private static void ConfigureCustomerAllergy(EntityTypeBuilder<CustomerAllergy> e)
+    {
+        e.ToTable("CustomerAllergies"); e.HasKey(x => x.Id);
+        e.HasIndex(x => new { x.CustomerId, x.AllergenId }).IsUnique();
+        e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);
+        e.HasOne(x => x.Allergen).WithMany(x => x.Customers).HasForeignKey(x => x.AllergenId).OnDelete(DeleteBehavior.Restrict);
     }
     private static void ConfigureMenu(EntityTypeBuilder<OutletMenuItem> e)
     {
