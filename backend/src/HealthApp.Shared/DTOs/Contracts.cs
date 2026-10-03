@@ -66,6 +66,22 @@ public record OutletSubscriptionMealDto(Guid SelectionId, DateTime MealDate, int
 public record OutletSubscriptionDetailDto(Guid Id, Guid CustomerId, string CustomerName, string CustomerEmail, string PlanName, string DeliveryMode, string Duration, DateTime StartDate, DateTime EndDate, string Frequency, int MealsPerDay, int MealsPerWeek, decimal MealAmount, decimal DiscountAmount, decimal RestaurantGstAmount, decimal PackageAmountWithGst, decimal DeliveryFee, string Status, IReadOnlyList<OutletSubscriptionMealDto> Meals);
 public record OutletDashboardSubscriptionDto(Guid Id, Guid CustomerId, string CustomerName, string PlanName, DateTime StartDate, DateTime EndDate, int MealCount, string Status);
 public record OutletDashboardDeliverySlotDto(string MealSlot, string DeliveryWindow, int DeliveryJobs, int PendingJobs, int CompletedJobs);
+public record OutletDashboardDto(
+    OutletDto Outlet,
+    int MealPlans,
+    int Recipes,
+    int ActiveCustomers,
+    int ActiveSubscriptions,
+    int NewCustomers,
+    int NewSubscriptions,
+    int Orders7d,
+    decimal Sales7d,
+    int TodayMealBoxes,
+    int TodayDeliveryJobs,
+    int TodayDeliveryPoints,
+    int TodayPendingDeliveries,
+    IReadOnlyList<OutletDashboardDeliverySlotDto> TodayDeliverySlots,
+    IReadOnlyList<OutletDashboardSubscriptionDto> RecentSubscriptions);
 public record OutletKitchenMealCountDto(string MealName, string Category, string PortionSize, int Quantity);
 public record OutletKitchenDayDto(DateTime Date, string OutletName, string OutletLogoUrl, int TotalMeals, int UniqueCustomers, int ActiveSubscriptions, IReadOnlyList<OutletKitchenMealCountDto> Production, IReadOnlyList<DeliveryLabelDto> Labels);
 public record PaymentDto(Guid Id, Guid? SubscriptionId, string Provider, string ProviderPaymentId, decimal Amount, string Currency, string Status, DateTime CreatedAtUtc, DateTime? PaidAtUtc);
