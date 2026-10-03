@@ -59,11 +59,17 @@ public static class DependencyInjection
         services.AddScoped<IDiscountCodeRepository, DiscountCodeRepository>();
         services.AddScoped<IOrderFinancialRepository, OrderFinancialRepository>();
         services.AddScoped<IDeliveryCalculator, DeliveryCalculator>();
+        services.AddHttpClient<IRouteMatrixService, OsrmRouteMatrixService>((_, client) =>
+        {
+            client.BaseAddress = new Uri(config["Routing:OsrmBaseUrl"] ?? "https://router.project-osrm.org");
+            client.Timeout = TimeSpan.FromSeconds(20);
+        });
         services.AddHttpClient<IRouteOptimizationService, OsrmRouteOptimizationService>((_, client) =>
         {
             client.BaseAddress = new Uri(config["Routing:OsrmBaseUrl"] ?? "https://router.project-osrm.org");
-            client.Timeout = TimeSpan.FromSeconds(15);
+            client.Timeout = TimeSpan.FromSeconds(20);
         });
+        services.AddScoped<IMultiDriverRoutePlanningService, OrToolsMultiDriverRoutePlanningService>();
 
         services.AddScoped<ICurrentUser, CurrentUser>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
