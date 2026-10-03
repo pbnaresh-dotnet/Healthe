@@ -289,6 +289,10 @@ internal static class HealthAppModelBuilder
             x.OutletId, x.ScheduledDate
         });
         e.HasIndex(x => x.DeliveryAddressId);
+        e.HasIndex(x => x.RouteId);
+        e.HasIndex(x => x.RouteStopId);
+        e.HasOne<DeliveryRoute>().WithMany().HasForeignKey(x => x.RouteId).OnDelete(DeleteBehavior.SetNull);
+        e.HasOne<DeliveryRouteStop>().WithMany().HasForeignKey(x => x.RouteStopId).OnDelete(DeleteBehavior.SetNull);
     }
     private static void ConfigureDeliveryRoute(EntityTypeBuilder<DeliveryRoute> e)
     {
@@ -308,7 +312,7 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.CustomerName).HasMaxLength(200);
         e.Property(x => x.Address).HasMaxLength(1000);
         e.HasIndex(x => new { x.RouteId, x.StopSequence }).IsUnique();
-        e.HasIndex(x => e.Property(x => x.DeliveryAddressId).Metadata.Name);
+        e.HasIndex(x => x.DeliveryAddressId);
         e.HasOne<DeliveryRoute>().WithMany(x => x.Stops).HasForeignKey(x => x.RouteId).OnDelete(DeleteBehavior.Cascade);
     }
     private static void ConfigureCustomerProfile(EntityTypeBuilder<CustomerProfile> e)
