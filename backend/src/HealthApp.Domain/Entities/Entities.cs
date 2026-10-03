@@ -1275,6 +1275,9 @@ public sealed class Delivery
         get;
         set;
     }
+    public Guid? RouteId { get; set; }
+    public Guid? RouteStopId { get; set; }
+    public int? RouteSequence { get; set; }
     public Guid Id {
         get;
         set;
