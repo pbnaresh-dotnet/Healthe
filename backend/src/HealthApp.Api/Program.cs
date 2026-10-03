@@ -40,6 +40,7 @@ builder.Services.AddCors(options => options.AddPolicy("WebApps", policy => polic
 var app = builder.Build();
 await DatabaseInitializer.InitializeAsync(app.Services);
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseStaticFiles();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseCors("WebApps"); app.UseAuthentication(); app.UseAuthorization(); app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status="ok", service="HealthApp.Api", framework=".NET 10", database="SQL Server / EF Core 10.0.12", time=DateTime.UtcNow }));
