@@ -56,3 +56,70 @@
 .mapPanel .leaflet-container{font:inherit}
 @media (max-width:1000px){.mapRouteGrid{grid-template-columns:1fr}.routeListPanel{max-height:none}.driverPicker{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){.driverPicker{grid-template-columns:1fr}.deliveryMap{height:460px}.routeMetrics{flex-wrap:wrap}}
+
+/* Kitchen production and concise label printing */
+.slotSummary{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:2px 0 15px;padding:10px 12px;background:#eef5ef;border:1px solid #dbe8de;border-radius:11px;font-size:10px;color:#66766d}
+.slotSummary>span{font-weight:700;color:#4d6255;margin-right:3px}
+.slotChip{border:1px solid #d8e3db;background:#fff;color:#64736a;border-radius:999px;padding:6px 10px;font-size:9px;font-weight:700}
+.slotChip.active{background:#176534;color:#fff;border-color:#176534}
+.productionTable{border:1px solid #e1e9e2;border-radius:11px;overflow:hidden}
+.productionTableRow{display:grid;grid-template-columns:2fr .9fr .9fr .65fr;gap:10px;padding:12px 13px;border-bottom:1px solid #edf1ee;align-items:center;font-size:10px}
+.productionTableRow:last-child{border-bottom:0}
+.productionTableRow.header{background:#f7faf8;text-transform:uppercase;letter-spacing:.06em;color:#7b887f;font-size:8px}
+.productionTableRow strong{font-size:18px;text-align:right;color:#176534}
+.kitchenPrintArea,.labelPrintArea{display:none}
+.printOptions{display:grid;gap:12px}
+.printOptionBlock{border:1px solid #e0e8e2;background:#f9fbfa;border-radius:11px;padding:13px}
+.printOptionBlock>div:first-child b,.printOptionBlock>div:first-child small{display:block}
+.printOptionBlock small,.printChoice small{display:block;margin-top:3px;color:#7a877f;font-size:9px;line-height:1.4}
+.printSlotChoices{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.printSlotChoice{border:1px solid #d7e1da;background:#fff;border-radius:999px;padding:7px 10px;font-size:9px;font-weight:700;color:#66756c}
+.printSlotChoice.checked{background:#e3f2e7;border-color:#8fbe9b;color:#176534}
+.printChoice{display:flex;align-items:center;justify-content:space-between;gap:15px;border:1px solid #e0e8e2;border-radius:11px;padding:13px}
+.printChoice>b,.printChoice>div>b{font-size:11px}
+.printChoice>div{min-width:0}
+.printChoice .primary{white-space:nowrap}
+.kitchenPrintHeader,.labelsPrintHeader{display:flex;align-items:center;gap:9px;border-bottom:2px solid #173d26;padding-bottom:10px;margin-bottom:12px}
+.kitchenPrintHeader b,.kitchenPrintHeader span,.labelsPrintHeader b,.labelsPrintHeader span{display:block}
+.kitchenPrintHeader b,.labelsPrintHeader b{font-size:14px}
+.kitchenPrintHeader span,.labelsPrintHeader span{font-size:8px;color:#67756d;margin-top:2px}
+.printLogo{width:30px;height:30px;font-size:16px;flex:0 0 auto}
+.kitchenPrintTable{width:100%;border-collapse:collapse;font-size:9px}
+.kitchenPrintTable th{text-align:left;padding:6px 5px;background:#edf2ee;color:#56655c;text-transform:uppercase;font-size:7px;letter-spacing:.06em}
+.kitchenPrintTable td{padding:7px 5px;border-bottom:1px solid #dce4de}
+.kitchenPrintTable td:last-child{text-align:right;font-size:12px}
+.kitchenPrintFooter{margin-top:9px;text-align:right;font-size:8px;color:#526259}
+.labelGrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.labelCard{padding:10px;border:1px solid #ccd7cf;border-radius:10px;box-shadow:none}
+.labelTop{display:flex;justify-content:space-between;gap:8px;align-items:center;padding-bottom:7px;border-bottom:1px solid #e6ece7}
+.labelTop>span{font-size:7px;color:#75837a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.labelOutletBrand{display:flex;align-items:center;gap:5px;min-width:0}
+.labelOutletBrand img,.labelOutletBrand .outletLogo{width:22px;height:22px;border-radius:6px}
+.labelOutletBrand b{font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.labelCustomerCompact{padding:8px 0 5px}
+.labelCustomerCompact span{display:block;font-size:6px;color:#7a877f;text-transform:uppercase;letter-spacing:.07em}
+.labelCustomerCompact b{display:block;font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.labelMealCompact{padding:5px 0;border-top:1px solid #edf1ee}
+.labelMealCompact b{display:block;font-size:11px;line-height:1.15}
+.labelMealCompact span{display:block;font-size:7px;color:#718078;margin-top:2px}
+.labelMetaRow{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid #edf1ee;border-bottom:1px solid #edf1ee;font-size:7px}
+.labelMetaRow b{font-size:7px}
+.labelAddressCompact{padding:7px 0 5px}
+.labelAddressCompact b,.labelAddressCompact span{display:block;line-height:1.3}
+.labelAddressCompact b{font-size:7px;max-height:28px;overflow:hidden}
+.labelAddressCompact span{font-size:6.5px;color:#66746c;margin-top:2px}
+.labelFooterCompact{display:flex;justify-content:space-between;align-items:center;padding-top:6px;color:#819087;font-size:6.5px}
+.labelFooterCompact b{color:#496055}
+@media(max-width:900px){.productionTableRow{grid-template-columns:1.6fr .8fr .8fr .55fr}.labelGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.productionTableRow{grid-template-columns:1.5fr .8fr .8fr .5fr}.printChoice{align-items:flex-start;flex-direction:column}.printChoice .primary{width:100%}.labelGrid{grid-template-columns:1fr}}
+@media print{
+ @page{size:A4;margin:8mm}
+ body{background:#fff}
+ body *{visibility:hidden!important}
+ .kitchenPrintArea.printTarget,.kitchenPrintArea.printTarget *{visibility:visible!important}
+ .labelPrintArea.printTarget,.labelPrintArea.printTarget *{visibility:visible!important}
+ .kitchenPrintArea.printTarget,.labelPrintArea.printTarget{display:block;position:absolute;left:0;top:0;width:100%;margin:0}
+ .kitchenPrintTable{font-size:9px}
+ .labelGrid{grid-template-columns:repeat(3,1fr);gap:4mm}
+ .labelCard{border:1px solid #222;break-inside:avoid;background:#fff}
+}
