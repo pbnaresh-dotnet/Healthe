@@ -51,6 +51,8 @@ public record BulkMenuRequest(IReadOnlyList<SaveMenuItemRequest> Items);
 public record CustomerProfileDto(Guid Id, Guid CustomerId, decimal? WeightKg, decimal? HeightCm, decimal? Bmi, string Goal, string ActivityLevel, string Diet, DateTime UpdatedAtUtc, IReadOnlyList<AllergenDto> Allergies);
 public record SaveCustomerProfileRequest(decimal? WeightKg, decimal? HeightCm, DateTime? DateOfBirth, string Goal, string ActivityLevel, string Diet, IReadOnlyList<Guid>? AllergyIds = null);
 public record CityAreaDto(Guid Id, string City, string State, string Name, string Pincode, double Latitude, double Longitude, bool IsActive);
+public record CityDto(string City, string State, int AreaCount);
+public record ReverseGeocodeDto(string? HouseNumber, string? Road, string? Suburb, string? Neighbourhood, string? City, string? State, string? Pincode, string? Country, string? DisplayName);
 public record CreateCityAreaRequest(string City, string State, string Name, string Pincode, double Latitude, double Longitude);
 public record OutletDeliveryAreaDto(Guid Id, Guid OutletId, Guid CityAreaId, string AreaName, string City, string Pincode, bool IsActive);
 public record SaveOutletDeliveryAreasRequest(IReadOnlyList<Guid> CityAreaIds);
