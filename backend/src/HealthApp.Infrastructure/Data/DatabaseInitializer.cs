@@ -191,6 +191,12 @@ IF COL_LENGTH('dbo.Outlets','HeroImageUrl') IS NULL
     ALTER TABLE dbo.Outlets ADD HeroImageUrl nvarchar(1000) NULL;
 IF COL_LENGTH('dbo.Outlets','HealthHighlights') IS NULL
     ALTER TABLE dbo.Outlets ADD HealthHighlights nvarchar(2000) NULL;
+IF COL_LENGTH('dbo.Outlets','Rating') IS NULL
+    ALTER TABLE dbo.Outlets ADD Rating float NOT NULL CONSTRAINT DF_Outlets_Rating DEFAULT 4.8;
+IF COL_LENGTH('dbo.Outlets','ReviewCount') IS NULL
+    ALTER TABLE dbo.Outlets ADD ReviewCount int NOT NULL CONSTRAINT DF_Outlets_ReviewCount DEFAULT 0;
+IF COL_LENGTH('dbo.Outlets','About') IS NULL
+    ALTER TABLE dbo.Outlets ADD About nvarchar(2000) NULL;
 
 IF COL_LENGTH('dbo.CustomerProfiles','Allergies') IS NOT NULL
     ALTER TABLE dbo.CustomerProfiles ALTER COLUMN Allergies nvarchar(max) NULL;
