@@ -768,7 +768,8 @@ public static class DatabaseSeeder
                         Description = "Fragrant basmati rice layered with spiced chicken, fried onions, mint and raita.",
                         ImageUrl = "https://media-assets.swiggy.com/swiggy/image/upload/f_auto%2Cq_auto%2Cfl_lossy/RX_THUMBNAIL/IMAGES/VENDOR/2025/9/22/97c6822e-e46f-418a-b962-481220341835_1209291.jpg",
                         Tags = "Biryani,Chicken,North Indian,High Protein"
-                    };
+                    }
+                };
 
             if (spec.Slug == "hyderabad-zaika")
             {
