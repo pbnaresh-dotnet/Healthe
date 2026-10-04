@@ -786,6 +786,10 @@ public sealed class Recipe
         get;
         set;
     }
+    public int FiberGrams {
+        get;
+        set;
+    }
     public RecipeCategory Category {
         get;
         set;
