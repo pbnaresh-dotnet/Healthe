@@ -446,6 +446,36 @@ public static class DatabaseSeeder
             },
             new
             {
+                Slug = "hyderabad-zaika",
+                Name = "Hyderabad Zaika",
+                Subdomain = "hyderabadzaika",
+                City = "Hyderabad",
+                State = "Telangana",
+                Pincode = "500001",
+                Latitude = 17.3850,
+                Longitude = 78.4867,
+                Color = "#9a3412",
+                Hero = "https://images.unsplash.com/photo-1563379091339-03246963d29a?auto=format&fit=crop&w=1200&q=85",
+                Highlights = "Hyderabadi Biryani,Haleem,Charcoal Grilled,Slow Cooked,Authentic Spices",
+                Areas = new[] { ("Banjara Hills", "500034", 17.4156, 78.4347), ("Jubilee Hills", "500033", 17.4319, 78.4071), ("Hitech City", "500081", 17.4435, 78.3772), ("Secunderabad", "500003", 17.4399, 78.4983) }
+            },
+            new
+            {
+                Slug = "deccan-wok",
+                Name = "Deccan Wok",
+                Subdomain = "deccanwok",
+                City = "Hyderabad",
+                State = "Telangana",
+                Pincode = "500016",
+                Latitude = 17.4442,
+                Longitude = 78.4483,
+                Color = "#0369a1",
+                Hero = "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=1200&q=85",
+                Highlights = "Indo-Chinese,Hakka Noodles,Fried Rice,Wok Tossed,Fast & Fresh",
+                Areas = new[] { ("Begumpet", "500016", 17.4442, 78.4483), ("Ameerpet", "500016", 17.4375, 78.4483), ("Kukatpally", "500072", 17.4948, 78.3996), ("Madhapur", "500081", 17.4483, 78.3915) }
+            },
+            new
+            {
                 Slug = "dilli-rasoi",
                 Name = "Dilli Rasoi Delhi",
                 Subdomain = "dillirasoi",
