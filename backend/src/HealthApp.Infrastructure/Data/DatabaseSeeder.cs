@@ -768,8 +768,32 @@ public static class DatabaseSeeder
                         Description = "Fragrant basmati rice layered with spiced chicken, fried onions, mint and raita.",
                         ImageUrl = "https://media-assets.swiggy.com/swiggy/image/upload/f_auto%2Cq_auto%2Cfl_lossy/RX_THUMBNAIL/IMAGES/VENDOR/2025/9/22/97c6822e-e46f-418a-b962-481220341835_1209291.jpg",
                         Tags = "Biryani,Chicken,North Indian,High Protein"
-                    }
+                    };
+
+            if (spec.Slug == "hyderabad-zaika")
+            {
+                recipes = new[]
+                {
+                    new Recipe { Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Hyderabadi Chicken Biryani", Calories=780, ProteinGrams=44, CarbsGrams=91, FatGrams=25, Category=RecipeCategory.NonVeg, PricePerMeal=260, LargePricePerMeal=320, Description="Aromatic basmati rice layered with spiced chicken, saffron, mint and fried onions.", ImageUrl="https://images.unsplash.com/photo-1563379091339-03246963d29a?auto=format&fit=crop&w=900&q=85", Tags="Hyderabadi,Biryani,Chicken,High Protein" },
+                    new Recipe { Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Mutton Hyderabadi Biryani", Calories=860, ProteinGrams=42, CarbsGrams=89, FatGrams=34, Category=RecipeCategory.NonVeg, PricePerMeal=300, LargePricePerMeal=360, Description="Slow-cooked mutton and fragrant basmati rice finished with mint and saffron.", ImageUrl="https://images.unsplash.com/photo-1599043513942-a7b2c4c2e4be?auto=format&fit=crop&w=900&q=85", Tags="Hyderabadi,Biryani,Mutton" },
+                    new Recipe { Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Hyderabadi Haleem", Calories=690, ProteinGrams=38, CarbsGrams=58, FatGrams=30, Category=RecipeCategory.NonVeg, PricePerMeal=240, LargePricePerMeal=290, Description="Slow-cooked meat, lentils and wheat blended with aromatic Hyderabad spices.", ImageUrl="https://images.unsplash.com/photo-1601050690117-94f5f6fa8bd7?auto=format&fit=crop&w=900&q=85", Tags="Haleem,Hyderabadi,Mutton" },
+                    new Recipe { Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Chicken 65 with Jeera Rice", Calories=710, ProteinGrams=41, CarbsGrams=68, FatGrams=27, Category=RecipeCategory.NonVeg, PricePerMeal=230, LargePricePerMeal=280, Description="Crisp Hyderabad-style chicken with cumin basmati rice and onion salad.", ImageUrl="https://images.unsplash.com/photo-1601050690117-94f5f6fa8bd7?auto=format&fit=crop&w=900&q=85", Tags="Chicken65,Rice,Hyderabadi" },
+                    new Recipe { Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Bagara Rice with Mirchi Ka Salan", Calories=560, ProteinGrams=12, CarbsGrams=79, FatGrams=19, Category=RecipeCategory.Veg, PricePerMeal=170, LargePricePerMeal=210, Description="Hyderabadi spiced rice served with tangy peanut-sesame chilli curry.", ImageUrl="https://images.unsplash.com/photo-1596797038530-2c107229654b?auto=format&fit=crop&w=900&q=85", Tags="Bagara Rice,Mirchi Ka Salan,Veg" },
+                    new Recipe { Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Double Ka Meetha", Calories=420, ProteinGrams=9, CarbsGrams=54, FatGrams=18, Category=RecipeCategory.Veg, PricePerMeal=110, LargePricePerMeal=140, Description="Hyderabadi bread pudding with milk, saffron and nuts.", ImageUrl="https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=900&q=85", Tags="Dessert,Hyderabadi" }
                 };
+            }
+            else if (spec.Slug == "deccan-wok")
+            {
+                recipes = new[]
+                {
+                    new Recipe { Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Chicken Hakka Noodles", Calories=650, ProteinGrams=36, CarbsGrams=77, FatGrams=22, Category=RecipeCategory.NonVeg, PricePerMeal=220, LargePricePerMeal=270, Description="Wok-tossed noodles with chicken, cabbage, peppers, spring onion and sauces.", ImageUrl="https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=900&q=85", Tags="Indo-Chinese,Noodles,Chicken" },
+                    new Recipe { Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Veg Hakka Noodles", Calories=540, ProteinGrams=16, CarbsGrams=79, FatGrams=17, Category=RecipeCategory.Veg, PricePerMeal=180, LargePricePerMeal=220, Description="Classic vegetable Hakka noodles finished in a hot wok.", ImageUrl="https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=900&q=85", Tags="Indo-Chinese,Noodles,Veg" },
+                    new Recipe { Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Schezwan Chicken Fried Rice", Calories=690, ProteinGrams=35, CarbsGrams=82, FatGrams=23, Category=RecipeCategory.NonVeg, PricePerMeal=220, LargePricePerMeal=270, Description="Basmati rice wok-fried with chicken, vegetables and spicy Schezwan sauce.", ImageUrl="https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=900&q=85", Tags="Indo-Chinese,Fried Rice,Schezwan" },
+                    new Recipe { Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Paneer Chilli with Fried Rice", Calories=720, ProteinGrams=28, CarbsGrams=82, FatGrams=27, Category=RecipeCategory.Veg, PricePerMeal=210, LargePricePerMeal=260, Description="Crisp paneer with bell peppers and onions in a chilli-soy glaze, served with fried rice.", ImageUrl="https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=900&q=85", Tags="Indo-Chinese,Paneer,Fried Rice" },
+                    new Recipe { Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Dragon Chicken", Calories=670, ProteinGrams=43, CarbsGrams=46, FatGrams=28, Category=RecipeCategory.NonVeg, PricePerMeal=240, LargePricePerMeal=290, Description="Crisp chicken tossed with dried chillies, peppers, spring onion and a glossy sauce.", ImageUrl="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=85", Tags="Indo-Chinese,Chicken,Spicy" },
+                    new Recipe { Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Veg Manchurian with Fried Rice", Calories=610, ProteinGrams=18, CarbsGrams=84, FatGrams=20, Category=RecipeCategory.Veg, PricePerMeal=190, LargePricePerMeal=235, Description="Vegetable Manchurian balls in savoury sauce with wok-fried rice.", ImageUrl="https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=900&q=85", Tags="Indo-Chinese,Manchurian,Veg" }
+                };
+            }
 
             var catalogRecipes = new List<Recipe>();
 
@@ -821,6 +845,31 @@ public static class DatabaseSeeder
                         ["Chicken Biryani with Raita"] = new[] { ("Basmati Rice", 220m, "g"), ("Chicken Thigh", 160m, "g"), ("Yogurt", 70m, "g"), ("Onion", 60m, "g"), ("Saffron", 1m, "g"), ("Garam Masala", 4m, "g"), ("Cashews", 15m, "g"), ("Ghee", 10m, "g") }
                     };
 
+                if (spec.Slug == "hyderabad-zaika")
+                {
+                    wantedIngredients = new Dictionary<string, (string Name, decimal Quantity, string Unit)[]>
+                    {
+                        ["Hyderabadi Chicken Biryani"] = new[] { ("Basmati Rice", 220m, "g"), ("Chicken Thigh", 160m, "g"), ("Yogurt", 70m, "g"), ("Onion", 60m, "g"), ("Saffron", 1m, "g"), ("Biryani Masala", 6m, "g"), ("Mint", 6m, "g"), ("Ghee", 10m, "g") },
+                        ["Mutton Hyderabadi Biryani"] = new[] { ("Basmati Rice", 220m, "g"), ("Mutton", 170m, "g"), ("Yogurt", 70m, "g"), ("Onion", 60m, "g"), ("Saffron", 1m, "g"), ("Biryani Masala", 7m, "g"), ("Mint", 6m, "g"), ("Ghee", 12m, "g") },
+                        ["Hyderabadi Haleem"] = new[] { ("Mutton", 150m, "g"), ("Wheat", 60m, "g"), ("Lentils", 90m, "g"), ("Ginger Garlic Paste", 15m, "g"), ("Ghee", 10m, "g"), ("Mint", 5m, "g"), ("Garam Masala", 4m, "g") },
+                        ["Chicken 65 with Jeera Rice"] = new[] { ("Chicken Thigh", 160m, "g"), ("Basmati Rice", 180m, "g"), ("Corn Flour", 20m, "g"), ("Yogurt", 30m, "g"), ("Red Chili Powder", 5m, "g"), ("Curry Leaves", 4m, "g"), ("Olive Oil", 12m, "g") },
+                        ["Bagara Rice with Mirchi Ka Salan"] = new[] { ("Basmati Rice", 200m, "g"), ("Peanuts", 20m, "g"), ("Sesame Seeds", 15m, "g"), ("Coconut", 20m, "g"), ("Green Chilies", 45m, "g"), ("Onion", 50m, "g"), ("Tomato", 50m, "g"), ("Sesame Oil", 10m, "g") },
+                        ["Double Ka Meetha"] = new[] { ("Bread", 100m, "g"), ("Milk", 100m, "g"), ("Sugar", 15m, "g"), ("Ghee", 10m, "g"), ("Cashews", 12m, "g"), ("Saffron", 1m, "g") }
+                    };
+                }
+                else if (spec.Slug == "deccan-wok")
+                {
+                    wantedIngredients = new Dictionary<string, (string Name, decimal Quantity, string Unit)[]>
+                    {
+                        ["Chicken Hakka Noodles"] = new[] { ("Wheat Noodles", 170m, "g"), ("Chicken Breast", 130m, "g"), ("Cabbage", 50m, "g"), ("Carrot", 40m, "g"), ("Bell Pepper", 40m, "g"), ("Spring Onion", 20m, "g"), ("Soy Sauce", 15m, "g"), ("Vinegar", 8m, "g"), ("Sesame Oil", 8m, "g") },
+                        ["Veg Hakka Noodles"] = new[] { ("Wheat Noodles", 180m, "g"), ("Cabbage", 60m, "g"), ("Carrot", 50m, "g"), ("Bell Pepper", 50m, "g"), ("Spring Onion", 20m, "g"), ("Soy Sauce", 15m, "g"), ("Vinegar", 8m, "g"), ("Sesame Oil", 8m, "g") },
+                        ["Schezwan Chicken Fried Rice"] = new[] { ("Basmati Rice", 210m, "g"), ("Chicken Breast", 130m, "g"), ("Carrot", 40m, "g"), ("Bell Pepper", 40m, "g"), ("Spring Onion", 20m, "g"), ("Schezwan Sauce", 25m, "g"), ("Soy Sauce", 12m, "g"), ("Sesame Oil", 8m, "g") },
+                        ["Paneer Chilli with Fried Rice"] = new[] { ("Paneer", 130m, "g"), ("Basmati Rice", 180m, "g"), ("Bell Pepper", 60m, "g"), ("Onion", 50m, "g"), ("Spring Onion", 20m, "g"), ("Soy Sauce", 12m, "g"), ("Corn Flour", 15m, "g"), ("Sesame Oil", 8m, "g") },
+                        ["Dragon Chicken"] = new[] { ("Chicken Breast", 160m, "g"), ("Corn Flour", 20m, "g"), ("Bell Pepper", 50m, "g"), ("Onion", 50m, "g"), ("Spring Onion", 20m, "g"), ("Soy Sauce", 15m, "g"), ("Chili Sauce", 20m, "g"), ("Sesame Oil", 8m, "g") },
+                        ["Veg Manchurian with Fried Rice"] = new[] { ("Basmati Rice", 180m, "g"), ("Mixed Vegetables", 100m, "g"), ("Corn Flour", 25m, "g"), ("Cabbage", 40m, "g"), ("Bell Pepper", 40m, "g"), ("Soy Sauce", 12m, "g"), ("Spring Onion", 20m, "g"), ("Sesame Oil", 8m, "g") }
+                    };
+                }
+
                 if (wantedIngredients.TryGetValue(recipe.Name, out var ingredientSpecs))
                 {
                     foreach (var item in ingredientSpecs)
@@ -851,6 +900,19 @@ public static class DatabaseSeeder
             var breakfast = menuRecipes.Where(x => new[] { "Masala Dosa with Coconut Chutney", "Idli, Sambar and Peanut Chutney" }.Contains(x.Name)).ToList();
             var lunch = menuRecipes.Where(x => new[] { "Andhra Full Meals", "Rice with Andhra Fish Curry", "Delhi Veg Thali", "Dal Makhani with Butter Naan", "Chicken Biryani with Raita" }.Contains(x.Name)).ToList();
             var dinner = menuRecipes.Where(x => new[] { "Chapathi with Andhra Chicken Curry", "Andhra Chicken Curry with Rice", "Butter Chicken with Garlic Naan", "Paneer Tikka Masala with Roti", "Chole Bhature" }.Contains(x.Name)).ToList();
+
+            if (spec.Slug == "hyderabad-zaika")
+            {
+                breakfast = menuRecipes.Where(x => new[] { "Double Ka Meetha" }.Contains(x.Name)).ToList();
+                lunch = menuRecipes.Where(x => new[] { "Hyderabadi Chicken Biryani", "Mutton Hyderabadi Biryani", "Bagara Rice with Mirchi Ka Salan" }.Contains(x.Name)).ToList();
+                dinner = menuRecipes.Where(x => new[] { "Hyderabadi Haleem", "Chicken 65 with Jeera Rice" }.Contains(x.Name)).ToList();
+            }
+            else if (spec.Slug == "deccan-wok")
+            {
+                breakfast = menuRecipes.Where(x => new[] { "Veg Hakka Noodles" }.Contains(x.Name)).ToList();
+                lunch = menuRecipes.Where(x => new[] { "Schezwan Chicken Fried Rice", "Paneer Chilli with Fried Rice", "Veg Manchurian with Fried Rice" }.Contains(x.Name)).ToList();
+                dinner = menuRecipes.Where(x => new[] { "Chicken Hakka Noodles", "Dragon Chicken" }.Contains(x.Name)).ToList();
+            }
 
             foreach (var day in Enum.GetValues<DayOfWeek>())
             {
