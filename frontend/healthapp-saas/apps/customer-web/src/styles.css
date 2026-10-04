@@ -680,3 +680,49 @@ textarea{resize:vertical}
     margin-top:2px;
   }
 }
+
+
+/* Liked meals section in the package picker */
+.likedMealsPickerSection,
+.allMealsPickerSection{
+  margin-top:12px;
+}
+.likedMealsPickerHeading{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:12px;
+  margin:10px 0 8px;
+  padding-bottom:7px;
+  border-bottom:1px solid #edf1ed;
+}
+.likedMealsPickerHeading h3{
+  margin:2px 0 0;
+  font-size:14px;
+  color:#213127;
+}
+.likedMealsPickerHeading>span{
+  color:#748078;
+  font-size:8px;
+}
+.likedMealsPickerSection .pickerCard{
+  border-color:#cfe3d2;
+  box-shadow:0 5px 18px #24713d0c;
+}
+.likedEmptyHint{
+  margin:10px 0;
+  padding:9px 11px;
+  border:1px solid #e0e8e1;
+  background:#f7faf7;
+  color:#718078;
+  border-radius:9px;
+  font-size:8px;
+}
+.mealSave.saved{
+  background:#e9f7ed;
+  color:#c84b45;
+  border-color:#9dcea8;
+}
+.likedMealBtn{
+  min-width:74px;
+}
