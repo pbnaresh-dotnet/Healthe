@@ -266,15 +266,15 @@ function Discover({outlets,cities,customerAllergies,addresses,selectedAddressId,
    </section>}
 
    {!selectedOutlet&&visibleOutlets.length>0&&<div className={viewMode==='grid'?'outletGrid discoveryGrid wireOutletGrid':'outletListView'}>
-     {visibleOutlets.map(o=><article className="outletDiscoveryCard wireOutletCard" key={o.id} onClick={()=>openOutlet(o)}>
-       <div className="outletHeroThumb"><img src={o.heroImageUrl?getImg(o.heroImageUrl):IMAGE_FALLBACKS.hero} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/><span className="openBadge">Open</span><button className="heartBtn" onClick={e=>e.stopPropagation()}>♡</button></div>
+     {visibleOutlets.map(o=><article className="outletDiscoveryCard wireOutletCard" key={o.id} onClick={()=>{setOutletTab('Menu');setMenuSlot(1);openOutlet(o)}}>
+       <div className="outletHeroThumb"><img src={o.heroImageUrl?getImg(o.heroImageUrl):IMAGE_FALLBACKS.hero} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/><button className="heartBtn" onClick={e=>e.stopPropagation()}>♡</button></div>
        <div className="outletDiscoveryBody">
-         <div className="outletTitleLine"><div><span className="tag">ACTIVE OUTLET</span><h3>{o.name}</h3></div><span className="distanceBadge">{o.distanceKm?o.distanceKm+' km':'Nearby'}</span></div>
-         <p>{o.city}, {o.state}</p>
-         <div className="healthChipRow">{(o.healthHighlights||[]).slice(0,3).map((h,i)=><span key={i}>✓ {h}</span>)}</div>
-         <div className="outletDiscoveryFoot"><button className="secondary smallBtn" onClick={e=>{e.stopPropagation();openOutlet(o)}}>View menu →</button><button className="primary smallBtn" onClick={e=>{e.stopPropagation();cityAddresses.length?startBuilder(o):openAddressForCity(o.city,true)}}>{cityAddresses.length?'Build package':'Add address'}</button></div>
+         <div className="outletTitleLine"><div><h3>{o.name}</h3><p>{o.city}, {o.state} · {o.distanceKm?o.distanceKm+' km':'Nearby'}</p></div></div>
+         <div className="outletRatingLine"><span>★</span><b>{Number(o.rating||4.8).toFixed(1)}</b><span>({o.reviewCount||0})</span></div>
+         <div className="healthChipRow">{(o.healthHighlights||[]).slice(0,4).map((h,i)=><span key={i}>✓ {h}</span>)}</div>
+         <div className="outletDiscoveryFoot"><button className="secondary smallBtn" onClick={e=>{e.stopPropagation();setOutletTab('Menu');setMenuSlot(1);openOutlet(o)}}>View menu →</button><button className="primary smallBtn" onClick={e=>{e.stopPropagation();cityAddresses.length?startBuilder(o):openAddressForCity(o.city,true)}}>{cityAddresses.length?'Build package':'Add address'}</button></div>
        </div>
-     </article>)}
+     </article>)
    </div>}
 
    {!selectedOutlet&&visibleOutlets.length===0&&<Empty title="No outlets found" text={normalizedQuery?'Try another search or remove the filters.':'Try another supported city or use a different delivery address.'}/>}
