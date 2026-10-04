@@ -694,6 +694,8 @@ public static class DatabaseSeeder
                     }
                 };
 
+            var catalogRecipes = new List<Recipe>();
+
             foreach (var newRecipe in recipes)
             {
                 var recipe = await db.Recipes.FirstOrDefaultAsync(
@@ -719,6 +721,8 @@ public static class DatabaseSeeder
                     recipe.Tags = newRecipe.Tags;
                     recipe.IsActive = true;
                 }
+
+                catalogRecipes.Add(recipe);
 
                 var wantedIngredients = spec.City == "Chennai"
                     ? new Dictionary<string, (decimal Quantity, string Unit)[]>
@@ -765,9 +769,7 @@ public static class DatabaseSeeder
 
             await db.SaveChangesAsync(ct);
 
-            var menuRecipes = recipes
-                .Select(x => db.Recipes.Local.FirstOrDefault(r => r.Id == x.Id) ?? x)
-                .ToList();
+            var menuRecipes = catalogRecipes;
 
             var breakfast = menuRecipes.Where(x => new[] { "Masala Dosa with Coconut Chutney", "Idli, Sambar and Peanut Chutney" }.Contains(x.Name)).ToList();
             var lunch = menuRecipes.Where(x => new[] { "Andhra Full Meals", "Rice with Andhra Fish Curry", "Delhi Veg Thali", "Dal Makhani with Butter Naan", "Chicken Biryani with Raita" }.Contains(x.Name)).ToList();
