@@ -13,6 +13,7 @@ public static class DatabaseSeeder
         {
             await EnsureExistingRecipeCatalogLinksAsync(db, ct);
             await EnsureExistingOutletMenuSlotsAsync(db, ct);
+            await EnsureRegionalOutletCatalogAsync(db, passwords, ct);
             return;
         }
         var free = new SaaSPlan {
@@ -359,7 +360,454 @@ public static class DatabaseSeeder
             });
         }
         await db.SaveChangesAsync(ct);
+        await EnsureRegionalOutletCatalogAsync(db, passwords, ct);
     }
+
+    private static async Task EnsureRegionalOutletCatalogAsync(HealthAppDbContext db, IPasswordService passwords, CancellationToken ct)
+    {
+        var basicPlan = await db.SaaSPlans.FirstOrDefaultAsync(x => x.Name == "Basic", ct);
+        if (basicPlan is null)
+        {
+            basicPlan = new SaaSPlan
+            {
+                Id = Guid.NewGuid(),
+                Name = "Basic",
+                MonthlyFee = 999,
+                AnnualFee = 9990,
+                IncludedActiveCustomers = 50,
+                AdditionalCustomerFee = 15,
+                CustomerTransactionFeePercent = 2m,
+                Description = "For small meal businesses."
+            };
+            db.SaaSPlans.Add(basicPlan);
+            await db.SaveChangesAsync(ct);
+        }
+
+        var citySpecs = new[]
+        {
+            new
+            {
+                Slug = "andhra-ruchulu",
+                Name = "Andhra Ruchulu Chennai",
+                Subdomain = "andhraruchulu",
+                City = "Chennai",
+                State = "Tamil Nadu",
+                Pincode = "600001",
+                Latitude = 13.0827,
+                Longitude = 80.2707,
+                Color = "#b91c1c",
+                Hero = "https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto%2Cw_300%2Ch_300%2Cc_fit/FOOD_CATALOG/IMAGES/CMS/2024/5/20/736b159e-4973-43ed-bd14-fdece423f486_b24651c4-c34c-4801-a94a-cd8b95261ca4.jpg",
+                Highlights = "Andhra Meals,Spicy Curries,Banana Leaf Meals,South Indian Classics,Freshly Cooked",
+                Areas = new[] { ("T Nagar", "600017", 13.0418, 80.2341), ("Adyar", "600020", 13.0063, 80.2574), ("Velachery", "600042", 12.9755, 80.2211), ("Anna Nagar", "600040", 13.0850, 80.2101) }
+            },
+            new
+            {
+                Slug = "dilli-rasoi",
+                Name = "Dilli Rasoi Delhi",
+                Subdomain = "dillirrasoi",
+                City = "New Delhi",
+                State = "Delhi",
+                Pincode = "110001",
+                Latitude = 28.6139,
+                Longitude = 77.2090,
+                Color = "#b45309",
+                Hero = "https://masalapolska.com/assets/indian_thali_meal_top_down-BK7jUhaG.png",
+                Highlights = "North Indian Classics,Tandoor Specials,Rich Curries,Homestyle Thalis,Basmati Rice",
+                Areas = new[] { ("Connaught Place", "110001", 28.6315, 77.2167), ("Karol Bagh", "110005", 28.6519, 77.1909), ("Saket", "110017", 28.5244, 77.2066), ("Dwarka", "110075", 28.5921, 77.0460) }
+            }
+        };
+
+        foreach (var spec in citySpecs)
+        {
+            var outlet = await db.Outlets.FirstOrDefaultAsync(x => x.Slug == spec.Slug, ct);
+            if (outlet is null)
+            {
+                outlet = new Outlet
+                {
+                    Id = Guid.NewGuid(),
+                    Name = spec.Name,
+                    Slug = spec.Slug,
+                    Subdomain = spec.Subdomain,
+                    City = spec.City,
+                    State = spec.State,
+                    Pincode = spec.Pincode,
+                    Latitude = spec.Latitude,
+                    Longitude = spec.Longitude,
+                    ServiceRadiusKm = 15,
+                    Status = OutletStatus.Active,
+                    BillingPlan = BillingPlan.Starter,
+                    LogoUrl = spec.Hero,
+                    HeroImageUrl = spec.Hero,
+                    HealthHighlights = spec.Highlights,
+                    PrimaryColor = spec.Color,
+                    PreparationCutoffHours = 24,
+                    AllowMealSkipping = true,
+                    CreditDeliveryFeeOnSkip = true
+                };
+                db.Outlets.Add(outlet);
+                await db.SaveChangesAsync(ct);
+            }
+            else
+            {
+                outlet.Name = spec.Name;
+                outlet.City = spec.City;
+                outlet.State = spec.State;
+                outlet.Pincode = spec.Pincode;
+                outlet.Latitude = spec.Latitude;
+                outlet.Longitude = spec.Longitude;
+                outlet.ServiceRadiusKm = 15;
+                outlet.Status = OutletStatus.Active;
+                outlet.HeroImageUrl = spec.Hero;
+                outlet.HealthHighlights = spec.Highlights;
+                outlet.PrimaryColor = spec.Color;
+            }
+
+            var adminEmail = $"{spec.Slug}.admin@healthapp.test";
+            if (!await db.Users.AnyAsync(x => x.Email == adminEmail, ct))
+            {
+                db.Users.Add(new User
+                {
+                    Id = Guid.NewGuid(),
+                    Email = adminEmail,
+                    PasswordHash = passwords.Hash("demo"),
+                    FirstName = spec.City == "Chennai" ? "Andhra Ruchulu" : "Dilli Rasoi",
+                    LastName = "Admin",
+                    Role = UserRole.OutletAdmin,
+                    OutletId = outlet.Id
+                });
+            }
+
+            var driverEmail = $"{spec.Slug}.driver@healthapp.test";
+            if (!await db.Users.AnyAsync(x => x.Email == driverEmail, ct))
+            {
+                db.Users.Add(new User
+                {
+                    Id = Guid.NewGuid(),
+                    Email = driverEmail,
+                    PasswordHash = passwords.Hash("demo"),
+                    FirstName = spec.City == "Chennai" ? "Andhra Ruchulu" : "Dilli Rasoi",
+                    LastName = "Driver",
+                    Role = UserRole.Driver,
+                    OutletId = outlet.Id
+                });
+            }
+
+            if (!await db.OutletSubscriptions.AnyAsync(x => x.OutletId == outlet.Id, ct))
+            {
+                db.OutletSubscriptions.Add(new OutletSubscription
+                {
+                    Id = Guid.NewGuid(),
+                    OutletId = outlet.Id,
+                    SaaSPlanId = basicPlan.Id,
+                    BillingCycle = "Monthly",
+                    SubscriptionFee = basicPlan.MonthlyFee,
+                    TransactionFeePercent = basicPlan.CustomerTransactionFeePercent,
+                    StartDate = DateTime.UtcNow.Date,
+                    RenewalDate = DateTime.UtcNow.Date.AddMonths(1),
+                    Status = "Active"
+                });
+            }
+
+            foreach (var areaSpec in spec.Areas)
+            {
+                var area = await db.CityAreas.FirstOrDefaultAsync(
+                    x => x.City == spec.City && x.Name == areaSpec.Item1, ct);
+
+                if (area is null)
+                {
+                    area = new CityArea
+                    {
+                        Id = Guid.NewGuid(),
+                        City = spec.City,
+                        State = spec.State,
+                        Name = areaSpec.Item1,
+                        Pincode = areaSpec.Item2,
+                        Latitude = areaSpec.Item3,
+                        Longitude = areaSpec.Item4,
+                        IsActive = true
+                    };
+                    db.CityAreas.Add(area);
+                    await db.SaveChangesAsync(ct);
+                }
+
+                if (!await db.OutletDeliveryAreas.AnyAsync(
+                    x => x.OutletId == outlet.Id && x.CityAreaId == area.Id, ct))
+                {
+                    db.OutletDeliveryAreas.Add(new OutletDeliveryArea
+                    {
+                        Id = Guid.NewGuid(),
+                        OutletId = outlet.Id,
+                        CityAreaId = area.Id,
+                        IsActive = true
+                    });
+                }
+            }
+
+            foreach (var rule in new[] { (2m, 10m), (5m, 20m), (10m, 30m), (15m, 50m) })
+            {
+                if (!await db.DeliveryPricingRules.AnyAsync(
+                    x => x.OutletId == outlet.Id && x.MaxDistanceKm == rule.Item1, ct))
+                {
+                    db.DeliveryPricingRules.Add(new DeliveryPricingRule
+                    {
+                        Id = Guid.NewGuid(),
+                        OutletId = outlet.Id,
+                        MaxDistanceKm = rule.Item1,
+                        Fee = rule.Item2,
+                        IsActive = true
+                    });
+                }
+            }
+
+            var planSpecs = new[]
+            {
+                ("Weekly Regional Favourites", "Weekly", 2, 14, 2499m, "Seven days of regional Indian comfort food with flexible meal selection."),
+                ("Monthly Family Table", "Monthly", 2, 14, 8499m, "A four-week regional menu with lunch and dinner choices.")
+            };
+
+            foreach (var planSpec in planSpecs)
+            {
+                if (!await db.MealPlans.AnyAsync(
+                    x => x.OutletId == outlet.Id && x.Name == planSpec.Item1, ct))
+                {
+                    db.MealPlans.Add(new MealPlan
+                    {
+                        Id = Guid.NewGuid(),
+                        OutletId = outlet.Id,
+                        Name = planSpec.Item1,
+                        Frequency = planSpec.Item2,
+                        MealsPerDay = planSpec.Item3,
+                        MealsPerWeek = planSpec.Item4,
+                        Price = planSpec.Item5,
+                        Currency = "INR",
+                        Description = planSpec.Item6,
+                        IsActive = true
+                    });
+                }
+            }
+
+            await db.SaveChangesAsync(ct);
+
+            var ingredients = await db.Ingredients.ToDictionaryAsync(x => x.Name, StringComparer.OrdinalIgnoreCase, ct);
+
+            var recipes = spec.City == "Chennai"
+                ? new[]
+                {
+                    new Recipe
+                    {
+                        Id = Guid.NewGuid(), OutletId = outlet.Id, Name = "Andhra Full Meals", Calories = 720, ProteinGrams = 20, CarbsGrams = 112, FatGrams = 20,
+                        Category = RecipeCategory.Veg, PricePerMeal = 180, LargePricePerMeal = 220,
+                        Description = "Traditional Andhra-style rice meal with pappu, vegetable curry, rasam, pickle, curd and papad.",
+                        ImageUrl = "https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto%2Cw_300%2Ch_300%2Cc_fit/FOOD_CATALOG/IMAGES/CMS/2024/5/20/736b159e-4973-43ed-bd14-fdece423f486_b24651c4-c34c-4801-a94a-cd8b95261ca4.jpg",
+                        Tags = "Andhra,Meals,Veg,South Indian"
+                    },
+                    new Recipe
+                    {
+                        Id = Guid.NewGuid(), OutletId = outlet.Id, Name = "Chapathi with Andhra Chicken Curry", Calories = 690, ProteinGrams = 43, CarbsGrams = 61, FatGrams = 28,
+                        Category = RecipeCategory.NonVeg, PricePerMeal = 220, LargePricePerMeal = 270,
+                        Description = "Soft whole-wheat chapathi served with spicy Andhra chicken curry and onion salad.",
+                        ImageUrl = "https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto%2Cw_400%2Ch_400/FOOD_CATALOG/IMAGES/CMS/2026/1/22/51dcca7c-5a87-44ce-b84a-65dc2865cc86_eb7b228f-342d-402b-885b-607d55dd46fc.png",
+                        Tags = "Andhra,Chicken,Chapathi,High Protein"
+                    },
+                    new Recipe
+                    {
+                        Id = Guid.NewGuid(), OutletId = outlet.Id, Name = "Rice with Andhra Fish Curry", Calories = 640, ProteinGrams = 38, CarbsGrams = 72, FatGrams = 19,
+                        Category = RecipeCategory.NonVeg, PricePerMeal = 240, LargePricePerMeal = 290,
+                        Description = "Steamed rice paired with tangy, spicy fish curry cooked with curry leaves and tamarind.",
+                        ImageUrl = "https://images.deliveryhero.io/image/fd-bd/LH/lcte-listing.jpg",
+                        Tags = "Andhra,Fish,Seafood,Rice"
+                    },
+                    new Recipe
+                    {
+                        Id = Guid.NewGuid(), OutletId = outlet.Id, Name = "Masala Dosa with Coconut Chutney", Calories = 470, ProteinGrams = 11, CarbsGrams = 70, FatGrams = 14,
+                        Category = RecipeCategory.Veg, PricePerMeal = 140, LargePricePerMeal = 170,
+                        Description = "Crisp fermented rice-lentil dosa filled with spiced potato masala, sambar and chutneys.",
+                        ImageUrl = "https://dineout-media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto%2Cw_600%2Ch_468/v1669037563/pz1plv3qopsdgu5lyuuw.jpg",
+                        Tags = "Dosa,Breakfast,South Indian,Veg"
+                    },
+                    new Recipe
+                    {
+                        Id = Guid.NewGuid(), OutletId = outlet.Id, Name = "Idli, Sambar and Peanut Chutney", Calories = 430, ProteinGrams = 13, CarbsGrams = 68, FatGrams = 10,
+                        Category = RecipeCategory.Veg, PricePerMeal = 120, LargePricePerMeal = 150,
+                        Description = "Steamed rice-and-urad idlis with sambar and a classic peanut chutney.",
+                        ImageUrl = "https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto%2Cw_300%2Ch_300%2Cc_fit/FOOD_CATALOG/IMAGES/CMS/2024/5/20/736b159e-4973-43ed-bd14-fdece423f486_b24651c4-c34c-4801-a94a-cd8b95261ca4.jpg",
+                        Tags = "Idli,Sambar,Breakfast,South Indian"
+                    },
+                    new Recipe
+                    {
+                        Id = Guid.NewGuid(), OutletId = outlet.Id, Name = "Andhra Chicken Curry with Rice", Calories = 650, ProteinGrams = 45, CarbsGrams = 67, FatGrams = 21,
+                        Category = RecipeCategory.NonVeg, PricePerMeal = 230, LargePricePerMeal = 280,
+                        Description = "Bold Andhra chicken curry with steamed rice, onions and fresh coriander.",
+                        ImageUrl = "https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto%2Cw_400/vvxcyrz7fism7kye5nqq",
+                        Tags = "Andhra,Chicken,Rice,NonVeg"
+                    }
+                }
+                : new[]
+                {
+                    new Recipe
+                    {
+                        Id = Guid.NewGuid(), OutletId = outlet.Id, Name = "Delhi Veg Thali", Calories = 730, ProteinGrams = 24, CarbsGrams = 101, FatGrams = 27,
+                        Category = RecipeCategory.Veg, PricePerMeal = 190, LargePricePerMeal = 235,
+                        Description = "North Indian thali with dal, seasonal vegetables, paneer, jeera rice, roti and raita.",
+                        ImageUrl = "https://masalapolska.com/assets/indian_thali_meal_top_down-BK7jUhaG.png",
+                        Tags = "Delhi,Thali,Veg,North Indian"
+                    },
+                    new Recipe
+                    {
+                        Id = Guid.NewGuid(), OutletId = outlet.Id, Name = "Butter Chicken with Garlic Naan", Calories = 820, ProteinGrams = 46, CarbsGrams = 69, FatGrams = 38,
+                        Category = RecipeCategory.NonVeg, PricePerMeal = 260, LargePricePerMeal = 320,
+                        Description = "Tandoori chicken simmered in a creamy tomato-butter sauce with garlic naan.",
+                        ImageUrl = "https://dickson.tajagra.com.au/wp-content/uploads/sites/3/2021/05/Chicken-Makhani-Butter-Chicken.jpg",
+                        Tags = "Butter Chicken,Naan,North Indian,High Protein"
+                    },
+                    new Recipe
+                    {
+                        Id = Guid.NewGuid(), OutletId = outlet.Id, Name = "Dal Makhani with Butter Naan", Calories = 690, ProteinGrams = 22, CarbsGrams = 86, FatGrams = 27,
+                        Category = RecipeCategory.Veg, PricePerMeal = 190, LargePricePerMeal = 235,
+                        Description = "Slow-cooked black lentils and kidney beans served with buttery naan.",
+                        ImageUrl = "https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto%2Cw_300%2Ch_300%2Cc_fit/t6mwawa7mdm6lql1clmc",
+                        Tags = "Dal Makhani,Naan,Veg,North Indian"
+                    },
+                    new Recipe
+                    {
+                        Id = Guid.NewGuid(), OutletId = outlet.Id, Name = "Paneer Tikka Masala with Roti", Calories = 650, ProteinGrams = 28, CarbsGrams = 62, FatGrams = 31,
+                        Category = RecipeCategory.Veg, PricePerMeal = 220, LargePricePerMeal = 270,
+                        Description = "Charred paneer and peppers in a spiced tomato gravy with whole-wheat roti.",
+                        ImageUrl = "https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto%2Cw_300%2Ch_300%2Ce_grayscale%2Cc_fit/FOOD_CATALOG/IMAGES/CMS/2025/7/29/dcf726ba-6e7b-42bf-95c3-6f1e103db9da_a94a8054-7c2a-4cbb-902e-dd37ffb92d61.png",
+                        Tags = "Paneer,Tikka,Roti,Veg"
+                    },
+                    new Recipe
+                    {
+                        Id = Guid.NewGuid(), OutletId = outlet.Id, Name = "Chole Bhature", Calories = 760, ProteinGrams = 20, CarbsGrams = 101, FatGrams = 29,
+                        Category = RecipeCategory.Veg, PricePerMeal = 180, LargePricePerMeal = 225,
+                        Description = "Punjabi-style spiced chickpeas with fluffy bhature, onion and lemon.",
+                        ImageUrl = "https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto%2Cw_400/RX_THUMBNAIL/IMAGES/VENDOR/2025/9/4/9e90029f-0af2-49eb-b92b-25f32ff57157_1167777%20%281%29.jpg",
+                        Tags = "Chole,Bhature,Punjabi,Veg"
+                    },
+                    new Recipe
+                    {
+                        Id = Guid.NewGuid(), OutletId = outlet.Id, Name = "Chicken Biryani with Raita", Calories = 790, ProteinGrams = 44, CarbsGrams = 91, FatGrams = 26,
+                        Category = RecipeCategory.NonVeg, PricePerMeal = 260, LargePricePerMeal = 320,
+                        Description = "Fragrant basmati rice layered with spiced chicken, fried onions, mint and raita.",
+                        ImageUrl = "https://media-assets.swiggy.com/swiggy/image/upload/f_auto%2Cq_auto%2Cfl_lossy/RX_THUMBNAIL/IMAGES/VENDOR/2025/9/22/97c6822e-e46f-418a-b962-481220341835_1209291.jpg",
+                        Tags = "Biryani,Chicken,North Indian,High Protein"
+                    }
+                };
+
+            foreach (var newRecipe in recipes)
+            {
+                var recipe = await db.Recipes.FirstOrDefaultAsync(
+                    x => x.OutletId == outlet.Id && x.Name == newRecipe.Name, ct);
+
+                if (recipe is null)
+                {
+                    recipe = newRecipe;
+                    db.Recipes.Add(recipe);
+                    await db.SaveChangesAsync(ct);
+                }
+                else
+                {
+                    recipe.Calories = newRecipe.Calories;
+                    recipe.ProteinGrams = newRecipe.ProteinGrams;
+                    recipe.CarbsGrams = newRecipe.CarbsGrams;
+                    recipe.FatGrams = newRecipe.FatGrams;
+                    recipe.Category = newRecipe.Category;
+                    recipe.PricePerMeal = newRecipe.PricePerMeal;
+                    recipe.LargePricePerMeal = newRecipe.LargePricePerMeal;
+                    recipe.Description = newRecipe.Description;
+                    recipe.ImageUrl = newRecipe.ImageUrl;
+                    recipe.Tags = newRecipe.Tags;
+                    recipe.IsActive = true;
+                }
+
+                var wantedIngredients = spec.City == "Chennai"
+                    ? new Dictionary<string, (decimal Quantity, string Unit)[]>
+                    {
+                        ["Andhra Full Meals"] = new[] { ("White Rice", 220m, "g"), ("Toor Dal", 100m, "g"), ("Potato", 70m, "g"), ("Tomato", 60m, "g"), ("Yogurt", 80m, "g"), ("Ghee", 8m, "g") },
+                        ["Chapathi with Andhra Chicken Curry"] = new[] { ("Whole Wheat Flour", 90m, "g"), ("Chicken Thigh", 150m, "g"), ("Onion", 80m, "g"), ("Tomato", 80m, "g"), ("Ginger Garlic Paste", 15m, "g"), ("Red Chili Powder", 5m, "g"), ("Coriander", 5m, "g"), ("Garam Masala", 4m, "g"), ("Olive Oil", 10m, "g") },
+                        ["Rice with Andhra Fish Curry"] = new[] { ("White Rice", 220m, "g"), ("Fish Fillet", 160m, "g"), ("Tamarind", 20m, "g"), ("Onion", 60m, "g"), ("Tomato", 60m, "g"), ("Curry Leaves", 4m, "g"), ("Red Chili Powder", 5m, "g"), ("Sesame Oil", 10m, "g") },
+                        ["Masala Dosa with Coconut Chutney"] = new[] { ("Dosa Batter", 180m, "g"), ("Potato", 100m, "g"), ("Onion", 40m, "g"), ("Mustard Seeds", 3m, "g"), ("Curry Leaves", 3m, "g"), ("Coconut", 30m, "g"), ("Olive Oil", 8m, "g") },
+                        ["Idli, Sambar and Peanut Chutney"] = new[] { ("Idli Batter", 180m, "g"), ("Toor Dal", 70m, "g"), ("Carrot", 40m, "g"), ("Tomato", 50m, "g"), ("Peanuts", 25m, "g"), ("Coconut", 15m, "g"), ("Olive Oil", 6m, "g") },
+                        ["Andhra Chicken Curry with Rice"] = new[] { ("White Rice", 220m, "g"), ("Chicken Thigh", 160m, "g"), ("Onion", 70m, "g"), ("Ginger Garlic Paste", 15m, "g"), ("Garam Masala", 4m, "g"), ("Red Chili Powder", 6m, "g"), ("Coriander", 5m, "g"), ("Olive Oil", 10m, "g") }
+                    }
+                    : new Dictionary<string, (decimal Quantity, string Unit)[]>
+                    {
+                        ["Delhi Veg Thali"] = new[] { ("Basmati Rice", 180m, "g"), ("Toor Dal", 80m, "g"), ("Paneer", 80m, "g"), ("Whole Wheat Flour", 70m, "g"), ("Yogurt", 80m, "g"), ("Mixed Vegetables", 90m, "g"), ("Ghee", 8m, "g") },
+                        ["Butter Chicken with Garlic Naan"] = new[] { ("Chicken Thigh", 160m, "g"), ("Yogurt", 60m, "g"), ("Butter", 15m, "g"), ("Cream", 35m, "g"), ("Tomato", 100m, "g"), ("Cashews", 20m, "g"), ("Whole Wheat Flour", 90m, "g"), ("Garam Masala", 4m, "g") },
+                        ["Dal Makhani with Butter Naan"] = new[] { ("Black Lentils", 110m, "g"), ("Kidney Beans", 70m, "g"), ("Butter", 12m, "g"), ("Cream", 25m, "g"), ("Whole Wheat Flour", 90m, "g"), ("Tomato", 70m, "g"), ("Garam Masala", 4m, "g") },
+                        ["Paneer Tikka Masala with Roti"] = new[] { ("Paneer", 140m, "g"), ("Yogurt", 60m, "g"), ("Bell Pepper", 60m, "g"), ("Tomato", 100m, "g"), ("Onion", 60m, "g"), ("Whole Wheat Flour", 80m, "g"), ("Garam Masala", 4m, "g"), ("Olive Oil", 8m, "g") },
+                        ["Chole Bhature"] = new[] { ("Chickpeas", 150m, "g"), ("Whole Wheat Flour", 110m, "g"), ("Yogurt", 50m, "g"), ("Onion", 50m, "g"), ("Tomato", 60m, "g"), ("Garam Masala", 4m, "g"), ("Olive Oil", 12m, "g") },
+                        ["Chicken Biryani with Raita"] = new[] { ("Basmati Rice", 220m, "g"), ("Chicken Thigh", 160m, "g"), ("Yogurt", 70m, "g"), ("Onion", 60m, "g"), ("Saffron", 1m, "g"), ("Garam Masala", 4m, "g"), ("Cashews", 15m, "g"), ("Ghee", 10m, "g") }
+                    };
+
+                if (wantedIngredients.TryGetValue(recipe.Name, out var ingredientSpecs))
+                {
+                    foreach (var item in ingredientSpecs)
+                    {
+                        if (!ingredients.TryGetValue(item.Key, out var ingredient))
+                            continue;
+
+                        if (!await db.RecipeIngredients.AnyAsync(
+                            x => x.RecipeId == recipe.Id && x.IngredientId == ingredient.Id, ct))
+                        {
+                            db.RecipeIngredients.Add(new RecipeIngredient
+                            {
+                                Id = Guid.NewGuid(),
+                                RecipeId = recipe.Id,
+                                IngredientId = ingredient.Id,
+                                Quantity = item.Value.Quantity,
+                                Unit = item.Value.Unit
+                            });
+                        }
+                    }
+                }
+            }
+
+            await db.SaveChangesAsync(ct);
+
+            var menuRecipes = recipes
+                .Select(x => db.Recipes.Local.FirstOrDefault(r => r.Id == x.Id) ?? x)
+                .ToList();
+
+            var breakfast = menuRecipes.Where(x => new[] { "Masala Dosa with Coconut Chutney", "Idli, Sambar and Peanut Chutney" }.Contains(x.Name)).ToList();
+            var lunch = menuRecipes.Where(x => new[] { "Andhra Full Meals", "Rice with Andhra Fish Curry", "Delhi Veg Thali", "Dal Makhani with Butter Naan", "Chicken Biryani with Raita" }.Contains(x.Name)).ToList();
+            var dinner = menuRecipes.Where(x => new[] { "Chapathi with Andhra Chicken Curry", "Andhra Chicken Curry with Rice", "Butter Chicken with Garlic Naan", "Paneer Tikka Masala with Roti", "Chole Bhature" }.Contains(x.Name)).ToList();
+
+            foreach (var day in Enum.GetValues<DayOfWeek>())
+            {
+                foreach (var recipe in breakfast.Where(x => x.IsActive).Take(2))
+                    await EnsureMenuItemAsync(db, outlet.Id, recipe.Id, day, MealSlot.Morning, ct);
+
+                foreach (var recipe in lunch.Where(x => x.IsActive).Take(3))
+                    await EnsureMenuItemAsync(db, outlet.Id, recipe.Id, day, MealSlot.Afternoon, ct);
+
+                foreach (var recipe in dinner.Where(x => x.IsActive).Take(2))
+                    await EnsureMenuItemAsync(db, outlet.Id, recipe.Id, day, MealSlot.Evening, ct);
+            }
+
+            await db.SaveChangesAsync(ct);
+        }
+    }
+
+    private static async Task EnsureMenuItemAsync(
+        HealthAppDbContext db, Guid outletId, Guid recipeId, DayOfWeek day, MealSlot slot, CancellationToken ct)
+    {
+        if (await db.OutletMenuItems.AnyAsync(
+            x => x.OutletId == outletId && x.RecipeId == recipeId && x.DayOfWeek == day && x.MealSlot == slot, ct))
+            return;
+
+        db.OutletMenuItems.Add(new OutletMenuItem
+        {
+            Id = Guid.NewGuid(),
+            OutletId = outletId,
+            RecipeId = recipeId,
+            DayOfWeek = day,
+            MealSlot = slot,
+            IsAvailable = true,
+            DisplayOrder = 1
+        });
+    }
+
     private static async Task EnsureExistingOutletMenuSlotsAsync(HealthAppDbContext db,CancellationToken ct)
     {
         var fit=await db.Outlets.AsNoTracking().FirstOrDefaultAsync(x=>x.Slug=="fitfood",ct);
@@ -416,7 +864,41 @@ public static class DatabaseSeeder
             ("Lentils","g"),
             ("Prawns","g"),
             ("Wheat Noodles","g"),
-            ("Mutton","g")
+            ("Mutton","g"),
+            ("White Rice","g"),
+            ("Sona Masoori Rice","g"),
+            ("Basmati Rice","g"),
+            ("Whole Wheat Flour","g"),
+            ("Toor Dal","g"),
+            ("Black Lentils","g"),
+            ("Kidney Beans","g"),
+            ("Idli Batter","g"),
+            ("Dosa Batter","g"),
+            ("Potato","g"),
+            ("Tomato","g"),
+            ("Onion","g"),
+            ("Carrot","g"),
+            ("Mixed Vegetables","g"),
+            ("Bell Pepper","g"),
+            ("Ginger Garlic Paste","g"),
+            ("Green Chilies","g"),
+            ("Curry Leaves","g"),
+            ("Coriander","g"),
+            ("Tamarind","g"),
+            ("Coconut","g"),
+            ("Mustard Seeds","g"),
+            ("Red Chili Powder","g"),
+            ("Garam Masala","g"),
+            ("Sesame Oil","g"),
+            ("Yogurt","g"),
+            ("Ghee","g"),
+            ("Butter","g"),
+            ("Cream","g"),
+            ("Cashews","g"),
+            ("Peanuts","g"),
+            ("Fish Fillet","g"),
+            ("Chicken Thigh","g"),
+            ("Saffron","g")
         };
         var ingredients=await db.Ingredients.ToListAsync(ct);
         foreach(var item in ingredientNames)
@@ -431,6 +913,14 @@ public static class DatabaseSeeder
         LinkIngredientAllergen(db,ing["Tahini"],all["Sesame"]);
         LinkIngredientAllergen(db,ing["Prawns"],all["Shellfish"]);
         LinkIngredientAllergen(db,ing["Wheat Noodles"],all["Wheat/Gluten"]);
+        LinkIngredientAllergen(db,ing["Whole Wheat Flour"],all["Wheat/Gluten"]);
+        LinkIngredientAllergen(db,ing["Yogurt"],all["Milk"]);
+        LinkIngredientAllergen(db,ing["Ghee"],all["Milk"]);
+        LinkIngredientAllergen(db,ing["Butter"],all["Milk"]);
+        LinkIngredientAllergen(db,ing["Cream"],all["Milk"]);
+        LinkIngredientAllergen(db,ing["Cashews"],all["Tree Nuts"]);
+        LinkIngredientAllergen(db,ing["Peanuts"],all["Peanuts"]);
+        LinkIngredientAllergen(db,ing["Fish Fillet"],all["Fish"]);
         await db.SaveChangesAsync(ct);
     }
     private static void LinkIngredientAllergen(HealthAppDbContext db,Ingredient ingredient,Allergen allergen)
