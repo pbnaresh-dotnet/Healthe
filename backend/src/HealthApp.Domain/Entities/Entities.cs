@@ -996,6 +996,14 @@ public sealed class CustomerAllergy
     = null!;
 }
 
+public sealed class CustomerLikedMeal
+{
+    public Guid Id { get; set; }
+    public Guid CustomerId { get; set; }
+    public Guid RecipeId { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 public sealed class OutletMenuItem
 {
     public Guid Id {
