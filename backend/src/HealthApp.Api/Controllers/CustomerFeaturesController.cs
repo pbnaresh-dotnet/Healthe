@@ -1,3 +1,4 @@
+using HealthApp.Domain.Entities;
 using HealthApp.Application.Abstractions;
 using HealthApp.Shared.DTOs;
 using Microsoft.AspNetCore.Authorization;
