@@ -29,18 +29,22 @@ public sealed class AzureBlobFileStorage(IOptions<StorageOptions> options) : IFi
     {
         await _container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
 
-        var safeFolder = string.Join("/", (folder ?? "files").Split('/', '\', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        var segments = (folder ?? "files")
+            .Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => x != "." && x != "..");
+        var safeFolder = string.Join("/", segments);
         var extension = Path.GetExtension(fileName);
-        var key = $"{safeFolder}/{Guid.NewGuid():N}{extension.ToLowerInvariant()}".Replace("\", "/");
+        var key = $"{safeFolder}/{Guid.NewGuid():N}{extension.ToLowerInvariant()}".Replace("\\", "/");
         var blob = _container.GetBlobClient(key);
+        var resolvedContentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType;
 
         await blob.UploadAsync(
             content,
-            new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType } },
+            new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = resolvedContentType } },
             cancellationToken);
 
         var publicBase = _options.PublicBaseUrl?.TrimEnd('/');
         var url = string.IsNullOrWhiteSpace(publicBase) ? blob.Uri.ToString() : $"{publicBase}/{key}";
-        return new FileStorageResult(url, key, string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType);
+        return new FileStorageResult(url, key, resolvedContentType);
     }
 }
