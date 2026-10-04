@@ -280,11 +280,17 @@ function Discover({outlets,cities,customerAllergies,addresses,selectedAddressId,
    {!selectedOutlet&&visibleOutlets.length===0&&<Empty title="No outlets found" text={normalizedQuery?'Try another search or remove the filters.':'Try another supported city or use a different delivery address.'}/>}
 
    {selectedOutlet&&<section className="panel outletMenuDetail wireMenuDetail">
-     <div className="outletMenuHero">{selectedImage?<img src={getImg(selectedImage)} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/>:<img src={IMAGE_FALLBACKS.hero} alt=""/>}<div className="outletMenuHeroOverlay"><button className="menuBackBtn" onClick={()=>setSelectedOutlet(null)}>← Back to outlets</button><div><span className="eyebrow light">OUTLET MENU</span><h3>{selectedOutlet.name}</h3><span>{selectedOutlet.city}, {selectedOutlet.state} · {selectedOutlet.distanceKm?selectedOutlet.distanceKm+' km away':'Serviceable area'}</span></div></div></div>
-
-     <div className="outletMenuIdentity"><div className="outletLogoLarge">{selectedOutlet.logoUrl?<img src={getImg(selectedOutlet.logoUrl)} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.logo}}/>:<img src={IMAGE_FALLBACKS.logo} alt=""/>}</div><div><div className="tag">HEALTHY KITCHEN</div><h3>{selectedOutlet.name}</h3><span>Fresh meals prepared around your lifestyle.</span></div><button className="primary big" onClick={()=>cityAddresses.length?startBuilder(selectedOutlet):openAddressForCity(selectedOutlet.city,true)}>{cityAddresses.length?'Build package →':'Add address'}</button></div>
-
-     {healthy.length>0&&<div className="healthHighlights"><b>What this outlet offers</b><div className="healthChipRow">{healthy.map((h,i)=><span key={i}>✓ {h}</span>)}</div></div>}
+     <div className="compactOutletHeader">
+       <button className="menuBackBtn compactBack" onClick={()=>setSelectedOutlet(null)}>← Outlets</button>
+       <div className="compactOutletMedia">{selectedImage?<img src={getImg(selectedImage)} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/>:<img src={IMAGE_FALLBACKS.hero} alt=""/>}</div>
+       <div className="compactOutletInfo">
+         <div className="compactOutletEyebrow"><span className="tag">HEALTHY KITCHEN</span><span className="openBadge inline">OPEN</span></div>
+         <h3>{selectedOutlet.name}</h3>
+         <span>{selectedOutlet.city}, {selectedOutlet.state} · {selectedOutlet.distanceKm?selectedOutlet.distanceKm+' km away':'Serviceable area'}</span>
+         <div className="compactOutletMeta"><span>🍽 Freshly prepared</span>{healthy.slice(0,2).map((h,i)=><span key={i}>✓ {h}</span>)}</div>
+       </div>
+       <div className="compactOutletActions"><button className="secondary smallBtn" onClick={()=>setSelectedOutlet(null)}>Change outlet</button><button className="primary smallBtn" onClick={()=>cityAddresses.length?startBuilder(selectedOutlet):openAddressForCity(selectedOutlet.city,true)}>{cityAddresses.length?'Build package →':'Add address'}</button></div>
+     </div>
 
      <div className="menuBrowseTabs">
        <button className={menuTab==='Meals'?'menuBrowseTab active':'menuBrowseTab'} onClick={()=>setMenuTab('Meals')}><span className="menuTabIcon">🍴</span><b>Meals</b><strong>{mealItems.length}</strong></button>
