@@ -105,6 +105,20 @@ BEGIN
     );
     CREATE UNIQUE INDEX IX_CustomerAllergies_Customer_Allergen ON dbo.CustomerAllergies(CustomerId,AllergenId);
 END;
+IF OBJECT_ID('dbo.CustomerLikedMeals','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.CustomerLikedMeals(
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_CustomerLikedMeals PRIMARY KEY,
+        CustomerId uniqueidentifier NOT NULL,
+        RecipeId uniqueidentifier NOT NULL,
+        CreatedAtUtc datetime2 NOT NULL CONSTRAINT DF_CustomerLikedMeals_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_CustomerLikedMeals_Users FOREIGN KEY(CustomerId) REFERENCES dbo.Users(Id) ON DELETE CASCADE,
+        CONSTRAINT FK_CustomerLikedMeals_Recipes FOREIGN KEY(RecipeId) REFERENCES dbo.Recipes(Id) ON DELETE CASCADE
+    );
+    CREATE UNIQUE INDEX IX_CustomerLikedMeals_Customer_Recipe ON dbo.CustomerLikedMeals(CustomerId,RecipeId);
+    CREATE INDEX IX_CustomerLikedMeals_Recipe ON dbo.CustomerLikedMeals(RecipeId);
+END;
+
 IF OBJECT_ID('dbo.DeliveryRoutes','U') IS NULL
 BEGIN
     CREATE TABLE dbo.DeliveryRoutes(
