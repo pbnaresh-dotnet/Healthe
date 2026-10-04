@@ -119,7 +119,7 @@ function App(){
  const skipDay=async date=>{const s=subs.find(x=>x.id===selectedSubId);if(!s)return;if(!confirm('Skip all scheduled meals for this day?'))return;await run(async()=>{const xs=await customer.skipDay(s.id,date,'Customer skipped day');setMealSelections(ms=>ms.map(m=>xs.find(x=>x.id===m.id)||m));notify('Day skipped')})};
  const rescheduleMeal=async()=>run(async()=>{const x=await customer.rescheduleMeal(reschedule.subscriptionId,reschedule.id,{newMealDate:reschedule.newDate,newMealSlot:Number(reschedule.newSlot),addressId:reschedule.addressId||null});setMealSelections(ms=>[...ms.map(m=>m.id===reschedule.id?{...m,status:'Rescheduled',rescheduledAtUtc:new Date().toISOString()}:m),x]);setReschedule(null);notify('Meal rescheduled')});
 
- const dashboardMeals=customerDashboard?.benefits?.mealsThisWeek??useMemo(()=>global.subscriptions.reduce((n,s)=>n+s.mealsPerWeek,0),[global.subscriptions]);
+ const dashboardMeals=customerDashboard?.benefits?.mealsThisWeek??global.subscriptions.reduce((n,s)=>n+s.mealsPerWeek,0);
  const upcoming=useMemo(()=>customerDashboard?.todayMeals?.length?customerDashboard.todayMeals:mealSelections.filter(x=>x.status==='Scheduled').slice(0,6),[customerDashboard,mealSelections]);
  const tabs=[['dashboard','⌂','Dashboard'],['discover','🍽','Find Meals'],['builder','✦','Build Package'],['subscriptions','▣','My Subscriptions'],['calendar','◷','Meal Calendar'],['payment','₹','Payment'],['orders','🧾','Orders'],['addresses','⌂','Addresses'],['profile','♥','Health Profile'],['wallet','₹','Wallet']];
  const pageTitle=tabs.find(x=>x[0]===active)?.[2]||'Dashboard';
