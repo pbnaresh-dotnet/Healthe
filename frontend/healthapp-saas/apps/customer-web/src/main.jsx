@@ -65,7 +65,7 @@ function App(){
  const[profileForm,setProfileForm]=useState({weightKg:'',heightCm:'',dateOfBirth:'',goal:'WeightLoss',activityLevel:'Moderate',allergyIds:[],diet:'Veg'});
  const[addressModal,setAddressModal]=useState(null);
  const[mapBusy,setMapBusy]=useState(false);
- const[addressForm,setAddressForm]=useState({id:null,city:'',cityAreaId:'',label:'Home',addressLine1:'',addressLine2:'',contactName:'',contactPhone:'',latitude:'',longitude:'',isDefault:false});
+ const[addressForm,setAddressForm]=useState({id:null,city:'',pincode:'',locality:'',cityAreaId:null,label:'Home',addressLine1:'',addressLine2:'',contactName:'',contactPhone:'',latitude:'',longitude:'',isDefault:false});
  const[builder,setBuilder]=useState({outlet:null,deliveryCity:'',duration:'OneWeek',deliveryMode:'OneDeliveryPerDay',startDate:nextMonday(),weeks:1,weekActiveDays:blankWeeks,selections:{},allergyAcknowledged:{},dayAddresses:{},discountCode:'',quote:null,step:1});
  const[picker,setPicker]=useState(null);
  const[subs,setSubs]=useState([]);
@@ -80,14 +80,14 @@ function App(){
  const notify=(m,type='success')=>{setToast(m);setToastType(type);setTimeout(()=>setToast(''),2600)};
  const run=async(fn)=>{setLoading(true);setError('');try{return await fn()}catch(e){setError(e.message||'Something went wrong');throw e}finally{setLoading(false)}};
  const reload=async()=>run(async()=>{
-   const[cities,os,as,ads,p,allergens,ss,orders,credit,transactions,dashboard]=await Promise.all([locations.cities(),outlets.list(cityFilter),locations.areas(cityFilter),customer.addresses(),customer.profile(),catalog.allergens(),customer.subscriptions(),customer.orders(),customer.credit(),customer.creditTransactions(),customer.dashboard()]);
-   setGlobal({outlets:os,areas:as,cities,addresses:ads,profile:p,allergens,subscriptions:ss,orders,credit,transactions});setSubs(ss);setCustomerDashboard(dashboard);
+   const[cities,os,ads,p,allergens,ss,orders,credit,transactions,dashboard]=await Promise.all([locations.cities(),outlets.list(cityFilter),customer.addresses(),customer.profile(),catalog.allergens(),customer.subscriptions(),customer.orders(),customer.credit(),customer.creditTransactions(),customer.dashboard()]);
+   setGlobal({outlets:os,areas:[],cities,addresses:ads,profile:p,allergens,subscriptions:ss,orders,credit,transactions});setSubs(ss);setCustomerDashboard(dashboard);
    const initialCity=cityFilter||(ads.find(x=>x.isDefault)?.city)||cities[0]?.city||'';if(!cityFilter&&initialCity)setCityFilter(initialCity);
    const cityAddresses=ads.filter(x=>x.city?.toLowerCase()===initialCity.toLowerCase());setSelectedAddressId((cityAddresses.find(x=>x.isDefault)||cityAddresses[0])?.id||'');
    if(p)setProfileForm({weightKg:p.weightKg??'',heightCm:p.heightCm??'',dateOfBirth:p.dateOfBirth?.slice?.(0,10)||'',goal:p.goal||'WeightLoss',activityLevel:p.activityLevel||'Moderate',allergyIds:(p.allergies||[]).map(a=>a.id),diet:p.diet||'Veg'});
  });
  useEffect(()=>{if(user)reload().catch(()=>{})},[user]);
- useEffect(()=>{if(!user||!cityFilter)return;let disposed=false;Promise.all([locations.areas(cityFilter),outlets.list(cityFilter)]).then(([areasForCity,outletsForCity])=>{if(disposed)return;setGlobal(g=>({...g,areas:areasForCity,outlets:outletsForCity}));setAvailableOutlets(outletsForCity)}).catch(()=>{});return()=>{disposed=true}},[cityFilter,user]);
+ useEffect(()=>{if(!user||!cityFilter)return;let disposed=false;outlets.list(cityFilter).then(outletsForCity=>{if(disposed)return;setGlobal(g=>({...g,outlets:outletsForCity}));setAvailableOutlets(outletsForCity)}).catch(()=>{});return()=>{disposed=true}},[cityFilter,user]);
  useEffect(()=>{if(!user)return;const city=cityFilter.toLowerCase();const cityAddresses=global.addresses.filter(a=>a.city?.toLowerCase()===city);setSelectedAddressId(prev=>{const current=global.addresses.find(x=>x.id===prev);if(current?.city?.toLowerCase()===city)return prev;return(cityAddresses.find(x=>x.isDefault)||cityAddresses[0])?.id||''})},[cityFilter,global.addresses,user]);
  useEffect(()=>{
    if(!user||active!=='dashboard')return;
@@ -106,43 +106,37 @@ function App(){
 
  const changeDiscoveryCity=city=>{setCityFilter(city);setSelectedOutlet(null);setOutletMenu([]);setOutletRecipes([]);setOutletCategory('All');setSelectedAddressId('')};
  const openOutlet=async o=>{setSelectedOutlet(o);setOutletMenu([]);setOutletRecipes([]);setOutletCategory('All');setActive('discover');setError('');try{setLoading(true);const[m,rs]=await Promise.all([menu.outlet(o.id),recipes.list(o.id)]);setOutletMenu(m||[]);setOutletRecipes(rs||[])}catch(e){setError(e.message||'Unable to load outlet menu.')}finally{setLoading(false)}};
- const openAddressForCity=async(city,reason=true)=>{setCityFilter(city);setAddressModal('new');setAddressForm({id:null,city,cityAreaId:'',label:'Home',addressLine1:'',addressLine2:'',contactName:(user.firstName+' '+user.lastName).trim(),contactPhone:'',latitude:'',longitude:'',isDefault:global.addresses.length===0});try{setLoading(true);const as=await locations.areas(city);setGlobal(g=>({...g,areas:as}));if(reason)notify('Add a delivery address in '+city+' before building this package. Pick the exact delivery pin on the map, then edit the address details if needed.','info')}catch(e){setError(e.message||('Unable to load '+city+' delivery areas.'))}finally{setLoading(false)}};
+ const openAddressForCity=async(city,reason=true)=>{setCityFilter(city);setAddressModal('new');setAddressForm({id:null,city,pincode:'',locality:'',cityAreaId:null,label:'Home',addressLine1:'',addressLine2:'',contactName:(user.firstName+' '+user.lastName).trim(),contactPhone:'',latitude:'',longitude:'',isDefault:global.addresses.length===0});if(reason)notify('Set the exact delivery pin anywhere in '+city+'. We will check outlet availability from this location.','info')};
  const startBuilder=async(o,preferredAddress=null)=>{const city=o.city||'';const cityAddress=preferredAddress?.id?preferredAddress:(selectedAddressId?global.addresses.find(a=>a.id===selectedAddressId&&a.city?.toLowerCase()===city.toLowerCase()):null)||global.addresses.find(a=>a.city?.toLowerCase()===city.toLowerCase()&&a.isDefault)||global.addresses.find(a=>a.city?.toLowerCase()===city.toLowerCase());if(!cityAddress){setPendingBuilderOutlet(o);await openAddressForCity(city,true);return}setPendingBuilderOutlet(null);const d=DURATIONS.find(x=>x.id==='OneWeek')||DURATIONS[2];const start=nextMonday();const dayAddresses={};for(let i=0;i<d.days;i++)dayAddresses[addDays(start,i)]=cityAddress.id;setSelectedOutlet(o);setError('');setActive('builder');try{setLoading(true);const[m,rs]=await Promise.all([menu.outlet(o.id),recipes.list(o.id)]);setOutletMenu(m||[]);setOutletRecipes(rs||[]);setBuilder({outlet:o,deliveryCity:city,duration:'OneWeek',deliveryMode:'OneDeliveryPerDay',startDate:start,weeks:d.weeks,weekActiveDays:blankWeeks,selections:{},allergyAcknowledged:{},dayAddresses,discountCode:'',quote:null,step:1})}catch(e){setError(e.message||'Unable to load outlet menu.')}finally{setLoading(false)}};
 
  const filteredRecipes=useMemo(()=>outletCategory==='All'?outletRecipes:outletRecipes.filter(r=>r.category===outletCategory),[outletRecipes,outletCategory]);
 
  const saveProfile=async()=>run(async()=>{const x=await customer.saveProfile({...profileForm,weightKg:profileForm.weightKg===''?null:Number(profileForm.weightKg),heightCm:profileForm.heightCm===''?null:Number(profileForm.heightCm),dateOfBirth:profileForm.dateOfBirth||null,allergyIds:profileForm.allergyIds||[]});setGlobal(g=>({...g,profile:x}));setBuilder(b=>({...b,allergyAcknowledged:{},quote:null}));notify('Health profile saved')});
  const openNewAddress=()=>openAddressForCity(cityFilter,false);
- const editAddress=a=>{setAddressModal('edit');setAddressForm({id:a.id,city:a.city,cityAreaId:'',label:a.label,addressLine1:a.addressLine1,addressLine2:a.addressLine2,contactName:a.contactName,contactPhone:a.contactPhone,latitude:a.latitude,longitude:a.longitude,isDefault:a.isDefault});setCityFilter(a.city);locations.areas(a.city).then(as=>{setGlobal(g=>({...g,areas:as}));const area=as.find(x=>x.name?.toLowerCase()===a.areaName?.toLowerCase()&&x.pincode===a.pincode)||as.find(x=>x.name?.toLowerCase()===a.areaName?.toLowerCase());if(area)setAddressForm(f=>({...f,cityAreaId:area.id}))}).catch(()=>{})};
+ const editAddress=a=>{setAddressModal('edit');setAddressForm({id:a.id,city:a.city,pincode:a.pincode||'',locality:a.areaName||'',cityAreaId:null,label:a.label,addressLine1:a.addressLine1,addressLine2:a.addressLine2,contactName:a.contactName,contactPhone:a.contactPhone,latitude:a.latitude,longitude:a.longitude,isDefault:a.isDefault});setCityFilter(a.city)};
  const pickAddressLocation=async(latitude,longitude)=>{const requestedCity=(addressForm.city||cityFilter||'').trim();
  setError('');
- // Persist the clicked coordinates immediately so the customer always gets visible pin feedback,
- // even when the reverse-geocoding provider is slow, unavailable, or cannot resolve a rural/indoor point.
+ // Save the coordinates immediately; reverse geocoding only enriches editable address fields.
  setAddressForm(f=>({...f,latitude,longitude}));
  setMapBusy(true);
  try{
    const g=await locations.reverseGeocode(latitude,longitude);
-   if(!g?.city)throw new Error('We could not determine the city for this pin. The pin is still saved; please select the delivery area and enter the address details manually.');
-   if(requestedCity&&g.city.localeCompare(requestedCity,undefined,{sensitivity:'base'})!==0)throw new Error('This pin is in '+g.city+', but the selected delivery city is '+requestedCity+'. Please place the pin inside '+requestedCity+'.');
-   const as=await locations.areas(g.city);
-   if(!as.length)throw new Error(g.city+' is not configured as a HealthApp delivery city yet. The pin is still set.');
-   const match=as.find(x=>g.pincode&&x.pincode===g.pincode)||as.find(x=>g.suburb&&x.name?.toLowerCase().includes(g.suburb.toLowerCase()));
-   const line1=[g.houseNumber,g.road].filter(Boolean).join(' ').trim();
-   const line2=g.suburb||g.neighbourhood||'';
-   setGlobal(state=>({...state,areas:as}));
-   setAddressForm(f=>({...f,city:g.city,cityAreaId:match?.id||'',addressLine1:line1,addressLine2:line2,latitude,longitude}));
-   notify(match?'Exact pin set in '+g.city+' · '+match.name:'Exact pin set in '+g.city+'. Select the delivery area if required.','info');
+   if(g?.city&&requestedCity&&g.city.localeCompare(requestedCity,undefined,{sensitivity:'base'})!==0)
+     throw new Error('This pin is in '+g.city+', but the selected delivery city is '+requestedCity+'. Please place the pin inside '+requestedCity+'.');
+   if(g?.city){
+     setAddressForm(f=>({...f,city:g.city,pincode:g.pincode||f.pincode||'',locality:g.suburb||g.neighbourhood||f.locality||'',cityAreaId:null,addressLine1:[g.houseNumber,g.road].filter(Boolean).join(' ').trim()||f.addressLine1,addressLine2:g.suburb||g.neighbourhood||f.addressLine2,latitude,longitude}));
+     notify('Exact pin set in '+g.city+'. Review the address details, then save.','info');
+   }else{
+     notify('Pin set. You can enter the address details manually.','info');
+   }
  }catch(e){
-   const message=e.message||'Unable to resolve this location.';
+   const message=e.message||'Unable to enrich this location.';
    setError(message);
-   // Keep latitude/longitude from the click even when enrichment fails.
    setAddressForm(f=>({...f,latitude,longitude}));
-   notify('Pin set. You can still edit the address details manually.','info');
  }finally{setMapBusy(false)}};
 
- const saveAddress=async()=>run(async()=>{if(!addressForm.cityAreaId)throw new Error('Select a delivery area.');if(!addressForm.addressLine1.trim())throw new Error('Address line 1 is required.');const lat=Number(addressForm.latitude),lng=Number(addressForm.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lng))throw new Error('Pick the exact delivery location on the map.');const payload={cityAreaId:addressForm.cityAreaId,label:addressForm.label,addressLine1:addressForm.addressLine1,addressLine2:addressForm.addressLine2,contactName:addressForm.contactName,contactPhone:addressForm.contactPhone,latitude:lat,longitude:lng,isDefault:Boolean(addressForm.isDefault)};const x=addressModal==='new'?await customer.createAddress(payload):await customer.updateAddress(addressForm.id,payload);const list=addressModal==='new'?[...global.addresses,x]:global.addresses.map(a=>a.id===x.id?x:a);setGlobal(g=>({...g,addresses:list}));setSelectedAddressId(x.id);const nextBuilderOutlet=pendingBuilderOutlet;setPendingBuilderOutlet(null);setAddressModal(null);if(nextBuilderOutlet&&nextBuilderOutlet.city?.toLowerCase()===x.city?.toLowerCase()){await startBuilder(nextBuilderOutlet,x)}else{notify('Address saved with exact map location')}});
+ const saveAddress=async()=>run(async()=>{if(!addressForm.city.trim())throw new Error('Delivery city is required.');if(!addressForm.addressLine1.trim())throw new Error('Address line 1 is required.');const lat=Number(addressForm.latitude),lng=Number(addressForm.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lng))throw new Error('Pick the exact delivery location on the map.');const payload={city:addressForm.city,pincode:addressForm.pincode||'',locality:addressForm.locality||'',label:addressForm.label,addressLine1:addressForm.addressLine1,addressLine2:addressForm.addressLine2,contactName:addressForm.contactName,contactPhone:addressForm.contactPhone,latitude:lat,longitude:lng,cityAreaId:null,isDefault:Boolean(addressForm.isDefault)};const x=addressModal==='new'?await customer.createAddress(payload):await customer.updateAddress(addressForm.id,payload);const list=addressModal==='new'?[...global.addresses,x]:global.addresses.map(a=>a.id===x.id?x:a);setGlobal(g=>({...g,addresses:list}));setSelectedAddressId(x.id);const nextBuilderOutlet=pendingBuilderOutlet;setPendingBuilderOutlet(null);setAddressModal(null);if(nextBuilderOutlet&&nextBuilderOutlet.city?.toLowerCase()===x.city?.toLowerCase()){await startBuilder(nextBuilderOutlet,x)}else{notify('Address saved with exact map location')}});
  const deleteAddress=async a=>{if(!confirm('Delete this address?'))return;await run(async()=>{await customer.deleteAddress(a.id);const next=global.addresses.filter(x=>x.id!==a.id);setGlobal(g=>({...g,addresses:next}));setSelectedAddressId(next[0]?.id||'');notify('Address deleted')})};
- const selectArea=id=>{const a=global.areas.find(x=>x.id===id);setAddressForm(f=>({...f,cityAreaId:id,latitude:a?.latitude??'',longitude:a?.longitude??''}))};
 
  const setBuilderDuration=value=>{const d=DURATIONS.find(x=>x.id===value)||DURATIONS[0];setBuilder(b=>{const next={...b.weekActiveDays};for(let i=1;i<=d.weeks;i++)next[i]=next[i]||next[1]||[1,2,3,4,5];const city=(b.deliveryCity||b.outlet?.city||'').toLowerCase();const defaultAddress=global.addresses.find(a=>a.city?.toLowerCase()===city);const nextAddresses={...b.dayAddresses};for(let i=0;i<d.days;i++){const date=addDays(b.startDate,i);if(defaultAddress&&!nextAddresses[date])nextAddresses[date]=defaultAddress.id}return{...b,duration:value,weeks:d.weeks,weekActiveDays:next,dayAddresses:nextAddresses,quote:null}})};
  const builderDays=useMemo(()=>Array.from({length:builder.weeks*7},(_,i)=>({date:addDays(builder.startDate,i),index:i,week:Math.floor(i/7)+1})),[builder.startDate,builder.weeks]);
