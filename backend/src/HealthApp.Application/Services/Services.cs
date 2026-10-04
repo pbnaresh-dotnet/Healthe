@@ -272,6 +272,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var duration = Parse<SubscriptionDuration>(r.Duration, "duration");
         var outlet = await outlets.GetByIdAsync(r.OutletId) ?? throw new KeyNotFoundException("Outlet not found.");
         if (outlet.Status != OutletStatus.Active) throw new InvalidOperationException("Outlet is not active.");
+        _ = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var menuItems = await menu.GetByOutletAsync(outlet.Id);
         var meals = BuildSelections(r.Selections, outlet.Id, menuItems, rs);
@@ -305,6 +306,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if (r.Selections is null || r.Selections.Count == 0) throw new ArgumentException("Add at least one meal to your package.");
         var outlet = await outlets.GetByIdAsync(r.OutletId) ?? throw new KeyNotFoundException("Outlet not found or unavailable.");
         if (outlet.Status != OutletStatus.Active) throw new KeyNotFoundException("Outlet not found or unavailable.");
+        _ = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var mealEntities = BuildSelections(r.Selections, outlet.Id, await menu.GetByOutletAsync(outlet.Id), rs);
         ValidateDeliveryMode(deliveryMode, mealEntities);
@@ -551,6 +553,13 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     public async Task<IReadOnlyList<CreditTransactionDto>> GetCreditTransactionsAsync()=>current.UserId is not Guid id?[]:(await credits.GetTransactionsAsync(id)).Select(x=>new CreditTransactionDto(x.Id,x.Amount,x.Type.ToString(),x.Reason,x.CreatedAt)).ToList();
     private static T Parse<T>(string value,string label) where T:struct,
     Enum=>Enum.TryParse<T>(value,true,out var x)?x:throw new ArgumentException($"Invalid {label}.");
+    private static string ValidateDeliveryCity(string? requestedCity,string outletCity) {
+        var city=string.IsNullOrWhiteSpace(requestedCity)?outletCity:requestedCity.Trim();
+        if(string.IsNullOrWhiteSpace(city))throw new ArgumentException("A delivery city is required.");
+        if(!city.Equals(outletCity,StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"The selected delivery city '{city}' is not served by this outlet. Choose an outlet in {outletCity}.");
+        return city;
+    }
     private async Task<Subscription> GetOwnedSubscription(Guid id) {
         var s=await subs.GetAsync(id)??throw new KeyNotFoundException("Subscription not found.");
         if(current.UserId is not Guid uid||s.CustomerId!=uid)throw new UnauthorizedAccessException("Subscription does not belong to the current customer.");
