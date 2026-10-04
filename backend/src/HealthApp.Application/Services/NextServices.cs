@@ -62,6 +62,18 @@ public sealed class CustomerAddressService(ICurrentUser current,ICustomerAddress
             throw new ArgumentException("We could not determine the city for this map pin. Move the pin onto a supported delivery location and try again.");
         if(!resolved.City.Equals(area.City,StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException($"The map pin resolves to {resolved.City}, but the selected delivery area is in {area.City}. Select a pin inside {area.City}.");
+
+        // The map pin is authoritative. When reverse geocoding provides a postcode,
+        // require the selected HealthApp delivery area to use the same postcode.
+        // This prevents saving an arbitrary area from the same city while the pin
+        // actually belongs to another configured delivery area.
+        if(!string.IsNullOrWhiteSpace(resolved.Pincode) &&
+           !string.IsNullOrWhiteSpace(area.Pincode) &&
+           !resolved.Pincode.Equals(area.Pincode,StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException($"The map pin is in postcode {resolved.Pincode}, but {area.Name} uses postcode {area.Pincode}. Select the delivery area matching the pinned location.");
+        }
+
         return area;
     }
     public async Task<IReadOnlyList<DeliveryQuoteDto>> QuoteAsync(Guid outletId){if(current.UserId is not Guid id)return[];var result=new List<DeliveryQuoteDto>();foreach(var a in await addresses.GetByCustomerAsync(id)){try{result.Add(await calculator.QuoteAsync(outletId,id,a.Id));}catch{}}return result;}
