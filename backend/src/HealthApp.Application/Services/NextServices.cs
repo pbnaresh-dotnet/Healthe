@@ -373,7 +373,7 @@ public sealed class DeliveryLabelService(
             var address=delivery.DeliveryAddressId.HasValue
                 ? await addresses.GetAsync(delivery.CustomerId,delivery.DeliveryAddressId.Value)
                 : null;
-            var area=address is null ? null : await areas.GetAsync(address.CityAreaId);
+            var area=address?.CityAreaId is Guid areaId ? await areas.GetAsync(areaId) : null;
             var customer=await users.FindByIdAsync(delivery.CustomerId);
 
             foreach(var meal in mealRows)
