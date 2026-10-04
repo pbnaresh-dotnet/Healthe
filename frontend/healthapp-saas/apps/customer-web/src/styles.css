@@ -726,3 +726,54 @@ textarea{resize:vertical}
 .likedMealBtn{
   min-width:74px;
 }
+
+
+/* Prominent Build Package action on outlet page */
+.wireBannerBuild{
+  position:absolute;
+  z-index:6;
+  top:14px;
+  right:58px;
+  border:0;
+  background:#1f7a43;
+  color:#fff;
+  border-radius:9px;
+  padding:9px 13px;
+  font-size:9px;
+  font-weight:850;
+  box-shadow:0 6px 16px #10221935;
+  cursor:pointer;
+}
+.wireBannerBuild:hover{background:#1a6939}
+.wireBuildPackageBtn{display:none!important}
+.likedMealState{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:54px;
+  padding:6px 8px;
+  border:1px solid #d9e4db;
+  border-radius:999px;
+  background:#f7faf7;
+  color:#65736a;
+  font-size:8px;
+  font-weight:850;
+}
+.likedMealState.active{
+  background:#eaf7ed;
+  border-color:#a8cfb0;
+  color:#b94a45;
+}
+.mealSave.saved{
+  color:#cf4e47;
+  background:#eff9f1;
+  border-color:#a8cfb0;
+}
+@media(max-width:600px){
+  .wireBannerBuild{
+    top:12px;
+    right:55px;
+    padding:8px 9px;
+    font-size:8px;
+  }
+}
