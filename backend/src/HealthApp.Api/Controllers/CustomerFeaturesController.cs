@@ -18,7 +18,7 @@ public sealed class CustomerFeaturesController(ICustomerProfileService profile, 
         if (recipeIds.Count == 0) return Ok(Array.Empty<CustomerLikedMealDto>());
 
         var result = (await recipes.GetByIdsAsync(recipeIds))
-            .Select(x => new CustomerLikedMealDto(x.Id, x.Name, x.ImageUrl, x.Calories, x.ProteinGrams, x.CarbsGrams, x.FatGrams, x.Category.ToString(), x.PricePerMeal))
+            .Select(x => new CustomerLikedMealDto(x.Id, x.Name, x.ImageUrl, x.Calories, x.ProteinGrams, x.CarbsGrams, x.FatGrams, x.Category.ToString(), x.PricePerMeal, x.FiberGrams))
             .ToList();
         return Ok(result);
     }
