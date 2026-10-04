@@ -622,3 +622,37 @@ textarea{resize:vertical}
 .discoverContent .wireListingFilters{
   margin-top:0;
 }
+
+
+/* Four-value nutrition strip for outlet meal cards */
+.wireMealMacroStrip{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  margin-top:7px;
+  background:#f1f2f1;
+  border-radius:6px;
+  overflow:hidden;
+}
+.wireMealMacroStrip>div{
+  min-width:0;
+  padding:6px 3px;
+  text-align:center;
+  border-right:1px solid #d9ddd9;
+}
+.wireMealMacroStrip>div:last-child{border-right:0}
+.wireMealMacroStrip span,
+.wireMealMacroStrip b{
+  display:block;
+}
+.wireMealMacroStrip span{
+  font-size:7px;
+  line-height:1.1;
+  color:#7a847d;
+}
+.wireMealMacroStrip b{
+  margin-top:3px;
+  font-size:9px;
+  line-height:1.1;
+  color:#26332a;
+  font-weight:850;
+}
