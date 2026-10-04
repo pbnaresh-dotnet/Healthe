@@ -607,3 +607,18 @@ textarea{resize:vertical}
   .wireOutletGrid{grid-template-columns:1fr}
   .wireOutletCard .outletHeroThumb{height:145px}
 }
+
+
+/* Find Meals: keep the single page title in the top bar and pull discovery controls to the top */
+.discoverContent{
+  padding-top:14px;
+}
+.discoverContent .page{
+  gap:10px;
+}
+.discoverContent .wireListingToolbar{
+  margin-top:0;
+}
+.discoverContent .wireListingFilters{
+  margin-top:0;
+}
