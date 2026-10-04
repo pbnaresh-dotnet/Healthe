@@ -7,6 +7,8 @@ using HealthApp.Domain.Events;
 using HealthApp.Infrastructure.Authentication;
 using HealthApp.Infrastructure.Data;
 using HealthApp.Infrastructure.Repositories;
+using HealthApp.Infrastructure.Storage;
+using HealthApp.Infrastructure.Geocoding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
