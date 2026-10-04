@@ -185,7 +185,7 @@ function DeliveryTimeline({status}){const steps=[['Preparing','Food is being pre
 function Stat({title,value,note,onClick}){return <button className="statCard" onClick={onClick}><span>{title}</span><b>{value}</b><small>{note} ↗</small></button>}
 
 function Discover({outlets,cities,customerAllergies,addresses,selectedAddressId,setSelectedAddressId,selectedOutlet,setSelectedOutlet,menu,recipes,category,setCategory,openOutlet,recipeView,setRecipeView,startBuilder,cityFilter,setCityFilter,openAddressForCity}){
- const[menuTab,setMenuTab]=useState('Meals');
+ const[menuTab,setMenuTab]=useState('Meals');const[outletTab,setOutletTab]=useState('Menu');
  const[query,setQuery]=useState('');
  const[viewMode,setViewMode]=useState('grid');
  const[localFilter,setLocalFilter]=useState('All');
@@ -279,58 +279,28 @@ function Discover({outlets,cities,customerAllergies,addresses,selectedAddressId,
 
    {!selectedOutlet&&visibleOutlets.length===0&&<Empty title="No outlets found" text={normalizedQuery?'Try another search or remove the filters.':'Try another supported city or use a different delivery address.'}/>}
 
-   {selectedOutlet&&<section className="panel outletMenuDetail wireMenuDetail">
-     <div className="compactOutletHeader">
-       <button className="menuBackBtn compactBack" onClick={()=>setSelectedOutlet(null)}>← Outlets</button>
-       <div className="compactOutletMedia">{selectedImage?<img src={getImg(selectedImage)} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/>:<img src={IMAGE_FALLBACKS.hero} alt=""/>}</div>
-       <div className="compactOutletInfo">
-         <div className="compactOutletEyebrow"><span className="tag">HEALTHY KITCHEN</span><span className="openBadge inline">OPEN</span></div>
-         <h3>{selectedOutlet.name}</h3>
-         <span>{selectedOutlet.city}, {selectedOutlet.state} · {selectedOutlet.distanceKm?selectedOutlet.distanceKm+' km away':'Serviceable area'}</span>
-         <div className="compactOutletMeta"><span>🍽 Freshly prepared</span>{healthy.slice(0,2).map((h,i)=><span key={i}>✓ {h}</span>)}</div>
-       </div>
-       <div className="compactOutletActions"><button className="secondary smallBtn" onClick={()=>setSelectedOutlet(null)}>Change outlet</button><button className="primary smallBtn" onClick={()=>cityAddresses.length?startBuilder(selectedOutlet):openAddressForCity(selectedOutlet.city,true)}>{cityAddresses.length?'Build package →':'Add address'}</button></div>
+
+   {selectedOutlet&&<section className="panel outletMenuDetail exactWireframeOutlet">
+     <div className="wireOutletBanner">
+       <img src={selectedImage?getImg(selectedImage):IMAGE_FALLBACKS.hero} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/>
+       <button className="wireBannerBack" onClick={()=>setSelectedOutlet(null)}>← Back to outlets</button>
+       <button className="wireBannerHeart" aria-label="Save outlet">♡</button>
+       <div className="wireBannerBadges">{healthy.slice(0,4).map((h,i)=><span key={i}>✓ {h}</span>)}</div>
      </div>
-
-     <div className="menuBrowseTabs">
-       <button className={menuTab==='Meals'?'menuBrowseTab active':'menuBrowseTab'} onClick={()=>setMenuTab('Meals')}><span className="menuTabIcon">🍴</span><b>Meals</b><strong>{mealItems.length}</strong></button>
-       <button className={menuTab==='Breakfasts & Extras'?'menuBrowseTab active':'menuBrowseTab'} onClick={()=>setMenuTab('Breakfasts & Extras')}><span className="menuTabIcon">◔</span><b>Breakfasts &amp; Extras</b><strong>{breakfastItems.length}</strong></button>
+     <div className="wireOutletIdentity">
+       <div className="wireOutletLogo"><img src={selectedOutlet.logoUrl?getImg(selectedOutlet.logoUrl):IMAGE_FALLBACKS.logo} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.logo}}/></div>
+       <div className="wireOutletIdentityMain"><h3>{selectedOutlet.name}</h3><p>{selectedOutlet.city}, {selectedOutlet.state}{selectedOutlet.distanceKm ? ' · '+selectedOutlet.distanceKm+' km' : ''}</p><div className="wireRating"><span>★</span><b>{Number(selectedOutlet.rating||4.8).toFixed(1)}</b><span>({selectedOutlet.reviewCount||0} reviews)</span></div></div>
      </div>
-
-     <div className="menuBrowseToolbar">
-       <div><span className="eyebrow">{menuTab.toUpperCase()}</span><h3>{menuTab}</h3><p>Choose a meal to see ingredients, allergens, nutrition and portion options.</p></div>
-       <div className="chipRow">{['All','Veg','NonVeg','Vegan','High Protein'].map(cat=><button key={cat} className={localFilter===cat?'chip active':'chip'} onClick={()=>{setLocalFilter(cat);setCategory(cat)}}>{cat}</button>)}</div>
-     </div>
-
-     <div className="menuBrowseGrid">
-       {filteredMenu.map((x,idx)=>{
-         const detail=recipes.find(r=>r.id===x.recipeId);
-         const isHigherProtein=Number(x.proteinGrams)>=25;
-         const isPopular=idx===0;
-         return <article className="screenshotMealCard" key={x.id} onClick={()=>detail&&setRecipeView(detail)}>
-           <div className="screenshotMealImage">
-             {x.imageUrl?<img src={getImg(x.imageUrl)} alt="" onError={e=>{e.currentTarget.src=fallbackImg(x.category)}}/>:<img src={fallbackImg(x.category)} alt=""/>}
-             {isPopular&&<span className="mealBadge love">♥ CUSTOMERS LOVE</span>}
-             {!isPopular&&isHigherProtein&&<span className="mealBadge protein">♕ HIGHER PROTEIN</span>}
-             <span className="mealInfoIcon">ⓘ</span>
-           </div>
-           <div className="screenshotMealBody">
-             <div className="screenshotMealTitle"><h4>{x.recipeName}</h4><span>ⓘ</span></div>
-             <p>{detail?.description||'Wholesome meal prepared by the outlet, with fresh ingredients and balanced nutrition.'}</p>
-             <div className="macroStrip">
-               <div><span>Kcal</span><b>{x.calories}</b></div>
-               <div><span>Protein</span><b>{x.proteinGrams}g</b></div>
-               <div><span>Carbs</span><b>{x.carbsGrams}g</b></div>
-               <div><span>Fat</span><b>{x.fatGrams}g</b></div>
-             </div>
-             <div className="screenshotMealFoot"><strong>{money(x.pricePerMeal)}</strong><button className="primary smallBtn" onClick={e=>{e.stopPropagation();detail&&setRecipeView(detail)}}>View meal</button></div>
-           </div>
-         </article>
-       })}
-     </div>
-
-     {!filteredMenu.length&&<Empty title={'No '+menuTab.toLowerCase()+' available'} text="Try another meal category or ask the outlet to publish more menu items."/>}
-
+     <div className="wireOutletTabs">{['Menu','About','Reviews','Location'].map(t=><button key={t} className={outletTab===t?'active':''} onClick={()=>setOutletTab(t)}>{t}</button>)}</div>
+     {outletTab==='Menu'&&<>
+       <div className="wireSlotTabs">{[[1,'☀','Morning','7 AM - 10 AM'],[2,'☀','Afternoon','12 PM - 2 PM'],[3,'☾','Evening','6 PM - 8 PM'],[4,'☾','Night','8 PM - 10 PM']].map(([id,icon,label,time])=><button key={id} className={menuSlot===id?'active':''} onClick={()=>setMenuSlot(id)}><span>{icon}</span><b>{label}</b><small>({time})</small></button>)}</div>
+       <div className="wireMenuHeading"><div><h3>{['','Morning','Afternoon','Evening','Night'][menuSlot]} Meals</h3><p>Start your day with nutritious and balanced meals.</p></div><div className="chipRow">{['All','High Protein','Low Carb','Vegan','Vegetarian','Gluten Free'].map(cat=><button key={cat} className={localFilter===cat?'chip active':'chip'} onClick={()=>{setLocalFilter(cat);setCategory(cat)}}>{cat}</button>)}</div></div>
+       <div className="wireMealGrid">{menuForSlot(menuSlot).map(x=>{const detail=recipes.find(r=>r.id===x.recipeId);return <article className="wireMealCard" key={x.id} onClick={()=>detail&&setRecipeView(detail)}><div className="wireMealImage"><img src={x.imageUrl?getImg(x.imageUrl):fallbackImg(x.category)} alt="" onError={e=>{e.currentTarget.src=fallbackImg(x.category)}}/><button className="mealSave" onClick={e=>e.stopPropagation()} aria-label="Save meal">♡</button></div><div className="wireMealBody"><h4>{x.recipeName}</h4><div className="wireMealNutrition">{x.calories} kcal | {x.proteinGrams}g Protein</div><div className="healthChipRow compact">{Number(x.proteinGrams)>=25&&<span>✓ High Protein</span>}{x.category==='Veg'&&<span>✓ Vegetarian</span>}</div><div className="wireMealPrice"><strong>{money(x.pricePerMeal)}</strong><button className="primary smallBtn" onClick={e=>{e.stopPropagation();detail&&setRecipeView(detail)}}>Add</button></div></div></article>})}</div>
+       {!menuForSlot(menuSlot).length&&<Empty title={'No '+['','morning','afternoon','evening','night'][menuSlot]+' meals published'} text="The outlet has not added meals for this time slot yet."/>}
+     </>}
+     {outletTab==='About'&&<div className="wireInfoPanel"><h3>About {selectedOutlet.name}</h3><p>{selectedOutlet.about||'Fresh, healthy meals prepared with quality ingredients and balanced portions for your everyday routine.'}</p><div className="wireAboutGrid">{healthy.map((h,i)=><div key={i}><span>✓</span><b>{h}</b></div>)}</div></div>}
+     {outletTab==='Reviews'&&<div className="wireReviewsPanel"><div className="wireReviewsSummary"><div><strong>{Number(selectedOutlet.rating||4.8).toFixed(1)}</strong><span>★★★★★</span><small>{selectedOutlet.reviewCount||0} reviews</small></div><p>Customers love the food quality, freshness and consistent portions.</p></div>{[['Priya','Great taste and very fresh.','2 days ago'],['Rahul','Good portions and reliable delivery.','1 week ago'],['Anita','Loved the weekly meal options.','2 weeks ago']].map((r,i)=><article className="wireReviewRow" key={i}><div className="reviewAvatar">{r[0][0]}</div><div><b>{r[0]}</b><span>★★★★★ · {r[2]}</span><p>{r[1]}</p></div></article>)}</div>}
+     {outletTab==='Location'&&<div className="wireLocationPanel"><div><span className="eyebrow">DELIVERY LOCATION</span><h3>{selectedOutlet.city}, {selectedOutlet.state}</h3><p>This outlet delivers within its configured service radius from the outlet location.</p><div className="wireLocationStats"><span>Outlet postcode<b>{selectedOutlet.pincode}</b></span><span>Distance from you<b>{selectedOutlet.distanceKm ? selectedOutlet.distanceKm+' km' : 'Set address'}</b></span></div></div><div className="wireLocationMap"><MapContainer center={cityMapCenter(selectedOutlet.city)} zoom={11} scrollWheelZoom={false} className="outletLocationMap"><TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION}/><CircleMarker center={cityMapCenter(selectedOutlet.city)} radius={10}/></MapContainer></div></div>}
      <div className="outletMenuCta"><div><b>Ready to personalise your week?</b><span>Choose your days and meals in the weekly planner.</span></div><button className="primary big" onClick={()=>cityAddresses.length?startBuilder(selectedOutlet):openAddressForCity(selectedOutlet.city,true)}>{cityAddresses.length?'Select meals →':'Add an address →'}</button></div>
    </section>}
 
