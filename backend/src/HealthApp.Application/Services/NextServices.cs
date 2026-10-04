@@ -289,14 +289,9 @@ public sealed class ServiceCityAdminService(IServiceCityRepository cities) : ISe
 
     public async Task<ServiceCityDto?> SetEnabledAsync(Guid id, bool enabled)
     {
-        var citiesList = await cities.GetEnabledAsync();
-        var city = citiesList.FirstOrDefault(x => x.Id == id);
+        var city = await cities.GetByIdAsync(id);
         if (city is null)
-        {
-            // Allow enabling a previously disabled city by loading it through the normal DbContext-backed repository
-            // would require a separate GetById contract. Keep the operation explicit through the create/upsert flow.
             return null;
-        }
 
         city.IsEnabled = enabled;
         await cities.UpdateAsync(city);
