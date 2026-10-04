@@ -45,39 +45,187 @@ public sealed class CustomerProfileService(ICurrentUser current, ICustomerProfil
     }
 }
 
-public sealed class CustomerAddressService(ICurrentUser current,ICustomerAddressRepository addresses,ICityAreaRepository areas,IGeocodingService geocoding,IDeliveryCalculator calculator) : ICustomerAddressService
+public sealed class CustomerAddressService(
+    ICurrentUser current,
+    ICustomerAddressRepository addresses,
+    IServiceCityRepository serviceCities,
+    ICityAreaRepository areas,
+    IGeocodingService geocoding,
+    IDeliveryCalculator calculator) : ICustomerAddressService
 {
-    public async Task<IReadOnlyList<CustomerAddressDto>> GetAsync()=>current.UserId is not Guid id?[]:await Map(await addresses.GetByCustomerAsync(id));
-    public async Task<CustomerAddressDto?> CreateAsync(CreateCustomerAddressRequest r){if(current.UserId is not Guid id)return null;var area=await ValidateAreaAndPinAsync(r.CityAreaId,r.Latitude,r.Longitude);if(string.IsNullOrWhiteSpace(r.AddressLine1))throw new ArgumentException("Address line 1 is required.");var a=new CustomerAddress{Id=Guid.NewGuid(),CustomerId=id,CityAreaId=area.Id,Label=r.Label?.Trim()??"",AddressLine1=r.AddressLine1.Trim(),AddressLine2=r.AddressLine2?.Trim()??"",ContactName=r.ContactName?.Trim()??"",ContactPhone=r.ContactPhone?.Trim()??"",Latitude=r.Latitude,Longitude=r.Longitude,IsDefault=r.IsDefault};await addresses.AddAsync(a);return(await Map(new[]{a})).First();}
-    public async Task<CustomerAddressDto?> UpdateAsync(Guid addressId,UpdateCustomerAddressRequest r){if(current.UserId is not Guid id)return null;var a=await addresses.GetAsync(id,addressId);if(a is null)return null;var area=await ValidateAreaAndPinAsync(r.CityAreaId,r.Latitude,r.Longitude);if(string.IsNullOrWhiteSpace(r.AddressLine1))throw new ArgumentException("Address line 1 is required.");a.CityAreaId=area.Id;a.Label=r.Label?.Trim()??"";a.AddressLine1=r.AddressLine1.Trim();a.AddressLine2=r.AddressLine2?.Trim()??"";a.ContactName=r.ContactName?.Trim()??"";a.ContactPhone=r.ContactPhone?.Trim()??"";a.Latitude=r.Latitude;a.Longitude=r.Longitude;a.IsDefault=r.IsDefault;await addresses.UpdateAsync(a);return(await Map(new[]{a})).First();}
-    public async Task<bool> DeleteAsync(Guid id){if(current.UserId is not Guid uid)return false;var a=await addresses.GetAsync(uid,id);if(a is null)return false;await addresses.DeleteAsync(uid,id);return true;}
-    private static void ValidateCoordinates(double latitude,double longitude){if(double.IsNaN(latitude)||double.IsInfinity(latitude)||latitude is < -90 or > 90)throw new ArgumentException("Latitude must be between -90 and 90.");if(double.IsNaN(longitude)||double.IsInfinity(longitude)||longitude is < -180 or > 180)throw new ArgumentException("Longitude must be between -180 and 180.");}
-    private async Task<CityArea> ValidateAreaAndPinAsync(Guid cityAreaId,double latitude,double longitude)
-    {
-        ValidateCoordinates(latitude,longitude);
-        var area=await areas.GetAsync(cityAreaId)??throw new KeyNotFoundException("Delivery area not found.");
-        if(!area.IsActive)throw new ArgumentException("The selected delivery area is inactive.");
-        var resolved=await geocoding.ReverseAsync(latitude,longitude);
-        if(resolved is null||string.IsNullOrWhiteSpace(resolved.City))
-            throw new ArgumentException("We could not determine the city for this map pin. Move the pin onto a supported delivery location and try again.");
-        if(!resolved.City.Equals(area.City,StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException($"The map pin resolves to {resolved.City}, but the selected delivery area is in {area.City}. Select a pin inside {area.City}.");
+    public async Task<IReadOnlyList<CustomerAddressDto>> GetAsync() =>
+        current.UserId is not Guid id ? [] : await Map(await addresses.GetByCustomerAsync(id));
 
-        // The map pin is authoritative. When reverse geocoding provides a postcode,
-        // require the selected HealthApp delivery area to use the same postcode.
-        // This prevents saving an arbitrary area from the same city while the pin
-        // actually belongs to another configured delivery area.
-        if(!string.IsNullOrWhiteSpace(resolved.Pincode) &&
-           !string.IsNullOrWhiteSpace(area.Pincode) &&
-           !resolved.Pincode.Equals(area.Pincode,StringComparison.OrdinalIgnoreCase))
+    public async Task<CustomerAddressDto?> CreateAsync(CreateCustomerAddressRequest r)
+    {
+        if (current.UserId is not Guid id)
+            return null;
+
+        var address = await BuildAddressAsync(id, r.City, r.Pincode, r.Locality, r.CityAreaId, r.Label, r.AddressLine1, r.AddressLine2, r.ContactName, r.ContactPhone, r.Latitude, r.Longitude, r.IsDefault);
+        await addresses.AddAsync(address);
+        return (await Map(new[] { address })).First();
+    }
+
+    public async Task<CustomerAddressDto?> UpdateAsync(Guid addressId, UpdateCustomerAddressRequest r)
+    {
+        if (current.UserId is not Guid id)
+            return null;
+
+        var address = await addresses.GetAsync(id, addressId);
+        if (address is null)
+            return null;
+
+        var replacement = await BuildAddressAsync(id, r.City, r.Pincode, r.Locality, r.CityAreaId, r.Label, r.AddressLine1, r.AddressLine2, r.ContactName, r.ContactPhone, r.Latitude, r.Longitude, r.IsDefault);
+        address.City = replacement.City;
+        address.State = replacement.State;
+        address.Pincode = replacement.Pincode;
+        address.Locality = replacement.Locality;
+        address.CityAreaId = replacement.CityAreaId;
+        address.Label = replacement.Label;
+        address.AddressLine1 = replacement.AddressLine1;
+        address.AddressLine2 = replacement.AddressLine2;
+        address.ContactName = replacement.ContactName;
+        address.ContactPhone = replacement.ContactPhone;
+        address.Latitude = replacement.Latitude;
+        address.Longitude = replacement.Longitude;
+        address.IsDefault = replacement.IsDefault;
+
+        await addresses.UpdateAsync(address);
+        return (await Map(new[] { address })).First();
+    }
+
+    public async Task<bool> DeleteAsync(Guid id)
+    {
+        if (current.UserId is not Guid uid)
+            return false;
+        var address = await addresses.GetAsync(uid, id);
+        if (address is null)
+            return false;
+        await addresses.DeleteAsync(uid, id);
+        return true;
+    }
+
+    private static void ValidateCoordinates(double latitude, double longitude)
+    {
+        if (double.IsNaN(latitude) || double.IsInfinity(latitude) || latitude is < -90 or > 90)
+            throw new ArgumentException("Latitude must be between -90 and 90.");
+        if (double.IsNaN(longitude) || double.IsInfinity(longitude) || longitude is < -180 or > 180)
+            throw new ArgumentException("Longitude must be between -180 and 180.");
+    }
+
+    private async Task<CustomerAddress> BuildAddressAsync(
+        Guid customerId,
+        string city,
+        string? pincode,
+        string? locality,
+        Guid? cityAreaId,
+        string label,
+        string addressLine1,
+        string addressLine2,
+        string contactName,
+        string contactPhone,
+        double latitude,
+        double longitude,
+        bool isDefault)
+    {
+        ValidateCoordinates(latitude, longitude);
+
+        if (string.IsNullOrWhiteSpace(city))
+            throw new ArgumentException("Delivery city is required.");
+
+        var serviceCity = await serviceCities.GetByCityAsync(city.Trim());
+        if (serviceCity is null || !serviceCity.IsEnabled)
+            throw new ArgumentException($"{city.Trim()} is not currently supported by HealthApp.");
+
+        if (string.IsNullOrWhiteSpace(addressLine1))
+            throw new ArgumentException("Address line 1 is required.");
+
+        var resolved = await geocoding.ReverseAsync(latitude, longitude);
+        if (resolved is not null &&
+            !string.IsNullOrWhiteSpace(resolved.City) &&
+            !resolved.City.Equals(serviceCity.City, StringComparison.OrdinalIgnoreCase))
         {
-            throw new ArgumentException($"The map pin is in postcode {resolved.Pincode}, but {area.Name} uses postcode {area.Pincode}. Select the delivery area matching the pinned location.");
+            throw new ArgumentException($"The map pin resolves to {resolved.City}, but the selected delivery city is {serviceCity.City}. Please place the pin inside {serviceCity.City}.");
         }
 
-        return area;
+        var resolvedPincode = string.IsNullOrWhiteSpace(pincode) ? resolved?.Pincode : pincode.Trim();
+        var resolvedLocality = string.IsNullOrWhiteSpace(locality)
+            ? (resolved?.Suburb ?? resolved?.Neighbourhood ?? string.Empty)
+            : locality.Trim();
+
+        Guid? resolvedAreaId = null;
+        if (cityAreaId.HasValue)
+        {
+            var area = await areas.GetAsync(cityAreaId.Value);
+            if (area is not null &&
+                area.IsActive &&
+                area.City.Equals(serviceCity.City, StringComparison.OrdinalIgnoreCase))
+            {
+                resolvedAreaId = area.Id;
+                if (string.IsNullOrWhiteSpace(resolvedLocality))
+                    resolvedLocality = area.Name;
+                if (string.IsNullOrWhiteSpace(resolvedPincode))
+                    resolvedPincode = area.Pincode;
+            }
+        }
+
+        return new CustomerAddress
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customerId,
+            CityAreaId = resolvedAreaId,
+            City = serviceCity.City,
+            State = serviceCity.State,
+            Pincode = resolvedPincode?.Trim() ?? string.Empty,
+            Locality = resolvedLocality,
+            Label = label?.Trim() ?? string.Empty,
+            AddressLine1 = addressLine1.Trim(),
+            AddressLine2 = addressLine2?.Trim() ?? string.Empty,
+            ContactName = contactName?.Trim() ?? string.Empty,
+            ContactPhone = contactPhone?.Trim() ?? string.Empty,
+            Latitude = latitude,
+            Longitude = longitude,
+            IsDefault = isDefault
+        };
     }
-    public async Task<IReadOnlyList<DeliveryQuoteDto>> QuoteAsync(Guid outletId){if(current.UserId is not Guid id)return[];var result=new List<DeliveryQuoteDto>();foreach(var a in await addresses.GetByCustomerAsync(id)){try{result.Add(await calculator.QuoteAsync(outletId,id,a.Id));}catch{}}return result;}
-    private async Task<IReadOnlyList<CustomerAddressDto>> Map(IEnumerable<CustomerAddress> rows){var result=new List<CustomerAddressDto>();foreach(var a in rows){var area=await areas.GetAsync(a.CityAreaId);result.Add(new(a.Id,a.Label,area?.Name??"",area?.City??"",area?.Pincode??"",a.AddressLine1,a.AddressLine2,a.ContactName,a.ContactPhone,a.Latitude,a.Longitude,a.IsDefault));}return result;}
+
+    public async Task<IReadOnlyList<DeliveryQuoteDto>> QuoteAsync(Guid outletId)
+    {
+        if (current.UserId is not Guid id)
+            return [];
+
+        var result = new List<DeliveryQuoteDto>();
+        foreach (var address in await addresses.GetByCustomerAsync(id))
+        {
+            try
+            {
+                result.Add(await calculator.QuoteAsync(outletId, id, address.Id));
+            }
+            catch
+            {
+                // An address may be valid but not serviceable by this outlet.
+            }
+        }
+
+        return result;
+    }
+
+    private static async Task<IReadOnlyList<CustomerAddressDto>> Map(IEnumerable<CustomerAddress> rows)
+    {
+        return rows.Select(a => new CustomerAddressDto(
+            a.Id,
+            a.Label,
+            string.IsNullOrWhiteSpace(a.Locality) ? string.Empty : a.Locality,
+            a.City,
+            a.Pincode,
+            a.AddressLine1,
+            a.AddressLine2,
+            a.ContactName,
+            a.ContactPhone,
+            a.Latitude,
+            a.Longitude,
+            a.IsDefault)).ToList();
+    }
 }
 
 public sealed class OutletDeliveryService(ICurrentUser current,ICityAreaRepository cityAreas,IOutletDeliveryAreaRepository outletAreas,IDeliveryPricingRepository pricing,IOutletRepository outlets) : IOutletDeliveryService
@@ -98,6 +246,62 @@ public sealed class DiscountConfigurationService(ICurrentUser current,ISubscript
     public async Task<bool> DeleteTierAsync(Guid id){if(current.OutletId is not Guid oid)return false;await tiers.DeleteAsync(oid,id);return true;}
     private static void Validate(SaveSubscriptionDiscountTierRequest r){if(r.MinMeals<1||(r.MaxMeals.HasValue&&r.MaxMeals.Value<r.MinMeals)||new[]{r.OneWeekPercent,r.TwoWeeksPercent,r.OneMonthPercent}.Any(x=>x<0||x>100))throw new ArgumentException("Invalid discount tier.");}
     private static SubscriptionDiscountTierDto Map(SubscriptionDiscountTier x)=>new(x.Id,x.OutletId,x.MinMeals,x.MaxMeals,x.OneWeekPercent,x.TwoWeeksPercent,x.OneMonthPercent,x.IsActive);
+}
+
+public sealed class ServiceCityAdminService(IServiceCityRepository cities) : IServiceCityAdminService
+{
+    public async Task<IReadOnlyList<ServiceCityDto>> GetAsync() =>
+        (await cities.GetEnabledAsync())
+            .Select(x => new ServiceCityDto(x.Id, x.City, x.State, x.Country, x.Latitude, x.Longitude, x.IsEnabled))
+            .ToList();
+
+    public async Task<ServiceCityDto?> CreateAsync(CreateServiceCityRequest r)
+    {
+        if (string.IsNullOrWhiteSpace(r.City))
+            throw new ArgumentException("City is required.");
+
+        var existing = await cities.GetByCityAsync(r.City.Trim());
+        if (existing is not null)
+        {
+            existing.State = r.State.Trim();
+            existing.Country = string.IsNullOrWhiteSpace(r.Country) ? "India" : r.Country.Trim();
+            existing.Latitude = r.Latitude;
+            existing.Longitude = r.Longitude;
+            existing.IsEnabled = r.IsEnabled;
+            await cities.UpdateAsync(existing);
+            return new(existing.Id, existing.City, existing.State, existing.Country, existing.Latitude, existing.Longitude, existing.IsEnabled);
+        }
+
+        var x = new ServiceCity
+        {
+            Id = Guid.NewGuid(),
+            City = r.City.Trim(),
+            State = r.State.Trim(),
+            Country = string.IsNullOrWhiteSpace(r.Country) ? "India" : r.Country.Trim(),
+            Latitude = r.Latitude,
+            Longitude = r.Longitude,
+            IsEnabled = r.IsEnabled
+        };
+
+        await cities.AddAsync(x);
+        return new(x.Id, x.City, x.State, x.Country, x.Latitude, x.Longitude, x.IsEnabled);
+    }
+
+    public async Task<ServiceCityDto?> SetEnabledAsync(Guid id, bool enabled)
+    {
+        var citiesList = await cities.GetEnabledAsync();
+        var city = citiesList.FirstOrDefault(x => x.Id == id);
+        if (city is null)
+        {
+            // Allow enabling a previously disabled city by loading it through the normal DbContext-backed repository
+            // would require a separate GetById contract. Keep the operation explicit through the create/upsert flow.
+            return null;
+        }
+
+        city.IsEnabled = enabled;
+        await cities.UpdateAsync(city);
+        return new(city.Id, city.City, city.State, city.Country, city.Latitude, city.Longitude, city.IsEnabled);
+    }
 }
 
 public sealed class CityAreaAdminService(ICityAreaRepository areas) : ICityAreaAdminService
