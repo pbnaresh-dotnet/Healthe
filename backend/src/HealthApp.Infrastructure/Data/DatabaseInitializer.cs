@@ -156,6 +156,13 @@ IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRout
     ALTER TABLE dbo.DeliveryRouteStops ALTER COLUMN Latitude float NOT NULL;
 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRouteStops') AND name='Longitude' AND system_type_id=59)
     ALTER TABLE dbo.DeliveryRouteStops ALTER COLUMN Longitude float NOT NULL;
+IF COL_LENGTH('dbo.Outlets','HeroImageUrl') IS NULL
+    ALTER TABLE dbo.Outlets ADD HeroImageUrl nvarchar(1000) NULL;
+IF COL_LENGTH('dbo.Outlets','HealthHighlights') IS NULL
+    ALTER TABLE dbo.Outlets ADD HealthHighlights nvarchar(2000) NULL;
+UPDATE dbo.Outlets SET HeroImageUrl=COALESCE(NULLIF(HeroImageUrl,''),'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1200&q=85'),HealthHighlights=COALESCE(NULLIF(HealthHighlights,''),'Grilled,Cold Pressed Oil,High Protein,Exotic Bowls,Fresh Ingredients') WHERE Slug='fitfood';
+UPDATE dbo.Outlets SET HeroImageUrl=COALESCE(NULLIF(HeroImageUrl,''),'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=85'),HealthHighlights=COALESCE(NULLIF(HealthHighlights,''),'Fresh Ingredients,Balanced Nutrition,Vegetarian Friendly,High Protein') WHERE Slug='abc';
+
 IF COL_LENGTH('dbo.CustomerProfiles','Allergies') IS NOT NULL
     ALTER TABLE dbo.CustomerProfiles ALTER COLUMN Allergies nvarchar(max) NULL;
 ", cancellationToken);
