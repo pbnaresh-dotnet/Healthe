@@ -390,8 +390,8 @@ internal static class HealthAppModelBuilder
         e.HasKey(x => x.Id);
         e.Property(x => x.City).HasMaxLength(100).IsRequired();
         e.Property(x => x.State).HasMaxLength(100).IsRequired();
-        e.Property(x => x.Pincode).HasMaxLength(20);
-        e.Property(x => x.Locality).HasMaxLength(150);
+        e.Property(x => x.Pincode).HasMaxLength(20).IsRequired(false);
+        e.Property(x => x.Locality).HasMaxLength(150).IsRequired(false);
         e.Property(x => x.Label).HasMaxLength(50).IsRequired();
         e.Property(x => x.AddressLine1).HasMaxLength(300).IsRequired();
         e.Property(x => x.AddressLine2).HasMaxLength(300);
@@ -400,7 +400,7 @@ internal static class HealthAppModelBuilder
         e.HasIndex(x => new {
             x.CustomerId, x.IsDefault
         });
-        e.HasOne<CityArea>().WithMany().HasForeignKey(x => x.CityAreaId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<CityArea>().WithMany().HasForeignKey(x => x.CityAreaId).OnDelete(DeleteBehavior.NoAction).IsRequired(false);
     }
     private static void ConfigureDiscountTier(EntityTypeBuilder<SubscriptionDiscountTier> e)
     {
