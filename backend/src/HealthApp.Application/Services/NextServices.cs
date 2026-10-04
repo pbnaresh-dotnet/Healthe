@@ -251,7 +251,7 @@ public sealed class DiscountConfigurationService(ICurrentUser current,ISubscript
 public sealed class ServiceCityAdminService(IServiceCityRepository cities) : IServiceCityAdminService
 {
     public async Task<IReadOnlyList<ServiceCityDto>> GetAsync() =>
-        (await cities.GetEnabledAsync())
+        (await cities.GetAllAsync())
             .Select(x => new ServiceCityDto(x.Id, x.City, x.State, x.Country, x.Latitude, x.Longitude, x.IsEnabled))
             .ToList();
 
