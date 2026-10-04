@@ -272,7 +272,7 @@ IDeliveryCalculator deliveryCalculator, ICityAreaRepository cityAreas, IDiscount
         var duration = Parse<SubscriptionDuration>(r.Duration, "duration");
         var outlet = await outlets.GetByIdAsync(r.OutletId) ?? throw new KeyNotFoundException("Outlet not found.");
         if (outlet.Status != OutletStatus.Active) throw new InvalidOperationException("Outlet is not active.");
-        _ = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
+        var deliveryCity = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var menuItems = await menu.GetByOutletAsync(outlet.Id);
         var meals = BuildSelections(r.Selections, outlet.Id, menuItems, rs);
@@ -280,7 +280,7 @@ IDeliveryCalculator deliveryCalculator, ICityAreaRepository cityAreas, IDiscount
         ValidateSelectionWindow(duration, meals);
         var selectedRecipes = meals.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
         var allergyWarnings = await allergySafety.GetWarningsAsync(customerId, selectedRecipes);
-        foreach (var m in meals) if (!m.AddressId.HasValue) throw new ArgumentException("Every scheduled meal requires a delivery address.");
+        await ValidateDeliveryAddressesAsync(customerId, deliveryCity, meals);
         var tiers = await discountTiers.GetByOutletAsync(outlet.Id);
         var packageDiscount = discountStrategy.Calculate(new(duration, meals), tiers);
         var gross = Math.Round(meals.Sum(x => x.MealPrice), 2);
