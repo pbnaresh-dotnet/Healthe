@@ -107,7 +107,7 @@ IPlatformServiceFeeStrategy platformFee, ITaxStrategy taxStrategy, IPackageDisco
 IDeliveryModeStrategyFactory deliveryModeFactory, IMealPriceStrategy mealPrice, ILateSkipFeePolicy lateSkipPolicy,
 IPlatformTransactionRepository transactions, IDomainEventDispatcher events, IUnitOfWork unitOfWork,
 ICustomerAddressRepository addresses, ISubscriptionDiscountTierRepository discountTiers, IMealSelectionHistoryRepository selectionHistory,
-IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments) : ICustomerService
+IDeliveryCalculator deliveryCalculator, ICityAreaRepository cityAreas, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments) : ICustomerService
 {
     public async Task<UserDto?> GetProfileAsync()
     {
@@ -313,11 +313,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         ValidateSelectionWindow(duration, mealEntities);
         var selectedRecipes = mealEntities.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
         await allergySafety.EnsureConfirmedAsync(customerId, selectedRecipes, r.ConfirmedAllergyRecipeIds);
-        foreach (var meal in mealEntities)
-        {
-            if (!meal.AddressId.HasValue) throw new ArgumentException("Select a delivery address for every meal.");
-            _ = await deliveryCalculator.QuoteAsync(outlet.Id, customerId, meal.AddressId.Value);
-        }
+        await ValidateDeliveryAddressesAsync(customerId, deliveryCity, mealEntities);
         var discount = discountStrategy.Calculate(new(duration, mealEntities), await discountTiers.GetByOutletAsync(outlet.Id));
         var gross = Math.Round(mealEntities.Sum(x => x.MealPrice), 2);
         var discountCodeResult = await CalculateDiscountCodeAsync(outlet.Id, gross, r.DiscountCode);
@@ -560,6 +556,21 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if(!city.Equals(outletCity,StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException($"The selected delivery city '{city}' is not served by this outlet. Choose an outlet in {outletCity}.");
         return city;
+    }
+    private async Task ValidateDeliveryAddressesAsync(Guid customerId,string deliveryCity,IReadOnlyList<SubscriptionMealSelection> meals)
+    {
+        var addressIds=meals.Select(x=>x.AddressId).Distinct().ToList();
+        if(addressIds.Any(x=>!x.HasValue))
+            throw new ArgumentException("Every scheduled meal requires a delivery address.");
+        foreach(var addressId in addressIds.Select(x=>x!.Value))
+        {
+            var address=await addresses.GetAsync(customerId,addressId)??throw new KeyNotFoundException("One or more delivery addresses were not found.");
+            var area=await cityAreas.GetAsync(address.CityAreaId)??throw new KeyNotFoundException("One or more delivery areas were not found.");
+            if(!area.IsActive)
+                throw new ArgumentException("One or more selected delivery areas are inactive.");
+            if(!area.City.Equals(deliveryCity,StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException($"The package is for {deliveryCity}, but address {address.Label} is in {area.City}. Add or select an address in {deliveryCity}.");
+        }
     }
     private async Task<Subscription> GetOwnedSubscription(Guid id) {
         var s=await subs.GetAsync(id)??throw new KeyNotFoundException("Subscription not found.");
