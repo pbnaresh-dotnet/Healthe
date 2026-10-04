@@ -85,6 +85,7 @@ public sealed class RecipeRepository(HealthAppDbContext db) : EfRepository(db), 
         if (!string.IsNullOrWhiteSpace(category) && Enum.TryParse<RecipeCategory>(category, true, out var parsed)) q = q.Where(x => x.Category == parsed);
         return await q.OrderBy(x => x.Name).ToListAsync();
     }
+    public async Task<IReadOnlyList<Recipe>> GetByIdsAsync(IEnumerable<Guid> ids) => await Details(db.Recipes.AsNoTracking().Where(x => ids.Contains(x.Id))).ToListAsync();
     public Task<Recipe?> GetAsync(Guid id) => Details(db.Recipes.Where(x => x.Id == id)).FirstOrDefaultAsync();
     public async Task AddAsync(Recipe recipe) {
         db.Recipes.Add(recipe);
