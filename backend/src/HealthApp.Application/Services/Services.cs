@@ -272,7 +272,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var duration = Parse<SubscriptionDuration>(r.Duration, "duration");
         var outlet = await outlets.GetByIdAsync(r.OutletId) ?? throw new KeyNotFoundException("Outlet not found.");
         if (outlet.Status != OutletStatus.Active) throw new InvalidOperationException("Outlet is not active.");
-        var deliveryCity = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
+        _ = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var menuItems = await menu.GetByOutletAsync(outlet.Id);
         var meals = BuildSelections(r.Selections, outlet.Id, menuItems, rs);
@@ -306,7 +306,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if (r.Selections is null || r.Selections.Count == 0) throw new ArgumentException("Add at least one meal to your package.");
         var outlet = await outlets.GetByIdAsync(r.OutletId) ?? throw new KeyNotFoundException("Outlet not found or unavailable.");
         if (outlet.Status != OutletStatus.Active) throw new KeyNotFoundException("Outlet not found or unavailable.");
-        _ = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
+        var deliveryCity = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var mealEntities = BuildSelections(r.Selections, outlet.Id, await menu.GetByOutletAsync(outlet.Id), rs);
         ValidateDeliveryMode(deliveryMode, mealEntities);
