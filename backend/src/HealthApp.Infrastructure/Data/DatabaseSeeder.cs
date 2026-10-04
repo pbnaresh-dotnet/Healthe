@@ -442,6 +442,8 @@ public static class DatabaseSeeder
                 Color = "#b91c1c",
                 Hero = "https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto%2Cw_300%2Ch_300%2Cc_fit/FOOD_CATALOG/IMAGES/CMS/2024/5/20/736b159e-4973-43ed-bd14-fdece423f486_b24651c4-c34c-4801-a94a-cd8b95261ca4.jpg",
                 Highlights = "Andhra Meals,Spicy Curries,Banana Leaf Meals,South Indian Classics,Freshly Cooked",
+                Rating = 4.8, ReviewCount = 320,
+                About = "Authentic Andhra and South Indian meals prepared fresh with regional spices and balanced portions.",
                 Areas = new[] { ("T Nagar", "600017", 13.0418, 80.2341), ("Adyar", "600020", 13.0063, 80.2574), ("Velachery", "600042", 12.9755, 80.2211), ("Anna Nagar", "600040", 13.0850, 80.2101) }
             },
             new
@@ -457,6 +459,8 @@ public static class DatabaseSeeder
                 Color = "#9a3412",
                 Hero = "https://images.unsplash.com/photo-1563379091339-03246963d29a?auto=format&fit=crop&w=1200&q=85",
                 Highlights = "Hyderabadi Biryani,Haleem,Charcoal Grilled,Slow Cooked,Authentic Spices",
+                Rating = 4.9, ReviewCount = 485,
+                About = "Specialist in Hyderabadi biryani, slow-cooked haleem and traditional Deccan flavours.",
                 Areas = new[] { ("Banjara Hills", "500034", 17.4156, 78.4347), ("Jubilee Hills", "500033", 17.4319, 78.4071), ("Hitech City", "500081", 17.4435, 78.3772), ("Secunderabad", "500003", 17.4399, 78.4983) }
             },
             new
@@ -472,6 +476,8 @@ public static class DatabaseSeeder
                 Color = "#0369a1",
                 Hero = "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=1200&q=85",
                 Highlights = "Indo-Chinese,Hakka Noodles,Fried Rice,Wok Tossed,Fast & Fresh",
+                Rating = 4.7, ReviewCount = 265,
+                About = "Fast, fresh Indo-Chinese dishes wok-tossed to order with bold sauces and crisp vegetables.",
                 Areas = new[] { ("Begumpet", "500016", 17.4442, 78.4483), ("Ameerpet", "500016", 17.4375, 78.4483), ("Kukatpally", "500072", 17.4948, 78.3996), ("Madhapur", "500081", 17.4483, 78.3915) }
             },
             new
@@ -487,6 +493,8 @@ public static class DatabaseSeeder
                 Color = "#b45309",
                 Hero = "https://masalapolska.com/assets/indian_thali_meal_top_down-BK7jUhaG.png",
                 Highlights = "North Indian Classics,Tandoor Specials,Rich Curries,Homestyle Thalis,Basmati Rice",
+                Rating = 4.6, ReviewCount = 210,
+                About = "North Indian comfort food with homestyle thalis, tandoor favourites and rich regional curries.",
                 Areas = new[] { ("Connaught Place", "110001", 28.6315, 77.2167), ("Karol Bagh", "110005", 28.6519, 77.1909), ("Saket", "110017", 28.5244, 77.2066), ("Dwarka", "110075", 28.5921, 77.0460) }
             }
         };
@@ -513,6 +521,9 @@ public static class DatabaseSeeder
                     LogoUrl = spec.Hero,
                     HeroImageUrl = spec.Hero,
                     HealthHighlights = spec.Highlights,
+                    Rating = spec.Rating,
+                    ReviewCount = spec.ReviewCount,
+                    About = spec.About,
                     PrimaryColor = spec.Color,
                     PreparationCutoffHours = 24,
                     AllowMealSkipping = true,
@@ -533,6 +544,9 @@ public static class DatabaseSeeder
                 outlet.Status = OutletStatus.Active;
                 outlet.HeroImageUrl = spec.Hero;
                 outlet.HealthHighlights = spec.Highlights;
+                outlet.Rating = spec.Rating;
+                outlet.ReviewCount = spec.ReviewCount;
+                outlet.About = spec.About;
                 outlet.PrimaryColor = spec.Color;
             }
 
