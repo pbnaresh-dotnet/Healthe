@@ -271,7 +271,7 @@ function Discover({outlets,cities,customerAllergies,addresses,selectedAddressId,
          <div className="healthChipRow">{(o.healthHighlights||[]).slice(0,4).map((h,i)=><span key={i}>✓ {h}</span>)}</div>
          <div className="outletDiscoveryFoot"><button className="secondary smallBtn" onClick={e=>{e.stopPropagation();setOutletTab('Menu');setMenuSlot(1);openOutlet(o)}}>View menu →</button><button className="primary smallBtn" onClick={e=>{e.stopPropagation();cityAddresses.length?startBuilder(o):openAddressForCity(o.city,true)}}>{cityAddresses.length?'Build package':'Add address'}</button></div>
        </div>
-     </article>)
+     </article>)}
    </div>}
 
    {!selectedOutlet&&visibleOutlets.length===0&&<Empty title="No outlets found" text={normalizedQuery?'Try another search or remove the filters.':'Try another supported city or use a different delivery address.'}/>}
