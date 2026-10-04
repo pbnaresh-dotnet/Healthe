@@ -1,7 +1,24 @@
 {
-  "name":"healthapp-india-saas",
-  "private":true,
-  "version":"1.0.0",
-  "workspaces":["apps/*","packages/*"],
-  "scripts":{"dev:customer":"npm run dev --workspace @healthapp/customer-web","dev:outlet":"npm run dev --workspace @healthapp/outlet-web","dev:admin":"npm run dev --workspace @healthapp/admin-web","build":"npm run build --workspaces --if-present","build:customer":"npm run build --workspace @healthapp/customer-web","build:outlet":"npm run build --workspace @healthapp/outlet-web","build:admin":"npm run build --workspace @healthapp/admin-web"}
+  "name": "healthapp-india-saas",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:customer": "npm run dev --workspace @healthapp/customer-web",
+    "dev:outlet": "npm run dev --workspace @healthapp/outlet-web",
+    "dev:admin": "npm run dev --workspace @healthapp/admin-web",
+    "build": "npm run build --workspaces --if-present",
+    "build:customer": "npm run build --workspace @healthapp/customer-web",
+    "build:outlet": "npm run build --workspace @healthapp/outlet-web",
+    "build:admin": "npm run build --workspace @healthapp/admin-web",
+    "cf:build:customer": "npm run build:customer",
+    "cf:build:outlet": "npm run build:outlet",
+    "cf:build:admin": "npm run build:admin",
+    "cf:deploy:customer": "npm run build:customer && npx wrangler pages deploy apps/customer-web/dist --project-name healthapp-customer",
+    "cf:deploy:outlet": "npm run build:outlet && npx wrangler pages deploy apps/outlet-web/dist --project-name healthapp-outlet",
+    "cf:deploy:admin": "npm run build:admin && npx wrangler pages deploy apps/admin-web/dist --project-name healthapp-admin"
+  }
 }
