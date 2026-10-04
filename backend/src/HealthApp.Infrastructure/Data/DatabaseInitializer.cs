@@ -156,6 +156,14 @@ IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRout
     ALTER TABLE dbo.DeliveryRouteStops ALTER COLUMN Latitude float NOT NULL;
 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRouteStops') AND name='Longitude' AND system_type_id=59)
     ALTER TABLE dbo.DeliveryRouteStops ALTER COLUMN Longitude float NOT NULL;
+IF COL_LENGTH('dbo.Subscriptions','DeliveryCity') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD DeliveryCity nvarchar(100) NULL;
+UPDATE dbo.Subscriptions
+SET DeliveryCity = COALESCE(NULLIF(DeliveryCity,''), o.City)
+FROM dbo.Subscriptions s
+INNER JOIN dbo.Outlets o ON o.Id = s.OutletId
+WHERE DeliveryCity IS NULL OR DeliveryCity='';
+
 IF COL_LENGTH('dbo.Outlets','HeroImageUrl') IS NULL
     ALTER TABLE dbo.Outlets ADD HeroImageUrl nvarchar(1000) NULL;
 IF COL_LENGTH('dbo.Outlets','HealthHighlights') IS NULL
