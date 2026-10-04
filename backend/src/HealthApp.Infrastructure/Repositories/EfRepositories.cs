@@ -289,6 +289,11 @@ public sealed class CustomerAllergyRepository(HealthAppDbContext db) : EfReposit
 
 public sealed class ServiceCityRepository(HealthAppDbContext db) : EfRepository(db), IServiceCityRepository
 {
+    public async Task<IReadOnlyList<ServiceCity>> GetAllAsync() =>
+        await db.ServiceCities.AsNoTracking()
+            .OrderBy(x => x.City)
+            .ToListAsync();
+
     public async Task<IReadOnlyList<ServiceCity>> GetEnabledAsync() =>
         await db.ServiceCities.AsNoTracking()
             .Where(x => x.IsEnabled)
