@@ -209,6 +209,7 @@ internal static class HealthAppModelBuilder
         e.ToTable("Subscriptions");
         e.HasKey(x => x.Id);
         e.Property(x => x.PlanName).HasMaxLength(200);
+        e.Property(x => x.DeliveryCity).HasMaxLength(100).IsRequired();
         e.Property(x => x.DeliveryMode).HasConversion<int>();
         e.Property(x => x.Duration).HasConversion<int>();
         e.Property(x => x.GrossMealAmount).HasPrecision(18,2);
