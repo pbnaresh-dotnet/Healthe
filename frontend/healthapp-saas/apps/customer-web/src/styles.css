@@ -570,3 +570,40 @@ textarea{resize:vertical}
   .wireListingToolbar{grid-template-columns:1fr 1fr}
   .wireListingFilters{align-items:center}
 }
+
+
+/* Match the wireframe desktop outlet listing density */
+.wireOutletGrid{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+.wireOutletCard .outletHeroThumb{
+  height:118px;
+}
+.wireOutletCard .outletDiscoveryBody{
+  padding:10px 11px 11px;
+}
+.wireOutletCard .outletTitleLine h3{
+  font-size:12px;
+}
+.wireOutletCard .outletTitleLine p{
+  font-size:8px;
+}
+.wireOutletCard .outletRatingLine{
+  margin:4px 0 7px;
+}
+.wireOutletCard .healthChipRow span{
+  font-size:7px;
+  padding:4px 5px;
+}
+.wireOutletCard .outletDiscoveryFoot{
+  margin-top:8px;
+  padding-top:8px;
+}
+@media(max-width:900px){
+  .wireOutletGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+  .wireOutletGrid{grid-template-columns:1fr}
+  .wireOutletCard .outletHeroThumb{height:145px}
+}
