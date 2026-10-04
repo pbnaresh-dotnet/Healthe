@@ -19,6 +19,7 @@
     "cf:build:admin": "npm run build:admin",
     "cf:deploy:customer": "npm run build:customer && npx wrangler pages deploy apps/customer-web/dist --project-name healthapp-customer",
     "cf:deploy:outlet": "npm run build:outlet && npx wrangler pages deploy apps/outlet-web/dist --project-name healthapp-outlet",
-    "cf:deploy:admin": "npm run build:admin && npx wrangler pages deploy apps/admin-web/dist --project-name healthapp-admin"
+    "cf:deploy:admin": "npm run build:admin && npx wrangler pages deploy apps/admin-web/dist --project-name healthapp-admin",
+    "cf:deploy:all": "npm run cf:deploy:customer && npm run cf:deploy:outlet && npm run cf:deploy:admin"
   }
 }
