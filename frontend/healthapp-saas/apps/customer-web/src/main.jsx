@@ -84,7 +84,7 @@ function App(){
    window.addEventListener('focus',refresh);
    return()=>{disposed=true;clearInterval(timer);window.removeEventListener('focus',refresh)};
  },[user,active]);
- useEffect(()=>{if(!selectedAddressId){setAvailableOutlets(global.outlets);return}const a=global.addresses.find(x=>x.id===selectedAddressId);if(!a||a.city?.toLowerCase()!==cityFilter.toLowerCase()){setAvailableOutlets(global.outlets);return}outlets.availability(a.latitude,a.longitude).then(x=>setAvailableOutlets(x.outlets||[])).catch(()=>setAvailableOutlets(global.outlets))},[selectedAddressId,global.addresses,global.outlets,cityFilter]);
+ useEffect(()=>{if(!selectedAddressId){setAvailableOutlets(global.outlets);return}const a=global.addresses.find(x=>x.id===selectedAddressId);if(!a||a.city?.toLowerCase()!==cityFilter.toLowerCase()){setAvailableOutlets(global.outlets);return}outlets.availability(a.latitude,a.longitude,cityFilter).then(x=>setAvailableOutlets(x.outlets||[])).catch(()=>setAvailableOutlets(global.outlets))},[selectedAddressId,global.addresses,global.outlets,cityFilter]);
 
  const doAuth=async e=>{e.preventDefault();await run(async()=>{const x=authMode==='login'?await auth.login({email:authForm.email,password:authForm.password}):await auth.register({firstName:authForm.firstName,lastName:authForm.lastName,email:authForm.email,password:authForm.password,role:'Customer'});setUser(x.user);notify(authMode==='login'?'Welcome back':'Account created')})};
  const logout=()=>{auth.logout();setUser(null);setMobileMenuOpen(false)};
