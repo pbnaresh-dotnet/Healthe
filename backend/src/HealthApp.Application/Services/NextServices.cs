@@ -140,7 +140,16 @@ public sealed class CustomerAddressService(
         if (string.IsNullOrWhiteSpace(addressLine1))
             throw new ArgumentException("Address line 1 is required.");
 
-        var resolved = await geocoding.ReverseAsync(latitude, longitude);
+        ReverseGeocodeDto? resolved = null;
+        try
+        {
+            resolved = await geocoding.ReverseAsync(latitude, longitude);
+        }
+        catch
+        {
+            // Geocoding enriches the address but is not required to save a valid city + coordinate location.
+        }
+
         if (resolved is not null &&
             !string.IsNullOrWhiteSpace(resolved.City) &&
             !resolved.City.Equals(serviceCity.City, StringComparison.OrdinalIgnoreCase))
