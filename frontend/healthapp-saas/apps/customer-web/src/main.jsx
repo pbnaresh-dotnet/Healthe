@@ -185,10 +185,11 @@ function DeliveryTimeline({status}){const steps=[['Preparing','Food is being pre
 function Stat({title,value,note,onClick}){return <button className="statCard" onClick={onClick}><span>{title}</span><b>{value}</b><small>{note} ↗</small></button>}
 
 function Discover({outlets,cities,customerAllergies,addresses,selectedAddressId,setSelectedAddressId,selectedOutlet,setSelectedOutlet,menu,recipes,category,setCategory,openOutlet,recipeView,setRecipeView,startBuilder,cityFilter,setCityFilter,openAddressForCity}){
- const[menuSlot,setMenuSlot]=useState(1);
+ const[menuTab,setMenuTab]=useState('Meals');
  const[query,setQuery]=useState('');
  const[viewMode,setViewMode]=useState('grid');
  const[localFilter,setLocalFilter]=useState('All');
+ const[addressPickerOpen,setAddressPickerOpen]=useState(false);
  const cityAddresses=addresses.filter(a=>a.city?.toLowerCase()===cityFilter.toLowerCase());
  const selectedAddress=addresses.find(a=>a.id===selectedAddressId);
  const filterFor=(x)=>{
@@ -202,32 +203,68 @@ function Discover({outlets,cities,customerAllergies,addresses,selectedAddressId,
    const hay=[o.name,o.city,o.state,o.healthHighlights?.join(' ')].filter(Boolean).join(' ').toLowerCase();
    return !normalizedQuery||hay.includes(normalizedQuery);
  });
- const menuForSlot=(slot)=>menu.filter(x=>Number(x.mealSlotValue)===slot&&filterFor(x));
+ const allMenuItems=menu||[];
+ const mealItems=allMenuItems.filter(x=>Number(x.mealSlotValue)!==1);
+ const breakfastItems=allMenuItems.filter(x=>Number(x.mealSlotValue)===1);
+ const browsableMenu=menuTab==='Breakfasts & Extras'?breakfastItems:mealItems;
+ const filteredMenu=browsableMenu.filter(filterFor);
+ const chooseAddress=id=>{
+   if(id==='__add__'){setAddressPickerOpen(false);openAddressForCity(cityFilter,false);return}
+   const a=addresses.find(x=>x.id===id);
+   if(!a)return;
+   setSelectedAddressId(a.id);
+   setCityFilter(a.city||cityFilter);
+   setSelectedOutlet(null);
+   setAddressPickerOpen(false);
+ };
+ const selectCity=value=>{
+   setCityFilter(value);
+   setSelectedOutlet(null);
+   setQuery('');
+   setLocalFilter('All');
+   setSelectedAddressId('');
+ };
  const selectedImage=selectedOutlet?.heroImageUrl||selectedOutlet?.logoUrl;
  const healthy=selectedOutlet?.healthHighlights||[];
- const selectCity=value=>{setCityFilter(value);setSelectedOutlet(null);setQuery('');setLocalFilter('All');setSelectedAddressId('')};
  return <div className="page">
    <section className="findMealsHero wireHero">
      <div><span className="eyebrow">FIND YOUR MEALS</span><h2>Healthy meals, delivered your way.</h2><p>Choose a supported delivery city, select the exact delivery address, then explore outlets that can serve that location.</p></div>
-     <button className="addressContextCard">
-       <span>DELIVER TO</span><b>{selectedAddress?selectedAddress.label+' · '+(selectedAddress.areaName||selectedAddress.city):'Choose a delivery address'}</b>
-       <small>{selectedAddress?selectedAddress.city+' · '+(selectedAddress.pincode||''):cityFilter+' · exact pin required'}</small>
-     </button>
+     <div className="addressPickerWrap">
+       <button className="addressContextCard" onClick={()=>setAddressPickerOpen(v=>!v)} aria-expanded={addressPickerOpen}>
+         <span>DELIVER TO</span>
+         <b>{selectedAddress?selectedAddress.label+' · '+(selectedAddress.areaName||selectedAddress.locality||selectedAddress.city):'Choose a delivery address'}</b>
+         <small>{selectedAddress?[selectedAddress.addressLine1,selectedAddress.city,selectedAddress.pincode].filter(Boolean).join(', '):cityFilter+' · exact pin required'}</small>
+         <strong>⌄</strong>
+       </button>
+       {addressPickerOpen&&<div className="addressPickerMenu">
+         <div className="addressPickerTitle"><span>DELIVERY ADDRESS</span><b>Choose where to deliver</b></div>
+         {addresses.map(a=><button key={a.id} className={a.id===selectedAddressId?'addressPickerItem selected':'addressPickerItem'} onClick={()=>chooseAddress(a.id)}>
+           <span className="addressPickerIcon">{a.label==='Home'?'⌂':a.label==='Office'?'▣':'⌖'}</span>
+           <span><b>{a.label}</b><small>{[a.areaName||a.locality,a.city,a.pincode].filter(Boolean).join(' · ')}</small></span>
+           {a.id===selectedAddressId&&<strong>✓</strong>}
+         </button>)}
+         <button className="addAddressPicker" onClick={()=>chooseAddress('__add__')}>＋ Add new address</button>
+       </div>}
+     </div>
    </section>
+
    <div className="discoverySearchRow">
      <div className="discoverySearch"><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search meals, cuisines or outlets..."/></div>
      <label className="cityCompact"><span>City</span><select value={cityFilter} onChange={e=>selectCity(e.target.value)}>{cities.map(x=><option key={x.city+'|'+x.state} value={x.city}>{x.city}</option>)}</select></label>
      <button className={viewMode==='grid'?'viewToggle active':'viewToggle'} onClick={()=>setViewMode('grid')}>▦ Grid</button>
      <button className={viewMode==='list'?'viewToggle active':'viewToggle'} onClick={()=>setViewMode('list')}>☷ List</button>
    </div>
+
    <div className="discoveryFilterBar">
      <div className="discoverFilters">{['All','Veg','NonVeg','Vegan','High Protein'].map(x=><button key={x} className={localFilter===x?'discoverFilter active':'discoverFilter'} onClick={()=>{setLocalFilter(x);setCategory(x)}}>{x}</button>)}</div>
      <span className="count">{visibleOutlets.length} outlet{visibleOutlets.length===1?'':'s'} available</span>
    </div>
+
    {!selectedOutlet&&<section className="deliveryContextBanner">
-     <div><span className="contextPin">⌖</span><div><b>{selectedAddress?'Deliver to '+(selectedAddress.areaName||selectedAddress.city):'Set your delivery address'}</b><small>{selectedAddress?[selectedAddress.addressLine1,selectedAddress.city,selectedAddress.pincode].filter(Boolean).join(', '):'We use your exact map pin to calculate outlet serviceability and delivery pricing.'}</small></div></div>
-     <button className="linkBtn" onClick={()=>openAddressForCity(cityFilter,false)}>{selectedAddress?'Change':'Add address'}</button>
+     <div><span className="contextPin">⌖</span><div><b>{selectedAddress?'Deliver to '+(selectedAddress.areaName||selectedAddress.locality||selectedAddress.city):'Set your delivery address'}</b><small>{selectedAddress?[selectedAddress.addressLine1,selectedAddress.city,selectedAddress.pincode].filter(Boolean).join(', '):'We use your exact map pin to calculate outlet serviceability and delivery pricing.'}</small></div></div>
+     <button className="linkBtn" onClick={()=>selectedAddress?setAddressPickerOpen(true):openAddressForCity(cityFilter,false)}>{selectedAddress?'Change':'Add address'}</button>
    </section>}
+
    {!selectedOutlet&&visibleOutlets.length>0&&<div className={viewMode==='grid'?'outletGrid discoveryGrid wireOutletGrid':'outletListView'}>
      {visibleOutlets.map(o=><article className="outletDiscoveryCard wireOutletCard" key={o.id} onClick={()=>openOutlet(o)}>
        <div className="outletHeroThumb"><img src={o.heroImageUrl?getImg(o.heroImageUrl):IMAGE_FALLBACKS.hero} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/><span className="openBadge">Open</span><button className="heartBtn" onClick={e=>e.stopPropagation()}>♡</button></div>
@@ -239,17 +276,58 @@ function Discover({outlets,cities,customerAllergies,addresses,selectedAddressId,
        </div>
      </article>)}
    </div>}
+
    {!selectedOutlet&&visibleOutlets.length===0&&<Empty title="No outlets found" text={normalizedQuery?'Try another search or remove the filters.':'Try another supported city or use a different delivery address.'}/>}
+
    {selectedOutlet&&<section className="panel outletMenuDetail wireMenuDetail">
      <div className="outletMenuHero">{selectedImage?<img src={getImg(selectedImage)} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/>:<img src={IMAGE_FALLBACKS.hero} alt=""/>}<div className="outletMenuHeroOverlay"><button className="menuBackBtn" onClick={()=>setSelectedOutlet(null)}>← Back to outlets</button><div><span className="eyebrow light">OUTLET MENU</span><h3>{selectedOutlet.name}</h3><span>{selectedOutlet.city}, {selectedOutlet.state} · {selectedOutlet.distanceKm?selectedOutlet.distanceKm+' km away':'Serviceable area'}</span></div></div></div>
+
      <div className="outletMenuIdentity"><div className="outletLogoLarge">{selectedOutlet.logoUrl?<img src={getImg(selectedOutlet.logoUrl)} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.logo}}/>:<img src={IMAGE_FALLBACKS.logo} alt=""/>}</div><div><div className="tag">HEALTHY KITCHEN</div><h3>{selectedOutlet.name}</h3><span>Fresh meals prepared around your lifestyle.</span></div><button className="primary big" onClick={()=>cityAddresses.length?startBuilder(selectedOutlet):openAddressForCity(selectedOutlet.city,true)}>{cityAddresses.length?'Build package →':'Add address'}</button></div>
+
      {healthy.length>0&&<div className="healthHighlights"><b>What this outlet offers</b><div className="healthChipRow">{healthy.map((h,i)=><span key={i}>✓ {h}</span>)}</div></div>}
-     <div className="menuSlotTabs">{SLOT.map(s=><button key={s.id} className={menuSlot===s.id?'menuSlotTab active':'menuSlotTab'} onClick={()=>setMenuSlot(s.id)}><strong>{s.icon}</strong><span>{s.label}</span><small>{s.id===1?'7 AM – 10 AM':s.id===2?'12 PM – 2 PM':s.id===3?'6 PM – 8 PM':'8 PM – 10 PM'}</small></button>)}</div>
-     <div className="menuSlotHeading"><div><span className="eyebrow">{slotName(menuSlot).toUpperCase()} MENU</span><h3>{slotName(menuSlot)} meals</h3><p>Select a meal to view ingredients, allergens, nutrition and portions.</p></div><div className="chipRow">{['All','Veg','NonVeg','Vegan'].map(cat=><button key={cat} className={localFilter===cat?'chip active':'chip'} onClick={()=>{setLocalFilter(cat);setCategory(cat)}}>{cat}</button>)}</div></div>
-     <div className="recipeGrid outletMenuCards">{menuForSlot(menuSlot).map(x=><article className="menuMealCard" key={x.id} onClick={()=>{const detail=recipes.find(r=>r.id===x.recipeId);if(detail)setRecipeView(detail)}}><div className="menuMealImage">{x.imageUrl?<img src={getImg(x.imageUrl)} alt="" onError={e=>{e.currentTarget.src=fallbackImg(x.category)}}/>:<img src={fallbackImg(x.category)} alt=""/>}<span className="mealCategory">{x.category}</span></div><div className="menuMealBody"><div className="menuMealTitle"><div><h4>{x.recipeName}</h4><span>{x.calories} kcal · {x.proteinGrams}g protein</span></div><strong>{money(x.pricePerMeal)}</strong></div><div className="healthChipRow compact">{Number(x.proteinGrams)>=25&&<span>💪 High Protein</span>}</div></div></article>)}</div>
-     {!menuForSlot(menuSlot).length&&<Empty title={'No '+slotName(menuSlot).toLowerCase()+' meals published'} text="The outlet has not added meals for this time slot yet."/>}
+
+     <div className="menuBrowseTabs">
+       <button className={menuTab==='Meals'?'menuBrowseTab active':'menuBrowseTab'} onClick={()=>setMenuTab('Meals')}><span className="menuTabIcon">🍴</span><b>Meals</b><strong>{mealItems.length}</strong></button>
+       <button className={menuTab==='Breakfasts & Extras'?'menuBrowseTab active':'menuBrowseTab'} onClick={()=>setMenuTab('Breakfasts & Extras')}><span className="menuTabIcon">◔</span><b>Breakfasts &amp; Extras</b><strong>{breakfastItems.length}</strong></button>
+     </div>
+
+     <div className="menuBrowseToolbar">
+       <div><span className="eyebrow">{menuTab.toUpperCase()}</span><h3>{menuTab}</h3><p>Choose a meal to see ingredients, allergens, nutrition and portion options.</p></div>
+       <div className="chipRow">{['All','Veg','NonVeg','Vegan','High Protein'].map(cat=><button key={cat} className={localFilter===cat?'chip active':'chip'} onClick={()=>{setLocalFilter(cat);setCategory(cat)}}>{cat}</button>)}</div>
+     </div>
+
+     <div className="menuBrowseGrid">
+       {filteredMenu.map((x,idx)=>{
+         const detail=recipes.find(r=>r.id===x.recipeId);
+         const isHigherProtein=Number(x.proteinGrams)>=25;
+         const isPopular=idx===0;
+         return <article className="screenshotMealCard" key={x.id} onClick={()=>detail&&setRecipeView(detail)}>
+           <div className="screenshotMealImage">
+             {x.imageUrl?<img src={getImg(x.imageUrl)} alt="" onError={e=>{e.currentTarget.src=fallbackImg(x.category)}}/>:<img src={fallbackImg(x.category)} alt=""/>}
+             {isPopular&&<span className="mealBadge love">♥ CUSTOMERS LOVE</span>}
+             {!isPopular&&isHigherProtein&&<span className="mealBadge protein">♕ HIGHER PROTEIN</span>}
+             <span className="mealInfoIcon">ⓘ</span>
+           </div>
+           <div className="screenshotMealBody">
+             <div className="screenshotMealTitle"><h4>{x.recipeName}</h4><span>ⓘ</span></div>
+             <p>{detail?.description||'Wholesome meal prepared by the outlet, with fresh ingredients and balanced nutrition.'}</p>
+             <div className="macroStrip">
+               <div><span>Kcal</span><b>{x.calories}</b></div>
+               <div><span>Protein</span><b>{x.proteinGrams}g</b></div>
+               <div><span>Carbs</span><b>{x.carbsGrams}g</b></div>
+               <div><span>Fat</span><b>{x.fatGrams}g</b></div>
+             </div>
+             <div className="screenshotMealFoot"><strong>{money(x.pricePerMeal)}</strong><button className="primary smallBtn" onClick={e=>{e.stopPropagation();detail&&setRecipeView(detail)}}>View meal</button></div>
+           </div>
+         </article>
+       })}
+     </div>
+
+     {!filteredMenu.length&&<Empty title={'No '+menuTab.toLowerCase()+' available'} text="Try another meal category or ask the outlet to publish more menu items."/>}
+
      <div className="outletMenuCta"><div><b>Ready to personalise your week?</b><span>Choose your days and meals in the weekly planner.</span></div><button className="primary big" onClick={()=>cityAddresses.length?startBuilder(selectedOutlet):openAddressForCity(selectedOutlet.city,true)}>{cityAddresses.length?'Select meals →':'Add an address →'}</button></div>
    </section>}
+
    {recipeView&&<RecipeModal recipe={recipeView} onClose={()=>setRecipeView(null)}/>}
  </div>
 }
