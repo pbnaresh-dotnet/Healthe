@@ -585,6 +585,21 @@ public sealed class Outlet
         set;
     }
     = "#14532d";
+    public double Rating {
+        get;
+        set;
+    }
+    = 4.8;
+    public int ReviewCount {
+        get;
+        set;
+    }
+    = 0;
+    public string About {
+        get;
+        set;
+    }
+    = "";
     public int PreparationCutoffHours {
         get;
         set;
