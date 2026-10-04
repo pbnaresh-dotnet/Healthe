@@ -1,0 +1,112 @@
+# HealthApp Cloudflare Pages
+
+The customer, outlet and admin React apps are ready to deploy as three separate Cloudflare Pages projects from this monorepo.
+
+Cloudflare supports multiple Pages projects from one Git repository with different build commands/output directories. Keep the repository root for the workspace install and use the app-specific build commands below.
+
+## Projects
+
+| Pages project | Root directory | Build command | Build output |
+|---|---|---|---|
+| healthapp-customer | frontend/healthapp-saas | npm run build:customer | apps/customer-web/dist |
+| healthapp-outlet | frontend/healthapp-saas | npm run build:outlet | apps/outlet-web/dist |
+| healthapp-admin | frontend/healthapp-saas | npm run build:admin | apps/admin-web/dist |
+
+Production branch: `main`
+
+## Cloudflare dashboard setup
+
+In Cloudflare:
+
+1. Workers & Pages -> Create application -> Pages -> Import an existing Git repository.
+2. Select `pbnaresh-dotnet/Healthe`.
+3. Set the production branch to `main`.
+4. Set the project Root directory to `frontend/healthapp-saas`.
+5. Use the matching build command and output directory from the table.
+6. Deploy.
+
+Repeat for all three projects. Cloudflare will give each site a `*.pages.dev` address and can rebuild automatically after commits to the connected repository.
+
+## API environment variable
+
+The frontend must not use the local `http://localhost:50448/api` value after deployment.
+
+In each Pages project go to Settings -> Environment variables and add:
+
+`VITE_API_BASE_URL=https://YOUR-PUBLIC-API-HOST/api`
+
+Set it for Production and Preview as appropriate.
+
+The current ASP.NET Core API already permits cross-origin requests, so the deployed Pages origins do not need a special CORS change for the present test setup.
+
+## Current repository helpers
+
+From `frontend/healthapp-saas`:
+
+```powershell
+npm install
+
+npm run build:customer
+npm run build:outlet
+npm run build:admin
+```
+
+For direct-upload deployments after logging in with Wrangler:
+
+```powershell
+npx wrangler login
+
+npm run cf:deploy:customer
+npm run cf:deploy:outlet
+npm run cf:deploy:admin
+# or
+npm run cf:deploy:all
+```
+
+Wrangler project configs are included in each app directory:
+
+- `apps/customer-web/wrangler.jsonc`
+- `apps/outlet-web/wrangler.jsonc`
+- `apps/admin-web/wrangler.jsonc`
+
+Use the dashboard Git integration for automatic deployments, or Wrangler for manual/direct uploads; do not mix configuration ownership casually.
+
+## Local API made public for testing
+
+Cloudflare Pages can host the frontends, but a browser on the internet cannot call your local `localhost:50448` API. For a temporary test environment, expose the API with a Cloudflare Tunnel and use the resulting HTTPS hostname as `VITE_API_BASE_URL`.
+
+Example flow:
+
+```text
+Cloudflare Pages
+  ├─ customer
+  ├─ outlet
+  └─ admin
+       |
+       v
+https://api-test.example.com
+       |
+Cloudflare Tunnel
+       |
+localhost:50448
+       |
+ASP.NET Core + SQL Server
+```
+
+Keep the tunnel/API for testing only; do not expose a development SQL Server or unrestricted admin API in a production environment.
+
+## Useful verification
+
+After deployment:
+
+```text
+Customer: sign in -> Find Meals -> outlet -> Build Package
+Outlet: sign in -> Dashboard -> Routes
+Admin: sign in -> Platform dashboard
+```
+
+For API verification, open:
+
+`https://YOUR-PUBLIC-API-HOST/health`
+
+and confirm the API returns `status=ok`.
