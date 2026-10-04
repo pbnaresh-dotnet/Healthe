@@ -1043,7 +1043,24 @@ public static class DatabaseSeeder
             ("Peanuts","g"),
             ("Fish Fillet","g"),
             ("Chicken Thigh","g"),
-            ("Saffron","g")
+            ("Saffron","g"),
+            ("Biryani Masala","g"),
+            ("Mint","g"),
+            ("Wheat","g"),
+            ("Corn Flour","g"),
+            ("Sesame Seeds","g"),
+            ("Green Chilies","g"),
+            ("Bread","g"),
+            ("Milk","g"),
+            ("Sugar","g"),
+            ("Cabbage","g"),
+            ("Carrot","g"),
+            ("Bell Pepper","g"),
+            ("Spring Onion","g"),
+            ("Soy Sauce","g"),
+            ("Vinegar","g"),
+            ("Schezwan Sauce","g"),
+            ("Chili Sauce","g")
         };
         var ingredients=await db.Ingredients.ToListAsync(ct);
         foreach(var item in ingredientNames)
@@ -1069,6 +1086,12 @@ public static class DatabaseSeeder
         LinkIngredientAllergen(db,ing["Cashews"],all["Tree Nuts"]);
         LinkIngredientAllergen(db,ing["Peanuts"],all["Peanuts"]);
         LinkIngredientAllergen(db,ing["Fish Fillet"],all["Fish"]);
+        LinkIngredientAllergen(db,ing["Wheat"],all["Wheat/Gluten"]);
+        LinkIngredientAllergen(db,ing["Bread"],all["Wheat/Gluten"]);
+        LinkIngredientAllergen(db,ing["Milk"],all["Milk"]);
+        LinkIngredientAllergen(db,ing["Sesame Seeds"],all["Sesame"]);
+        LinkIngredientAllergen(db,ing["Soy Sauce"],all["Soy"]);
+        LinkIngredientAllergen(db,ing["Soy Sauce"],all["Wheat/Gluten"]);
         await db.SaveChangesAsync(ct);
     }
     private static void LinkIngredientAllergen(HealthAppDbContext db,Ingredient ingredient,Allergen allergen)
