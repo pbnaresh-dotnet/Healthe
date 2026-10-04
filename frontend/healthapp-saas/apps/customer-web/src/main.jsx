@@ -185,7 +185,8 @@ function DeliveryTimeline({status}){const steps=[['Preparing','Food is being pre
 function Stat({title,value,note,onClick}){return <button className="statCard" onClick={onClick}><span>{title}</span><b>{value}</b><small>{note} ↗</small></button>}
 
 function Discover({outlets,cities,customerAllergies,addresses,selectedAddressId,setSelectedAddressId,selectedOutlet,setSelectedOutlet,menu,recipes,category,setCategory,openOutlet,recipeView,setRecipeView,startBuilder,cityFilter,setCityFilter,openAddressForCity}){
- const[menuTab,setMenuTab]=useState('Meals');const[outletTab,setOutletTab]=useState('Menu');
+ const[menuSlot,setMenuSlot]=useState(1);
+ const[outletTab,setOutletTab]=useState('Menu');
  const[query,setQuery]=useState('');
  const[viewMode,setViewMode]=useState('grid');
  const[localFilter,setLocalFilter]=useState('All');
@@ -203,11 +204,7 @@ function Discover({outlets,cities,customerAllergies,addresses,selectedAddressId,
    const hay=[o.name,o.city,o.state,o.healthHighlights?.join(' ')].filter(Boolean).join(' ').toLowerCase();
    return !normalizedQuery||hay.includes(normalizedQuery);
  });
- const allMenuItems=menu||[];
- const mealItems=allMenuItems.filter(x=>Number(x.mealSlotValue)!==1);
- const breakfastItems=allMenuItems.filter(x=>Number(x.mealSlotValue)===1);
- const browsableMenu=menuTab==='Breakfasts & Extras'?breakfastItems:mealItems;
- const filteredMenu=browsableMenu.filter(filterFor);
+ const menuForSlot=slot=>(menu||[]).filter(x=>Number(x.mealSlotValue)===slot).filter(filterFor);
  const chooseAddress=id=>{
    if(id==='__add__'){setAddressPickerOpen(false);openAddressForCity(cityFilter,false);return}
    const a=addresses.find(x=>x.id===id);
