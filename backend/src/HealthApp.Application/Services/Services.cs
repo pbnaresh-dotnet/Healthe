@@ -102,6 +102,144 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         foreach (var x in await subs.GetByCustomerAsync(id)) result.Add(await ToDto(x));
         return result;
     }
+    public async Task<CustomerDashboardDto?> GetDashboardAsync()
+    {
+        if (current.UserId is not Guid customerId) return null;
+
+        var today = DateTime.UtcNow.Date;
+        var mondayOffset = today.DayOfWeek == DayOfWeek.Sunday ? 6 : (int)today.DayOfWeek - 1;
+        var weekStart = today.AddDays(-mondayOffset);
+        var weekEnd = weekStart.AddDays(7);
+
+        var allSubscriptions = await subs.GetByCustomerAsync(customerId);
+        var activeSubscriptions = allSubscriptions.Where(x => x.Status == SubscriptionStatus.Active).ToList();
+        var todayDeliveries = new List<CustomerDashboardDeliveryDto>();
+        var todayMeals = new List<CustomerDashboardMealDto>();
+        var deliveryDates = new HashSet<DateTime>();
+        var mealsThisWeek = 0;
+        var proteinThisWeek = 0;
+        var caloriesThisWeek = 0;
+        var subscriptionSavings = 0m;
+
+        foreach (var subscription in activeSubscriptions)
+        {
+            var selectionRows = await selections.GetBySubscriptionAndDateRangeAsync(subscription.Id, weekStart, weekEnd);
+            var recipeLookup = (await recipes.GetByOutletAsync(subscription.OutletId))
+                .Where(x => x.IsActive)
+                .ToDictionary(x => x.Id);
+            var deliveryRows = await deliveries.GetBySubscriptionAsync(subscription.Id);
+
+            subscriptionSavings += subscription.SubscriptionDiscountAmount;
+            foreach (var delivery in deliveryRows.Where(x => x.ScheduledDate.Date >= weekStart && x.ScheduledDate.Date < weekEnd && x.Status != DeliveryStatus.Skipped))
+                deliveryDates.Add(delivery.ScheduledDate.Date);
+
+            var weekRows = selectionRows.Where(x =>
+                x.Status != MealSelectionStatus.Skipped &&
+                x.Status != MealSelectionStatus.Cancelled &&
+                x.Status != MealSelectionStatus.Expired);
+
+            foreach (var selection in weekRows)
+            {
+                mealsThisWeek++;
+                if (recipeLookup.TryGetValue(selection.RecipeId, out var recipe))
+                {
+                    proteinThisWeek += recipe.ProteinGrams;
+                    caloriesThisWeek += recipe.Calories;
+                }
+
+                if (selection.MealDate.Date != today || !recipeLookup.TryGetValue(selection.RecipeId, out recipe))
+                    continue;
+
+                var deliverySlot = subscription.DeliveryMode == SubscriptionDeliveryMode.OneDeliveryPerDay
+                    ? MealSlot.Afternoon
+                    : selection.MealSlot;
+                var delivery = deliveryRows.FirstOrDefault(x =>
+                    x.ScheduledDate.Date == today &&
+                    x.MealSlot == deliverySlot &&
+                    x.Status != DeliveryStatus.Skipped);
+
+                todayMeals.Add(new CustomerDashboardMealDto(
+                    selection.Id,
+                    subscription.Id,
+                    selection.MealDate,
+                    selection.MealSlot.ToString(),
+                    recipe.Name,
+                    recipe.Category.ToString(),
+                    recipe.ImageUrl,
+                    recipe.Calories,
+                    recipe.ProteinGrams,
+                    selection.Status.ToString(),
+                    selection.MealPrice,
+                    delivery?.Id));
+            }
+
+            foreach (var delivery in deliveryRows.Where(x => x.ScheduledDate.Date == today && x.Status != DeliveryStatus.Skipped))
+            {
+                var address = delivery.DeliveryAddressId is Guid addressId
+                    ? await addresses.GetAsync(customerId, addressId)
+                    : null;
+                var mealCount = subscription.DeliveryMode == SubscriptionDeliveryMode.OneDeliveryPerDay
+                    ? selectionRows.Count(x =>
+                        x.MealDate.Date == today &&
+                        x.Status != MealSelectionStatus.Skipped &&
+                        x.Status != MealSelectionStatus.Cancelled &&
+                        x.Status != MealSelectionStatus.Expired)
+                    : 1;
+
+                todayDeliveries.Add(new CustomerDashboardDeliveryDto(
+                    delivery.Id,
+                    subscription.Id,
+                    delivery.ScheduledDate,
+                    delivery.MealSlot.ToString(),
+                    GetCustomerDeliveryWindow(delivery.MealSlot),
+                    delivery.Status.ToString(),
+                    delivery.Address,
+                    address?.Latitude ?? 0,
+                    address?.Longitude ?? 0,
+                    Math.Max(1, mealCount)));
+            }
+        }
+
+        return new CustomerDashboardDto(
+            todayDeliveries
+                .GroupBy(x => x.DeliveryId)
+                .Select(x => x.First())
+                .OrderBy(x => x.ScheduledDate)
+                .ThenBy(x => x.MealSlot)
+                .ToList(),
+            todayMeals.OrderBy(x => x.MealDate).ThenBy(x => x.MealSlot).ToList(),
+            activeSubscriptions.Select(async x => new CustomerDashboardSubscriptionDto(
+                x.Id,
+                x.PlanName,
+                x.DeliveryMode.ToString(),
+                x.MealsPerWeek,
+                x.TotalCharged,
+                x.NextDeliveryDate,
+                x.Status.ToString(),
+                (await payments.GetLatestBySubscriptionAsync(x.Id))?.Status ?? "Pending"))
+                .ToList()
+                .Select(x => x.Result)
+                .ToList(),
+            new CustomerDashboardBenefitsDto(
+                mealsThisWeek,
+                proteinThisWeek,
+                caloriesThisWeek,
+                subscriptionSavings,
+                deliveryDates.Count,
+                activeSubscriptions.Count));
+    }
+
+    private static string GetCustomerDeliveryWindow(MealSlot slot)
+        => slot switch
+        {
+            MealSlot.Morning => "07:00–09:00",
+            MealSlot.Afternoon => "12:00–14:00",
+            MealSlot.Evening => "17:00–19:00",
+            MealSlot.Night => "20:00–22:00",
+            _ => "Scheduled"
+        };
+
+
     public async Task<IReadOnlyList<OrderDto>> GetOrdersAsync() => current.UserId is not Guid id ? [] : (await orders.GetByCustomerAsync(id)).Select(x => new OrderDto(x.Id,x.CustomerId,x.OutletId,x.Total,x.Status.ToString(),x.DeliveryDate,x.Address)).ToList();
     public async Task<SubscriptionQuoteDto?> QuoteAsync(SubscriptionQuoteRequest r)
     {
