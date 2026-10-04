@@ -249,6 +249,82 @@ BEGIN
 END;
 ", cancellationToken);
 
+        // Existing demo databases can contain NULLs in columns that are now represented by
+        // non-nullable C# strings. EF Core materializes those columns with GetString(), which
+        // results in SqlNullValueException. Normalize legacy NULLs before any repository query runs.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Users','Email') IS NOT NULL UPDATE dbo.Users SET Email = COALESCE(Email,'');
+IF COL_LENGTH('dbo.Users','PasswordHash') IS NOT NULL UPDATE dbo.Users SET PasswordHash = COALESCE(PasswordHash,'');
+IF COL_LENGTH('dbo.Users','FirstName') IS NOT NULL UPDATE dbo.Users SET FirstName = COALESCE(FirstName,'');
+IF COL_LENGTH('dbo.Users','LastName') IS NOT NULL UPDATE dbo.Users SET LastName = COALESCE(LastName,'');
+
+IF COL_LENGTH('dbo.Outlets','Name') IS NOT NULL UPDATE dbo.Outlets SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.Outlets','Slug') IS NOT NULL UPDATE dbo.Outlets SET Slug = COALESCE(Slug,'');
+IF COL_LENGTH('dbo.Outlets','Subdomain') IS NOT NULL UPDATE dbo.Outlets SET Subdomain = COALESCE(Subdomain,'');
+IF COL_LENGTH('dbo.Outlets','City') IS NOT NULL UPDATE dbo.Outlets SET City = COALESCE(City,'');
+IF COL_LENGTH('dbo.Outlets','State') IS NOT NULL UPDATE dbo.Outlets SET State = COALESCE(State,'');
+IF COL_LENGTH('dbo.Outlets','Pincode') IS NOT NULL UPDATE dbo.Outlets SET Pincode = COALESCE(Pincode,'');
+IF COL_LENGTH('dbo.Outlets','LogoUrl') IS NOT NULL UPDATE dbo.Outlets SET LogoUrl = COALESCE(LogoUrl,'');
+IF COL_LENGTH('dbo.Outlets','HeroImageUrl') IS NOT NULL UPDATE dbo.Outlets SET HeroImageUrl = COALESCE(HeroImageUrl,'');
+IF COL_LENGTH('dbo.Outlets','HealthHighlights') IS NOT NULL UPDATE dbo.Outlets SET HealthHighlights = COALESCE(HealthHighlights,'');
+IF COL_LENGTH('dbo.Outlets','PrimaryColor') IS NOT NULL UPDATE dbo.Outlets SET PrimaryColor = COALESCE(PrimaryColor,'#14532d');
+IF COL_LENGTH('dbo.Outlets','About') IS NOT NULL UPDATE dbo.Outlets SET About = COALESCE(About,'');
+
+IF COL_LENGTH('dbo.CustomerProfiles','Goal') IS NOT NULL UPDATE dbo.CustomerProfiles SET Goal = COALESCE(Goal,'WeightLoss');
+IF COL_LENGTH('dbo.CustomerProfiles','ActivityLevel') IS NOT NULL UPDATE dbo.CustomerProfiles SET ActivityLevel = COALESCE(ActivityLevel,'Moderate');
+IF COL_LENGTH('dbo.CustomerProfiles','Diet') IS NOT NULL UPDATE dbo.CustomerProfiles SET Diet = COALESCE(Diet,'');
+
+IF COL_LENGTH('dbo.CustomerAddresses','City') IS NOT NULL UPDATE dbo.CustomerAddresses SET City = COALESCE(City,'');
+IF COL_LENGTH('dbo.CustomerAddresses','State') IS NOT NULL UPDATE dbo.CustomerAddresses SET State = COALESCE(State,'');
+IF COL_LENGTH('dbo.CustomerAddresses','Pincode') IS NOT NULL UPDATE dbo.CustomerAddresses SET Pincode = COALESCE(Pincode,'');
+IF COL_LENGTH('dbo.CustomerAddresses','Locality') IS NOT NULL UPDATE dbo.CustomerAddresses SET Locality = COALESCE(Locality,'');
+IF COL_LENGTH('dbo.CustomerAddresses','Label') IS NOT NULL UPDATE dbo.CustomerAddresses SET Label = COALESCE(Label,'');
+IF COL_LENGTH('dbo.CustomerAddresses','AddressLine1') IS NOT NULL UPDATE dbo.CustomerAddresses SET AddressLine1 = COALESCE(AddressLine1,'');
+IF COL_LENGTH('dbo.CustomerAddresses','AddressLine2') IS NOT NULL UPDATE dbo.CustomerAddresses SET AddressLine2 = COALESCE(AddressLine2,'');
+IF COL_LENGTH('dbo.CustomerAddresses','ContactName') IS NOT NULL UPDATE dbo.CustomerAddresses SET ContactName = COALESCE(ContactName,'');
+IF COL_LENGTH('dbo.CustomerAddresses','ContactPhone') IS NOT NULL UPDATE dbo.CustomerAddresses SET ContactPhone = COALESCE(ContactPhone,'');
+
+IF COL_LENGTH('dbo.Subscriptions','DeliveryCity') IS NOT NULL UPDATE dbo.Subscriptions SET DeliveryCity = COALESCE(DeliveryCity,'');
+IF COL_LENGTH('dbo.Subscriptions','PlanName') IS NOT NULL UPDATE dbo.Subscriptions SET PlanName = COALESCE(PlanName,'');
+IF COL_LENGTH('dbo.Subscriptions','Frequency') IS NOT NULL UPDATE dbo.Subscriptions SET Frequency = COALESCE(Frequency,'Weekly');
+IF COL_LENGTH('dbo.Subscriptions','DiscountCode') IS NOT NULL UPDATE dbo.Subscriptions SET DiscountCode = COALESCE(DiscountCode,'');
+
+IF COL_LENGTH('dbo.Recipes','Name') IS NOT NULL UPDATE dbo.Recipes SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.Recipes','Description') IS NOT NULL UPDATE dbo.Recipes SET Description = COALESCE(Description,'');
+IF COL_LENGTH('dbo.Recipes','ImageUrl') IS NOT NULL UPDATE dbo.Recipes SET ImageUrl = COALESCE(ImageUrl,'');
+IF COL_LENGTH('dbo.Recipes','Tags') IS NOT NULL UPDATE dbo.Recipes SET Tags = COALESCE(Tags,'');
+IF COL_LENGTH('dbo.Recipes','Allergens') IS NOT NULL UPDATE dbo.Recipes SET Allergens = COALESCE(Allergens,'');
+
+IF COL_LENGTH('dbo.Ingredients','Name') IS NOT NULL UPDATE dbo.Ingredients SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.Ingredients','DefaultUnit') IS NOT NULL UPDATE dbo.Ingredients SET DefaultUnit = COALESCE(DefaultUnit,'g');
+IF COL_LENGTH('dbo.Allergens','Name') IS NOT NULL UPDATE dbo.Allergens SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.RecipeIngredients','Unit') IS NOT NULL UPDATE dbo.RecipeIngredients SET Unit = COALESCE(Unit,'g');
+IF COL_LENGTH('dbo.MealPlans','Name') IS NOT NULL UPDATE dbo.MealPlans SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.MealPlans','Frequency') IS NOT NULL UPDATE dbo.MealPlans SET Frequency = COALESCE(Frequency,'Weekly');
+IF COL_LENGTH('dbo.MealPlans','Currency') IS NOT NULL UPDATE dbo.MealPlans SET Currency = COALESCE(Currency,'INR');
+IF COL_LENGTH('dbo.MealPlans','Description') IS NOT NULL UPDATE dbo.MealPlans SET Description = COALESCE(Description,'');
+IF COL_LENGTH('dbo.SaaSPlans','Name') IS NOT NULL UPDATE dbo.SaaSPlans SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.SaaSPlans','Description') IS NOT NULL UPDATE dbo.SaaSPlans SET Description = COALESCE(Description,'');
+IF COL_LENGTH('dbo.OutletSubscriptions','BillingCycle') IS NOT NULL UPDATE dbo.OutletSubscriptions SET BillingCycle = COALESCE(BillingCycle,'Monthly');
+IF COL_LENGTH('dbo.OutletSubscriptions','Status') IS NOT NULL UPDATE dbo.OutletSubscriptions SET Status = COALESCE(Status,'Active');
+
+IF COL_LENGTH('dbo.Orders','Address') IS NOT NULL UPDATE dbo.Orders SET Address = COALESCE(Address,'');
+IF COL_LENGTH('dbo.Deliveries','CustomerName') IS NOT NULL UPDATE dbo.Deliveries SET CustomerName = COALESCE(CustomerName,'');
+IF COL_LENGTH('dbo.Deliveries','Address') IS NOT NULL UPDATE dbo.Deliveries SET Address = COALESCE(Address,'');
+IF COL_LENGTH('dbo.DeliveryRouteStops','CustomerName') IS NOT NULL UPDATE dbo.DeliveryRouteStops SET CustomerName = COALESCE(CustomerName,'');
+IF COL_LENGTH('dbo.DeliveryRouteStops','Address') IS NOT NULL UPDATE dbo.DeliveryRouteStops SET Address = COALESCE(Address,'');
+IF COL_LENGTH('dbo.DeliveryRoutes','RoutingSource') IS NOT NULL UPDATE dbo.DeliveryRoutes SET RoutingSource = COALESCE(RoutingSource,'OSRM');
+IF COL_LENGTH('dbo.DeliveryRoutes','GeometryJson') IS NOT NULL UPDATE dbo.DeliveryRoutes SET GeometryJson = COALESCE(GeometryJson,'[]');
+IF COL_LENGTH('dbo.MealSelectionHistories','Action') IS NOT NULL UPDATE dbo.MealSelectionHistories SET Action = COALESCE(Action,'');
+IF COL_LENGTH('dbo.MealSelectionHistories','Reason') IS NOT NULL UPDATE dbo.MealSelectionHistories SET Reason = COALESCE(Reason,'');
+IF COL_LENGTH('dbo.PaymentTransactions','Provider') IS NOT NULL UPDATE dbo.PaymentTransactions SET Provider = COALESCE(Provider,'Mock');
+IF COL_LENGTH('dbo.PaymentTransactions','ProviderPaymentId') IS NOT NULL UPDATE dbo.PaymentTransactions SET ProviderPaymentId = COALESCE(ProviderPaymentId,'');
+IF COL_LENGTH('dbo.PaymentTransactions','IdempotencyKey') IS NOT NULL UPDATE dbo.PaymentTransactions SET IdempotencyKey = COALESCE(IdempotencyKey,'');
+IF COL_LENGTH('dbo.PaymentTransactions','Currency') IS NOT NULL UPDATE dbo.PaymentTransactions SET Currency = COALESCE(Currency,'INR');
+IF COL_LENGTH('dbo.PaymentTransactions','Status') IS NOT NULL UPDATE dbo.PaymentTransactions SET Status = COALESCE(Status,'Pending');
+IF COL_LENGTH('dbo.DiscountCodes','Code') IS NOT NULL UPDATE dbo.DiscountCodes SET Code = COALESCE(Code,'');
+", cancellationToken);
+
         // Keep the old text columns harmless for older databases; normalized values are now authoritative.
         await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(), cancellationToken);
     }
