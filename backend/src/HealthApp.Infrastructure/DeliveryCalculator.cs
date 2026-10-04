@@ -20,13 +20,15 @@ public sealed class DeliveryCalculator(
             throw new KeyNotFoundException("Address not found.");
         }
         var areas = await deliveryAreas.GetAreasForOutletAsync(outletId);
-        if (!areas.Any(x => x.Id == address.CityAreaId)) throw new InvalidOperationException("The selected address area is not serviced by this outlet.");
+        var area = areas.FirstOrDefault(x => x.Id == address.CityAreaId);
+        if (area is null) throw new InvalidOperationException("The selected address area is not serviced by this outlet.");
+        if (!area.City.Equals(outlet.City, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException($"This package is for {outlet.City}, but the selected address is in {area.City}.");
+        if (double.IsNaN(address.Latitude) || double.IsInfinity(address.Latitude) || address.Latitude is < -90 or > 90 || double.IsNaN(address.Longitude) || double.IsInfinity(address.Longitude) || address.Longitude is < -180 or > 180) throw new InvalidOperationException("The delivery address has invalid map coordinates.");
         var distance = DistanceKm(outlet.Latitude, outlet.Longitude, address.Latitude, address.Longitude);
         if (distance > outlet.ServiceRadiusKm) throw new InvalidOperationException("Address is outside the outlet service radius.");
         var rules = await pricing.GetByOutletAsync(outletId);
         var rule = rules.FirstOrDefault(x => distance <= (double)x.MaxDistanceKm);
         if (rule is null) throw new InvalidOperationException("No delivery pricing slab covers this address distance.");
-        var area = areas.First(x => x.Id == address.CityAreaId);
         return new(address.Id, Math.Round(distance,2), rule.Fee, area.Name);
     }
 
