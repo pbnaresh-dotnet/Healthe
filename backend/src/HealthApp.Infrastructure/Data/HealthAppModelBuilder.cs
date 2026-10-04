@@ -21,6 +21,7 @@ internal static class HealthAppModelBuilder
         ConfigureRecipeAllergen(b.Entity<RecipeAllergen>());
         ConfigureIngredientAllergen(b.Entity<IngredientAllergen>());
         ConfigureCustomerAllergy(b.Entity<CustomerAllergy>());
+        ConfigureCustomerLikedMeal(b.Entity<CustomerLikedMeal>());
         ConfigureMenu(b.Entity<OutletMenuItem>());
         ConfigureSubscription(b.Entity<Subscription>());
         ConfigureSelection(b.Entity<SubscriptionMealSelection>());
@@ -193,6 +194,15 @@ internal static class HealthAppModelBuilder
         }).IsUnique();
         e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);
         e.HasOne(x => x.Allergen).WithMany(x => x.Customers).HasForeignKey(x => x.AllergenId).OnDelete(DeleteBehavior.Restrict);
+    }
+    private static void ConfigureCustomerLikedMeal(EntityTypeBuilder<CustomerLikedMeal> e)
+    {
+        e.ToTable("CustomerLikedMeals");
+        e.HasKey(x => x.Id);
+        e.HasIndex(x => new { x.CustomerId, x.RecipeId }).IsUnique();
+        e.HasIndex(x => x.RecipeId);
+        e.HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);
+        e.HasOne<Recipe>().WithMany().HasForeignKey(x => x.RecipeId).OnDelete(DeleteBehavior.Cascade);
     }
     private static void ConfigureMenu(EntityTypeBuilder<OutletMenuItem> e)
     {
