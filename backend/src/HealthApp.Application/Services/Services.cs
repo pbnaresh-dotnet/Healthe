@@ -39,28 +39,42 @@ public sealed class AuthService(IUserRepository users, IOutletRepository outlets
         return tokens.CreateToken(user);
     }
 }
-public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepository plans, IRecipeRepository recipes, IOutletMenuRepository menu, ISaaSPlanRepository saasPlans, ICityAreaRepository areas) : IMarketplaceService
+public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepository plans, IRecipeRepository recipes, IOutletMenuRepository menu, ISaaSPlanRepository saasPlans, IServiceCityRepository serviceCities) : IMarketplaceService
 {
     public async Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync() => (await saasPlans.GetActiveAsync()).Select(Map).ToList();
     public async Task<AvailabilityResponse> GetAvailabilityAsync(double latitude, double longitude, string? city = null)
     {
-        var result = (await outlets.GetAllAsync()).Where(x => x.Status == OutletStatus.Active)
-        .Where(x => string.IsNullOrWhiteSpace(city) || x.City.Equals(city.Trim(), StringComparison.OrdinalIgnoreCase))
-        .Select(x => (outlet: x, distance: Distance(latitude, longitude, x.Latitude, x.Longitude)))
-        .Where(x => x.distance <= x.outlet.ServiceRadiusKm)
-        .Select(x => ToDto(x.outlet, x.distance)).ToList();
-        return new(result.Count > 0, result.Count > 0 ? $"{result.Count} outlet(s) serve your location." : "No active outlet currently serves your location.", result);
+        if (double.IsNaN(latitude) || double.IsInfinity(latitude) || latitude is < -90 or > 90 ||
+            double.IsNaN(longitude) || double.IsInfinity(longitude) || longitude is < -180 or > 180)
+            throw new ArgumentException("Map coordinates are invalid.");
+
+        if (!string.IsNullOrWhiteSpace(city))
+        {
+            var serviceCity = await serviceCities.GetByCityAsync(city.Trim());
+            if (serviceCity is null || !serviceCity.IsEnabled)
+                return new(false, $"{city.Trim()} is not currently supported by HealthApp.", []);
+        }
+
+        var result = (await outlets.GetAllAsync())
+            .Where(x => x.Status == OutletStatus.Active)
+            .Where(x => string.IsNullOrWhiteSpace(city) || x.City.Equals(city.Trim(), StringComparison.OrdinalIgnoreCase))
+            .Select(x => (outlet: x, distance: Distance(latitude, longitude, x.Latitude, x.Longitude)))
+            .Where(x => x.distance <= x.outlet.ServiceRadiusKm)
+            .Select(x => ToDto(x.outlet, x.distance))
+            .OrderBy(x => x.DistanceKm)
+            .ToList();
+
+        return new(
+            result.Count > 0,
+            result.Count > 0
+                ? $"{result.Count} outlet(s) can deliver to your location."
+                : "No active outlet currently serves your location.",
+            result);
     }
     public async Task<IReadOnlyList<CityDto>> GetCitiesAsync()
     {
-        var rows = await areas.GetActiveAsync();
-        return rows
-            .GroupBy(x => $"{x.City.Trim()}|{x.State.Trim()}", StringComparer.OrdinalIgnoreCase)
-            .Select(g =>
-            {
-                var first = g.First();
-                return new CityDto(first.City, first.State, g.Count());
-            })
+        return (await serviceCities.GetEnabledAsync())
+            .Select(x => new CityDto(x.City, x.State, 0))
             .OrderBy(x => x.City)
             .ToList();
     }
