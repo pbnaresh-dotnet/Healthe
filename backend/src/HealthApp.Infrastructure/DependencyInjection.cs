@@ -76,6 +76,7 @@ public static class DependencyInjection
         services.AddScoped<IIngredientRepository, IngredientRepository>();
         services.AddScoped<IAllergenRepository, AllergenRepository>();
         services.AddScoped<ICustomerAllergyRepository, CustomerAllergyRepository>();
+        services.AddScoped<ICustomerLikedMealRepository, CustomerLikedMealRepository>();
         services.AddScoped<IMealPlanRepository, MealPlanRepository>();
         services.AddScoped<IRecipeRepository, RecipeRepository>();
         services.AddScoped<IOutletMenuRepository, OutletMenuRepository>();
