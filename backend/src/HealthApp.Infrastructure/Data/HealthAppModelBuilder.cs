@@ -65,6 +65,8 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.Status).HasConversion<int>();
         e.Property(x => x.BillingPlan).HasConversion<int>();
         e.Property(x => x.LogoUrl).HasMaxLength(1000);
+        e.Property(x => x.HeroImageUrl).HasMaxLength(1000);
+        e.Property(x => x.HealthHighlights).HasMaxLength(2000);
         e.Property(x => x.PrimaryColor).HasMaxLength(20);
         e.HasIndex(x => x.Slug).IsUnique();
         e.HasIndex(x => x.Subdomain).IsUnique();
