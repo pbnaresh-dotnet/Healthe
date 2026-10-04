@@ -8,7 +8,7 @@ namespace HealthApp.Api.Controllers;
 public sealed class MarketplaceController(IMarketplaceService service, ICityAreaRepository areas, IGeocodingService geocoding) : ControllerBase
 {
     [HttpGet("saas-plans")] public async Task<IActionResult> SaaSPlans() => Ok(await service.GetSaaSPlansAsync());
-    [HttpGet("availability")] public async Task<IActionResult> Availability([FromQuery] double latitude,[FromQuery] double longitude)=>Ok(await service.GetAvailabilityAsync(latitude,longitude));
+    [HttpGet("availability")] public async Task<IActionResult> Availability([FromQuery] double latitude,[FromQuery] double longitude,[FromQuery]string? city)=>Ok(await service.GetAvailabilityAsync(latitude,longitude,city));
     [HttpGet("cities")] public async Task<IActionResult> Cities()=>Ok(await service.GetCitiesAsync());
     [HttpGet("outlets")] public async Task<IActionResult> Outlets([FromQuery]string? city)=>Ok(await service.GetAllOutletsAsync(city));
     [HttpGet("outlets/{slug}")] public async Task<IActionResult> Outlet(string slug){var x=await service.GetOutletAsync(slug);return x is null?NotFound():Ok(x);}
