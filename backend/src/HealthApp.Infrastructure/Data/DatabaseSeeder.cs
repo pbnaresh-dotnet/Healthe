@@ -725,7 +725,7 @@ public static class DatabaseSeeder
                 catalogRecipes.Add(recipe);
 
                 var wantedIngredients = spec.City == "Chennai"
-                    ? new Dictionary<string, (decimal Quantity, string Unit)[]>
+                    ? new Dictionary<string, (string Name, decimal Quantity, string Unit)[]>
                     {
                         ["Andhra Full Meals"] = new[] { ("White Rice", 220m, "g"), ("Toor Dal", 100m, "g"), ("Potato", 70m, "g"), ("Tomato", 60m, "g"), ("Yogurt", 80m, "g"), ("Ghee", 8m, "g") },
                         ["Chapathi with Andhra Chicken Curry"] = new[] { ("Whole Wheat Flour", 90m, "g"), ("Chicken Thigh", 150m, "g"), ("Onion", 80m, "g"), ("Tomato", 80m, "g"), ("Ginger Garlic Paste", 15m, "g"), ("Red Chili Powder", 5m, "g"), ("Coriander", 5m, "g"), ("Garam Masala", 4m, "g"), ("Olive Oil", 10m, "g") },
@@ -734,7 +734,7 @@ public static class DatabaseSeeder
                         ["Idli, Sambar and Peanut Chutney"] = new[] { ("Idli Batter", 180m, "g"), ("Toor Dal", 70m, "g"), ("Carrot", 40m, "g"), ("Tomato", 50m, "g"), ("Peanuts", 25m, "g"), ("Coconut", 15m, "g"), ("Olive Oil", 6m, "g") },
                         ["Andhra Chicken Curry with Rice"] = new[] { ("White Rice", 220m, "g"), ("Chicken Thigh", 160m, "g"), ("Onion", 70m, "g"), ("Ginger Garlic Paste", 15m, "g"), ("Garam Masala", 4m, "g"), ("Red Chili Powder", 6m, "g"), ("Coriander", 5m, "g"), ("Olive Oil", 10m, "g") }
                     }
-                    : new Dictionary<string, (decimal Quantity, string Unit)[]>
+                    : new Dictionary<string, (string Name, decimal Quantity, string Unit)[]>
                     {
                         ["Delhi Veg Thali"] = new[] { ("Basmati Rice", 180m, "g"), ("Toor Dal", 80m, "g"), ("Paneer", 80m, "g"), ("Whole Wheat Flour", 70m, "g"), ("Yogurt", 80m, "g"), ("Mixed Vegetables", 90m, "g"), ("Ghee", 8m, "g") },
                         ["Butter Chicken with Garlic Naan"] = new[] { ("Chicken Thigh", 160m, "g"), ("Yogurt", 60m, "g"), ("Butter", 15m, "g"), ("Cream", 35m, "g"), ("Tomato", 100m, "g"), ("Cashews", 20m, "g"), ("Whole Wheat Flour", 90m, "g"), ("Garam Masala", 4m, "g") },
@@ -748,7 +748,7 @@ public static class DatabaseSeeder
                 {
                     foreach (var item in ingredientSpecs)
                     {
-                        if (!ingredients.TryGetValue(item.Key, out var ingredient))
+                        if (!ingredients.TryGetValue(item.Name, out var ingredient))
                             continue;
 
                         if (!await db.RecipeIngredients.AnyAsync(
@@ -759,8 +759,8 @@ public static class DatabaseSeeder
                                 Id = Guid.NewGuid(),
                                 RecipeId = recipe.Id,
                                 IngredientId = ingredient.Id,
-                                Quantity = item.Value.Quantity,
-                                Unit = item.Value.Unit
+                                Quantity = item.Quantity,
+                                Unit = item.Unit
                             });
                         }
                     }
