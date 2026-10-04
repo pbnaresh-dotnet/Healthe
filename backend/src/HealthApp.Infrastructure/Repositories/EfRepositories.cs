@@ -103,6 +103,34 @@ public sealed class RecipeRepository(HealthAppDbContext db) : EfRepository(db), 
     }
 }
 
+public sealed class CustomerLikedMealRepository(HealthAppDbContext db) : EfRepository(db), ICustomerLikedMealRepository
+{
+    public async Task<IReadOnlyList<CustomerLikedMeal>> GetByCustomerAsync(Guid customerId) =>
+        await db.CustomerLikedMeals.AsNoTracking()
+            .Where(x => x.CustomerId == customerId)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ToListAsync();
+
+    public Task<bool> ExistsAsync(Guid customerId, Guid recipeId) =>
+        db.CustomerLikedMeals.AnyAsync(x => x.CustomerId == customerId && x.RecipeId == recipeId);
+
+    public async Task AddAsync(CustomerLikedMeal meal)
+    {
+        db.CustomerLikedMeals.Add(meal);
+        await SaveAsync();
+    }
+
+    public async Task RemoveAsync(Guid customerId, Guid recipeId)
+    {
+        var meal = await db.CustomerLikedMeals.FirstOrDefaultAsync(x => x.CustomerId == customerId && x.RecipeId == recipeId);
+        if (meal is not null)
+        {
+            db.CustomerLikedMeals.Remove(meal);
+            await SaveAsync();
+        }
+    }
+}
+
 public sealed class OutletMenuRepository(HealthAppDbContext db) : EfRepository(db), IOutletMenuRepository
 {
     public async Task<IReadOnlyList<OutletMenuItem>> GetByOutletAsync(Guid outletId) => await db.OutletMenuItems.AsNoTracking().Where(x => x.OutletId == outletId).OrderBy(x => x.DayOfWeek).ThenBy(x => x.MealSlot).ThenBy(x => x.DisplayOrder).ToListAsync();
