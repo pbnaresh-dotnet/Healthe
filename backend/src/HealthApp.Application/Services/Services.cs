@@ -200,6 +200,21 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             }
         }
 
+        var activeSubscriptionDtos = new List<CustomerDashboardSubscriptionDto>();
+        foreach (var subscription in activeSubscriptions)
+        {
+            var payment = await payments.GetLatestBySubscriptionAsync(subscription.Id);
+            activeSubscriptionDtos.Add(new CustomerDashboardSubscriptionDto(
+                subscription.Id,
+                subscription.PlanName,
+                subscription.DeliveryMode.ToString(),
+                subscription.MealsPerWeek,
+                subscription.TotalCharged,
+                subscription.NextDeliveryDate,
+                subscription.Status.ToString(),
+                payment?.Status ?? "Pending"));
+        }
+
         return new CustomerDashboardDto(
             todayDeliveries
                 .GroupBy(x => x.DeliveryId)
@@ -208,18 +223,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 .ThenBy(x => x.MealSlot)
                 .ToList(),
             todayMeals.OrderBy(x => x.MealDate).ThenBy(x => x.MealSlot).ToList(),
-            activeSubscriptions.Select(async x => new CustomerDashboardSubscriptionDto(
-                x.Id,
-                x.PlanName,
-                x.DeliveryMode.ToString(),
-                x.MealsPerWeek,
-                x.TotalCharged,
-                x.NextDeliveryDate,
-                x.Status.ToString(),
-                (await payments.GetLatestBySubscriptionAsync(x.Id))?.Status ?? "Pending"))
-                .ToList()
-                .Select(x => x.Result)
-                .ToList(),
+            activeSubscriptionDtos,
             new CustomerDashboardBenefitsDto(
                 mealsThisWeek,
                 proteinThisWeek,
