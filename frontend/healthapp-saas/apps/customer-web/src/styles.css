@@ -203,10 +203,8 @@ textarea{resize:vertical}
 .cityAddressNotice b{font-size:11px;color:#73551c}
 .cityAddressNotice span{font-size:10px;color:#826c3c;line-height:1.4}
 .cityAddressNotice .linkBtn{font-size:10px;text-align:left}
-.locationSearch{min-width:245px}
 .locationSearch label{display:block}
 .locationSearch select{min-width:210px}
-.builderControls{grid-template-columns:1.05fr 1.05fr 1fr 1fr 1.35fr 1fr}
 .addressMapBlock{display:grid;gap:8px;margin-bottom:14px}
 .addressMapHint{display:flex;justify-content:space-between;align-items:flex-end;gap:15px;padding:11px 12px;background:#edf6ef;border:1px solid #d7e8da;border-radius:11px}
 .addressMapHint div b,.addressMapHint div span{display:block}
