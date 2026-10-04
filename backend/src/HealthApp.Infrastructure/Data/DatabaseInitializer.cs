@@ -166,7 +166,6 @@ IF COL_LENGTH('dbo.Outlets','HealthHighlights') IS NULL
 
 IF COL_LENGTH('dbo.CustomerProfiles','Allergies') IS NOT NULL
     ALTER TABLE dbo.CustomerProfiles ALTER COLUMN Allergies nvarchar(max) NULL;
-    ALTER TABLE dbo.CustomerProfiles ALTER COLUMN Allergies nvarchar(max) NULL;
 ", cancellationToken);
 
         // Run data updates in separate SQL batches so SQL Server compiles the UPDATE statements
