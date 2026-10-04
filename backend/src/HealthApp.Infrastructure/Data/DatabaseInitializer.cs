@@ -216,6 +216,8 @@ IF COL_LENGTH('dbo.CustomerProfiles','Allergies') IS NOT NULL
     ALTER TABLE dbo.CustomerProfiles ALTER COLUMN Allergies nvarchar(max) NULL;
 
 -- Legacy column retained for older databases; normalized RecipeAllergens/IngredientAllergens are authoritative.
+IF COL_LENGTH('dbo.Recipes','FiberGrams') IS NULL
+    ALTER TABLE dbo.Recipes ADD FiberGrams int NOT NULL CONSTRAINT DF_Recipes_FiberGrams DEFAULT 0;
 IF COL_LENGTH('dbo.Recipes','Allergens') IS NOT NULL
     ALTER TABLE dbo.Recipes ALTER COLUMN Allergens nvarchar(max) NULL;
 ", cancellationToken);
