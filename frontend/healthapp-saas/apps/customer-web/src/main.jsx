@@ -351,7 +351,48 @@ function isWeekDayActive(builder,w,date){return Boolean(builder.weekActiveDays[w
 function countDaySelections(builder,date){return Object.values(builder.selections).filter(x=>x&&x.date===date).length}
 function Line({label,value}){return <div className="summaryLine"><span>{label}</span><b>{value}</b></div>}
 
-function MealPicker({picker,menuMap,recipes,customerAllergies,likedMeals,current,onClose,onPick}){const options=menuMap[key(dayId(picker.date),picker.slot)]||[];const[category,setCategory]=useState('All');const[portion,setPortion]=useState(current?.portion||1);const[warning,setWarning]=useState(null);const filtered=category==='All'?options:options.filter(x=>x.category===category);const cats=['All',...Array.from(new Set(options.map(x=>x.category)))];const choose=x=>{const detail=recipes.find(r=>r.id===x.recipeId);const matched=allergyMatches(detail,customerAllergies);if(matched.length){setWarning({item:x,detail,matched});return}onPick(x.recipeId,portion,true)};return <Modal title={slotName(picker.slot)+' · '+formatDate(picker.date)} onClose={onClose}><div className="chipRow">{cats.map(c=><button key={c} className={category===c?'chip active':'chip'} onClick={()=>setCategory(c)}>{c}</button>)}</div><div className="pickerGrid">{filtered.map(x=><article className="pickerCard" key={x.recipeId}><div className="miniLargeImage">{x.imageUrl?<img src={getImg(x.imageUrl)} alt=""/>:<span>🍱</span>}</div><div className="pickerBody"><div className="pickerHeading"><div><h4>{x.recipeName}</h4><span>{x.calories} kcal · {x.proteinGrams}g protein</span></div><span className="tag">{x.category}</span></div><div className="priceChoices"><button className={portion===1?'choice active':'choice'} onClick={()=>setPortion(1)}>Regular {money(x.pricePerMeal)}</button><button className={portion===2?'choice active':'choice'} onClick={()=>setPortion(2)}>Large {money(x.largePricePerMeal)}</button></div><button className="primary" onClick={()=>choose(x)}>Select meal</button></div></article>)}</div>{!filtered.length&&<Empty title="No recipes in this slot" text="Ask the outlet to add a menu item for this day and slot."/>}{warning&&<div className="warningOverlay"><div className="warningCard"><div className="warningIcon">⚠</div><h3>Allergy caution</h3><p><b>{warning.detail?.name||warning.item.recipeName}</b> contains or may contain <strong>{Array.from(new Set(warning.matched.map(x=>x.allergen))).join(', ')}</strong>, matching an allergy saved in your HealthApp profile.</p><p className="warningFine">Please review the full ingredient list and outlet information. HealthApp cannot guarantee absence of cross-contact.</p>{warning.matched.some(x=>x.ingredient)&&<div className="warningIngredients"><b>Matched ingredients</b>{warning.matched.filter(x=>x.ingredient).map((x,i)=><span key={i}>{x.ingredient.name} — {x.ingredient.quantity} {x.ingredient.unit} · {x.allergen}</span>)}</div>}<div className="modalActions"><button className="secondary" onClick={()=>setWarning(null)}>Choose another meal</button><button className="primary" onClick={()=>{onPick(warning.item.recipeId,portion,true);setWarning(null)}}>I understand, continue</button></div></div></div>}</Modal>}
+function MealPicker({picker,menuMap,recipes,customerAllergies,likedMeals,current,onClose,onPick}){
+ const options=menuMap[key(dayId(picker.date),picker.slot)]||[];
+ const[category,setCategory]=useState('All');
+ const[portion,setPortion]=useState(current?.portion||1);
+ const[warning,setWarning]=useState(null);
+ const likedIds=new Set((likedMeals||[]).map(x=>x.recipeId));
+ const cats=['All',...Array.from(new Set(options.map(x=>x.category)))];
+ const filtered=category==='All'?options:options.filter(x=>x.category===category);
+ const likedFiltered=filtered.filter(x=>likedIds.has(x.recipeId));
+ const otherFiltered=filtered.filter(x=>!likedIds.has(x.recipeId));
+ const choose=x=>{
+   const detail=recipes.find(r=>r.id===x.recipeId);
+   const matched=allergyMatches(detail,customerAllergies);
+   if(matched.length){setWarning({item:x,detail,matched});return}
+   onPick(x.recipeId,portion,true);
+ };
+ const card=x=><article className="pickerCard" key={x.recipeId}>
+   <div className="miniLargeImage">{x.imageUrl?<img src={getImg(x.imageUrl)} alt=""/>:<span>🍱</span>}</div>
+   <div className="pickerBody">
+     <div className="pickerHeading">
+       <div><h4>{x.recipeName}</h4><span>{x.calories} kcal · {x.proteinGrams}g protein</span></div>
+       <span className="tag">{x.category}</span>
+     </div>
+     <div className="priceChoices"><button className={portion===1?'choice active':'choice'} onClick={()=>setPortion(1)}>Regular {money(x.pricePerMeal)}</button><button className={portion===2?'choice active':'choice'} onClick={()=>setPortion(2)}>Large {money(x.largePricePerMeal)}</button></div>
+     <button className="primary" onClick={()=>choose(x)}>Select meal</button>
+   </div>
+ </article>;
+ return <Modal title={slotName(picker.slot)+' · '+formatDate(picker.date)} onClose={onClose}>
+   <div className="chipRow">{cats.map(c=><button key={c} className={category===c?'chip active':'chip'} onClick={()=>setCategory(c)}>{c}</button>)}</div>
+   {likedFiltered.length>0&&<section className="likedMealsPickerSection">
+     <div className="likedMealsPickerHeading"><div><span className="eyebrow">YOUR FAVOURITES</span><h3>Liked Meals</h3></div><span>{likedFiltered.length} available</span></div>
+     <div className="pickerGrid">{likedFiltered.map(card)}</div>
+   </section>}
+   <section className="allMealsPickerSection">
+     <div className="likedMealsPickerHeading"><div><span className="eyebrow">OUTLET MENU</span><h3>{likedFiltered.length?'All '+slotName(picker.slot)+' Meals':slotName(picker.slot)+' Meals'}</h3></div><span>{otherFiltered.length+(likedFiltered.length?likedFiltered.length:0)} choices</span></div>
+     <div className="pickerGrid">{otherFiltered.map(card)}</div>
+   </section>
+   {!filtered.length&&<Empty title="No recipes in this slot" text="Ask the outlet to add a menu item for this day and slot."/>}
+   {filtered.length>0&&!likedFiltered.length&&likedMeals?.length>0&&<div className="likedEmptyHint">Your liked meals are not available for this day and time slot. Choose from the current outlet menu below.</div>}
+   {warning&&<div className="warningOverlay"><div className="warningCard"><div className="warningIcon">⚠</div><h3>Allergy caution</h3><p><b>{warning.detail?.name||warning.item.recipeName}</b> contains or may contain <strong>{Array.from(new Set(warning.matched.map(x=>x.allergen))).join(', ')}</strong>, matching an allergy saved in your HealthApp profile.</p><p className="warningFine">Please review the full ingredient list and outlet information. HealthApp cannot guarantee absence of cross-contact.</p>{warning.matched.some(x=>x.ingredient)&&<div className="warningIngredients"><b>Matched ingredients</b>{warning.matched.filter(x=>x.ingredient).map((x,i)=><span key={i}>{x.ingredient.name} — {x.ingredient.quantity} {x.ingredient.unit} · {x.allergen}</span>)}</div>}<div className="modalActions"><button className="secondary" onClick={()=>setWarning(null)}>Choose another meal</button><button className="primary" onClick={()=>{onPick(warning.item.recipeId,portion,true);setWarning(null)}}>I understand, continue</button></div></div></div>}
+ </Modal>;
+}
 
 function Subscriptions({subs,selectSub,paySubscription}){return <div className="page"><section className="pageIntro"><div><span className="eyebrow">YOUR PLAN</span><h2>My subscriptions</h2><p>Review package value, delivery mode, selected meals and payment state.</p></div></section><div className="subscriptionCards">{subs.map(s=>{const paid=String(s.paymentStatus||'Pending').toLowerCase()==='paid';return <article className="subscriptionCard" key={s.id}><div className={paid?'subStatus paid':'subStatus'}>{paid?'PAID':s.status}</div><h3>{s.planName}</h3><p>{s.frequency} · {s.mealsPerWeek} selected meals · {s.deliveryMode==='OneDeliveryPerDay'?'One delivery/day':'Meal-by-meal delivery'}</p><div className="subMetrics"><div><span>Package total</span><b>{money(s.totalCharged)}</b></div><div><span>Next delivery</span><b>{shortDate(s.nextDeliveryDate?.slice?.(0,10)||todayISO())}</b></div><div><span>Payment</span><b>{paid?'Paid':'Pending'}</b></div></div><div className="subActions"><button className="secondary" onClick={()=>selectSub(s.id)}>Open calendar</button>{paid?<button className="paidButton" disabled>Paid ✓</button>:<button className="primary" onClick={()=>paySubscription(s)}>Pay / confirm</button>}</div></article>})}{!subs.length&&<Empty title="No subscriptions yet" text="Build a custom package from an outlet menu to get started."/>}</div></div>}
 
