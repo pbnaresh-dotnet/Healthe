@@ -166,6 +166,10 @@ IF COL_LENGTH('dbo.Outlets','HealthHighlights') IS NULL
 
 IF COL_LENGTH('dbo.CustomerProfiles','Allergies') IS NOT NULL
     ALTER TABLE dbo.CustomerProfiles ALTER COLUMN Allergies nvarchar(max) NULL;
+
+-- Legacy column retained for older databases; normalized RecipeAllergens/IngredientAllergens are authoritative.
+IF COL_LENGTH('dbo.Recipes','Allergens') IS NOT NULL
+    ALTER TABLE dbo.Recipes ALTER COLUMN Allergens nvarchar(max) NULL;
 ", cancellationToken);
 
         // Run data updates in separate SQL batches so SQL Server compiles the UPDATE statements
