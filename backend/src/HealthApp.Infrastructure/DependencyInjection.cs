@@ -86,6 +86,7 @@ public static class DependencyInjection
         services.AddScoped<IDeliveryRepository, DeliveryRepository>();
         services.AddScoped<IDeliveryRouteRepository, DeliveryRouteRepository>();
         services.AddScoped<ICustomerProfileRepository, CustomerProfileRepository>();
+        services.AddScoped<IServiceCityRepository, ServiceCityRepository>();
         services.AddScoped<ICityAreaRepository, CityAreaRepository>();
         services.AddScoped<IOutletDeliveryAreaRepository, OutletDeliveryAreaRepository>();
         services.AddScoped<IDeliveryPricingRepository, DeliveryPricingRepository>();
@@ -133,6 +134,7 @@ public static class DependencyInjection
         services.AddScoped<ICustomerAddressService, CustomerAddressService>();
         services.AddScoped<IOutletDeliveryService, OutletDeliveryService>();
         services.AddScoped<IDiscountConfigurationService, DiscountConfigurationService>();
+        services.AddScoped<IServiceCityAdminService, ServiceCityAdminService>();
         services.AddScoped<ICityAreaAdminService, CityAreaAdminService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IDeliveryLabelService, DeliveryLabelService>();
