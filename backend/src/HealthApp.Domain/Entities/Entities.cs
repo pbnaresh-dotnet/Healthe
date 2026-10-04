@@ -997,6 +997,11 @@ public sealed class Subscription
         get;
         set;
     }
+    public string DeliveryCity {
+        get;
+        set;
+    }
+    = "";
     public Guid MealPlanId {
         get;
         set;
