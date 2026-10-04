@@ -25,3 +25,12 @@ Set these application settings securely through the deployment environment:
 Files should be stored by logical folders such as `recipes`, `outlets`, `documents`, and `avatars`. Database entities should keep the returned URL/key, not provider-specific SDK objects.
 
 The existing recipe image endpoint already uses `IFileStorage`, so the same abstraction can be reused for outlet images and future document/file uploads.
+
+## Generic file upload API
+
+Authenticated web clients can use `POST /api/files/{folder}` for provider-neutral uploads. Supported logical folders are:
+
+- `recipes`, `outlets`, `avatars` for images
+- `documents` for supported document/image formats
+
+The API returns the provider-generated `url` and `key`. Controllers and application code should not reference Azure Blob SDK types.
