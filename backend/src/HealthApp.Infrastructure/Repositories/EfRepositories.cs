@@ -203,6 +203,13 @@ public sealed class DeliveryRepository(HealthAppDbContext db) : EfRepository(db)
 
 public sealed class DeliveryRouteRepository(HealthAppDbContext db) : EfRepository(db), IDeliveryRouteRepository
 {
+    public async Task<IReadOnlyList<DeliveryRoute>> GetByIdsAsync(IEnumerable<Guid> ids)
+    {
+        var idList=ids.Distinct().ToList();
+        if(idList.Count==0)return [];
+        return await db.DeliveryRoutes.AsNoTracking().Include(x=>x.Stops).Where(x=>idList.Contains(x.Id)).ToListAsync();
+    }
+
     public async Task<IReadOnlyList<DeliveryRoute>> GetByOutletAndDateAsync(Guid outletId, DateTime date, MealSlot mealSlot)
         => await db.DeliveryRoutes.AsNoTracking().Include(x => x.Stops).Where(x => x.OutletId == outletId && x.DeliveryDate >= date.Date && x.DeliveryDate < date.Date.AddDays(1) && x.MealSlot == mealSlot).OrderBy(x => x.DriverId).ToListAsync();
 
