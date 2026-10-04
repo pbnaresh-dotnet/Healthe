@@ -42,9 +42,10 @@ public sealed class AuthService(IUserRepository users, IOutletRepository outlets
 public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepository plans, IRecipeRepository recipes, IOutletMenuRepository menu, ISaaSPlanRepository saasPlans, ICityAreaRepository areas) : IMarketplaceService
 {
     public async Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync() => (await saasPlans.GetActiveAsync()).Select(Map).ToList();
-    public async Task<AvailabilityResponse> GetAvailabilityAsync(double latitude, double longitude)
+    public async Task<AvailabilityResponse> GetAvailabilityAsync(double latitude, double longitude, string? city = null)
     {
         var result = (await outlets.GetAllAsync()).Where(x => x.Status == OutletStatus.Active)
+        .Where(x => string.IsNullOrWhiteSpace(city) || x.City.Equals(city.Trim(), StringComparison.OrdinalIgnoreCase))
         .Select(x => (outlet: x, distance: Distance(latitude, longitude, x.Latitude, x.Longitude)))
         .Where(x => x.distance <= x.outlet.ServiceRadiusKm)
         .Select(x => ToDto(x.outlet, x.distance)).ToList();
