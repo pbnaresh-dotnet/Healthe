@@ -400,7 +400,7 @@ public static class DatabaseSeeder
                 city.Country = "India";
                 city.Latitude = spec.Item3;
                 city.Longitude = spec.Item4;
-                city.IsEnabled = true;
+                // Preserve the Super Admin's enable/disable choice on existing cities.
             }
         }
 
