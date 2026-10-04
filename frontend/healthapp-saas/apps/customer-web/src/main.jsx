@@ -200,9 +200,19 @@ function Discover({outlets,cities,customerAllergies,addresses,selectedAddressId,
    return true;
  };
  const normalizedQuery=query.trim().toLowerCase();
+ const outletMatchesFilter=o=>{
+   if(localFilter==='All')return true;
+   const highlights=(o.healthHighlights||[]).join(' ').toLowerCase();
+   if(localFilter==='High Protein')return highlights.includes('high protein')||highlights.includes('protein');
+   if(localFilter==='Low Carb')return highlights.includes('low carb')||highlights.includes('keto');
+   if(localFilter==='Vegan')return highlights.includes('vegan');
+   if(localFilter==='Vegetarian')return highlights.includes('vegetarian')||highlights.includes('veg');
+   if(localFilter==='Gluten Free')return highlights.includes('gluten free');
+   return true;
+ };
  const visibleOutlets=outlets.filter(o=>{
    const hay=[o.name,o.city,o.state,o.healthHighlights?.join(' ')].filter(Boolean).join(' ').toLowerCase();
-   return !normalizedQuery||hay.includes(normalizedQuery);
+   return (!normalizedQuery||hay.includes(normalizedQuery))&&outletMatchesFilter(o);
  });
  const menuForSlot=slot=>(menu||[]).filter(x=>Number(x.mealSlotValue)===slot).filter(filterFor);
  const chooseAddress=id=>{
