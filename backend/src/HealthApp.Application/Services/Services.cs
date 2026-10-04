@@ -272,7 +272,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var duration = Parse<SubscriptionDuration>(r.Duration, "duration");
         var outlet = await outlets.GetByIdAsync(r.OutletId) ?? throw new KeyNotFoundException("Outlet not found.");
         if (outlet.Status != OutletStatus.Active) throw new InvalidOperationException("Outlet is not active.");
-        _ = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
+        var deliveryCity = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var menuItems = await menu.GetByOutletAsync(outlet.Id);
         var meals = BuildSelections(r.Selections, outlet.Id, menuItems, rs);
@@ -354,6 +354,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             Id=Guid.NewGuid(),
             CustomerId=customerId,
             OutletId=outlet.Id,
+            DeliveryCity=deliveryCity,
             MealPlanId=plan.Id,
             PlanName=$"{duration} Custom Meal Package",
             DeliveryMode=deliveryMode,
@@ -568,7 +569,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     private async Task<SubscriptionDto> ToDto(Subscription x)
     {
         var payment=await payments.GetLatestBySubscriptionAsync(x.Id);
-        return new(x.Id,x.CustomerId,x.OutletId,x.MealPlanId,x.PlanName,x.DeliveryMode.ToString(),x.Price,x.DeliveryFee,x.CustomerTransactionFeePercent,x.TransactionFee,x.TotalCharged,x.OutletAmount,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Status.ToString(),x.NextDeliveryDate,await credits.GetBalanceAsync(x.CustomerId),payment?.Status??"Pending");
+        return new(x.Id,x.CustomerId,x.OutletId,x.MealPlanId,x.PlanName,x.DeliveryMode.ToString(),x.Price,x.DeliveryFee,x.CustomerTransactionFeePercent,x.TransactionFee,x.TotalCharged,x.OutletAmount,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Status.ToString(),x.NextDeliveryDate,await credits.GetBalanceAsync(x.CustomerId),payment?.Status??"Pending",x.DeliveryCity);
     }
     private async Task<IReadOnlyList<MealSelectionDto>> MapSelections(IEnumerable<SubscriptionMealSelection> rows) {
         var result=new List<MealSelectionDto>();
