@@ -4,7 +4,7 @@ public enum UserRole { Customer, OutletAdmin, SuperAdmin, Driver }
 public enum OutletStatus { Pending, Active, Suspended }
 public enum SubscriptionStatus { Active, Paused, Cancelled }
 public enum SubscriptionDeliveryMode { IndividualMealDelivery = 1, OneDeliveryPerDay = 2 }
-public enum SubscriptionDuration { OneWeek = 1, TwoWeeks = 2, OneMonth = 3 }
+public enum SubscriptionDuration { OneWeek = 1, TwoWeeks = 2, OneMonth = 3, ThreeDays = 4, FiveDays = 5 }
 public enum MealSelectionStatus { Scheduled = 1, Skipped = 2, Unused = 3, Rescheduled = 4, Prepared = 5, OutForDelivery = 6, Delivered = 7, Expired = 8, Cancelled = 9 }
 public enum MealSlot { Morning = 1, Afternoon = 2, Evening = 3, Night = 4 }
 public enum MealPortionSize { Regular = 1, Large = 2 }
