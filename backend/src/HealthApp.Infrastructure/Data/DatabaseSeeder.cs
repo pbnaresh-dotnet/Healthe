@@ -9,6 +9,7 @@ public static class DatabaseSeeder
     public static async Task SeedAsync(HealthAppDbContext db, IPasswordService passwords, CancellationToken ct = default)
     {
         await SeedCatalogAsync(db, ct);
+        await EnsureServiceCitiesAsync(db, ct);
         if (await db.Outlets.AnyAsync(ct))
         {
             await EnsureExistingRecipeCatalogLinksAsync(db, ct);
@@ -364,6 +365,46 @@ public static class DatabaseSeeder
         }
         await db.SaveChangesAsync(ct);
         await EnsureRegionalOutletCatalogAsync(db, passwords, ct);
+    }
+
+    private static async Task EnsureServiceCitiesAsync(HealthAppDbContext db, CancellationToken ct)
+    {
+        var specs = new[]
+        {
+            ("Bengaluru", "Karnataka", 12.9716, 77.5946),
+            ("Mumbai", "Maharashtra", 19.0760, 72.8777),
+            ("Chennai", "Tamil Nadu", 13.0827, 80.2707),
+            ("New Delhi", "Delhi", 28.6139, 77.2090),
+            ("Hyderabad", "Telangana", 17.3850, 78.4867)
+        };
+
+        foreach (var spec in specs)
+        {
+            var city = await db.ServiceCities.FirstOrDefaultAsync(x => x.City == spec.Item1, ct);
+            if (city is null)
+            {
+                db.ServiceCities.Add(new ServiceCity
+                {
+                    Id = Guid.NewGuid(),
+                    City = spec.Item1,
+                    State = spec.Item2,
+                    Country = "India",
+                    Latitude = spec.Item3,
+                    Longitude = spec.Item4,
+                    IsEnabled = true
+                });
+            }
+            else
+            {
+                city.State = spec.Item2;
+                city.Country = "India";
+                city.Latitude = spec.Item3;
+                city.Longitude = spec.Item4;
+                city.IsEnabled = true;
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
     }
 
     private static async Task EnsureRegionalOutletCatalogAsync(HealthAppDbContext db, IPasswordService passwords, CancellationToken ct)
