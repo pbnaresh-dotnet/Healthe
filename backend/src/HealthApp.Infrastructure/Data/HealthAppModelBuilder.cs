@@ -233,6 +233,9 @@ internal static class HealthAppModelBuilder
             x.CustomerId, x.Status
         });
         e.HasIndex(x => new {
+            x.CustomerId, x.DeliveryCity
+        });
+        e.HasIndex(x => new {
             x.OutletId, x.Status
         });
         e.HasOne<MealPlan>().WithMany().HasForeignKey(x => x.MealPlanId).OnDelete(DeleteBehavior.NoAction);
