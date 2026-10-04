@@ -194,3 +194,29 @@ textarea{resize:vertical}
 
 .statusBanner{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 13px;border-radius:11px;border:1px solid #efc9c9;background:#fff2f2;color:#922f2f;box-shadow:0 5px 18px #173b2407}.statusBanner span{display:grid;gap:3px;font-size:10px}.statusBanner b{font-size:9px;text-transform:uppercase;letter-spacing:.5px}.statusBanner button{border:0;background:transparent;color:inherit;font-size:18px}.statusToast{position:fixed;right:22px;bottom:22px;z-index:150;min-width:290px;max-width:390px;display:flex;align-items:flex-start;gap:9px;padding:12px 13px;border-radius:12px;border:1px solid #d8e4da;background:#fff;box-shadow:0 18px 45px #0e2a171d}.statusToast>span{width:25px;height:25px;border-radius:8px;display:grid;place-items:center;font-size:13px;font-weight:900;background:#e4f3e8;color:#247142}.statusToast>div{flex:1}.statusToast b,.statusToast small{display:block}.statusToast b{font-size:10px}.statusToast small{font-size:9px;color:#6e7b72;line-height:1.4;margin-top:2px}.statusToast button{border:0;background:transparent;color:#879189;font-size:15px;padding:0}.statusToast.warning{border-color:#efd7a8;background:#fffaf0}.statusToast.warning>span{background:#fff0c8;color:#8a5d10}.statusToast.info{border-color:#cbddea;background:#f4f9fd}.statusToast.info>span{background:#e2f0fb;color:#2d6895}.statusToast.error{border-color:#efc9c9;background:#fff4f4}.statusToast.error>span{background:#ffe2e2;color:#a03636}
 @media(max-width:560px){.statusToast{left:12px;right:12px;bottom:78px;min-width:0;max-width:none}.statusBanner{font-size:9px}}
+
+
+/* Exact delivery location + delivery-city UX */
+.addressContext{min-width:320px}
+.addressContext .cityAddressNotice{margin-top:10px}
+.cityAddressNotice{display:grid;gap:4px;padding:10px 11px;background:#fff8e8;border:1px solid #f0dbad;border-radius:10px}
+.cityAddressNotice b{font-size:11px;color:#73551c}
+.cityAddressNotice span{font-size:10px;color:#826c3c;line-height:1.4}
+.cityAddressNotice .linkBtn{font-size:10px;text-align:left}
+.locationSearch{min-width:245px}
+.locationSearch label{display:block}
+.locationSearch select{min-width:210px}
+.builderControls{grid-template-columns:1.05fr 1.05fr 1fr 1fr 1.35fr 1fr}
+.addressMapBlock{display:grid;gap:8px;margin-bottom:14px}
+.addressMapHint{display:flex;justify-content:space-between;align-items:flex-end;gap:15px;padding:11px 12px;background:#edf6ef;border:1px solid #d7e8da;border-radius:11px}
+.addressMapHint div b,.addressMapHint div span{display:block}
+.addressMapHint div b{font-size:12px;color:#235c36}
+.addressMapHint div span{font-size:10px;color:#6f7b73;margin-top:3px}
+.addressMapHint strong{font-size:10px;color:#34734a;white-space:nowrap}
+.addressMapFrame{position:relative;overflow:hidden;border:1px solid #dce5de;border-radius:13px;background:#eef4ef}
+.addressMap{height:310px;width:100%}
+.mapBusyOverlay{position:absolute;left:12px;top:12px;z-index:500;padding:7px 10px;background:#173b24;color:white;border-radius:8px;font-size:10px;font-weight:800;box-shadow:0 7px 18px #173b2433}
+.mapAttributionHint{font-size:9px;color:#7a857c}
+.coordinateReadout{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 11px;background:#f5f8f5;border:1px solid #e2e9e3;border-radius:10px}
+.coordinateReadout span{font-size:9px;color:#77837a;text-transform:uppercase;font-weight:850;letter-spacing:.6px}
+.coordinateReadout b{font-size:10px;color:#2f6945}
