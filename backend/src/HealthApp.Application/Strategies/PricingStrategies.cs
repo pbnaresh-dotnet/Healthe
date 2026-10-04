@@ -57,6 +57,8 @@ public sealed class DurationAndVolumeDiscountStrategy : IPackageDiscountStrategy
                     SubscriptionDuration.OneWeek => tier.OneWeekPercent,
                     SubscriptionDuration.TwoWeeks => tier.TwoWeeksPercent,
                     SubscriptionDuration.OneMonth => tier.OneMonthPercent,
+                    SubscriptionDuration.ThreeDays => 0m,
+                    SubscriptionDuration.FiveDays => 0m,
                     _ => 0m
                 };
                 return new(configuredPercent, Math.Round(grossConfigured * configuredPercent / 100m, 2));
@@ -74,6 +76,8 @@ public sealed class DurationAndVolumeDiscountStrategy : IPackageDiscountStrategy
             SubscriptionDuration.OneWeek => 0,
             SubscriptionDuration.TwoWeeks => 1,
             SubscriptionDuration.OneMonth => 2,
+            SubscriptionDuration.ThreeDays => 0,
+            SubscriptionDuration.FiveDays => 0,
             _ => throw new ArgumentOutOfRangeException()
         };
         var gross = Math.Round(context.Meals.Sum(x => x.MealPrice), 2);
