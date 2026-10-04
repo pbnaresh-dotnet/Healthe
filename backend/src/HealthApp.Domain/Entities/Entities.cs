@@ -539,6 +539,16 @@ public sealed class Outlet
         set;
     }
     = "";
+    public string HeroImageUrl {
+        get;
+        set;
+    }
+    = "";
+    public string HealthHighlights {
+        get;
+        set;
+    }
+    = "";
     public string PrimaryColor {
         get;
         set;
