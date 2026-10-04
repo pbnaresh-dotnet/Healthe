@@ -12,6 +12,7 @@ public static class DatabaseSeeder
         if (await db.Outlets.AnyAsync(ct))
         {
             await EnsureExistingRecipeCatalogLinksAsync(db, ct);
+            await EnsureExistingOutletMenuSlotsAsync(db, ct);
             return;
         }
         var free = new SaaSPlan {
@@ -359,6 +360,32 @@ public static class DatabaseSeeder
         }
         await db.SaveChangesAsync(ct);
     }
+    private static async Task EnsureExistingOutletMenuSlotsAsync(HealthAppDbContext db,CancellationToken ct)
+    {
+        var fit=await db.Outlets.AsNoTracking().FirstOrDefaultAsync(x=>x.Slug=="fitfood",ct);
+        if(fit is null)return;
+
+        var recipes=await db.Recipes.AsNoTracking().Where(x=>x.OutletId==fit.Id).ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
+        var slotRecipes=new Dictionary<MealSlot,string>
+        {
+            [MealSlot.Morning]="Paneer Power Bowl",
+            [MealSlot.Afternoon]="Chicken Tikka Bowl",
+            [MealSlot.Evening]="Prawn Noodles",
+            [MealSlot.Night]="Chickpea Buddha Bowl"
+        };
+
+        foreach(var day in new[]{DayOfWeek.Monday,DayOfWeek.Tuesday,DayOfWeek.Wednesday,DayOfWeek.Thursday,DayOfWeek.Friday,DayOfWeek.Saturday})
+        foreach(var item in slotRecipes)
+        {
+            if(!recipes.TryGetValue(item.Value,out var recipe))continue;
+            var exists=await db.OutletMenuItems.AnyAsync(x=>x.OutletId==fit.Id&&x.DayOfWeek==day&&x.MealSlot==item.Key&&x.RecipeId==recipe.Id,ct);
+            if(exists)continue;
+            db.OutletMenuItems.Add(new OutletMenuItem{Id=Guid.NewGuid(),OutletId=fit.Id,RecipeId=recipe.Id,DayOfWeek=day,MealSlot=item.Key,IsAvailable=true,DisplayOrder=1});
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
     private static async Task SeedCatalogAsync(HealthAppDbContext db,CancellationToken ct)
     {
         var allergenNames=new[] {
