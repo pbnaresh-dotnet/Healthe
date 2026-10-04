@@ -224,43 +224,59 @@ function Discover({outlets,cities,customerAllergies,addresses,selectedAddressId,
  const selectedImage=selectedOutlet?.heroImageUrl||selectedOutlet?.logoUrl;
  const healthy=selectedOutlet?.healthHighlights||[];
  return <div className="page">
-   <section className="findMealsHero wireHero">
-     <div><span className="eyebrow">FIND YOUR MEALS</span><h2>Healthy meals, delivered your way.</h2><p>Choose a supported delivery city, select the exact delivery address, then explore outlets that can serve that location.</p></div>
+   <section className="findMealsListingHero">
+     <div>
+       <span className="eyebrow">FIND MEALS</span>
+       <h2>Find Meals</h2>
+       <p>Discover healthy meals from top outlets near you.</p>
+     </div>
+   </section>
+
+   <div className="discoverySearchRow wireListingToolbar">
      <div className="addressPickerWrap">
-       <button className="addressContextCard" onClick={()=>setAddressPickerOpen(v=>!v)} aria-expanded={addressPickerOpen}>
-         <span>DELIVER TO</span>
-         <b>{selectedAddress?selectedAddress.label+' · '+(selectedAddress.areaName||selectedAddress.locality||selectedAddress.city):'Choose a delivery address'}</b>
-         <small>{selectedAddress?[selectedAddress.addressLine1,selectedAddress.city,selectedAddress.pincode].filter(Boolean).join(', '):cityFilter+' · exact pin required'}</small>
+       <button className="locationAddressBar" onClick={()=>setAddressPickerOpen(v=>!v)} aria-expanded={addressPickerOpen}>
+         <span className="locationAddressIcon">⌖</span>
+         <span className="locationAddressText">
+           <b>{selectedAddress ? (selectedAddress.city || cityFilter) : (cityFilter || 'Choose location')}</b>
+           <small>{selectedAddress ? [selectedAddress.state, selectedAddress.pincode].filter(Boolean).join(', ') : 'Select an exact delivery pin'}</small>
+         </span>
          <strong>⌄</strong>
        </button>
        {addressPickerOpen&&<div className="addressPickerMenu">
          <div className="addressPickerTitle"><span>DELIVERY ADDRESS</span><b>Choose where to deliver</b></div>
-         {addresses.map(a=><button key={a.id} className={a.id===selectedAddressId?'addressPickerItem selected':'addressPickerItem'} onClick={()=>chooseAddress(a.id)}>
+         {addresses.map(a=><button type="button" key={a.id} className={a.id===selectedAddressId?'addressPickerItem selected':'addressPickerItem'} onClick={()=>chooseAddress(a.id)}>
            <span className="addressPickerIcon">{a.label==='Home'?'⌂':a.label==='Office'?'▣':'⌖'}</span>
-           <span><b>{a.label}</b><small>{[a.areaName||a.locality,a.city,a.pincode].filter(Boolean).join(' · ')}</small></span>
+           <span className="addressPickerItemText"><b>{a.label}</b><small>{[a.areaName||a.locality,a.city,a.pincode].filter(Boolean).join(' · ')}</small></span>
            {a.id===selectedAddressId&&<strong>✓</strong>}
          </button>)}
-         <button className="addAddressPicker" onClick={()=>chooseAddress('__add__')}>＋ Add new address</button>
+         <button type="button" className="addAddressPicker" onClick={()=>chooseAddress('__add__')}>＋ Add new address</button>
        </div>}
      </div>
-   </section>
 
-   <div className="discoverySearchRow">
-     <div className="discoverySearch"><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search meals, cuisines or outlets..."/></div>
-     <label className="cityCompact"><span>City</span><select value={cityFilter} onChange={e=>selectCity(e.target.value)}>{cities.map(x=><option key={x.city+'|'+x.state} value={x.city}>{x.city}</option>)}</select></label>
-     <button className={viewMode==='grid'?'viewToggle active':'viewToggle'} onClick={()=>setViewMode('grid')}>▦ Grid</button>
-     <button className={viewMode==='list'?'viewToggle active':'viewToggle'} onClick={()=>setViewMode('list')}>☷ List</button>
+     <div className="discoverySearch">
+       <span>⌕</span>
+       <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search meals, cuisines or outlets..."/>
+     </div>
+
+     <label className="cityCompact">
+       <span>City</span>
+       <select value={cityFilter} onChange={e=>selectCity(e.target.value)}>
+         {cities.map(x=><option key={x.city+'|'+x.state} value={x.city}>{x.city}</option>)}
+       </select>
+     </label>
+
+     <button className={viewMode==='grid'?'viewToggle active':'viewToggle'} onClick={()=>setViewMode('grid')} aria-label="Grid view">▦ Grid</button>
+     <button className={viewMode==='list'?'viewToggle active':'viewToggle'} onClick={()=>setViewMode('list')} aria-label="List view">☷ List</button>
    </div>
 
-   <div className="discoveryFilterBar">
-     <div className="discoverFilters">{['All','Veg','NonVeg','Vegan','High Protein'].map(x=><button key={x} className={localFilter===x?'discoverFilter active':'discoverFilter'} onClick={()=>{setLocalFilter(x);setCategory(x)}}>{x}</button>)}</div>
+   <div className="discoveryFilterBar wireListingFilters">
+     <div className="discoverFilters">
+       {['All','High Protein','Low Carb','Vegan','Vegetarian','Gluten Free'].map(x=>
+         <button key={x} className={localFilter===x?'discoverFilter active':'discoverFilter'} onClick={()=>{setLocalFilter(x);setCategory(x)}}>{x}</button>
+       )}
+     </div>
      <span className="count">{visibleOutlets.length} outlet{visibleOutlets.length===1?'':'s'} available</span>
    </div>
-
-   {!selectedOutlet&&<section className="deliveryContextBanner">
-     <div><span className="contextPin">⌖</span><div><b>{selectedAddress?'Deliver to '+(selectedAddress.areaName||selectedAddress.locality||selectedAddress.city):'Set your delivery address'}</b><small>{selectedAddress?[selectedAddress.addressLine1,selectedAddress.city,selectedAddress.pincode].filter(Boolean).join(', '):'We use your exact map pin to calculate outlet serviceability and delivery pricing.'}</small></div></div>
-     <button className="linkBtn" onClick={()=>selectedAddress?setAddressPickerOpen(true):openAddressForCity(cityFilter,false)}>{selectedAddress?'Change':'Add address'}</button>
-   </section>}
 
    {!selectedOutlet&&visibleOutlets.length>0&&<div className={viewMode==='grid'?'outletGrid discoveryGrid wireOutletGrid':'outletListView'}>
      {visibleOutlets.map(o=><article className="outletDiscoveryCard wireOutletCard" key={o.id} onClick={()=>{setOutletTab('Menu');setMenuSlot(1);openOutlet(o)}}>
