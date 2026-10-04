@@ -201,7 +201,10 @@ public static class DatabaseSeeder
             Tags="High Protein"
         };
         db.Recipes.AddRange(paneer,chicken,chickpea,dal,prawn,mutton);
-        var ing=await db.Ingredients.ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
+        var ing=await db.Ingredients
+            .GroupBy(x=>x.Name)
+            .Select(g=>g.First())
+            .ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
         var alg=await db.Allergens.ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
         AddRecipeIngredients(paneer,[("Paneer",120m,"g"),("Brown Rice",150m,"g"),("Broccoli",80m,"g"),("Olive Oil",10m,"g")],ing);
         AddRecipeIngredients(chicken,[("Chicken Breast",150m,"g"),("Brown Rice",150m,"g"),("Broccoli",80m,"g"),("Olive Oil",10m,"g")],ing);
@@ -588,7 +591,10 @@ public static class DatabaseSeeder
 
             await db.SaveChangesAsync(ct);
 
-            var ingredients = await db.Ingredients.ToDictionaryAsync(x => x.Name, StringComparer.OrdinalIgnoreCase, ct);
+            var ingredients = await db.Ingredients
+                .GroupBy(x => x.Name)
+                .Select(g => g.First())
+                .ToDictionaryAsync(x => x.Name, StringComparer.OrdinalIgnoreCase, ct);
 
             var recipes = spec.City == "Chennai"
                 ? new[]
@@ -815,7 +821,11 @@ public static class DatabaseSeeder
         var fit=await db.Outlets.AsNoTracking().FirstOrDefaultAsync(x=>x.Slug=="fitfood",ct);
         if(fit is null)return;
 
-        var recipes=await db.Recipes.AsNoTracking().Where(x=>x.OutletId==fit.Id).ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
+        var recipes=await db.Recipes.AsNoTracking()
+            .Where(x=>x.OutletId==fit.Id)
+            .GroupBy(x=>x.Name)
+            .Select(g=>g.First())
+            .ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
         var slotRecipes=new Dictionary<MealSlot,string>
         {
             [MealSlot.Morning]="Paneer Power Bowl",
@@ -910,7 +920,10 @@ public static class DatabaseSeeder
         });
         await db.SaveChangesAsync(ct);
         var all=await db.Allergens.ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
-        var ing=await db.Ingredients.ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
+        var ing=await db.Ingredients
+            .GroupBy(x=>x.Name)
+            .Select(g=>g.First())
+            .ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
         LinkIngredientAllergen(db,ing["Paneer"],all["Milk"]);
         LinkIngredientAllergen(db,ing["Tahini"],all["Sesame"]);
         LinkIngredientAllergen(db,ing["Prawns"],all["Shellfish"]);
@@ -945,7 +958,10 @@ public static class DatabaseSeeder
     private static async Task EnsureExistingRecipeCatalogLinksAsync(HealthAppDbContext db,CancellationToken ct)
     {
         var recipes=await db.Recipes.AsNoTracking().ToListAsync(ct);
-        var ingredients=await db.Ingredients.AsNoTracking().ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
+        var ingredients=await db.Ingredients.AsNoTracking()
+            .GroupBy(x=>x.Name)
+            .Select(g=>g.First())
+            .ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
         var wanted=new Dictionary<string,(string Name,decimal Quantity,string Unit)[]>
         {
             ["Paneer Power Bowl"]=[("Paneer",120,"g"),("Brown Rice",150,"g"),("Broccoli",80,"g"),("Olive Oil",10,"g")],
