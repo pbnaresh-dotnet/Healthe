@@ -49,6 +49,8 @@ public record SaveMenuItemRequest(Guid RecipeId, DayOfWeek DayOfWeek, int MealSl
 public record BulkMenuRequest(IReadOnlyList<SaveMenuItemRequest> Items);
 
 public record CustomerProfileDto(Guid Id, Guid CustomerId, decimal? WeightKg, decimal? HeightCm, decimal? Bmi, string Goal, string ActivityLevel, string Diet, DateTime UpdatedAtUtc, IReadOnlyList<AllergenDto> Allergies);
+public record ServiceCityDto(Guid Id, string City, string State, string Country, double Latitude, double Longitude, bool IsEnabled);
+public record CreateServiceCityRequest(string City, string State, string Country = "India", double Latitude = 0, double Longitude = 0, bool IsEnabled = true);
 public record SaveCustomerProfileRequest(decimal? WeightKg, decimal? HeightCm, DateTime? DateOfBirth, string Goal, string ActivityLevel, string Diet, IReadOnlyList<Guid>? AllergyIds = null);
 public record CityAreaDto(Guid Id, string City, string State, string Name, string Pincode, double Latitude, double Longitude, bool IsActive);
 public record CityDto(string City, string State, int AreaCount);
@@ -59,8 +61,8 @@ public record SaveOutletDeliveryAreasRequest(IReadOnlyList<Guid> CityAreaIds);
 public record DeliveryPricingRuleDto(Guid Id, Guid OutletId, decimal MaxDistanceKm, decimal Fee, bool IsActive);
 public record CreateDeliveryPricingRuleRequest(decimal MaxDistanceKm, decimal Fee);
 public record CustomerAddressDto(Guid Id, string Label, string AreaName, string City, string Pincode, string AddressLine1, string AddressLine2, string ContactName, string ContactPhone, double Latitude, double Longitude, bool IsDefault);
-public record CreateCustomerAddressRequest(Guid CityAreaId, string Label, string AddressLine1, string AddressLine2, string ContactName, string ContactPhone, double Latitude, double Longitude, bool IsDefault = false);
-public record UpdateCustomerAddressRequest(Guid CityAreaId, string Label, string AddressLine1, string AddressLine2, string ContactName, string ContactPhone, double Latitude, double Longitude, bool IsDefault = false);
+public record CreateCustomerAddressRequest(string City, string Pincode, string Locality, string Label, string AddressLine1, string AddressLine2, string ContactName, string ContactPhone, double Latitude, double Longitude, Guid? CityAreaId = null, bool IsDefault = false);
+public record UpdateCustomerAddressRequest(string City, string Pincode, string Locality, string Label, string AddressLine1, string AddressLine2, string ContactName, string ContactPhone, double Latitude, double Longitude, Guid? CityAreaId = null, bool IsDefault = false);
 public record DeliveryQuoteDto(Guid AddressId, double DistanceKm, decimal DeliveryFee, string AreaName);
 public record SubscriptionQuoteRequest(Guid OutletId, string DeliveryMode, string Duration, IReadOnlyList<MealSelectionItem> Selections, string? DiscountCode = null, IReadOnlyList<Guid>? ConfirmedAllergyRecipeIds = null, string? DeliveryCity = null);
 public record SubscriptionQuoteDto(decimal GrossMealAmount, decimal SubscriptionDiscountPercent, decimal SubscriptionDiscountAmount, decimal NetMealAmount, decimal RestaurantGstAmount, decimal DeliveryFee, decimal PlatformServiceFee, decimal PlatformServiceGst, decimal TotalCharged, decimal OutletCommissionPercent, decimal OutletCommissionAmount, decimal HealthAppRevenue, IReadOnlyList<DeliveryQuoteDto> DeliveryQuotes, IReadOnlyList<AllergyWarningDto> AllergyWarnings, bool RequiresAllergyConfirmation);
