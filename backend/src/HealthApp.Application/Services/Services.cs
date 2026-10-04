@@ -805,7 +805,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             var address=row.AddressId.HasValue
                 ? await addresses.GetAsync(subscription.CustomerId,row.AddressId.Value)
                 : null;
-            var area=address is null ? null : await areas.GetAsync(address.CityAreaId);
+            var area=address?.CityAreaId is Guid areaId ? await areas.GetAsync(areaId) : null;
             var slot=GetMealSlotInfo(row.MealSlot);
 
             meals.Add(new OutletSubscriptionMealDto(
