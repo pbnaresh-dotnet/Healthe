@@ -121,7 +121,7 @@ IPlatformServiceFeeStrategy platformFee, ITaxStrategy taxStrategy, IPackageDisco
 IDeliveryModeStrategyFactory deliveryModeFactory, IMealPriceStrategy mealPrice, ILateSkipFeePolicy lateSkipPolicy,
 IPlatformTransactionRepository transactions, IDomainEventDispatcher events, IUnitOfWork unitOfWork,
 ICustomerAddressRepository addresses, ISubscriptionDiscountTierRepository discountTiers, IMealSelectionHistoryRepository selectionHistory,
-IDeliveryCalculator deliveryCalculator, ICityAreaRepository cityAreas, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments) : ICustomerService
+IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments) : ICustomerService
 {
     public async Task<UserDto?> GetProfileAsync()
     {
@@ -579,11 +579,8 @@ IDeliveryCalculator deliveryCalculator, ICityAreaRepository cityAreas, IDiscount
         foreach(var addressId in addressIds.Select(x=>x!.Value))
         {
             var address=await addresses.GetAsync(customerId,addressId)??throw new KeyNotFoundException("One or more delivery addresses were not found.");
-            var area=await cityAreas.GetAsync(address.CityAreaId)??throw new KeyNotFoundException("One or more delivery areas were not found.");
-            if(!area.IsActive)
-                throw new ArgumentException("One or more selected delivery areas are inactive.");
-            if(!area.City.Equals(deliveryCity,StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException($"The package is for {deliveryCity}, but address {address.Label} is in {area.City}. Add or select an address in {deliveryCity}.");
+            if(!address.City.Equals(deliveryCity,StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException($"The package is for {deliveryCity}, but address {address.Label} is in {address.City}. Add or select an address in {deliveryCity}.");
         }
     }
     private async Task<Subscription> GetOwnedSubscription(Guid id) {
