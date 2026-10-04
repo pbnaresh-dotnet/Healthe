@@ -37,7 +37,7 @@ public interface IAdminService { Task<IReadOnlyList<OutletDto>> GetOutletsAsync(
 
 
 public interface ICustomerProfileRepository { Task<CustomerProfile?> GetAsync(Guid customerId); Task AddOrUpdateAsync(CustomerProfile profile); }
-public interface IServiceCityRepository { Task<IReadOnlyList<ServiceCity>> GetEnabledAsync(); Task<ServiceCity?> GetByCityAsync(string city); Task<ServiceCity?> GetByIdAsync(Guid id); Task AddAsync(ServiceCity city); Task UpdateAsync(ServiceCity city); }
+public interface IServiceCityRepository { Task<IReadOnlyList<ServiceCity>> GetAllAsync(); Task<IReadOnlyList<ServiceCity>> GetEnabledAsync(); Task<ServiceCity?> GetByCityAsync(string city); Task<ServiceCity?> GetByIdAsync(Guid id); Task AddAsync(ServiceCity city); Task UpdateAsync(ServiceCity city); }
 public interface ICityAreaRepository { Task<IReadOnlyList<CityArea>> GetActiveAsync(string? city = null); Task<CityArea?> GetAsync(Guid id); Task AddAsync(CityArea area); }
 public interface IOutletDeliveryAreaRepository { Task<IReadOnlyList<OutletDeliveryArea>> GetByOutletAsync(Guid outletId); Task<IReadOnlyList<CityArea>> GetAreasForOutletAsync(Guid outletId); Task ReplaceAsync(Guid outletId, IEnumerable<OutletDeliveryArea> areas); }
 public interface IDeliveryPricingRepository { Task<IReadOnlyList<DeliveryPricingRule>> GetByOutletAsync(Guid outletId); Task AddAsync(DeliveryPricingRule rule); Task DeleteAsync(Guid id, Guid outletId); }
