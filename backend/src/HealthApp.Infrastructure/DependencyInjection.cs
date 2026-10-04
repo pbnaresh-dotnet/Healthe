@@ -10,6 +10,7 @@ using HealthApp.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace HealthApp.Infrastructure;
 
@@ -28,6 +29,40 @@ public static class DependencyInjection
             }));
 
         services.Configure<JwtOptions>(config.GetSection("Jwt"));
+        services.Configure<StorageOptions>(config.GetSection("Storage"));
+        services.Configure<GeocodingOptions>(config.GetSection("Geocoding"));
+
+        var storageProvider = (config["Storage:Provider"] ?? "Local").Trim().ToLowerInvariant();
+        switch (storageProvider)
+        {
+            case "azureblob":
+                services.AddSingleton<IFileStorage, AzureBlobFileStorage>();
+                break;
+            case "local":
+                services.AddSingleton<IFileStorage, LocalFileStorage>();
+                break;
+            default:
+                throw new InvalidOperationException($"Unsupported Storage:Provider '{storageProvider}'.");
+        }
+
+        var geocodingProvider = (config["Geocoding:Provider"] ?? "Nominatim").Trim().ToLowerInvariant();
+        if (geocodingProvider == "nominatim")
+        {
+            services.AddHttpClient<IGeocodingService, NominatimGeocodingService>((sp, client) =>
+            {
+                var options = sp.GetRequiredService<IOptions<GeocodingOptions>>().Value;
+                var baseUrl = string.IsNullOrWhiteSpace(options.BaseUrl) ? "https://nominatim.openstreetmap.org" : options.BaseUrl.TrimEnd('/');
+                client.BaseAddress = new Uri(baseUrl + "/");
+                client.Timeout = TimeSpan.FromSeconds(10);
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(string.IsNullOrWhiteSpace(options.UserAgent) ? "HealthApp/1.0" : options.UserAgent);
+                if (!string.IsNullOrWhiteSpace(options.Referer))
+                    client.DefaultRequestHeaders.Referrer = new Uri(options.Referer);
+            });
+        }
+        else
+        {
+            throw new InvalidOperationException($"Unsupported Geocoding:Provider '{geocodingProvider}'.");
+        }
         services.AddSingleton<IPasswordService, PasswordService>();
         services.AddSingleton<ITokenService, JwtTokenService>();
 
