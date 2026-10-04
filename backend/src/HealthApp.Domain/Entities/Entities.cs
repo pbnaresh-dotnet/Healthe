@@ -94,6 +94,17 @@ public sealed class CustomerProfile
     = DateTime.UtcNow;
 }
 
+public sealed class ServiceCity
+{
+    public Guid Id { get; set; }
+    public string City { get; set; } = "";
+    public string State { get; set; } = "";
+    public string Country { get; set; } = "India";
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public bool IsEnabled { get; set; } = true;
+}
+
 public sealed class CityArea
 {
     public Guid Id {
@@ -191,10 +202,30 @@ public sealed class CustomerAddress
         get;
         set;
     }
-    public Guid CityAreaId {
+    public Guid? CityAreaId {
         get;
         set;
     }
+    public string City {
+        get;
+        set;
+    }
+    = "";
+    public string State {
+        get;
+        set;
+    }
+    = "";
+    public string Pincode {
+        get;
+        set;
+    }
+    = "";
+    public string Locality {
+        get;
+        set;
+    }
+    = "";
     public string Label {
         get;
         set;
