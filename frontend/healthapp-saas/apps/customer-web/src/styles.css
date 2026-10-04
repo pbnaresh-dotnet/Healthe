@@ -270,3 +270,42 @@ textarea{resize:vertical}
  .compactOutletMeta{display:none}
  .compactOutletActions{grid-column:1/-1;justify-content:flex-start}
 }
+
+/* Exact outlet-menu wireframe */
+.exactWireframeOutlet{padding:0!important;overflow:hidden;border-radius:14px}
+.wireOutletBanner{height:235px;position:relative;overflow:hidden;background:#e8eee9}
+.wireOutletBanner>img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.98)}
+.wireOutletBanner:after{content:"";position:absolute;inset:auto 0 0;height:96px;background:linear-gradient(transparent,#102219b8);pointer-events:none}
+.wireBannerBack,.wireBannerHeart{position:absolute;z-index:3;top:14px;border:0;background:#ffffffee;color:#26372c;border-radius:9px;padding:8px 10px;font-size:10px;font-weight:850;box-shadow:0 5px 14px #10221920}
+.wireBannerBack{left:14px}.wireBannerHeart{right:14px;width:35px;height:35px;padding:0;font-size:17px;color:#d44f44}
+.wireBannerBadges{position:absolute;z-index:3;left:14px;right:70px;bottom:13px;display:flex;gap:7px;flex-wrap:wrap}
+.wireBannerBadges span{background:#ffffffec;border:1px solid #e0e7e1;color:#315d3e;border-radius:8px;padding:6px 8px;font-size:8px;font-weight:850;box-shadow:0 2px 8px #10221912}
+.wireOutletIdentity{display:grid;grid-template-columns:56px 1fr;align-items:center;gap:12px;padding:12px 15px 9px}
+.wireOutletLogo{width:56px;height:56px;border-radius:13px;background:#eaf5ed;overflow:hidden;display:grid;place-items:center;border:1px solid #dbe7dd}
+.wireOutletLogo img{width:100%;height:100%;object-fit:cover}
+.wireOutletIdentityMain h3{margin:0;font-size:18px;line-height:1.15}.wireOutletIdentityMain p{margin:4px 0 4px;color:#708077;font-size:9px}
+.wireRating{display:flex;align-items:center;gap:4px;font-size:9px}.wireRating span:first-child{color:#f3a52d;font-size:12px}.wireRating b{font-size:10px}.wireRating span:last-child{color:#77837a}
+.wireOutletTabs{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid #e1e8e2;padding:0 15px}
+.wireOutletTabs button{position:relative;border:0;background:transparent;padding:11px 8px 10px;color:#68756d;font-size:10px;font-weight:800;cursor:pointer}
+.wireOutletTabs button.active{color:#176b35}.wireOutletTabs button.active:after{content:"";position:absolute;left:18%;right:18%;bottom:-1px;height:2px;background:#1e7b44}
+.wireSlotTabs{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:12px 15px 8px}
+.wireSlotTabs button{border:1px solid #dfe7e0;background:#fbfcfb;border-radius:9px;padding:9px 7px;text-align:center;color:#65726a;cursor:pointer}
+.wireSlotTabs button span,.wireSlotTabs button b,.wireSlotTabs button small{display:block}.wireSlotTabs button span{font-size:13px;color:#53755b}.wireSlotTabs button b{font-size:9px;margin-top:2px}.wireSlotTabs button small{font-size:7px;margin-top:2px;color:#7c877f}
+.wireSlotTabs button.active{border-color:#6bb282;background:#eef8f0;color:#216a39;box-shadow:inset 0 0 0 1px #a7d2b0}
+.wireMenuHeading{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:9px 15px 7px}.wireMenuHeading h3{margin:2px 0;font-size:17px}.wireMenuHeading p{margin:0;color:#758078;font-size:9px}.wireMenuHeading .chipRow{padding:0;justify-content:flex-end}
+.wireMealGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:5px 15px 17px}
+.wireMealCard{background:#fff;border:1px solid #e0e7e1;border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:0 3px 12px #15382008}
+.wireMealCard:hover{border-color:#7fb58d;box-shadow:0 7px 18px #15382012}
+.wireMealImage{height:142px;position:relative;background:#edf4ee}.wireMealImage img{width:100%;height:100%;object-fit:cover;display:block}
+.mealSave{position:absolute;right:8px;top:8px;border:0;width:27px;height:27px;border-radius:50%;background:#ffffffeb;color:#d8574e;padding:0;font-size:15px;box-shadow:0 3px 9px #0002}
+.wireMealBody{padding:9px 10px 10px}.wireMealBody h4{margin:0 0 4px;font-size:11px;line-height:1.3}.wireMealNutrition{font-size:8px;color:#707c74}.wireMealPrice{display:flex;justify-content:space-between;align-items:center;margin-top:9px}.wireMealPrice strong{font-size:12px}.wireMealPrice .smallBtn{padding:6px 10px;font-size:9px}
+.wireInfoPanel,.wireReviewsPanel,.wireLocationPanel{padding:18px 15px 20px;min-height:230px}.wireInfoPanel h3,.wireLocationPanel h3{margin:3px 0 8px;font-size:17px}.wireInfoPanel>p,.wireLocationPanel p{margin:0;color:#66736a;font-size:10px;line-height:1.6;max-width:720px}
+.wireAboutGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px}.wireAboutGrid div{display:flex;gap:8px;align-items:center;padding:10px;border:1px solid #e2e9e3;border-radius:10px;background:#fafcfb;font-size:9px}.wireAboutGrid span{color:#278049;font-weight:900}
+.wireReviewsSummary{display:flex;align-items:center;gap:18px;padding:11px;background:#f5faf6;border:1px solid #dbeadc;border-radius:11px}.wireReviewsSummary>div{min-width:90px;text-align:center}.wireReviewsSummary strong,.wireReviewsSummary span,.wireReviewsSummary small{display:block}.wireReviewsSummary strong{font-size:25px}.wireReviewsSummary span{color:#f2a82e;letter-spacing:2px;font-size:10px}.wireReviewsSummary small{font-size:8px;color:#77837a;margin-top:2px}.wireReviewsSummary p{margin:0;color:#627066;font-size:9px;line-height:1.45}
+.wireReviewRow{display:grid;grid-template-columns:33px 1fr;gap:10px;padding:12px 2px;border-bottom:1px solid #edf1ed}.reviewAvatar{width:33px;height:33px;border-radius:50%;background:#e1f0e5;color:#2d6c40;display:grid;place-items:center;font-weight:850;font-size:11px}.wireReviewRow b,.wireReviewRow span,.wireReviewRow p{display:block}.wireReviewRow b{font-size:10px}.wireReviewRow span{font-size:8px;color:#e59b27;margin-top:2px}.wireReviewRow p{margin:4px 0 0;font-size:9px;color:#6c786f}
+.wireLocationPanel{display:grid;grid-template-columns:1fr 1.2fr;gap:15px;align-items:stretch}.wireLocationStats{display:flex;gap:8px;margin-top:14px}.wireLocationStats span{display:grid;gap:4px;padding:9px 11px;background:#f6f9f6;border:1px solid #e2e9e3;border-radius:9px;font-size:8px;color:#77837a}.wireLocationStats b{font-size:10px;color:#2e6440}.wireLocationMap{min-height:225px;border-radius:12px;overflow:hidden;border:1px solid #dfe7e0}.outletLocationMap{height:225px;width:100%}
+.outletRatingLine{display:flex;align-items:center;gap:4px;font-size:9px;margin:-1px 0 8px}.outletRatingLine span:first-child{color:#f2a42d;font-size:12px}.outletRatingLine b{font-size:10px}.outletRatingLine span:last-child{color:#77837a}
+.wireOutletCard .outletDiscoveryBody{padding:11px 12px}.wireOutletCard .outletTitleLine h3{font-size:14px;margin:0}.wireOutletCard .outletTitleLine p{margin:3px 0 0;font-size:9px}.wireOutletCard .outletHeroThumb{height:150px}.wireOutletCard .healthChipRow{gap:5px}.wireOutletCard .healthChipRow span{font-size:8px;padding:4px 6px}
+.wireOutletCard .outletDiscoveryFoot{display:flex;justify-content:space-between;gap:7px;margin-top:9px}.wireOutletCard .openBadge{display:none}
+@media(max-width:900px){.wireOutletBanner{height:210px}.wireMealGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.wireLocationPanel{grid-template-columns:1fr}.wireLocationMap{min-height:180px}.outletLocationMap{height:180px}.wireMenuHeading{display:block}.wireMenuHeading .chipRow{margin-top:7px;justify-content:flex-start}.wireSlotTabs{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.wireOutletBanner{height:190px}.wireOutletIdentity{padding:10px 12px 7px}.wireOutletTabs{padding:0 8px}.wireOutletTabs button{font-size:9px}.wireSlotTabs{padding:9px 10px 6px}.wireMealGrid{grid-template-columns:1fr;padding:5px 10px 14px}.wireMealImage{height:175px}.wireBannerBadges{left:10px;bottom:10px;gap:4px}.wireBannerBadges span{padding:5px 6px}.wireInfoPanel,.wireReviewsPanel,.wireLocationPanel{padding:14px 11px}.wireReviewsSummary{display:block}.wireReviewsSummary>div{text-align:left}.wireOutletCard .outletHeroThumb{height:135px}}
