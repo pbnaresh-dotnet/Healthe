@@ -298,6 +298,9 @@ public sealed class ServiceCityRepository(HealthAppDbContext db) : EfRepository(
     public Task<ServiceCity?> GetByCityAsync(string city) =>
         db.ServiceCities.FirstOrDefaultAsync(x => x.City == city);
 
+    public Task<ServiceCity?> GetByIdAsync(Guid id) =>
+        db.ServiceCities.FirstOrDefaultAsync(x => x.Id == id);
+
     public async Task AddAsync(ServiceCity city)
     {
         db.ServiceCities.Add(city);
