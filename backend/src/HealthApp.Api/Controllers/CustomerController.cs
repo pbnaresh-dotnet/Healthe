@@ -9,6 +9,7 @@ namespace HealthApp.Api.Controllers;
 public sealed class CustomerController(ICustomerService service) : ControllerBase
 {
     [HttpGet("profile")] public async Task<IActionResult> Profile() => Ok(await service.GetProfileAsync());
+    [HttpGet("dashboard")] public async Task<IActionResult> Dashboard() => Ok(await service.GetDashboardAsync());
     [HttpGet("subscriptions")] public async Task<IActionResult> Subscriptions() => Ok(await service.GetSubscriptionsAsync());
     [HttpPost("subscriptions/quote")] public async Task<IActionResult> Quote(SubscriptionQuoteRequest request) => Ok(await service.QuoteAsync(request));
     [HttpPost("subscriptions")] public async Task<IActionResult> Subscribe(CreateSubscriptionRequest request) => Ok(await service.SubscribeAsync(request));
