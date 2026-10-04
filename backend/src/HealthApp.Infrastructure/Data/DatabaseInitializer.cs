@@ -14,6 +14,34 @@ public static class DatabaseInitializer
         // Development/demo compatibility: normalized catalog tables are created explicitly because
         // EnsureCreatedAsync does not evolve an already-existing database.
         await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.ServiceCities','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ServiceCities(
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_ServiceCities PRIMARY KEY,
+        City nvarchar(100) NOT NULL,
+        State nvarchar(100) NOT NULL,
+        Country nvarchar(100) NOT NULL,
+        Latitude float NOT NULL,
+        Longitude float NOT NULL,
+        IsEnabled bit NOT NULL CONSTRAINT DF_ServiceCities_IsEnabled DEFAULT 1
+    );
+    CREATE UNIQUE INDEX IX_ServiceCities_City ON dbo.ServiceCities(City);
+END;
+IF COL_LENGTH('dbo.CustomerAddresses','City') IS NULL
+    ALTER TABLE dbo.CustomerAddresses ADD City nvarchar(100) NULL;
+IF COL_LENGTH('dbo.CustomerAddresses','State') IS NULL
+    ALTER TABLE dbo.CustomerAddresses ADD State nvarchar(100) NULL;
+IF COL_LENGTH('dbo.CustomerAddresses','Pincode') IS NULL
+    ALTER TABLE dbo.CustomerAddresses ADD Pincode nvarchar(20) NULL;
+IF COL_LENGTH('dbo.CustomerAddresses','Locality') IS NULL
+    ALTER TABLE dbo.CustomerAddresses ADD Locality nvarchar(150) NULL;
+IF COL_LENGTH('dbo.CustomerAddresses','CityAreaId') IS NOT NULL
+    ALTER TABLE dbo.CustomerAddresses ALTER COLUMN CityAreaId uniqueidentifier NULL;
+", cancellationToken);
+
+        // Development/demo compatibility: normalized catalog tables are created explicitly because
+        // EnsureCreatedAsync does not evolve an already-existing database.
+        await db.Database.ExecuteSqlRawAsync(@"
 IF OBJECT_ID('dbo.Ingredients','U') IS NULL
 BEGIN
     CREATE TABLE dbo.Ingredients(
@@ -170,6 +198,20 @@ IF COL_LENGTH('dbo.CustomerProfiles','Allergies') IS NOT NULL
 -- Legacy column retained for older databases; normalized RecipeAllergens/IngredientAllergens are authoritative.
 IF COL_LENGTH('dbo.Recipes','Allergens') IS NOT NULL
     ALTER TABLE dbo.Recipes ALTER COLUMN Allergens nvarchar(max) NULL;
+", cancellationToken);
+
+        await db.Database.ExecuteSqlRawAsync(@"
+UPDATE ca
+SET City = COALESCE(NULLIF(ca.City, ''), area.City),
+    State = COALESCE(NULLIF(ca.State, ''), area.State),
+    Pincode = COALESCE(NULLIF(ca.Pincode, ''), area.Pincode),
+    Locality = COALESCE(NULLIF(ca.Locality, ''), area.Name)
+FROM dbo.CustomerAddresses ca
+LEFT JOIN dbo.CityAreas area ON area.Id = ca.CityAreaId
+WHERE (ca.City IS NULL OR ca.City = '')
+   OR (ca.State IS NULL OR ca.State = '')
+   OR (ca.Pincode IS NULL OR ca.Pincode = '')
+   OR (ca.Locality IS NULL OR ca.Locality = '');
 ", cancellationToken);
 
         // Run data updates in separate SQL batches so SQL Server compiles the UPDATE statements
