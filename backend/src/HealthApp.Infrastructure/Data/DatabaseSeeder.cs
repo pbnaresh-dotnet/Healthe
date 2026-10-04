@@ -404,7 +404,7 @@ public static class DatabaseSeeder
             {
                 Slug = "dilli-rasoi",
                 Name = "Dilli Rasoi Delhi",
-                Subdomain = "dillirrasoi",
+                Subdomain = "dillirasoi",
                 City = "New Delhi",
                 State = "Delhi",
                 Pincode = "110001",
