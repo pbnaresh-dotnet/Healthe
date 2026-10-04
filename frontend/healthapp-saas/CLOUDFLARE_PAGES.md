@@ -110,3 +110,125 @@ For API verification, open:
 `https://YOUR-PUBLIC-API-HOST/health`
 
 and confirm the API returns `status=ok`.
+
+
+## Temporary public API with Cloudflare Quick Tunnel
+
+For a free test environment, keep the .NET API and SQL Server on the development PC and expose only the HTTP API through a Cloudflare Quick Tunnel.
+
+The API's local HTTP address is:
+
+```text
+http://localhost:50448
+```
+
+### 1. Install cloudflared on Windows
+
+Download the current Windows 64-bit `cloudflared` executable from Cloudflare's official downloads page:
+
+https://developers.cloudflare.com/tunnel/downloads/
+
+Rename it to `cloudflared.exe` and place it in a folder such as:
+
+```text
+C:\Cloudflared\cloudflared.exe
+```
+
+Cloudflare's Windows instructions also allow installing it as a service when you need a persistent named tunnel. For the temporary test flow, the standalone executable is enough.
+
+Verify:
+
+```powershell
+C:\Cloudflared\cloudflared.exe --version
+```
+
+### 2. Start the HealthApp API
+
+From the repository:
+
+```powershell
+dotnet run --project backend/src/HealthApp.Api --launch-profile http
+```
+
+Confirm locally in a browser:
+
+```text
+http://localhost:50448/health
+```
+
+You should get a JSON response containing `"status":"ok"`.
+
+### 3. Start a Quick Tunnel
+
+Open a second PowerShell window:
+
+```powershell
+C:\Cloudflared\cloudflared.exe tunnel --url http://localhost:50448
+```
+
+Cloudflare will print a temporary URL similar to:
+
+```text
+https://random-name.trycloudflare.com
+```
+
+Anyone who has that URL can reach the API while the tunnel process is running. Cloudflare documents Quick Tunnels as temporary development tunnels with no domain/account requirement. The hostname changes when you create a new Quick Tunnel and the URL stops working when the process exits.
+
+### 4. Test the public API
+
+Open:
+
+```text
+https://random-name.trycloudflare.com/health
+```
+
+The response should still contain:
+
+```json
+{"status":"ok"}
+```
+
+Then the customer API is:
+
+```text
+https://random-name.trycloudflare.com/api/...
+```
+
+### 5. Connect the Customer Worker
+
+In Cloudflare:
+
+```text
+Workers & Pages
+  -> healthapp-customer
+  -> Settings
+  -> Variables and Secrets
+```
+
+Create/update:
+
+```text
+VITE_API_BASE_URL=https://random-name.trycloudflare.com/api
+```
+
+Set it for the Production environment.
+
+Because Vite embeds `VITE_*` values during the frontend build, changing this variable requires a new deployment of the Customer Worker.
+
+### 6. Connect Outlet and Admin
+
+Repeat the same variable for:
+
+```text
+healthapp-outlet
+VITE_API_BASE_URL=https://random-name.trycloudflare.com/api
+
+healthapp-admin
+VITE_API_BASE_URL=https://random-name.trycloudflare.com/api
+```
+
+Then trigger a new deployment for each Worker.
+
+### Important
+
+This Quick Tunnel is intentionally temporary. It is suitable for testing the HealthApp UI from another device, but it should not be used as the production API architecture. For a stable hostname, create a named Cloudflare Tunnel and map a domain such as `api.example.com` to it. Cloudflare Tunnel is available on all plans, and a named tunnel can be run as a Windows service for persistent connectivity. 
