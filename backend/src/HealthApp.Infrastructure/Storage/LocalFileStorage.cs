@@ -8,7 +8,10 @@ public sealed class LocalFileStorage(IHostEnvironment environment, IOptions<Stor
 {
     public async Task<FileStorageResult> UploadAsync(Stream content, string fileName, string contentType, string folder, CancellationToken cancellationToken = default)
     {
-        var safeFolder = string.Join("/", (folder ?? "files").Split('/', '\', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        var segments = (folder ?? "files")
+            .Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => x != "." && x != "..");
+        var safeFolder = string.Join("/", segments);
         var extension = Path.GetExtension(fileName);
         var storedName = $"{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
         var root = Path.IsPathRooted(options.Value.LocalRoot)
@@ -21,8 +24,8 @@ public sealed class LocalFileStorage(IHostEnvironment environment, IOptions<Stor
         await using var output = System.IO.File.Create(physicalPath);
         await content.CopyToAsync(output, cancellationToken);
 
-        var key = $"{safeFolder}/{storedName}".Replace("\", "/");
+        var key = $"{safeFolder}/{storedName}".Replace("\\", "/");
         var publicBase = string.IsNullOrWhiteSpace(options.Value.PublicBaseUrl) ? "/uploads" : options.Value.PublicBaseUrl.TrimEnd('/');
-        return new FileStorageResult($"{publicBase}/{key}", key, contentType);
+        return new FileStorageResult($"{publicBase}/{key}", key, string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType);
     }
 }
