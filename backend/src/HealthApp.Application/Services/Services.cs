@@ -39,7 +39,7 @@ public sealed class AuthService(IUserRepository users, IOutletRepository outlets
         return tokens.CreateToken(user);
     }
 }
-public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepository plans, IRecipeRepository recipes, IOutletMenuRepository menu, ISaaSPlanRepository saasPlans) : IMarketplaceService
+public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepository plans, IRecipeRepository recipes, IOutletMenuRepository menu, ISaaSPlanRepository saasPlans, ICityAreaRepository areas) : IMarketplaceService
 {
     public async Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync() => (await saasPlans.GetActiveAsync()).Select(Map).ToList();
     public async Task<AvailabilityResponse> GetAvailabilityAsync(double latitude, double longitude)
@@ -50,7 +50,26 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
         .Select(x => ToDto(x.outlet, x.distance)).ToList();
         return new(result.Count > 0, result.Count > 0 ? $"{result.Count} outlet(s) serve your location." : "No active outlet currently serves your location.", result);
     }
-    public async Task<IReadOnlyList<OutletDto>> GetAllOutletsAsync() => (await outlets.GetAllAsync()).Where(x => x.Status == OutletStatus.Active).Select(x => ToDto(x, 0)).ToList();
+    public async Task<IReadOnlyList<CityDto>> GetCitiesAsync()
+    {
+        var rows = await areas.GetActiveAsync();
+        return rows
+            .GroupBy(x => $"{x.City.Trim()}|{x.State.Trim()}", StringComparer.OrdinalIgnoreCase)
+            .Select(g =>
+            {
+                var first = g.First();
+                return new CityDto(first.City, first.State, g.Count());
+            })
+            .OrderBy(x => x.City)
+            .ToList();
+    }
+    public async Task<IReadOnlyList<OutletDto>> GetAllOutletsAsync(string? city = null)
+    {
+        var rows = (await outlets.GetAllAsync()).Where(x => x.Status == OutletStatus.Active);
+        if (!string.IsNullOrWhiteSpace(city))
+            rows = rows.Where(x => x.City.Equals(city.Trim(), StringComparison.OrdinalIgnoreCase));
+        return rows.Select(x => ToDto(x, 0)).ToList();
+    }
     public async Task<OutletDto?> GetOutletAsync(string slug) {
         var x = await outlets.GetBySlugAsync(slug);
         return x is null ? null : ToDto(x, 0);
