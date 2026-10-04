@@ -350,7 +350,7 @@ public static class DatabaseSeeder
             Id=Guid.NewGuid(),OutletId=fitId,MinMeals=50,MaxMeals=null,OneWeekPercent=6,TwoWeeksPercent=7,OneMonthPercent=6
         });
         db.CustomerAddresses.Add(new CustomerAddress {
-            Id=Guid.NewGuid(),CustomerId=customerId,CityAreaId=areas.First(x=>x.Name=="Indiranagar").Id,Label="Home",AddressLine1="100 12th Main Road",AddressLine2="Indiranagar",ContactName="Demo Customer",ContactPhone="9999999999",Latitude=12.9784,Longitude=77.6408,IsDefault=true
+            Id=Guid.NewGuid(),CustomerId=customerId,CityAreaId=areas.First(x=>x.Name=="Indiranagar").Id,City="Bengaluru",State="Karnataka",Pincode="560038",Locality="Indiranagar",Label="Home",AddressLine1="100 12th Main Road",AddressLine2="Indiranagar",ContactName="Demo Customer",ContactPhone="9999999999",Latitude=12.9784,Longitude=77.6408,IsDefault=true
         });
         var demoCustomer=await db.Users.FirstAsync(x=>x.Email=="customer@healthapp.test",ct);
         foreach(var name in new[] {
