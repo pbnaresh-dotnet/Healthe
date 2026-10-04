@@ -35,3 +35,10 @@ Delivery modes:
 Late skip is a separate HealthApp financial event and is not part of outlet commission.
 
 Unused meals can be rescheduled through subscription end + seven calendar days.
+
+
+## External service boundaries
+
+Images and other uploaded files use the `IFileStorage` abstraction. The default development provider stores files locally; production can switch to Azure Blob Storage through `Storage:Provider` configuration without changing the API/application layer.
+
+Address map lookup uses the `IGeocodingService` abstraction. Customer-selected latitude/longitude remains the authoritative delivery pinpoint; reverse geocoding only supplies editable address text and helps match the HealthApp city/area master.
