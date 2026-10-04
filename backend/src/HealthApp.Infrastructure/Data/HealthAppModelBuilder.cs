@@ -30,6 +30,7 @@ internal static class HealthAppModelBuilder
         ConfigureDeliveryRoute(b.Entity<DeliveryRoute>());
         ConfigureDeliveryRouteStop(b.Entity<DeliveryRouteStop>());
         ConfigureCustomerProfile(b.Entity<CustomerProfile>());
+        ConfigureServiceCity(b.Entity<ServiceCity>());
         ConfigureCityArea(b.Entity<CityArea>());
         ConfigureOutletDeliveryArea(b.Entity<OutletDeliveryArea>());
         ConfigureDeliveryPricing(b.Entity<DeliveryPricingRule>());
@@ -343,6 +344,15 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.Diet).HasMaxLength(1000);
         e.HasOne<User>().WithOne(x=>x.CustomerProfile).HasForeignKey<CustomerProfile>(x=>x.CustomerId).OnDelete(DeleteBehavior.Cascade);
     }
+    private static void ConfigureServiceCity(EntityTypeBuilder<ServiceCity> e)
+    {
+        e.ToTable("ServiceCities");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.City).HasMaxLength(100).IsRequired();
+        e.Property(x => x.State).HasMaxLength(100).IsRequired();
+        e.Property(x => x.Country).HasMaxLength(100).IsRequired();
+        e.HasIndex(x => x.City).IsUnique();
+    }
     private static void ConfigureCityArea(EntityTypeBuilder<CityArea> e)
     {
         e.ToTable("CityAreas");
@@ -362,7 +372,7 @@ internal static class HealthAppModelBuilder
         e.HasIndex(x => new {
             x.OutletId, x.CityAreaId
         }).IsUnique();
-        e.HasOne<CityArea>().WithMany().HasForeignKey(x => x.CityAreaId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<CityArea>().WithMany().HasForeignKey(x => x.CityAreaId).OnDelete(DeleteBehavior.NoAction).IsRequired(false);
     }
     private static void ConfigureDeliveryPricing(EntityTypeBuilder<DeliveryPricingRule> e)
     {
@@ -378,6 +388,10 @@ internal static class HealthAppModelBuilder
     {
         e.ToTable("CustomerAddresses");
         e.HasKey(x => x.Id);
+        e.Property(x => x.City).HasMaxLength(100).IsRequired();
+        e.Property(x => x.State).HasMaxLength(100).IsRequired();
+        e.Property(x => x.Pincode).HasMaxLength(20);
+        e.Property(x => x.Locality).HasMaxLength(150);
         e.Property(x => x.Label).HasMaxLength(50).IsRequired();
         e.Property(x => x.AddressLine1).HasMaxLength(300).IsRequired();
         e.Property(x => x.AddressLine2).HasMaxLength(300);
