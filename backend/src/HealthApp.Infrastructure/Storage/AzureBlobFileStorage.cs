@@ -36,11 +36,11 @@ public sealed class AzureBlobFileStorage(IOptions<StorageOptions> options) : IFi
 
         await blob.UploadAsync(
             content,
-            new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } },
+            new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType } },
             cancellationToken);
 
         var publicBase = _options.PublicBaseUrl?.TrimEnd('/');
         var url = string.IsNullOrWhiteSpace(publicBase) ? blob.Uri.ToString() : $"{publicBase}/{key}";
-        return new FileStorageResult(url, key, contentType);
+        return new FileStorageResult(url, key, string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType);
     }
 }
