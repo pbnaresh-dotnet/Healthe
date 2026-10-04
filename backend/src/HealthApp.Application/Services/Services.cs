@@ -571,6 +571,8 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if(meals.Count==0)throw new ArgumentException("At least one meal is required.");
         var start=meals.Min(x=>x.MealDate).Date;
         var end=duration switch {
+            SubscriptionDuration.ThreeDays=>start.AddDays(2),
+            SubscriptionDuration.FiveDays=>start.AddDays(4),
             SubscriptionDuration.OneWeek=>start.AddDays(6),
             SubscriptionDuration.TwoWeeks=>start.AddDays(13),
             SubscriptionDuration.OneMonth=>start.AddDays(27),
