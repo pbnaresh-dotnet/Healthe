@@ -11,6 +11,7 @@ public record PlatformRevenueDto(decimal OutletSubscriptionRevenue, decimal Cust
 public record MealPlanDto(Guid Id, Guid OutletId, string Name, string Frequency, int MealsPerDay, int MealsPerWeek, decimal Price, string Currency, string Description, bool IsActive);
 public record IngredientDto(Guid Id, string Name, string DefaultUnit);
 public record AllergenDto(Guid Id, string Name);
+public record CustomerLikedMealDto(Guid RecipeId, string RecipeName, string ImageUrl, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, string Category, decimal PricePerMeal);
 public record RecipeIngredientInput(Guid IngredientId, decimal Quantity, string Unit);
 public record RecipeIngredientDto(Guid IngredientId, string Name, decimal Quantity, string Unit, IReadOnlyList<AllergenDto> Allergens);
 public record AllergyWarningDto(Guid RecipeId, string RecipeName, IReadOnlyList<string> MatchedAllergies, IReadOnlyList<string> MatchedIngredients, string Message);
