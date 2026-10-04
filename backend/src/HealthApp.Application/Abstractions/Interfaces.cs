@@ -37,6 +37,7 @@ public interface IAdminService { Task<IReadOnlyList<OutletDto>> GetOutletsAsync(
 
 
 public interface ICustomerProfileRepository { Task<CustomerProfile?> GetAsync(Guid customerId); Task AddOrUpdateAsync(CustomerProfile profile); }
+public interface IServiceCityRepository { Task<IReadOnlyList<ServiceCity>> GetEnabledAsync(); Task<ServiceCity?> GetByCityAsync(string city); Task AddAsync(ServiceCity city); Task UpdateAsync(ServiceCity city); }
 public interface ICityAreaRepository { Task<IReadOnlyList<CityArea>> GetActiveAsync(string? city = null); Task<CityArea?> GetAsync(Guid id); Task AddAsync(CityArea area); }
 public interface IOutletDeliveryAreaRepository { Task<IReadOnlyList<OutletDeliveryArea>> GetByOutletAsync(Guid outletId); Task<IReadOnlyList<CityArea>> GetAreasForOutletAsync(Guid outletId); Task ReplaceAsync(Guid outletId, IEnumerable<OutletDeliveryArea> areas); }
 public interface IDeliveryPricingRepository { Task<IReadOnlyList<DeliveryPricingRule>> GetByOutletAsync(Guid outletId); Task AddAsync(DeliveryPricingRule rule); Task DeleteAsync(Guid id, Guid outletId); }
@@ -52,6 +53,7 @@ public interface ICustomerAddressService { Task<IReadOnlyList<CustomerAddressDto
 public interface ICustomerProfileService { Task<CustomerProfileDto?> GetAsync(); Task<CustomerProfileDto?> SaveAsync(SaveCustomerProfileRequest request); }
 public interface IOutletDeliveryService { Task<IReadOnlyList<CityAreaDto>> GetAvailableAreasAsync(string? city); Task<IReadOnlyList<OutletDeliveryAreaDto>> GetAreasAsync(); Task<IReadOnlyList<DeliveryPricingRuleDto>> GetPricingAsync(); Task<IReadOnlyList<OutletDeliveryAreaDto>> SaveAreasAsync(SaveOutletDeliveryAreasRequest request); Task<DeliveryPricingRuleDto?> AddPricingAsync(CreateDeliveryPricingRuleRequest request); Task<bool> DeletePricingAsync(Guid id); }
 public interface IDiscountConfigurationService { Task<IReadOnlyList<SubscriptionDiscountTierDto>> GetTiersAsync(); Task<SubscriptionDiscountTierDto?> AddTierAsync(SaveSubscriptionDiscountTierRequest request); Task<SubscriptionDiscountTierDto?> UpdateTierAsync(Guid id, SaveSubscriptionDiscountTierRequest request); Task<bool> DeleteTierAsync(Guid id); }
+public interface IServiceCityAdminService { Task<IReadOnlyList<ServiceCityDto>> GetAsync(); Task<ServiceCityDto?> CreateAsync(CreateServiceCityRequest request); Task<ServiceCityDto?> SetEnabledAsync(Guid id, bool enabled); }
 public interface ICityAreaAdminService { Task<IReadOnlyList<CityAreaDto>> GetAsync(string? city); Task<CityAreaDto?> CreateAsync(CreateCityAreaRequest request); }
 public interface IPaymentService { Task<PaymentDto?> CreateAsync(CreatePaymentRequest request); Task<PaymentDto?> GetAsync(Guid id); }
 public interface IDeliveryLabelService { Task<IReadOnlyList<DeliveryLabelDto>> GetLabelsAsync(DateTime? date); }
