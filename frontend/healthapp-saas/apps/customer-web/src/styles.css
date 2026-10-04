@@ -247,3 +247,26 @@ textarea{resize:vertical}
 .mealBadge.protein{background:#78b8e6}
 .mealInfoIcon{position:absolute;right:9px;bottom:8px;width:22px;height:22px;border-radius:50%;background:#ffffffea;color:#ef5b2d;display:grid;place-items:center;font-size:12px;font-weight:900}
 @media(max-width:700px){.menuBrowseGrid{grid-template-columns:1fr!important}.screenshotMealImage{height:185px}}
+
+.compactOutletHeader{display:grid;grid-template-columns:auto 104px minmax(0,1fr) auto;align-items:center;gap:14px;padding:12px 14px;background:#fff;border:1px solid #dfe8e0;border-radius:14px;margin-bottom:10px;box-shadow:0 5px 18px #173b2407}
+.compactBack{white-space:nowrap;height:34px;padding:7px 9px!important}
+.compactOutletMedia{width:104px;height:78px;border-radius:10px;overflow:hidden;background:#edf4ee}
+.compactOutletMedia img{width:100%;height:100%;object-fit:cover;display:block}
+.compactOutletInfo{min-width:0}
+.compactOutletEyebrow{display:flex;align-items:center;gap:7px}
+.compactOutletInfo h3{margin:3px 0 2px;font-size:20px;line-height:1.15}
+.compactOutletInfo>span{display:block;color:#718078;font-size:9px}
+.compactOutletMeta{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.compactOutletMeta span{display:inline-flex;padding:4px 6px;border-radius:999px;background:#f1f6f1;color:#5d7062;font-size:8px;font-weight:750}
+.openBadge.inline{position:static;display:inline-block;padding:4px 6px;border-radius:6px;background:#e6f5e9;color:#24713e}
+.compactOutletActions{display:flex;gap:7px;justify-content:flex-end}
+.wireMenuDetail{padding:12px}
+.wireMenuDetail .outletMenuCta{margin-top:14px}
+@media(max-width:900px){
+ .compactOutletHeader{grid-template-columns:78px minmax(0,1fr);gap:10px}
+ .compactBack{grid-column:1/-1;justify-self:start}
+ .compactOutletMedia{width:78px;height:68px}
+ .compactOutletInfo h3{font-size:16px}
+ .compactOutletMeta{display:none}
+ .compactOutletActions{grid-column:1/-1;justify-content:flex-start}
+}
