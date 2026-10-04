@@ -287,6 +287,30 @@ public sealed class CustomerAllergyRepository(HealthAppDbContext db) : EfReposit
     }
 }
 
+public sealed class ServiceCityRepository(HealthAppDbContext db) : EfRepository(db), IServiceCityRepository
+{
+    public async Task<IReadOnlyList<ServiceCity>> GetEnabledAsync() =>
+        await db.ServiceCities.AsNoTracking()
+            .Where(x => x.IsEnabled)
+            .OrderBy(x => x.City)
+            .ToListAsync();
+
+    public Task<ServiceCity?> GetByCityAsync(string city) =>
+        db.ServiceCities.FirstOrDefaultAsync(x => x.City == city);
+
+    public async Task AddAsync(ServiceCity city)
+    {
+        db.ServiceCities.Add(city);
+        await db.SaveChangesAsync();
+    }
+
+    public async Task UpdateAsync(ServiceCity city)
+    {
+        db.ServiceCities.Update(city);
+        await db.SaveChangesAsync();
+    }
+}
+
 public sealed class CityAreaRepository(HealthAppDbContext db) : EfRepository(db), ICityAreaRepository
 {
     public async Task<IReadOnlyList<CityArea>> GetActiveAsync(string? city = null)
