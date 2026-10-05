@@ -38,8 +38,8 @@ public sealed class DeliveryRouteService(
             throw new ArgumentException("Driver email is required.");
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
             throw new ArgumentException("Driver password must be at least 6 characters.");
-        if (await users.FindByEmailAsync(request.Email.Trim()) is not null)
-            throw new InvalidOperationException("Email is already registered.");
+        if (await users.FindByEmailAsync(request.Email.Trim(), outletId) is not null)
+            throw new InvalidOperationException("Email is already registered for this outlet.");
 
         var driver = new User
         {
