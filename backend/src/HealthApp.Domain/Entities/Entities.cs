@@ -483,6 +483,10 @@ public sealed class OrderFinancialBreakdown
         get;
         set;
     }
+    public GstMode RestaurantGstMode {
+        get;
+        set;
+    } = GstMode.Exclusive;
     public decimal RestaurantGstAmount {
         get;
         set;
