@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HealthApp.Api.Controllers;
 
 [ApiController, Route("api/files"), Authorize]
-public sealed class FilesController(IFileStorage fileStorage) : ControllerBase
+public sealed class FilesController(IFileStorage fileStorage, ICurrentUser current) : ControllerBase
 {
     private static readonly IReadOnlyDictionary<string, string[]> AllowedExtensions =
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
@@ -39,11 +39,15 @@ public sealed class FilesController(IFileStorage fileStorage) : ControllerBase
             });
 
         await using var stream = file.OpenReadStream();
+        var tenantFolder = current.OutletId is Guid outletId
+            ? $"outlets/{outletId:N}/{folder}"
+            : $"platform/{folder}";
+
         var stored = await fileStorage.UploadAsync(
             stream,
             file.FileName,
             file.ContentType,
-            folder,
+            tenantFolder,
             HttpContext.RequestAborted);
 
         return Ok(new
