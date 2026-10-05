@@ -88,11 +88,20 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
     }
     public async Task<OutletDto?> GetOutletAsync(string slug) {
         var x = await outlets.GetBySlugAsync(slug);
-        return x is null ? null : ToDto(x, 0);
+        return x is null || x.Status != OutletStatus.Live ? null : ToDto(x, 0);
     }
-    public async Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(Guid outletId) => (await plans.GetByOutletAsync(outletId)).Where(x => x.IsActive).Select(Map).ToList();
-    public async Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(Guid outletId, string? category) => (await recipes.GetByOutletAndCategoryAsync(outletId, category)).Where(x => x.IsActive).Select(Map).ToList();
-    public async Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(Guid outletId) => await MapMenu(outletId, await menu.GetByOutletAsync(outletId));
+    public async Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(Guid outletId) {
+        var outlet = await outlets.GetByIdAsync(outletId);
+        return outlet is null || outlet.Status != OutletStatus.Live ? [] : (await plans.GetByOutletAsync(outletId)).Where(x => x.IsActive).Select(Map).ToList();
+    }
+    public async Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(Guid outletId, string? category) {
+        var outlet = await outlets.GetByIdAsync(outletId);
+        return outlet is null || outlet.Status != OutletStatus.Live ? [] : (await recipes.GetByOutletAndCategoryAsync(outletId, category)).Where(x => x.IsActive).Select(Map).ToList();
+    }
+    public async Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(Guid outletId) {
+        var outlet = await outlets.GetByIdAsync(outletId);
+        return outlet is null || outlet.Status != OutletStatus.Live ? [] : await MapMenu(outletId, await menu.GetByOutletAsync(outletId));
+    }
     private async Task<IReadOnlyList<MenuItemDto>> MapMenu(Guid outletId, IReadOnlyList<OutletMenuItem> items)
     {
         var rs = (await recipes.GetByOutletAsync(outletId)).ToDictionary(x => x.Id);
