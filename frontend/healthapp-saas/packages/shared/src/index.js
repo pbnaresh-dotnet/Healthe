@@ -8,18 +8,12 @@ export const TENANT_OUTLET_SLUG=String(import.meta.env.VITE_OUTLET_SLUG||'').tri
 
 let runtimeTenantSlug=TENANT_OUTLET_SLUG;
 let runtimeTenantHost=TENANT_OUTLET_SLUG?HOSTNAME:'';
-const storedTenantHost=()=>{try{return String(sessionStorage.getItem('ha_tenant_host')||'').trim().toLowerCase()}catch{return ''}};
-const storedTenantSlug=()=>{try{return String(sessionStorage.getItem('ha_tenant_slug')||'').trim().toLowerCase()}catch{return ''}};
 export const getTenantOutletSlug=()=>{
   if(runtimeTenantSlug&&(!runtimeTenantHost||runtimeTenantHost===HOSTNAME))return runtimeTenantSlug;
-  if(storedTenantHost()===HOSTNAME&&storedTenantSlug())return storedTenantSlug();
   return '';
 };
 export async function resolveTenantFromHost(){
-  if(TENANT_OUTLET_SLUG)return null;
-  if(!API_BASE||!HOSTNAME)return null;
-  if(storedTenantHost()===HOSTNAME&&storedTenantSlug())runtimeTenantSlug=storedTenantSlug(),runtimeTenantHost=HOSTNAME;
-  if(runtimeTenantSlug&&runtimeTenantHost===HOSTNAME)return null;
+  if(TENANT_OUTLET_SLUG||!API_BASE||!HOSTNAME)return null;
   const res=await fetch(`${API_BASE}/tenant/resolve?host=${encodeURIComponent(HOSTNAME)}`);
   if(res.status===404)return null;
   if(!res.ok)throw new Error('Unable to resolve the outlet for this hostname.');
@@ -28,7 +22,6 @@ export async function resolveTenantFromHost(){
   if(!slug)return null;
   runtimeTenantSlug=slug;
   runtimeTenantHost=HOSTNAME;
-  try{sessionStorage.setItem('ha_tenant_host',HOSTNAME);sessionStorage.setItem('ha_tenant_slug',slug)}catch{}
   return outlet;
 }
 const readToken=()=>localStorage.getItem('ha_token');
