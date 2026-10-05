@@ -75,7 +75,7 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
         return tokens.CreateToken(user);
     }
 }
-public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepository plans, IRecipeRepository recipes, IOutletMenuRepository menu, ISaaSPlanRepository saasPlans, IServiceCityRepository serviceCities) : IMarketplaceService
+public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepository plans, IRecipeRepository recipes, IOutletMenuRepository menu, ISaaSPlanRepository saasPlans, IServiceCityRepository serviceCities, ITenantContext tenant) : IMarketplaceService
 {
     public async Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync() => (await saasPlans.GetActiveAsync()).Select(Map).ToList();
     public async Task<AvailabilityResponse> GetAvailabilityAsync(double latitude, double longitude, string? city = null)
@@ -93,6 +93,7 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
 
         var result = (await outlets.GetAllAsync())
             .Where(x => x.Status == OutletStatus.Live)
+            .Where(x => tenant.OutletId is not Guid tenantOutletId || x.Id == tenantOutletId)
             .Where(x => string.IsNullOrWhiteSpace(city) || x.City.Equals(city.Trim(), StringComparison.OrdinalIgnoreCase))
             .Select(x => (outlet: x, distance: Distance(latitude, longitude, x.Latitude, x.Longitude)))
             .Where(x => x.distance <= x.outlet.ServiceRadiusKm)
@@ -109,7 +110,19 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
     }
     public async Task<IReadOnlyList<CityDto>> GetCitiesAsync()
     {
-        return (await serviceCities.GetEnabledAsync())
+        var cities = await serviceCities.GetEnabledAsync();
+        if (tenant.OutletId is Guid tenantOutletId)
+        {
+            var outlet = await outlets.GetByIdAsync(tenantOutletId);
+            if (outlet is null)
+                return [];
+
+            cities = cities
+                .Where(x => x.City.Equals(outlet.City, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        return cities
             .Select(x => new CityDto(x.City, x.State, 0))
             .OrderBy(x => x.City)
             .ToList();
@@ -117,23 +130,38 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
     public async Task<IReadOnlyList<OutletDto>> GetAllOutletsAsync(string? city = null)
     {
         var rows = (await outlets.GetAllAsync()).Where(x => x.Status == OutletStatus.Live);
+        if (tenant.OutletId is Guid tenantOutletId)
+            rows = rows.Where(x => x.Id == tenantOutletId);
         if (!string.IsNullOrWhiteSpace(city))
             rows = rows.Where(x => x.City.Equals(city.Trim(), StringComparison.OrdinalIgnoreCase));
         return rows.Select(x => ToDto(x, 0)).ToList();
     }
     public async Task<OutletDto?> GetOutletAsync(string slug) {
         var x = await outlets.GetBySlugAsync(slug);
-        return x is null || x.Status != OutletStatus.Live ? null : ToDto(x, 0);
+        if (x is null || x.Status != OutletStatus.Live)
+            return null;
+        if (tenant.OutletId is Guid tenantOutletId && x.Id != tenantOutletId)
+            return null;
+        return ToDto(x, 0);
     }
     public async Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(Guid outletId) {
+        if (tenant.OutletId is Guid tenantOutletId && tenantOutletId != outletId)
+            return [];
+
         var outlet = await outlets.GetByIdAsync(outletId);
         return outlet is null || outlet.Status != OutletStatus.Live ? [] : (await plans.GetByOutletAsync(outletId)).Where(x => x.IsActive).Select(Map).ToList();
     }
     public async Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(Guid outletId, string? category) {
+        if (tenant.OutletId is Guid tenantOutletId && tenantOutletId != outletId)
+            return [];
+
         var outlet = await outlets.GetByIdAsync(outletId);
         return outlet is null || outlet.Status != OutletStatus.Live ? [] : (await recipes.GetByOutletAndCategoryAsync(outletId, category)).Where(x => x.IsActive).Select(Map).ToList();
     }
     public async Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(Guid outletId) {
+        if (tenant.OutletId is Guid tenantOutletId && tenantOutletId != outletId)
+            return [];
+
         var outlet = await outlets.GetByIdAsync(outletId);
         return outlet is null || outlet.Status != OutletStatus.Live ? [] : await MapMenu(outletId, await menu.GetByOutletAsync(outletId));
     }
