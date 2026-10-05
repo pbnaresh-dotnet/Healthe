@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
-import{auth,outlets,locations,recipes,menu,customer,catalog,money,currentUser,API_URL}from'@healthapp/shared';
+import{auth,outlets,locations,recipes,menu,customer,catalog,money,currentUser,API_URL,TENANT_OUTLET_SLUG}from'@healthapp/shared';
 import{MapContainer,TileLayer,CircleMarker,useMap,useMapEvents}from'react-leaflet';
 import'leaflet/dist/leaflet.css';
 import'./styles.css';
@@ -84,6 +84,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  const[publicMapError,setPublicMapError]=useState('');
  const[trackingLocation,setTrackingLocation]=useState(false);
  const[publicOutlet,setPublicOutlet]=useState(null);
+ const[tenantOutlet,setTenantOutlet]=useState(null);
  const[publicOutletMenu,setPublicOutletMenu]=useState([]);
  const[publicOutletBusy,setPublicOutletBusy]=useState(false);
  const[publicOutletError,setPublicOutletError]=useState('');
@@ -99,6 +100,18 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
 
  useEffect(()=>{
    let disposed=false;
+   if(TENANT_OUTLET_SLUG){
+     outlets.get(TENANT_OUTLET_SLUG).then(outlet=>{
+       if(disposed)return;
+       setTenantOutlet(outlet||null);
+       if(outlet){
+         setPublicCities([{city:outlet.city,state:outlet.state}]);
+         setPublicCity(outlet.city||'');
+         setNearbyOutlets([outlet]);
+       }
+     }).catch(()=>{});
+     return()=>{disposed=true};
+   }
    locations.cities().then(rows=>{
      if(disposed)return;
      const list=rows||[];
@@ -106,7 +119,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
      if(!publicCity)setPublicCity(list[0]?.city||'');
    }).catch(()=>{});
    return()=>{disposed=true};
- },[]);
+ },[]);;
 
  const loadNearbyOutlets=async(latitude,longitude,city)=>{
    if(!Number.isFinite(latitude)||!Number.isFinite(longitude))return;
@@ -260,13 +273,13 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
 
  return <><LoadingIndicator active={publicMapBusy||publicOutletBusy} label={publicOutletBusy?'Loading outlet menu':'Finding outlets'}/><div className="publicHome">
    <header className="publicNav">
-     <button className="publicBrand" type="button" onClick={()=>goTo('public-top')}><span className="brandMark">H</span><span><b>HealthApp</b><small>Healthy meals, built around you</small></span></button>
-     <nav className="publicNavLinks"><button onClick={()=>goTo('how-it-works')}>How it works</button><button onClick={()=>goTo('plans')}>Meal Plans</button><button onClick={()=>goTo('outlets')}>Our Outlets</button><button onClick={()=>goTo('why-healthapp')}>Why HealthApp</button></nav>
+     <button className="publicBrand" type="button" onClick={()=>goTo('public-top')}><span className="brandMark">{(tenantOutlet?.name||'HealthApp').slice(0,1).toUpperCase()}</span><span><b>{tenantOutlet?.name||'HealthApp'}</b><small>{tenantOutlet?'Healthy meals, prepared fresh for you':'Healthy meals, built around you'}</small></span></button>
+     <nav className="publicNavLinks"><button onClick={()=>goTo('how-it-works')}>How it works</button>{!TENANT_OUTLET_SLUG&&<><button onClick={()=>goTo('plans')}>Meal Plans</button><button onClick={()=>goTo('outlets')}>Our Outlets</button></>}<button onClick={()=>goTo('why-healthapp')}>{TENANT_OUTLET_SLUG?'Why us':'Why HealthApp'}</button></nav>
      <div className="publicNavActions"><button className="secondary smallBtn" onClick={()=>openAuth('login')}>Sign in</button><button className="primary smallBtn" onClick={()=>openAuth('register')}>Create account</button></div>
    </header>
    <main id="public-top">
     <section className="publicHero">
-      <div className="publicHeroImage"><img src={IMAGE_FALLBACKS.hero} alt="Healthy meal bowl"/><div className="publicHeroCallout"><b>Good food.<br/>Better days.</b><span>Nutritious meals from local outlets</span></div></div>
+      <div className="publicHeroImage"><img src={tenantOutlet?.heroImageUrl?getImg(tenantOutlet.heroImageUrl):IMAGE_FALLBACKS.hero} alt={tenantOutlet?.name||'Healthy meal bowl'} onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/><div className="publicHeroCallout"><b>{tenantOutlet?.name||'Good food.'}<br/>{tenantOutlet?'Healthy meals.':'Better days.'}</b><span>{tenantOutlet?.about||'Nutritious meals prepared fresh and delivered on schedule.'}</span></div></div>
       <div className="publicHeroCopy">
         <span className="publicEyebrow">HEALTHY MEAL SUBSCRIPTION</span><h1>Healthy Meals.<br/>Happier You.</h1>
         <p>Discover healthy meal subscriptions from trusted local outlets. Choose where you want delivery, explore plans and let your selected outlet do the rest.</p>
@@ -287,17 +300,17 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
       <div><b>⌖</b><strong>Convenient Delivery</strong><span>Meals delivered to home or office on schedule.</span></div>
     </section>
 
-    <section className="publicSection" id="plans">
+    {!TENANT_OUTLET_SLUG&&<section className="publicSection" id="plans">
       <div className="publicSectionHead inline"><div><span className="publicEyebrow">POPULAR OPTIONS</span><h2>Explore meal plans</h2><p>Choose a subscription style that fits your goals and routine.</p></div><button className="linkBtn" onClick={openLocationExplorer}>View all plans →</button></div>
       <div className="publicPlanGrid">{plans.map(p=><article className="publicPlanCard" key={p.title}><img src={p.image} alt=""/><div><span className="publicPlanBadge">✓ {p.badge}</span><h3>{p.title}</h3><p>{p.copy}</p><button className="secondary smallBtn" onClick={openLocationExplorer}>Explore plan →</button></div></article>)}</div>
     </section>
 
-    <section className="publicSection publicOutletsSection" id="outlets">
+    {!TENANT_OUTLET_SLUG&&<section className="publicSection publicOutletsSection" id="outlets">
       <div className="publicSectionHead inline"><div><span className="publicEyebrow">LOCAL PARTNERS</span><h2>Our featured outlets</h2><p>Healthy meal options from outlets serving supported cities.</p></div><button className="linkBtn" onClick={openLocationExplorer}>View all outlets →</button></div>
       <div className="publicOutletGrid">{outletsFeatured.map(o=><article className="publicOutletCard" key={o.name}><img src={o.image} alt=""/><div><b>{o.name}</b><span>{o.city}</span><small>{o.copy}</small></div></article>)}</div>
     </section>
 
-    <section className="publicStory"><div className="publicStoryImage"><img src={IMAGE_FALLBACKS.nonveg} alt="Prepared healthy meal"/></div><div><span className="publicEyebrow">BUILT FOR EVERYDAY LIFE</span><h2>One place to discover, subscribe and manage healthy meals.</h2><p>Set your delivery location, choose an outlet, build a package around your preferred meals and manage addresses, meal calendars, skips and credits from one customer account.</p><button className="primary" onClick={()=>openAuth('register')}>Create account →</button></div></section>
+    <section className="publicStory"><div className="publicStoryImage"><img src={tenantOutlet?.heroImageUrl?getImg(tenantOutlet.heroImageUrl):IMAGE_FALLBACKS.nonveg} alt={tenantOutlet?.name||'Prepared healthy meal'} onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.nonveg}}/></div><div><span className="publicEyebrow">{tenantOutlet?'BUILT FOR YOU':'BUILT FOR EVERYDAY LIFE'}</span><h2>{tenantOutlet?tenantOutlet.name+' — healthy meals built around your routine.':'One place to discover, subscribe and manage healthy meals.'}</h2><p>Set your delivery location, choose an outlet, build a package around your preferred meals and manage addresses, meal calendars, skips and credits from one customer account.</p><button className="primary" onClick={()=>openAuth('register')}>Create account →</button></div></section>
 
     <section className="publicCta"><div><span className="publicEyebrow">READY TO GET STARTED?</span><h2>Find healthy meals that fit your life.</h2><p>Create an account and start exploring outlets and meal subscriptions in your supported city.</p></div><button className="primary big" onClick={()=>openAuth('register')}>Create account</button></section>
    </main>
@@ -309,7 +322,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
        {publicMapError&&<div className="publicExplorerError">{publicMapError}</div>}
        <div className="publicExplorerGrid">
          <div className="publicExplorerMap"><MapContainer center={publicPin||cityMapCenter(publicCity)} zoom={13} scrollWheelZoom className="publicLiveMap"><TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION}/><MapRecenter center={publicPin||cityMapCenter(publicCity)}/><MapClickHandler onPick={selectPublicPin}/>{nearbyOutlets.map(o=>Number.isFinite(Number(o.latitude))&&Number.isFinite(Number(o.longitude))&&<CircleMarker key={o.id} center={[Number(o.latitude),Number(o.longitude)]} radius={9} pathOptions={{fillOpacity:.9}} eventHandlers={{click:()=>openPublicOutlet(o)}}/>)}{publicPin&&<CircleMarker center={publicPin} radius={10} pathOptions={{weight:3,fillOpacity:.2}}/>}</MapContainer>{publicMapBusy&&<div className="publicMapLoading">Finding outlets…</div>}<div className="publicMapHint">Click anywhere on the map to check outlet coverage at that location.</div></div>
-         <aside className="publicNearbyPanel"><div className="publicNearbyHead"><div><b>{nearbyOutlets.length?nearbyOutlets.length+' outlets nearby':'Nearby outlets'}</b><span>{publicCity||'Choose a city'}</span></div><span>LIVE</span></div>{nearbyOutlets.length?nearbyOutlets.map(o=><article className="publicNearbyOutlet" key={o.id} onClick={()=>openPublicOutlet(o)}><img src={o.logoUrl?getImg(o.logoUrl):IMAGE_FALLBACKS.logo} alt="" onError={e=>e.currentTarget.src=IMAGE_FALLBACKS.logo}/><div><b>{o.name}</b><small>★ {Number(o.rating||4.8).toFixed(1)} · {o.distanceKm?o.distanceKm+' km':'Nearby'}</small><span>{(o.healthHighlights||[]).slice(0,2).join(' · ')}</span></div><strong>→</strong></article>):<div className="publicNearbyEmpty"><div>⌖</div><b>Set a location to discover outlets</b><span>Use your current location or click a point on the map.</span></div>}</aside>
+         <aside className="publicNearbyPanel"><div className="publicNearbyHead"><div><b>{nearbyOutlets.length?nearbyOutlets.length+(TENANT_OUTLET_SLUG?' service location':' outlets nearby'):'Nearby outlets'}</b><span>{publicCity||'Choose a city'}</span></div><span>LIVE</span></div>{nearbyOutlets.length?nearbyOutlets.map(o=><article className="publicNearbyOutlet" key={o.id} onClick={()=>openPublicOutlet(o)}><img src={o.logoUrl?getImg(o.logoUrl):IMAGE_FALLBACKS.logo} alt="" onError={e=>e.currentTarget.src=IMAGE_FALLBACKS.logo}/><div><b>{o.name}</b><small>★ {Number(o.rating||4.8).toFixed(1)} · {o.distanceKm?o.distanceKm+' km':'Nearby'}</small><span>{(o.healthHighlights||[]).slice(0,2).join(' · ')}</span></div><strong>→</strong></article>):<div className="publicNearbyEmpty"><div>⌖</div><b>Set a location to discover outlets</b><span>Use your current location or click a point on the map.</span></div>}</aside>
        </div>
        {locationHint&&<div className="publicLocationExplorerNote">📍 {locationHint}</div>}
      </div>
