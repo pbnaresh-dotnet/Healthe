@@ -1,11 +1,12 @@
-const API_BASE=(import.meta?.env?.VITE_API_BASE_URL||'http://localhost:50448/api').replace(/\/$/,'');
+const CONFIGURED_API_BASE=String(import.meta?.env?.VITE_API_BASE_URL||'').trim();
+const API_BASE=(CONFIGURED_API_BASE||(import.meta?.env?.DEV?'http://localhost:50448/api':'')).replace(/\/$/,'');
 export const API_URL=API_BASE;
 export const CUSTOMER_URL=import.meta?.env?.VITE_CUSTOMER_URL||'http://localhost:5173';
 const readToken=()=>localStorage.getItem('ha_token');
 export const currentUser=()=>{try{return JSON.parse(localStorage.getItem('ha_current_user')||'null')}catch{return null}};
 const storeUser=u=>localStorage.setItem('ha_current_user',JSON.stringify(u));
 export const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
-export async function api(path,options={}){const isFormData=typeof FormData!=='undefined'&&options.body instanceof FormData;
+export async function api(path,options={}){if(!API_BASE)throw new Error('API URL is not configured. Set VITE_API_BASE_URL in the Cloudflare build environment and redeploy.');const isFormData=typeof FormData!=='undefined'&&options.body instanceof FormData;
 const headers={...(isFormData?{}:{'Content-Type':'application/json'}),...(options.headers||{})};const t=readToken();if(t)headers.Authorization=`Bearer ${t}`;const res=await fetch(`${API_BASE}${path}`,{...options,headers});const raw=await res.text();let body=null;try{body=raw?JSON.parse(raw):null}catch{body=raw}if(res.status===401){localStorage.removeItem('ha_token');localStorage.removeItem('ha_current_user')}if(!res.ok)throw new Error(body?.message||body?.title||body||`Request failed: ${res.status}`);return body;}
 export const auth={async login(data){const x=await api('/auth/login',{method:'POST',body:JSON.stringify(data)});localStorage.setItem('ha_token',x.accessToken);storeUser(x.user);return x;},async register(data){const x=await api('/auth/register',{method:'POST',body:JSON.stringify(data)});localStorage.setItem('ha_token',x.accessToken);storeUser(x.user);return x;},logout(){localStorage.removeItem('ha_token');localStorage.removeItem('ha_current_user')},me(){return currentUser()}};
 export const outlets={list:(city)=>api(`/marketplace/outlets${city?`?city=${encodeURIComponent(city)}`:''}`),get:slug=>api(`/marketplace/outlets/${encodeURIComponent(slug)}`),availability:(lat,lng,city)=>api(`/marketplace/availability?latitude=${lat}&longitude=${lng}${city?`&city=${encodeURIComponent(city)}`:''}`)};
