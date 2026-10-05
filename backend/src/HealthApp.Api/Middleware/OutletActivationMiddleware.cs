@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using HealthApp.Domain.Enums;
 using HealthApp.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
