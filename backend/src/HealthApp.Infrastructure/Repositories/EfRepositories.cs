@@ -169,6 +169,10 @@ public sealed class SubscriptionRepository(HealthAppDbContext db) : EfRepository
         db.Subscriptions.Add(s);
         await SaveAsync();
     }
+    public async Task UpdateAsync(Subscription s) {
+        db.Subscriptions.Update(s);
+        await SaveAsync();
+    }
 }
 
 public sealed class SubscriptionMealSelectionRepository(HealthAppDbContext db) : EfRepository(db), ISubscriptionMealSelectionRepository
