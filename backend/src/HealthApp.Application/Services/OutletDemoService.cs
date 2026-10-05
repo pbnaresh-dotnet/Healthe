@@ -21,7 +21,7 @@ public sealed class OutletDemoService(
     IDeliveryPricingRepository deliveryPricing,
     IPasswordService passwords,
     IConfiguration configuration,
-    IEmailService email)
+    IEmailService mail)
     : IOutletDemoService
 {
     private static readonly char[] PasswordChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%".ToCharArray();
@@ -103,7 +103,7 @@ public sealed class OutletDemoService(
 
         var portalUrl = configuration["Demo:OutletPortalUrl"] ?? "http://localhost:5175";
         var body = $"Hello,\n\nYour HealthApp outlet demo account is ready.\n\nLogin: {email}\nPassword: {password}\nDemo portal: {portalUrl}\nValid until: {demoExpires:dd MMM yyyy HH:mm} UTC\n\nDuring the 7-day demo you can create customers, build subscriptions, add drivers, manage recipes and menus, review kitchen orders and explore delivery planning.\n\nThis is a demo account. No subscription payment is required and access is automatically blocked after the expiry date.\n\nRegards,\nHealthApp";
-        await email.SendAsync(email, "Your HealthApp outlet demo account", body, cancellationToken);
+        await mail.SendAsync(email, "Your HealthApp outlet demo account", body, cancellationToken);
 
         return new OutletDemoRequestDto(true, "Your 7-day demo account has been created. Login details have been sent to your email address.", demoExpires);
     }
