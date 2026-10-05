@@ -14,6 +14,7 @@ public abstract class EfRepository(HealthAppDbContext Db)
 public sealed class UserRepository(HealthAppDbContext db) : EfRepository(db), IUserRepository
 {
     public Task<User?> FindByEmailAsync(string email) => db.Users.FirstOrDefaultAsync(x => x.Email == email.Trim().ToLower());
+    public Task<User?> FindByEmailAsync(string email, Guid outletId) => db.Users.FirstOrDefaultAsync(x => x.Email == email.Trim().ToLower() && x.OutletId == outletId);
     public Task<User?> FindByIdAsync(Guid id) => db.Users.FirstOrDefaultAsync(x => x.Id == id);
     public async Task AddAsync(User user) {
         db.Users.Add(user);
