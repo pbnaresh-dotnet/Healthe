@@ -34,3 +34,12 @@ Authenticated web clients can use `POST /api/files/{folder}` for provider-neutra
 - `documents` for supported document/image formats
 
 The API returns the provider-generated `url` and `key`. Controllers and application code should not reference Azure Blob SDK types.
+
+## Private onboarding documents
+
+Identity and business-verification documents are stored through a private storage path. They are not returned as public storage URLs. Access is through authenticated onboarding-owner or Super Admin API endpoints.
+
+For Azure Blob Storage, set Storage:PrivateContainer to a dedicated private container (default: healthapp-private). The public media container and private document container are intentionally separate.
+
+For local development, private files are stored under Storage:PrivateLocalRoot (default: App_Data/private-uploads), outside wwwroot, so ASP.NET static-file middleware cannot serve them.
+
