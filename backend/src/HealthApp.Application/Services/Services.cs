@@ -1234,7 +1234,8 @@ public sealed class AdminService(
     IUserRepository users,
     IPlatformTransactionRepository transactions,
     IOutletDomainRepository domains,
-    IOutletSubscriptionRepository outletSubscriptions) : IAdminService
+    IOutletSubscriptionRepository outletSubscriptions,
+    ICloudflarePagesService cloudflarePages) : IAdminService
 {
     public async Task<IReadOnlyList<OutletDto>> GetOutletsAsync()=>(await outlets.GetAllAsync()).Select(x=>new OutletDto(x.Id,x.Name,x.Slug,x.Subdomain,x.City,x.State,x.Pincode,x.Status.ToString(),x.BillingPlan.ToString(),x.LogoUrl??string.Empty,x.HeroImageUrl??string.Empty,(x.HealthHighlights??string.Empty).Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToList(),x.PrimaryColor,x.Status==OutletStatus.Active,0,x.Rating,x.ReviewCount,x.About)).ToList();
     public async Task<IReadOnlyList<UserDto>> GetUsersAsync()=>(await users.GetAllAsync()).Select(x=>new UserDto(x.Id,x.Email,x.FirstName,x.LastName,x.Role.ToString(),x.OutletId)).ToList();
@@ -1266,26 +1267,54 @@ public sealed class AdminService(
         if (domain.Outlet is null)
             throw new InvalidOperationException("The outlet assigned to this domain no longer exists.");
 
+        CloudflarePagesDomainState? providerState = null;
+        if (status is OutletDomainStatus.Verified or OutletDomainStatus.Active)
+        {
+            if (cloudflarePages.IsEnabled)
+            {
+                providerState = await cloudflarePages.GetDomainAsync(domain.Hostname)
+                    ?? throw new InvalidOperationException("Cloudflare Pages has not attached this domain yet.");
+
+                if (!IsCloudflareActive(providerState))
+                    throw new InvalidOperationException(
+                        providerState.ValidationError ??
+                        providerState.VerificationError ??
+                        "Cloudflare has not verified this domain yet. Complete the DNS validation and try again.");
+
+                domain.VerificationRecordName = providerState.TxtName ?? domain.VerificationRecordName;
+                domain.VerificationToken = providerState.TxtValue ?? domain.VerificationToken;
+            }
+            else
+            {
+                throw new InvalidOperationException("Cloudflare Pages integration is not enabled, so DNS verification cannot be confirmed.");
+            }
+        }
+
         if (status == OutletDomainStatus.Active)
         {
             if (domain.Outlet.Status != OutletStatus.Live)
                 throw new InvalidOperationException("The outlet must be Live before a custom domain can be activated.");
 
-            if (await outletSubscriptions.GetByOutletAsync(domain.OutletId) is null)
+            if (await outletSubscriptions.GetByOutletAsync(domain.OutletId) is not { Status: "Active" })
                 throw new InvalidOperationException("The outlet SaaS subscription must be active before a custom domain can be activated.");
         }
 
         domain.Status = status;
-        if (status == OutletDomainStatus.Verified || status == OutletDomainStatus.Active)
+        if (status is OutletDomainStatus.Verified or OutletDomainStatus.Active)
             domain.VerifiedAtUtc ??= DateTime.UtcNow;
         if (status == OutletDomainStatus.Pending)
             domain.VerifiedAtUtc = null;
 
         await domains.UpdateAsync(domain);
-        return MapDomain(domain);
+        return MapDomain(domain, providerState);
     }
 
-    private static OutletDomainDto MapDomain(OutletDomain x) =>
+    private static bool IsCloudflareActive(CloudflarePagesDomainState state) =>
+        string.Equals(state.Status, "active", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(state.ValidationStatus, "active", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(state.VerificationStatus, "active", StringComparison.OrdinalIgnoreCase);
+
+    private static OutletDomainDto MapDomain(OutletDomain x, CloudflarePagesDomainState? providerState = null) =>
         new(
             x.Id,
             x.OutletId,
@@ -1297,6 +1326,10 @@ public sealed class AdminService(
             x.CreatedAtUtc,
             x.VerifiedAtUtc,
             "TXT",
-            $"_healthapp-verification.{x.Hostname}",
-            x.VerificationToken);
+            x.VerificationRecordName,
+            x.VerificationToken,
+            "Cloudflare Pages",
+            providerState?.Status ?? "not_checked",
+            providerState?.ValidationStatus ?? "not_checked",
+            providerState?.ValidationError ?? providerState?.VerificationError);
 }
