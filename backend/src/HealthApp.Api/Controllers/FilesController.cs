@@ -23,6 +23,20 @@ public sealed class FilesController(IFileStorage fileStorage, ICurrentUser curre
         if (!AllowedExtensions.TryGetValue(folder, out var allowed))
             return BadRequest(new { message = "Unsupported file folder." });
 
+        var role = current.Role;
+        var allowedForRole = role switch
+        {
+            "Customer" => folder.Equals("avatars", StringComparison.OrdinalIgnoreCase),
+            "OutletAdmin" => folder.Equals("recipes", StringComparison.OrdinalIgnoreCase)
+                            || folder.Equals("outlets", StringComparison.OrdinalIgnoreCase)
+                            || folder.Equals("avatars", StringComparison.OrdinalIgnoreCase),
+            "SuperAdmin" => true,
+            _ => false
+        };
+
+        if (!allowedForRole)
+            return Forbid();
+
         if (file is null || file.Length == 0)
             return BadRequest(new { message = "Please select a file." });
 
