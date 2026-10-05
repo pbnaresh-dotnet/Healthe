@@ -13,13 +13,16 @@ public sealed class OutletController(IOutletService service, IFileStorage fileSt
         return BadRequest(new { message = "Image must be 5 MB or smaller." });
 
     var type = (assetType ?? string.Empty).Trim().ToLowerInvariant();
+    if (type is not ("logo" or "hero" or "favicon"))
+        return BadRequest(new { message = "Supported branding assets are: logo, hero and favicon." });
+
     var extensions = type == "favicon"
         ? new[] { ".png", ".ico", ".jpg", ".jpeg", ".webp" }
         : new[] { ".jpg", ".jpeg", ".png", ".webp" };
     var ext = Path.GetExtension(file.FileName);
     if (!extensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
         return BadRequest(new { message = type == "favicon" ? "Favicon formats: PNG, ICO, JPG and WEBP." : "Supported formats: JPG, PNG and WEBP." });
-    if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) && type != "favicon")
+    if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
         return BadRequest(new { message = "Only image files are allowed." });
 
     await using var stream = file.OpenReadStream();
