@@ -719,6 +719,18 @@ public sealed class SaaSPlan
     = "";
 }
 
+public sealed class OutletDomain
+{
+    public Guid Id { get; set; }
+    public Guid OutletId { get; set; }
+    public string Hostname { get; set; } = "";
+    public OutletDomainStatus Status { get; set; } = OutletDomainStatus.Pending;
+    public bool IsPrimary { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? VerifiedAtUtc { get; set; }
+    public Outlet? Outlet { get; set; }
+}
+
 public sealed class OutletSubscription
 {
     public Guid Id {
