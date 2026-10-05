@@ -725,6 +725,7 @@ public sealed class OutletDomain
     public Guid OutletId { get; set; }
     public string Hostname { get; set; } = "";
     public string VerificationToken { get; set; } = "";
+    public string VerificationRecordName { get; set; } = "";
     public OutletDomainStatus Status { get; set; } = OutletDomainStatus.Pending;
     public bool IsPrimary { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
