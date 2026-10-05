@@ -12,7 +12,8 @@ public sealed class OutletSettingsService(
     IMealPlanRepository mealPlans,
     IOutletMenuRepository menu,
     IOutletDeliveryAreaRepository deliveryAreas,
-    IDeliveryPricingRepository pricing) : IOutletSettingsService
+    IDeliveryPricingRepository pricing,
+    IOutletSubscriptionRepository outletSubscriptions) : IOutletSettingsService
 {
     private static readonly DayOfWeek[] Weekdays =
     [
@@ -65,6 +66,10 @@ public sealed class OutletSettingsService(
 
         if (outlet.Status != OutletStatus.Active && outlet.Status != OutletStatus.Live)
             throw new InvalidOperationException("The outlet must be activated by Super Admin before it can go live.");
+
+        var outletSubscription = await outletSubscriptions.GetByOutletAsync(outletId);
+        if (outletSubscription is null || !string.Equals(outletSubscription.Status, "Active", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("The outlet SaaS subscription must be active before the customer portal can go live.");
 
         var user = current.UserId is Guid userId ? await users.FindByIdAsync(userId) : null;
         if (user?.IsDemo == true)
