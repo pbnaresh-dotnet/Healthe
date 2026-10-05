@@ -8,6 +8,7 @@ function App(){
  const[login,setLogin]=useState({email:'admin@healthapp.test',password:'demo'});
  const[data,setData]=useState({});
  const[domains,setDomains]=useState([]);
+ const[domains,setDomains]=useState([]);
  const[cities,setCities]=useState([]);
  const[form,setForm]=useState({city:'Hyderabad',state:'Telangana',country:'India',latitude:17.385,longitude:78.4867,isEnabled:true});
  const[error,setError]=useState('');
@@ -34,8 +35,8 @@ function App(){
  const reload=async()=>{
    try{
      setLoading(true);
-     const[d,o,us,r,cs,v]=await Promise.all([admin.dashboard(),admin.outlets(),admin.users(),admin.revenue(),admin.cities(),admin.outletOnboardingPending()]);
-     setData({d,o,us,r});setCities(cs||[]);setVerification(v||[]);setError('');
+     const[d,o,us,r,cs,v,ds]=await Promise.all([admin.dashboard(),admin.outlets(),admin.users(),admin.revenue(),admin.cities(),admin.outletOnboardingPending(),admin.domains()]);
+     setData({d,o,us,r});setCities(cs||[]);setVerification(v||[]);setDomains(ds||[]);setError('');
    }catch(e){setError(e.message||'Unable to load admin data.')}finally{setLoading(false)}
  };
  useEffect(()=>{if(u)reload()},[u]);
