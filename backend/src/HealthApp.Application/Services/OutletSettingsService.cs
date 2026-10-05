@@ -11,7 +11,6 @@ public sealed class OutletSettingsService(
     IRecipeRepository recipes,
     IMealPlanRepository mealPlans,
     IOutletMenuRepository menu,
-    IUserRepository users,
     IOutletDeliveryAreaRepository deliveryAreas,
     IDeliveryPricingRepository pricing) : IOutletSettingsService
 {
