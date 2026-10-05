@@ -5,7 +5,7 @@ using HealthApp.Shared.DTOs;
 
 namespace HealthApp.Application.Services;
 
-public sealed class CustomerProfileService(ICurrentUser current, ICustomerProfileRepository profiles, IAllergenRepository allergens, ICustomerAllergyRepository customerAllergies) : ICustomerProfileService
+public sealed class CustomerProfileService(ICurrentUser current, ICustomerProfileRepository profiles, IAllergenRepository allergens, ICustomerAllergyRepository customerAllergies, IUnitOfWork unitOfWork) : ICustomerProfileService
 {
     public async Task<CustomerProfileDto?> GetAsync()
     {
@@ -23,8 +23,11 @@ public sealed class CustomerProfileService(ICurrentUser current, ICustomerProfil
         decimal? bmi=r.WeightKg.HasValue&&r.HeightCm.HasValue?Math.Round(r.WeightKg.Value/((r.HeightCm.Value/100m)*(r.HeightCm.Value/100m)),2):null;
         var p=await profiles.GetAsync(id)??new CustomerProfile{Id=Guid.NewGuid(),CustomerId=id};
         p.WeightKg=r.WeightKg;p.HeightCm=r.HeightCm;p.Bmi=bmi;p.DateOfBirth=r.DateOfBirth;p.Goal=r.Goal;p.ActivityLevel=r.ActivityLevel;p.Diet=r.Diet;p.UpdatedAtUtc=DateTime.UtcNow;
-        await profiles.AddOrUpdateAsync(p);
-        await customerAllergies.ReplaceAsync(id,requested);
+        await unitOfWork.ExecuteAsync(async () =>
+        {
+            await profiles.AddOrUpdateAsync(p);
+            await customerAllergies.ReplaceAsync(id,requested);
+        });
         p=await profiles.GetAsync(id)??p;
         return await Map(p,id);
     }
