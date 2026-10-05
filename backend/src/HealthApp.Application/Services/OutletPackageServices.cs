@@ -208,13 +208,14 @@ public sealed class OutletPackageService(
     public async Task<IReadOnlyList<CustomerAddressDto>> GetCustomerAddressesAsync(Guid customerId)
     {
         await EnsureCustomerAccessAsync(customerId);
-        return (await addresses.GetByCustomerAsync(customerId)).Select(async address =>
+        var result = new List<CustomerAddressDto>();
+        foreach (var address in await addresses.GetByCustomerAsync(customerId))
         {
             var areaName = address.CityAreaId is Guid areaId
                 ? (await areas.GetAsync(areaId))?.Name ?? address.Locality
                 : address.Locality;
 
-            return new CustomerAddressDto(
+            result.Add(new CustomerAddressDto(
                 address.Id,
                 address.Label,
                 areaName ?? "",
@@ -226,8 +227,9 @@ public sealed class OutletPackageService(
                 address.ContactPhone,
                 address.Latitude,
                 address.Longitude,
-                address.IsDefault);
-        }).Select(x => x.Result).ToList();
+                address.IsDefault));
+        }
+        return result;
     }
 
     public async Task<CustomerAddressDto?> CreateCustomerAddressAsync(Guid customerId, OutletPackageAddressRequest request)
@@ -344,7 +346,7 @@ public sealed class OutletPackageService(
             Id = Guid.NewGuid(),
             CustomerId = customer.Id,
             OutletId = outletId,
-            DeliveryCity = quote.DeliveryQuotes.FirstOrDefault()?.AreaName is null ? (request.DeliveryCity?.Trim() ?? outlet.City) : (request.DeliveryCity?.Trim() ?? outlet.City),
+            DeliveryCity = request.DeliveryCity?.Trim() ?? outlet.City,
             MealPlanId = plan.Id,
             PlanName = $"{duration} Outlet Package",
             DeliveryMode = deliveryMode,
@@ -383,7 +385,7 @@ public sealed class OutletPackageService(
             IsOutletCreated = true,
             CreatedByOutletUserId = outletUserId,
             OutletDiscountType = Parse<OutletPackageDiscountType>(request.DiscountType, "discount type"),
-            OutletDiscountValue = Math.Max(0, request.DiscountValue),
+            OutletDiscountValue = Math.Max(0m, request.DiscountValue),
             OutletDiscountReason = request.DiscountReason?.Trim() ?? "",
             PaymentMethod = "Pending",
             SentAtUtc = now,
