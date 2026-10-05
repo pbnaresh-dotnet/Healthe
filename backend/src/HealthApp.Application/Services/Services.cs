@@ -84,7 +84,7 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
         return tokens.CreateToken(user);
     }
 }
-public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepository plans, IRecipeRepository recipes, IOutletMenuRepository menu, ISaaSPlanRepository saasPlans, IServiceCityRepository serviceCities, ITenantContext tenant) : IMarketplaceService
+public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepository plans, IRecipeRepository recipes, IOutletMenuRepository menu, ISaaSPlanRepository saasPlans, IServiceCityRepository serviceCities, ITenantContext tenant, IOutletSubscriptionRepository outletSubscriptions) : IMarketplaceService
 {
     public async Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync() => (await saasPlans.GetActiveAsync()).Select(Map).ToList();
     public async Task<AvailabilityResponse> GetAvailabilityAsync(double latitude, double longitude, string? city = null)
@@ -100,10 +100,20 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
                 return new(false, $"{city.Trim()} is not currently supported by HealthApp.", []);
         }
 
-        var result = (await outlets.GetAllAsync())
+        var candidateOutlets = (await outlets.GetAllAsync())
             .Where(x => x.Status == OutletStatus.Live)
             .Where(x => tenant.OutletId is not Guid tenantOutletId || x.Id == tenantOutletId)
             .Where(x => string.IsNullOrWhiteSpace(city) || x.City.Equals(city.Trim(), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var activeOutletIds = (await Task.WhenAll(candidateOutlets.Select(async outlet =>
+                (outlet.Id, Subscription: await outletSubscriptions.GetByOutletAsync(outlet.Id)))))
+            .Where(x => x.Subscription is not null)
+            .Select(x => x.Id)
+            .ToHashSet();
+
+        var result = candidateOutlets
+            .Where(x => activeOutletIds.Contains(x.Id))
             .Select(x => (outlet: x, distance: Distance(latitude, longitude, x.Latitude, x.Longitude)))
             .Where(x => x.distance <= x.outlet.ServiceRadiusKm)
             .Select(x => ToDto(x.outlet, x.distance))
@@ -143,13 +153,21 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
             rows = rows.Where(x => x.Id == tenantOutletId);
         if (!string.IsNullOrWhiteSpace(city))
             rows = rows.Where(x => x.City.Equals(city.Trim(), StringComparison.OrdinalIgnoreCase));
-        return rows.Select(x => ToDto(x, 0)).ToList();
+
+        var eligible = new List<Outlet>();
+        foreach (var outlet in rows)
+            if (await outletSubscriptions.GetByOutletAsync(outlet.Id) is not null)
+                eligible.Add(outlet);
+
+        return eligible.Select(x => ToDto(x, 0)).ToList();
     }
     public async Task<OutletDto?> GetOutletAsync(string slug) {
         var x = await outlets.GetBySlugAsync(slug);
         if (x is null || x.Status != OutletStatus.Live)
             return null;
         if (tenant.OutletId is Guid tenantOutletId && x.Id != tenantOutletId)
+            return null;
+        if (await outletSubscriptions.GetByOutletAsync(x.Id) is null)
             return null;
         return ToDto(x, 0);
     }
@@ -158,21 +176,27 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
             return [];
 
         var outlet = await outlets.GetByIdAsync(outletId);
-        return outlet is null || outlet.Status != OutletStatus.Live ? [] : (await plans.GetByOutletAsync(outletId)).Where(x => x.IsActive).Select(Map).ToList();
+        return outlet is null || outlet.Status != OutletStatus.Live || await outletSubscriptions.GetByOutletAsync(outletId) is null
+            ? []
+            : (await plans.GetByOutletAsync(outletId)).Where(x => x.IsActive).Select(Map).ToList();
     }
     public async Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(Guid outletId, string? category) {
         if (tenant.OutletId is Guid tenantOutletId && tenantOutletId != outletId)
             return [];
 
         var outlet = await outlets.GetByIdAsync(outletId);
-        return outlet is null || outlet.Status != OutletStatus.Live ? [] : (await recipes.GetByOutletAndCategoryAsync(outletId, category)).Where(x => x.IsActive).Select(Map).ToList();
+        return outlet is null || outlet.Status != OutletStatus.Live || await outletSubscriptions.GetByOutletAsync(outletId) is null
+            ? []
+            : (await recipes.GetByOutletAndCategoryAsync(outletId, category)).Where(x => x.IsActive).Select(Map).ToList();
     }
     public async Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(Guid outletId) {
         if (tenant.OutletId is Guid tenantOutletId && tenantOutletId != outletId)
             return [];
 
         var outlet = await outlets.GetByIdAsync(outletId);
-        return outlet is null || outlet.Status != OutletStatus.Live ? [] : await MapMenu(outletId, await menu.GetByOutletAsync(outletId));
+        return outlet is null || outlet.Status != OutletStatus.Live || await outletSubscriptions.GetByOutletAsync(outletId) is null
+            ? []
+            : await MapMenu(outletId, await menu.GetByOutletAsync(outletId));
     }
     private async Task<IReadOnlyList<MenuItemDto>> MapMenu(Guid outletId, IReadOnlyList<OutletMenuItem> items)
     {
