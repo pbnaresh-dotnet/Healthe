@@ -12,8 +12,12 @@ public record OutletDomainDto(
     DateTime? VerifiedAtUtc,
     string VerificationRecordType,
     string VerificationName,
-    string VerificationValue);
+    string VerificationValue,
+    string Provider,
+    string ProviderStatus,
+    string ProviderValidationStatus,
+    string? ProviderError);
 
 public record RequestOutletDomainRequest(string Hostname, bool IsPrimary = false);
 public record SetOutletDomainStatusRequest(string Status);
-public record VerifyOutletDomainRequest(bool ActivateIfReady = true);
+public record VerifyOutletDomainRequest(bool ActivateIfReady = false);
