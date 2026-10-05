@@ -14,6 +14,56 @@ public static class DatabaseInitializer
         // Development/demo compatibility: normalized catalog tables are created explicitly because
         // EnsureCreatedAsync does not evolve an already-existing database.
         await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.OutletOnboardingApplications','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OutletOnboardingApplications(
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_OutletOnboardingApplications PRIMARY KEY,
+        AccessKeyHash nvarchar(128) NOT NULL,
+        Email nvarchar(320) NOT NULL,
+        PasswordHash nvarchar(500) NOT NULL,
+        AccountFirstName nvarchar(100) NOT NULL CONSTRAINT DF_OutletOnboarding_AccountFirstName DEFAULT '',
+        AccountLastName nvarchar(100) NOT NULL CONSTRAINT DF_OutletOnboarding_AccountLastName DEFAULT '',
+        SaaSPlanId uniqueidentifier NOT NULL,
+        PlanName nvarchar(100) NOT NULL,
+        BillingCycle nvarchar(30) NOT NULL CONSTRAINT DF_OutletOnboarding_BillingCycle DEFAULT 'Monthly',
+        SubscriptionFee decimal(18,2) NOT NULL CONSTRAINT DF_OutletOnboarding_SubscriptionFee DEFAULT 0,
+        SetupFee decimal(18,2) NOT NULL CONSTRAINT DF_OutletOnboarding_SetupFee DEFAULT 5000,
+        PaymentStatus nvarchar(30) NOT NULL CONSTRAINT DF_OutletOnboarding_PaymentStatus DEFAULT 'Paid',
+        PaymentReference nvarchar(100) NOT NULL,
+        Status nvarchar(40) NOT NULL CONSTRAINT DF_OutletOnboarding_Status DEFAULT 'Onboarding',
+        BusinessType nvarchar(40) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessType DEFAULT 'Individual',
+        OutletName nvarchar(200) NOT NULL CONSTRAINT DF_OutletOnboarding_OutletName DEFAULT '',
+        Description nvarchar(2000) NOT NULL CONSTRAINT DF_OutletOnboarding_Description DEFAULT '',
+        City nvarchar(100) NOT NULL CONSTRAINT DF_OutletOnboarding_City DEFAULT '',
+        State nvarchar(100) NOT NULL CONSTRAINT DF_OutletOnboarding_State DEFAULT '',
+        Pincode nvarchar(20) NOT NULL CONSTRAINT DF_OutletOnboarding_Pincode DEFAULT '',
+        AddressLine1 nvarchar(500) NOT NULL CONSTRAINT DF_OutletOnboarding_AddressLine1 DEFAULT '',
+        AddressLine2 nvarchar(500) NOT NULL CONSTRAINT DF_OutletOnboarding_AddressLine2 DEFAULT '',
+        OwnerName nvarchar(200) NOT NULL CONSTRAINT DF_OutletOnboarding_OwnerName DEFAULT '',
+        OwnerEmail nvarchar(320) NOT NULL CONSTRAINT DF_OutletOnboarding_OwnerEmail DEFAULT '',
+        OwnerPhone nvarchar(40) NOT NULL CONSTRAINT DF_OutletOnboarding_OwnerPhone DEFAULT '',
+        AadhaarNumber nvarchar(20) NOT NULL CONSTRAINT DF_OutletOnboarding_AadhaarNumber DEFAULT '',
+        AadhaarCardUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_AadhaarCardUrl DEFAULT '',
+        AadhaarCardFileName nvarchar(255) NOT NULL CONSTRAINT DF_OutletOnboarding_AadhaarCardFileName DEFAULT '',
+        BusinessRegistrationUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessRegistrationUrl DEFAULT '',
+        BusinessRegistrationFileName nvarchar(255) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessRegistrationFileName DEFAULT '',
+        BusinessPan nvarchar(20) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessPan DEFAULT '',
+        BusinessPanDocumentUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessPanDocumentUrl DEFAULT '',
+        BusinessPanDocumentFileName nvarchar(255) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessPanDocumentFileName DEFAULT '',
+        GstNumber nvarchar(30) NOT NULL CONSTRAINT DF_OutletOnboarding_GstNumber DEFAULT '',
+        GstCertificateUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_GstCertificateUrl DEFAULT '',
+        GstCertificateFileName nvarchar(255) NOT NULL CONSTRAINT DF_OutletOnboarding_GstCertificateFileName DEFAULT '',
+        VerificationNotes nvarchar(2000) NOT NULL CONSTRAINT DF_OutletOnboarding_VerificationNotes DEFAULT '',
+        CreatedAtUtc datetime2 NOT NULL CONSTRAINT DF_OutletOnboarding_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
+        SubmittedAtUtc datetime2 NULL,
+        VerifiedAtUtc datetime2 NULL,
+        OutletId uniqueidentifier NULL,
+        UserId uniqueidentifier NULL
+    );
+    CREATE UNIQUE INDEX IX_OutletOnboarding_PaymentReference ON dbo.OutletOnboardingApplications(PaymentReference);
+    CREATE INDEX IX_OutletOnboarding_Status ON dbo.OutletOnboardingApplications(Status);
+    CREATE INDEX IX_OutletOnboarding_Email ON dbo.OutletOnboardingApplications(Email);
+END;
 IF OBJECT_ID('dbo.ServiceCities','U') IS NULL
 BEGIN
     CREATE TABLE dbo.ServiceCities(
