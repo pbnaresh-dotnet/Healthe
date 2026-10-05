@@ -72,6 +72,24 @@ Test-CommandExists 'dotnet'
 Test-CommandExists 'node'
 Test-CommandExists 'npm'
 
+Test-CommandExists 'git'
+Test-CommandExists 'dotnet'
+Test-CommandExists 'node'
+Test-CommandExists 'npm'
+
+Write-Host ''
+Write-Host '=== Pulling latest code from Git ===' -ForegroundColor Cyan
+Push-Location $RepoRoot
+try {
+    & git pull --ff-only
+    if ($LASTEXITCODE -ne 0) {
+        throw "Git pull failed with exit code $LASTEXITCODE. Resolve the repository state and run start-dev.ps1 again."
+    }
+}
+finally {
+    Pop-Location
+}
+
 if (-not (Test-Path $SolutionPath)) { throw "Backend solution not found: $SolutionPath" }
 if (-not (Test-Path $FrontendRoot)) { throw "Frontend workspace not found: $FrontendRoot" }
 if (-not (Test-Path $ApiProjectPath)) { throw "API project not found: $ApiProjectPath" }
