@@ -777,6 +777,7 @@ public sealed class OutletOnboardingApplication
     public string OwnerPhone { get; set; } = "";
     public string AadhaarNumber { get; set; } = "";
     public string AadhaarCardUrl { get; set; } = "";
+    public string AadhaarCardKey { get; set; } = "";
     public string AadhaarCardFileName { get; set; } = "";
     public string BusinessRegistrationUrl { get; set; } = "";
     public string BusinessRegistrationFileName { get; set; } = "";
