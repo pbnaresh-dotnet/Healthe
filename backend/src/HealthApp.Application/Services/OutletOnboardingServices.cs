@@ -103,7 +103,6 @@ public sealed class OutletOnboardingService(
             UserId = user.Id
         };
 
-        outletSubscriptions.GetByOutletAsync(outlet.Id).GetAwaiter().GetResult();
         var subscription = new OutletSubscription
         {
             Id = Guid.NewGuid(),
@@ -161,6 +160,7 @@ public sealed class OutletOnboardingService(
         ValidateSubmission(x);
         x.Status = "UnderVerification";
         x.SubmittedAtUtc = DateTime.UtcNow;
+        x.VerifiedAtUtc = null;
         x.VerificationNotes = "";
         await applications.UpdateAsync(x);
         return ToDto(x);
