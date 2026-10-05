@@ -12,6 +12,32 @@ public static class DatabaseInitializer
         // replace EnsureCreatedAsync with EF Core MigrateAsync after generating migrations.
         await db.Database.EnsureCreatedAsync(cancellationToken);
 
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.OutletBrandings','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OutletBrandings
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_OutletBrandings PRIMARY KEY,
+        OutletId uniqueidentifier NOT NULL,
+        BrandName nvarchar(200) NOT NULL CONSTRAINT DF_OutletBrandings_BrandName DEFAULT '',
+        Tagline nvarchar(300) NOT NULL CONSTRAINT DF_OutletBrandings_Tagline DEFAULT '',
+        LogoUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletBrandings_LogoUrl DEFAULT '',
+        HeroImageUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletBrandings_HeroImageUrl DEFAULT '',
+        FaviconUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletBrandings_FaviconUrl DEFAULT '',
+        PrimaryColor nvarchar(20) NOT NULL CONSTRAINT DF_OutletBrandings_PrimaryColor DEFAULT '#14532d',
+        SecondaryColor nvarchar(20) NOT NULL CONSTRAINT DF_OutletBrandings_SecondaryColor DEFAULT '#166534',
+        HealthHighlights nvarchar(2000) NOT NULL CONSTRAINT DF_OutletBrandings_HealthHighlights DEFAULT '',
+        About nvarchar(4000) NOT NULL CONSTRAINT DF_OutletBrandings_About DEFAULT '',
+        FooterText nvarchar(1000) NOT NULL CONSTRAINT DF_OutletBrandings_FooterText DEFAULT '',
+        UpdatedAtUtc datetime2 NOT NULL CONSTRAINT DF_OutletBrandings_UpdatedAtUtc DEFAULT SYSUTCDATETIME()
+    );
+END;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletBrandings_OutletId' AND object_id=OBJECT_ID('dbo.OutletBrandings'))
+    CREATE UNIQUE INDEX IX_OutletBrandings_OutletId ON dbo.OutletBrandings(OutletId);
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_OutletBrandings_Outlets' AND parent_object_id=OBJECT_ID('dbo.OutletBrandings'))
+    ALTER TABLE dbo.OutletBrandings ADD CONSTRAINT FK_OutletBrandings_Outlets FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+", cancellationToken);
+
         // Existing databases may still have the pre-SaaS globally-unique email index.
         // Replace it with a global-null index plus a tenant-scoped email index.
         await db.Database.ExecuteSqlRawAsync(@" 
@@ -538,5 +564,21 @@ IF COL_LENGTH('dbo.DiscountCodes','Code') IS NOT NULL UPDATE dbo.DiscountCodes S
 
         // Keep the old text columns harmless for older databases; normalized values are now authoritative.
         await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(), cancellationToken);
+
+        await db.Database.ExecuteSqlRawAsync(@"
+INSERT INTO dbo.OutletBrandings
+(
+    Id, OutletId, BrandName, Tagline, LogoUrl, HeroImageUrl, FaviconUrl,
+    PrimaryColor, SecondaryColor, HealthHighlights, About, FooterText, UpdatedAtUtc
+)
+SELECT
+    NEWID(), o.Id, o.Name, '', COALESCE(o.LogoUrl,''), COALESCE(o.HeroImageUrl,''), '',
+    COALESCE(NULLIF(o.PrimaryColor,''),'#14532d'), '#166534',
+    COALESCE(o.HealthHighlights,''), COALESCE(o.About,''), '', SYSUTCDATETIME()
+FROM dbo.Outlets o
+WHERE NOT EXISTS (SELECT 1 FROM dbo.OutletBrandings b WHERE b.OutletId=o.Id);
+", cancellationToken);
+
+
     }
 }
