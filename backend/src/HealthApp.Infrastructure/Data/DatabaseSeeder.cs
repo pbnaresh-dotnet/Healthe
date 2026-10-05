@@ -73,7 +73,7 @@ public static class DatabaseSeeder
         });
         db.Users.AddRange(
         new User {
-            Id=customerId, Email="customer@healthapp.test", PasswordHash=passwords.Hash("demo"), FirstName="Demo", LastName="Customer", Role=UserRole.Customer
+            Id=customerId, Email="customer@healthapp.test", PasswordHash=passwords.Hash("demo"), FirstName="Demo", LastName="Customer", Role=UserRole.Customer, OutletId=fitId
         },
         new User {
             Id=fitAdminId, Email="admin@fitfood.test", PasswordHash=passwords.Hash("demo"), FirstName="FitFood", LastName="Admin", Role=UserRole.OutletAdmin, OutletId=fitId
