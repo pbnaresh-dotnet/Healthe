@@ -313,6 +313,8 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
      onClose={()=>setGuestBuilderOpen(false)}
      onContinue={saveGuestDraftAndCreateAccount}
    />}
+ </div>;
+}
 
 function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild}){
  const[slot,setSlot]=useState(1);
