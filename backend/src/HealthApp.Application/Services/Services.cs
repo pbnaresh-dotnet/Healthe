@@ -1229,7 +1229,12 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId, i.Ingredient.Name, i.Quantity, i.Unit, i.Ingredient.Allergens.Select(a => new AllergenDto(a.AllergenId, a.Allergen.Name)).OrderBy(a => a.Name).ToList())).ToList(),
     x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList());
 }
-public sealed class AdminService(IOutletRepository outlets,IUserRepository users,IPlatformTransactionRepository transactions) : IAdminService
+public sealed class AdminService(
+    IOutletRepository outlets,
+    IUserRepository users,
+    IPlatformTransactionRepository transactions,
+    IOutletDomainRepository domains,
+    IOutletSubscriptionRepository outletSubscriptions) : IAdminService
 {
     public async Task<IReadOnlyList<OutletDto>> GetOutletsAsync()=>(await outlets.GetAllAsync()).Select(x=>new OutletDto(x.Id,x.Name,x.Slug,x.Subdomain,x.City,x.State,x.Pincode,x.Status.ToString(),x.BillingPlan.ToString(),x.LogoUrl??string.Empty,x.HeroImageUrl??string.Empty,(x.HealthHighlights??string.Empty).Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToList(),x.PrimaryColor,x.Status==OutletStatus.Active,0,x.Rating,x.ReviewCount,x.About)).ToList();
     public async Task<IReadOnlyList<UserDto>> GetUsersAsync()=>(await users.GetAllAsync()).Select(x=>new UserDto(x.Id,x.Email,x.FirstName,x.LastName,x.Role.ToString(),x.OutletId)).ToList();
@@ -1246,4 +1251,53 @@ public sealed class AdminService(IOutletRepository outlets,IUserRepository users
         var commission=tx.Where(x=>x.Type=="OutletCommission").Sum(x=>x.GrossAmount);
         return new(outlet,service,outlet+service+late+commission,late,service,commission);
     }
+
+    public async Task<IReadOnlyList<OutletDomainDto>> GetOutletDomainsAsync() =>
+        (await domains.GetAllAsync()).Select(MapDomain).ToList();
+
+    public async Task<OutletDomainDto> SetOutletDomainStatusAsync(Guid domainId, OutletDomainStatus status)
+    {
+        if (status is not (OutletDomainStatus.Pending or OutletDomainStatus.Verified or OutletDomainStatus.Active or OutletDomainStatus.Disabled))
+            throw new ArgumentException("Unsupported outlet domain status.");
+
+        var domain = await domains.GetByHostnameAsync((await domains.GetAllAsync())
+            .FirstOrDefault(x => x.Id == domainId)?.Hostname ?? "")
+            ?? throw new KeyNotFoundException("Outlet domain not found.");
+
+        if (domain.Outlet is null)
+            throw new InvalidOperationException("The outlet assigned to this domain no longer exists.");
+
+        if (status == OutletDomainStatus.Active)
+        {
+            if (domain.Outlet.Status != OutletStatus.Live)
+                throw new InvalidOperationException("The outlet must be Live before a custom domain can be activated.");
+
+            if (await outletSubscriptions.GetByOutletAsync(domain.OutletId) is null)
+                throw new InvalidOperationException("The outlet SaaS subscription must be active before a custom domain can be activated.");
+        }
+
+        domain.Status = status;
+        if (status == OutletDomainStatus.Verified || status == OutletDomainStatus.Active)
+            domain.VerifiedAtUtc ??= DateTime.UtcNow;
+        if (status == OutletDomainStatus.Pending)
+            domain.VerifiedAtUtc = null;
+
+        await domains.UpdateAsync(domain);
+        return MapDomain(domain);
+    }
+
+    private static OutletDomainDto MapDomain(OutletDomain x) =>
+        new(
+            x.Id,
+            x.OutletId,
+            x.Outlet?.Name ?? "",
+            x.Hostname,
+            "Custom",
+            x.Status.ToString(),
+            x.IsPrimary,
+            x.CreatedAtUtc,
+            x.VerifiedAtUtc,
+            "TXT",
+            $"_healthapp-verification.{x.Hostname}",
+            x.VerificationToken);
 }
