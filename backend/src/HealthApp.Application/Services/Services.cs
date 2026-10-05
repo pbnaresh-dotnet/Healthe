@@ -7,7 +7,7 @@ using HealthApp.Domain.Enums;
 using HealthApp.Domain.Events;
 using HealthApp.Shared.DTOs;
 namespace HealthApp.Application.Services;
-public sealed class AuthService(IUserRepository users, IOutletRepository outlets, ITokenService tokens, IPasswordService passwords) : IAuthService
+public sealed class AuthService(IUserRepository users, ITokenService tokens, IPasswordService passwords) : IAuthService
 {
     public async Task<AuthResponse?> LoginAsync(LoginRequest r)
     {
