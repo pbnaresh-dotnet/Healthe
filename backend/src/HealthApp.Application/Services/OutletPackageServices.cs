@@ -360,7 +360,7 @@ public sealed class OutletPackageService(
             PlatformServiceFee = quote.PlatformServiceFee,
             PlatformServiceGst = quote.PlatformServiceGst,
             PlatformServiceFeePercent = platformFee.Percent,
-            PlatformServiceGstRate = quote.PlatformServiceGst == 0 ? 0 : Math.Round(quote.PlatformServiceGst / quote.PlatformServiceFee * platformFee.Percent, 4),
+            PlatformServiceGstRate = quote.PlatformServiceFee == 0 ? 0 : Math.Round(quote.PlatformServiceGst / quote.PlatformServiceFee * 100m, 4),
             RestaurantGstRate = quote.RestaurantGstRate,
             RestaurantGstMode = Enum.Parse<GstMode>(quote.RestaurantGstMode, true),
             RestaurantTaxableAmount = quote.RestaurantTaxableAmount,
@@ -372,7 +372,7 @@ public sealed class OutletPackageService(
             TransactionFee = 0,
             TotalCharged = quote.TotalCharged,
             OutletAmount = quote.OutletSettlementAmount,
-            OutletCommissionPercent = quote.OutletSettlementAmount == 0 ? 0 : Math.Round((quote.RestaurantTaxableAmount - quote.OutletSettlementAmount) / Math.Max(quote.RestaurantTaxableAmount, 1m), 6),
+            OutletCommissionPercent = quote.RestaurantTaxableAmount == 0 ? 0 : Math.Round(quote.OutletCommissionAmount / quote.RestaurantTaxableAmount, 6),
             OutletCommissionAmount = Math.Round(quote.RestaurantTaxableAmount - quote.OutletSettlementAmount, 2),
             DiscountCode = null,
             DiscountCodeAmount = 0,
@@ -568,7 +568,7 @@ public sealed class OutletPackageService(
             OutletPackageDiscountType.Fixed => Math.Round(request.DiscountValue, 2),
             _ => 0m
         };
-        discountAmount = Math.Min(gross, Math.Max(0, discountAmount));
+        discountAmount = Math.Min(gross, Math.Max(0m, discountAmount));
         var discountedMealAmount = Math.Round(gross - discountAmount, 2);
 
         var delivery = await CalculateDeliveryAsync(outletId, deliveryMode, mealRows, customer.Id);
@@ -652,6 +652,8 @@ public sealed class OutletPackageService(
     private static void ValidateWindow(SubscriptionDuration duration, IReadOnlyList<SubscriptionMealSelection> meals)
     {
         var start = meals.Min(x => x.MealDate).Date;
+        if (start < DateTime.UtcNow.Date)
+            throw new ArgumentException("Package start date cannot be in the past.");
         var days = duration switch
         {
             SubscriptionDuration.ThreeDays => 3,
