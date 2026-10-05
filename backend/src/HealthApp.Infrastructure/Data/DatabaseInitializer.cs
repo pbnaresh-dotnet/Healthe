@@ -116,14 +116,18 @@ BEGIN
         OwnerPhone nvarchar(40) NOT NULL CONSTRAINT DF_OutletOnboarding_OwnerPhone DEFAULT '',
         AadhaarNumber nvarchar(20) NOT NULL CONSTRAINT DF_OutletOnboarding_AadhaarNumber DEFAULT '',
         AadhaarCardUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_AadhaarCardUrl DEFAULT '',
+        AadhaarCardKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_AadhaarCardKey DEFAULT '',
         AadhaarCardFileName nvarchar(255) NOT NULL CONSTRAINT DF_OutletOnboarding_AadhaarCardFileName DEFAULT '',
         BusinessRegistrationUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessRegistrationUrl DEFAULT '',
+        BusinessRegistrationKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessRegistrationKey DEFAULT '',
         BusinessRegistrationFileName nvarchar(255) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessRegistrationFileName DEFAULT '',
         BusinessPan nvarchar(20) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessPan DEFAULT '',
         BusinessPanDocumentUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessPanDocumentUrl DEFAULT '',
+        BusinessPanDocumentKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessPanDocumentKey DEFAULT '',
         BusinessPanDocumentFileName nvarchar(255) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessPanDocumentFileName DEFAULT '',
         GstNumber nvarchar(30) NOT NULL CONSTRAINT DF_OutletOnboarding_GstNumber DEFAULT '',
         GstCertificateUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_GstCertificateUrl DEFAULT '',
+        GstCertificateKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_GstCertificateKey DEFAULT '',
         GstCertificateFileName nvarchar(255) NOT NULL CONSTRAINT DF_OutletOnboarding_GstCertificateFileName DEFAULT '',
         VerificationNotes nvarchar(2000) NOT NULL CONSTRAINT DF_OutletOnboarding_VerificationNotes DEFAULT '',
         CreatedAtUtc datetime2 NOT NULL CONSTRAINT DF_OutletOnboarding_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
@@ -136,6 +140,14 @@ BEGIN
     CREATE INDEX IX_OutletOnboarding_Status ON dbo.OutletOnboardingApplications(Status);
     CREATE INDEX IX_OutletOnboarding_Email ON dbo.OutletOnboardingApplications(Email);
 END;
+IF COL_LENGTH('dbo.OutletOnboardingApplications','AadhaarCardKey') IS NULL
+    ALTER TABLE dbo.OutletOnboardingApplications ADD AadhaarCardKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_AadhaarCardKey_Compat DEFAULT '';
+IF COL_LENGTH('dbo.OutletOnboardingApplications','BusinessRegistrationKey') IS NULL
+    ALTER TABLE dbo.OutletOnboardingApplications ADD BusinessRegistrationKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessRegistrationKey_Compat DEFAULT '';
+IF COL_LENGTH('dbo.OutletOnboardingApplications','BusinessPanDocumentKey') IS NULL
+    ALTER TABLE dbo.OutletOnboardingApplications ADD BusinessPanDocumentKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessPanDocumentKey_Compat DEFAULT '';
+IF COL_LENGTH('dbo.OutletOnboardingApplications','GstCertificateKey') IS NULL
+    ALTER TABLE dbo.OutletOnboardingApplications ADD GstCertificateKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_GstCertificateKey_Compat DEFAULT '';
 IF OBJECT_ID('dbo.ServiceCities','U') IS NULL
 BEGIN
     CREATE TABLE dbo.ServiceCities(
