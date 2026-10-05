@@ -17,6 +17,13 @@ public interface IOutletBrandingRepository
     Task AddAsync(OutletBranding branding);
     Task UpdateAsync(OutletBranding branding);
 }
+public interface IOutletDomainRepository
+{
+    Task<OutletDomain?> GetActiveByHostnameAsync(string hostname);
+    Task<IReadOnlyList<OutletDomain>> GetByOutletAsync(Guid outletId);
+    Task AddAsync(OutletDomain domain);
+    Task UpdateAsync(OutletDomain domain);
+}
 
 public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); Task<Outlet?> GetByIdAsync(Guid id); Task<Outlet?> GetBySlugAsync(string slug); Task<Outlet?> GetBySubdomainAsync(string subdomain); Task AddAsync(Outlet outlet); Task UpdateAsync(Outlet outlet); }
 public interface ISaaSPlanRepository { Task<IReadOnlyList<SaaSPlan>> GetActiveAsync(); Task<SaaSPlan?> GetAsync(Guid id); }
@@ -72,6 +79,8 @@ public interface IGeocodingService { Task<ReverseGeocodeDto?> ReverseAsync(doubl
 public interface IPasswordService { string Hash(string password); bool Verify(string password, string hash); }
 public interface ICurrentUser { Guid? UserId { get; } Guid? OutletId { get; } string? Role { get; } bool IsAuthenticated { get; } }
 public interface ITenantContext { Guid? OutletId { get; } string? OutletSlug { get; } bool IsResolved { get; } void Set(Guid outletId, string outletSlug); }
+public interface ITenantHostResolver { Task<Outlet?> ResolveAsync(string? hostname); }
+public sealed class TenantDomainSettings { public string PlatformBaseDomain { get; set; } = "healthapp.com"; }
 public interface IAuthService { Task<AuthResponse?> LoginAsync(LoginRequest request); Task<AuthResponse> RegisterAsync(RegisterRequest request); }
 public interface IEmailService { Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default); }
 public interface IOutletDemoService { Task<OutletDemoRequestDto> RequestAsync(RequestOutletDemoRequest request, CancellationToken cancellationToken = default); }
