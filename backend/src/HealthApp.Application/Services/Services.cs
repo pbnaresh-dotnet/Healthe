@@ -1049,8 +1049,8 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     }
     public async Task<RecipeDto?> UpdateRecipeAsync(Guid id,UpdateRecipeRequest r) {
         if(current.OutletId is not Guid outletId)return null;
-        var x=await recipes.GetAsync(id);
-        if(x is null||x.OutletId!=outletId)return null;
+        var x=await recipes.GetForOutletAsync(id, outletId);
+        if(x is null)return null;
         var ingredientIds=(r.Ingredients??[]).Select(v=>v.IngredientId).Distinct().ToList();
         var allergenIds=(r.AllergenIds??[]).Distinct().ToList();
         var validIngredients=await ingredients.GetByIdsAsync(ingredientIds);
@@ -1085,8 +1085,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     }
     public async Task<bool> DeleteRecipeAsync(Guid id) {
         if(current.OutletId is not Guid outletId)return false;
-        if(!(await recipes.GetByOutletAsync(outletId)).Any(x=>x.Id==id))return false;
-        await recipes.DeleteAsync(id);
+        await recipes.DeleteAsync(id, outletId);
         return true;
     }
     public async Task<IReadOnlyList<MenuItemDto>> GetMenuAsync() {
