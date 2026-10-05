@@ -52,6 +52,21 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID
     ALTER TABLE dbo.SubscriptionDiscountTiers ADD CONSTRAINT FK_SubscriptionDiscountTiers_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.DiscountCodes') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
     ALTER TABLE dbo.DiscountCodes ADD CONSTRAINT FK_DiscountCodes_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.CustomerAddresses') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.CustomerAddresses ADD CONSTRAINT FK_CustomerAddresses_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.CustomerCreditTransactions') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.CustomerCreditTransactions ADD CONSTRAINT FK_CustomerCreditTransactions_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Subscriptions') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.Subscriptions ADD CONSTRAINT FK_Subscriptions_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Orders') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.Orders ADD CONSTRAINT FK_Orders_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.PaymentTransactions') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.PaymentTransactions ADD CONSTRAINT FK_PaymentTransactions_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.PlatformTransactions') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.PlatformTransactions ADD CONSTRAINT FK_PlatformTransactions_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Deliveries') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
 ", cancellationToken);
 
         await db.Database.ExecuteSqlRawAsync(@"
