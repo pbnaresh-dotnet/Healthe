@@ -297,7 +297,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
          <label><span>Start date</span><input type="date" min={todayISO()} value={guestStartDate} onChange={e=>{setGuestStartDate(e.target.value);setGuestSelections({})}}/></label>
          <div className="publicGuestCount"><b>{guestSelectedCount}</b><span>meals selected</span></div>
          <div className="publicGuestOutlet"><span>OUTLET</span><b>{guestBuilderOutlet?.name}</b><small>{guestBuilderOutlet?.city}</small></div>
-       </div></div>
+       </div>
        <div className="publicGuestWeeks">
          {publicBuilderDays().map(d=><section className="publicGuestDay" key={d.date}>
            <div className="publicGuestDayHead"><div><b>{dayName(dayId(d.date))}</b><span>{shortDate(d.date)}</span></div><small>{SLOT.filter(s=>publicMenuFor(d.date,s.id).length).length} meal slots available</small></div>
