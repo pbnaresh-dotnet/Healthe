@@ -56,7 +56,7 @@ public sealed class OutletOnboardingController(IOutletOnboardingService service)
         var result = await service.GetCurrentDocumentAsync(documentType);
         return result is null
             ? NotFound(new { message = "The requested document was not found." })
-            : File(result.Content, result.ContentType, result.FileName);
+            : SendProtectedFile(result);
     }
 
     [HttpGet("{id:guid}")]
@@ -103,4 +103,11 @@ public sealed class OutletOnboardingController(IOutletOnboardingService service)
             ? Unauthorized()
             : File(result.Content, result.ContentType, result.FileName);
     }
+    private IActionResult SendProtectedFile(ProtectedFileDownload result)
+    {
+        Response.Headers.CacheControl = "no-store, no-cache";
+        Response.Headers.Pragma = "no-cache";
+        return File(result.Content, result.ContentType, result.FileName, enableRangeProcessing: false);
+    }
+
 }
