@@ -3,7 +3,15 @@ using Microsoft.AspNetCore.Http;
 namespace HealthApp.Api.Controllers;
 [ApiController,Route("api/outlets/me"),Authorize(Roles="OutletAdmin")]
 public sealed class OutletController(IOutletService service, IFileStorage fileStorage, IOutletPackageService outletPackages, IOutletSettingsService settings, ICurrentUser current):ControllerBase
-{ [HttpGet("settings")] public async Task<IActionResult> Settings()=>Ok(await settings.GetAsync()); [HttpPut("settings/branding")] public async Task<IActionResult> UpdateBranding(UpdateOutletBrandingRequest request)=>Ok(await settings.UpdateBrandingAsync(request)); [HttpPost("settings/branding/assets")] [RequestSizeLimit(5_000_000)] public async Task<IActionResult> UploadBrandingAsset([FromForm] string assetType, IFormFile file)
+{
+ [HttpGet("settings")] public async Task<IActionResult> Settings()=>Ok(await settings.GetAsync());
+ [HttpGet("settings/domains")] public async Task<IActionResult> Domains()=>Ok(await settings.GetDomainsAsync());
+ [HttpPost("settings/domains")] public async Task<IActionResult> RequestDomain(RequestOutletDomainRequest request)
+ {
+     try { return Ok(await settings.RequestDomainAsync(request)); }
+     catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+     catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+ } [HttpPut("settings/branding")] public async Task<IActionResult> UpdateBranding(UpdateOutletBrandingRequest request)=>Ok(await settings.UpdateBrandingAsync(request)); [HttpPost("settings/branding/assets")] [RequestSizeLimit(5_000_000)] public async Task<IActionResult> UploadBrandingAsset([FromForm] string assetType, IFormFile file)
 {
     if (current.OutletId is not Guid outletId)
         return Unauthorized(new { message = "The current user is not associated with an outlet." });
