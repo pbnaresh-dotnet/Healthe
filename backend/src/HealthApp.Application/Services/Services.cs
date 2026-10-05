@@ -21,9 +21,18 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
             outletId = outlet.Id;
         }
 
-        var user = outletId.HasValue
-            ? await users.FindByEmailAsync(r.Email, outletId.Value)
-            : await users.FindByEmailAsync(r.Email);
+        User? user;
+        if (outletId.HasValue)
+        {
+            user = await users.FindByEmailAsync(r.Email, outletId.Value);
+        }
+        else
+        {
+            var customerMatches = await users.FindCustomersByEmailAsync(r.Email);
+            if (customerMatches.Count > 1)
+                throw new ArgumentException("This email is registered with multiple outlets. Select the outlet before signing in.");
+            user = customerMatches.FirstOrDefault() ?? await users.FindByEmailAsync(r.Email);
+        }
 
         if (user is null || !user.IsActive || !passwords.Verify(r.Password, user.PasswordHash))
             return null;
