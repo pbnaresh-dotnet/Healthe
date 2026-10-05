@@ -7,6 +7,7 @@ namespace HealthApp.Application.Services;
 public sealed class OutletSettingsService(
     ICurrentUser current,
     IOutletRepository outlets,
+    IUserRepository users,
     IRecipeRepository recipes,
     IMealPlanRepository mealPlans,
     IOutletMenuRepository menu,
@@ -66,6 +67,10 @@ public sealed class OutletSettingsService(
         if (outlet.Status != OutletStatus.Active && outlet.Status != OutletStatus.Live)
             throw new InvalidOperationException("The outlet must be activated by Super Admin before it can go live.");
 
+        var user = current.UserId is Guid userId ? await users.FindByIdAsync(userId) : null;
+        if (user?.IsDemo == true)
+            throw new InvalidOperationException("Demo accounts cannot be published to the customer marketplace.");
+
         var readiness = await BuildReadinessAsync(outlet);
         if (!readiness.CanGoLive)
             throw new InvalidOperationException("Complete every required setup item before going live.");
@@ -121,12 +126,14 @@ public sealed class OutletSettingsService(
                 outlet.RestaurantGstRate >= 0m, 1, 1, "tax")
         };
 
-        var canGoLive = outlet.Status == OutletStatus.Live || items.All(x => x.IsComplete);
+        var currentUser = current.UserId is Guid userId ? await users.FindByIdAsync(userId) : null;
+        var isDemo = currentUser?.IsDemo == true;
+        var canGoLive = !isDemo && (outlet.Status == OutletStatus.Live || items.All(x => x.IsComplete));
         var missing = items.Where(x => !x.IsComplete).Select(x => x.Title).ToList();
         var message = outlet.Status == OutletStatus.Live
             ? "Outlet is live and available to customers."
             : outlet.Status == OutletStatus.Active
-                ? canGoLive ? "All required setup is complete. Your outlet is ready to go live." : $"Complete: {string.Join(", ", missing)}."
+                ? isDemo ? "Demo accounts can explore the full workspace but are not published to customers." : canGoLive ? "All required setup is complete. Your outlet is ready to go live." : $"Complete: {string.Join(", ", missing)}."
                 : "Waiting for Super Admin activation.";
 
         return new(outlet.Status.ToString(), outlet.Status == OutletStatus.Live, canGoLive, items, message);
