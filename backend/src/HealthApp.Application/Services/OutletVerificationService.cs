@@ -43,61 +43,76 @@ public sealed class OutletVerificationService(
             return ToDetail(x);
         }
 
-        if (await users.FindByEmailAsync(x.Email) is not null)
-            throw new InvalidOperationException("An account already exists for this email address.");
-
-        var slugBase = Slugify(x.OutletName);
-        var slug = slugBase;
-        var counter = 2;
-        while (await outlets.GetBySlugAsync(slug) is not null)
-            slug = $"{slugBase}-{counter++}";
-
         var plan = await plans.GetAsync(x.SaaSPlanId) ?? throw new KeyNotFoundException("Subscription plan not found.");
-        var billingPlan = plan.Name.Trim().ToLowerInvariant() switch { "professional" or "scale" => BillingPlan.Scale, "growth" => BillingPlan.Growth, _ => BillingPlan.Starter };
-        var outlet = new Outlet
-        {
-            Id = Guid.NewGuid(),
-            Name = x.OutletName,
-            Slug = slug,
-            Subdomain = slug,
-            City = x.City,
-            State = x.State,
-            Pincode = x.Pincode,
-            Status = OutletStatus.Active,
-            BillingPlan = billingPlan,
-            About = x.Description,
-            RestaurantGstRate = 5m,
-            RestaurantGstMode = GstMode.Exclusive
-        };
-        await outlets.AddAsync(outlet);
+        var outlet = x.OutletId.HasValue ? await outlets.GetByIdAsync(x.OutletId.Value) : null;
+        var user = x.UserId.HasValue ? await users.FindByIdAsync(x.UserId.Value) : null;
 
-        var user = new User
+        if (outlet is null)
         {
-            Id = Guid.NewGuid(),
-            Email = x.Email,
-            FirstName = string.IsNullOrWhiteSpace(x.OwnerName) ? x.AccountFirstName : x.OwnerName.Split(' ', 2)[0],
-            LastName = string.IsNullOrWhiteSpace(x.OwnerName) ? x.AccountLastName : (x.OwnerName.Contains(' ') ? x.OwnerName[(x.OwnerName.IndexOf(' ') + 1)..] : ""),
-            Role = UserRole.OutletAdmin,
-            OutletId = outlet.Id,
-            PasswordHash = x.PasswordHash,
-            IsActive = true
-        };
-        await users.AddAsync(user);
+            var slug = await CreateUniqueSlugAsync(x.OutletName);
+            outlet = new Outlet
+            {
+                Id = Guid.NewGuid(),
+                Name = x.OutletName,
+                Slug = slug,
+                Subdomain = slug,
+                City = x.City,
+                State = x.State,
+                Pincode = x.Pincode,
+                Status = OutletStatus.Pending,
+                BillingPlan = MapBillingPlan(plan.Name),
+                About = x.Description,
+                RestaurantGstRate = 5m,
+                RestaurantGstMode = GstMode.Exclusive
+            };
+            await outlets.AddAsync(outlet);
+        }
 
-        var subscription = new OutletSubscription
+        if (user is null)
         {
-            Id = Guid.NewGuid(),
-            OutletId = outlet.Id,
-            SaaSPlanId = plan.Id,
-            BillingCycle = x.BillingCycle,
-            SubscriptionFee = x.SubscriptionFee,
-            SetupFee = x.SetupFee,
-            TransactionFeePercent = plan.CustomerTransactionFeePercent,
-            StartDate = DateTime.UtcNow.Date,
-            RenewalDate = DateTime.UtcNow.Date.AddMonths(x.BillingCycle.Equals("Annual", StringComparison.OrdinalIgnoreCase) ? 12 : 1),
-            Status = "Active"
-        };
-        await outletSubscriptions.AddAsync(subscription);
+            var parts = SplitName(x.OwnerName);
+            user = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = x.Email,
+                FirstName = parts.FirstName,
+                LastName = parts.LastName,
+                Role = UserRole.OutletAdmin,
+                OutletId = outlet.Id,
+                PasswordHash = x.PasswordHash,
+                IsActive = true
+            };
+            await users.AddAsync(user);
+        }
+        else
+        {
+            user.OutletId = outlet.Id;
+            user.IsActive = true;
+            user.PasswordHash = x.PasswordHash;
+            await users.UpdateAsync(user);
+        }
+
+        var existingSubscription = await outletSubscriptions.GetByOutletAsync(outlet.Id);
+        if (existingSubscription is null)
+        {
+            await outletSubscriptions.AddAsync(new OutletSubscription
+            {
+                Id = Guid.NewGuid(),
+                OutletId = outlet.Id,
+                SaaSPlanId = plan.Id,
+                BillingCycle = x.BillingCycle,
+                SubscriptionFee = x.SubscriptionFee,
+                SetupFee = x.SetupFee,
+                TransactionFeePercent = plan.CustomerTransactionFeePercent,
+                StartDate = DateTime.UtcNow.Date,
+                RenewalDate = DateTime.UtcNow.Date.AddMonths(x.BillingCycle.Equals("Annual", StringComparison.OrdinalIgnoreCase) ? 12 : 1),
+                Status = "Pending"
+            });
+        }
+
+        outlet.Status = OutletStatus.Active;
+        outlet.BillingPlan = MapBillingPlan(plan.Name);
+        await outlets.UpdateAsync(outlet);
 
         x.Status = "Approved";
         x.VerificationNotes = (request.Notes ?? "Approved by HealthApp verification team.").Trim();
@@ -109,6 +124,32 @@ public sealed class OutletVerificationService(
         return ToDetail(x);
     }
 
+    private async Task<string> CreateUniqueSlugAsync(string name)
+    {
+        var baseSlug = Slugify(name);
+        var slug = baseSlug;
+        var counter = 2;
+        while (await outlets.GetBySlugAsync(slug) is not null)
+            slug = $"{baseSlug}-{counter++}";
+        return slug;
+    }
+
+    private static BillingPlan MapBillingPlan(string name) =>
+        name.Trim().ToLowerInvariant() switch
+        {
+            "professional" or "scale" => BillingPlan.Scale,
+            "growth" => BillingPlan.Growth,
+            _ => BillingPlan.Starter
+        };
+
+    private static (string FirstName, string LastName) SplitName(string name)
+    {
+        var value = name.Trim();
+        var index = value.IndexOf(' ');
+        return index < 0 ? (value, "") : (value[..index], value[(index + 1)..].Trim());
+    }
+
+    private static string Slugify(string value)
     private static string Slugify(string value)
     {
         var chars = value.Trim().ToLowerInvariant().Select(c => char.IsLetterOrDigit(c) ? c : '-').ToArray();
