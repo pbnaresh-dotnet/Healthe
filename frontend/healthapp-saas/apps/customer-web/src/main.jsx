@@ -390,7 +390,7 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild}){
    if(filter==='Gluten Free')return String(x.tags||'').toLowerCase().includes('gluten');
    return true;
  });
- return <><LoadingIndicator active={busy} label="Loading outlet menu"/><div className="publicOutletHome">
+ return <><LoadingIndicator active={busy} label="Loading outlet menu"/><div className="publicOutletHome" style={{'--brand-primary':outlet?.primaryColor||'#14532d','--brand-secondary':outlet?.secondaryColor||'#166534'}}>
    <header className="publicOutletTopbar">
      <button className="publicBrand" type="button" onClick={onBack}><span className="brandMark">{outlet?.logoUrl?<img src={getImg(outlet.logoUrl)} alt="" style={{width:28,height:28,objectFit:'cover',borderRadius:7}}/>:(outlet?.name||'H').slice(0,1).toUpperCase()}</span><span><b>{outlet?.name||'HealthApp'}</b><small>{outlet?.tagline||'Healthy meals, built around you'}</small></span></button>
      <div className="publicOutletTopActions"><button className="secondary" onClick={onBack}>← Find outlets</button><button className="primary" onClick={onBuild}>Build Package →</button></div>
