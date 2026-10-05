@@ -8,4 +8,5 @@ public sealed class StorageOptions
     public string AccountUrl { get; set; } = "";
     public string PublicBaseUrl { get; set; } = "";
     public string LocalRoot { get; set; } = "wwwroot/uploads";
+    public string PrivateLocalRoot { get; set; } = "App_Data/private-uploads";
 }
