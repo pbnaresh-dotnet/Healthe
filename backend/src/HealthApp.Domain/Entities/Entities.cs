@@ -541,6 +541,23 @@ public sealed class OrderFinancialBreakdown
     }
 }
 
+public sealed class OutletBranding
+{
+    public Guid Id { get; set; }
+    public Guid OutletId { get; set; }
+    public string BrandName { get; set; } = "";
+    public string Tagline { get; set; } = "";
+    public string LogoUrl { get; set; } = "";
+    public string HeroImageUrl { get; set; } = "";
+    public string FaviconUrl { get; set; } = "";
+    public string PrimaryColor { get; set; } = "#14532d";
+    public string SecondaryColor { get; set; } = "#166534";
+    public string HealthHighlights { get; set; } = "";
+    public string About { get; set; } = "";
+    public string FooterText { get; set; } = "";
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 public sealed class Outlet
 {
     public Guid Id {
