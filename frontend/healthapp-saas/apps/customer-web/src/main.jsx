@@ -93,7 +93,16 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    }finally{setPublicMapBusy(false)}
  };
 
- const openLocationExplorer=()=>{setShowLocationExplorer(true);setPublicMapError('');};
+ const openLocationExplorer=async()=>{
+   setShowLocationExplorer(true);
+   setPublicMapError('');
+   if(!publicPin){
+     setPublicMapBusy(true);
+     try{setNearbyOutlets(await outlets.list(publicCity||undefined)||[]);}
+     catch(e){setPublicMapError(e.message||'Unable to load outlets.');}
+     finally{setPublicMapBusy(false);}
+   }
+ };
  const closeLocationExplorer=()=>{
    setShowLocationExplorer(false);
    if(trackingRef.current&&navigator.geolocation)navigator.geolocation.clearWatch(trackingRef.current);
@@ -121,7 +130,16 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
      navigator.geolocation.getCurrentPosition(onSuccess,onError,{enableHighAccuracy:true,timeout:15000});
    }
  };
- const changePublicCity=city=>{setPublicCity(city);setNearbyOutlets([]);setPublicPin(null);lastTrackedRef.current=null;};
+ const changePublicCity=async city=>{
+   setPublicCity(city);
+   setPublicPin(null);
+   lastTrackedRef.current=null;
+   setPublicMapBusy(true);
+   setPublicMapError('');
+   try{setNearbyOutlets(await outlets.list(city)||[]);}
+   catch(e){setNearbyOutlets([]);setPublicMapError(e.message||'Unable to load outlets for this city.');}
+   finally{setPublicMapBusy(false);}
+ };
  const selectPublicPin=(latitude,longitude)=>loadNearbyOutlets(latitude,longitude,publicCity);
  const startWithLocation=()=>{
    const value=location.trim();
@@ -244,7 +262,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
     </section>
 
     <section className="publicSection publicOutletsSection" id="outlets">
-      <div className="publicSectionHead inline"><div><span className="publicEyebrow">LOCAL PARTNERS</span><h2>Our featured outlets</h2><p>Healthy meal options from outlets serving supported cities.</p></div><button className="linkBtn" onClick={()=>openAuth('register')}>View all outlets →</button></div>
+      <div className="publicSectionHead inline"><div><span className="publicEyebrow">LOCAL PARTNERS</span><h2>Our featured outlets</h2><p>Healthy meal options from outlets serving supported cities.</p></div><button className="linkBtn" onClick={openLocationExplorer}>View all outlets →</button></div>
       <div className="publicOutletGrid">{outletsFeatured.map(o=><article className="publicOutletCard" key={o.name}><img src={o.image} alt=""/><div><b>{o.name}</b><span>{o.city}</span><small>{o.copy}</small></div></article>)}</div>
     </section>
 
