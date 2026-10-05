@@ -111,12 +111,13 @@ public sealed class RecipeRepository(HealthAppDbContext db) : EfRepository(db), 
         await SaveAsync();
     }
 
-    public async Task DeleteAsync(Guid id, Guid outletId)
+    public async Task<bool> DeleteAsync(Guid id, Guid outletId)
     {
         var recipe = await db.Recipes.FirstOrDefaultAsync(x => x.Id == id && x.OutletId == outletId);
-        if (recipe is null) return;
+        if (recipe is null) return false;
         db.Recipes.Remove(recipe);
         await SaveAsync();
+        return true;
     }
 }
 
