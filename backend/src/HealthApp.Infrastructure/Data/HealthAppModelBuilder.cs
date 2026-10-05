@@ -11,6 +11,7 @@ internal static class HealthAppModelBuilder
         ConfigureUser(b.Entity<User>());
         ConfigureOutlet(b.Entity<Outlet>());
         ConfigureOutletBranding(b.Entity<OutletBranding>());
+        ConfigureOutletDomain(b.Entity<OutletDomain>());
         ConfigureSaaSPlan(b.Entity<SaaSPlan>());
         ConfigureOutletSubscription(b.Entity<OutletSubscription>());
         ConfigureOutletOnboarding(b.Entity<OutletOnboardingApplication>());
@@ -137,6 +138,17 @@ internal static class HealthAppModelBuilder
         e.HasIndex(x => x.OutletId).IsUnique();
         e.HasOne<Outlet>().WithOne(x => x.Branding).HasForeignKey<OutletBranding>(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
     }
+    private static void ConfigureOutletDomain(EntityTypeBuilder<OutletDomain> e)
+    {
+        e.ToTable("OutletDomains");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Hostname).HasMaxLength(253).IsRequired();
+        e.Property(x => x.Status).HasConversion<int>();
+        e.HasIndex(x => x.Hostname).IsUnique();
+        e.HasIndex(x => new { x.OutletId, x.Status });
+        e.HasOne(x => x.Outlet).WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+    }
+
     private static void ConfigureSaaSPlan(EntityTypeBuilder<SaaSPlan> e)
     {
         e.ToTable("SaaSPlans");
