@@ -48,7 +48,10 @@ internal static class HealthAppModelBuilder
         e.ToTable("Users");
         e.HasKey(x => x.Id);
         e.Property(x => x.Email).HasMaxLength(320).IsRequired();
-        e.HasIndex(x => x.Email).IsUnique();
+        // Customer identities are tenant-scoped. Keep a single global identity for
+        // platform users while allowing the same email in different outlet tenants.
+        e.HasIndex(x => x.Email).IsUnique().HasFilter("[OutletId] IS NULL");
+        e.HasIndex(x => new { x.OutletId, x.Email }).IsUnique().HasFilter("[OutletId] IS NOT NULL");
         e.Property(x => x.PasswordHash).HasMaxLength(500).IsRequired();
         e.Property(x => x.FirstName).HasMaxLength(100);
         e.Property(x => x.LastName).HasMaxLength(100);
@@ -58,6 +61,7 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.DemoExpiresAtUtc);
         e.HasIndex(x => x.IsDemo);
         e.Property(x => x.DemoExpiresAtUtc);
+        e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
     }
     private static void ConfigureOutlet(EntityTypeBuilder<Outlet> e)
     {
