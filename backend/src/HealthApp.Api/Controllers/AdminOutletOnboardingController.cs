@@ -21,10 +21,17 @@ public sealed class AdminOutletOnboardingController(IOutletVerificationService s
         var result = await service.GetDocumentAsync(id, documentType);
         return result is null
             ? NotFound(new { message = "The requested document was not found." })
-            : File(result.Content, result.ContentType, result.FileName);
+            : SendProtectedFile(result);
     }
 
     [HttpPost("{id:guid}/decision")]
     public async Task<IActionResult> Decide(Guid id, DecideOutletVerificationRequest request) =>
         await service.DecideAsync(id, request) is { } result ? Ok(result) : NotFound();
+    private IActionResult SendProtectedFile(ProtectedFileDownload result)
+    {
+        Response.Headers.CacheControl = "no-store, no-cache";
+        Response.Headers.Pragma = "no-cache";
+        return File(result.Content, result.ContentType, result.FileName, enableRangeProcessing: false);
+    }
+
 }
