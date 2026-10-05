@@ -5,6 +5,7 @@ import{auth,outletAdmin,catalog,locations,currentUser,money,API_URL}from'@health
 import{MapContainer,TileLayer,CircleMarker,Popup,Polyline,useMap,useMapEvents}from'react-leaflet';
 import'leaflet/dist/leaflet.css';
 import'./styles.css';
+import OutletOnboarding from'./OutletOnboarding.jsx';
 
 const ORIGIN=API_URL.replace(/\/api\/?$/,'');
 const img=u=>u?(u.startsWith('http')?u:ORIGIN+u):'';
@@ -26,7 +27,7 @@ function Empty({title,text}){return <div className="empty"><div className="empty
 function Table({columns,rows,empty}){return rows.length?<div className="dataTable"><div className="dataRow header">{columns.map(c=><span key={c}>{c}</span>)}</div>{rows.map((r,i)=><div className="dataRow" key={i}>{r.map((v,j)=><span key={j}>{v}</span>)}</div>)}</div>:<Empty title={empty} text="There is no activity to show yet."/>}
 
 function App(){
- const[user,setUser]=useState(currentUser()),[login,setLogin]=useState({email:'admin@fitfood.test',password:'demo'}),[active,setActive]=useState('dashboard'),[dash,setDash]=useState(null);
+ const[user,setUser]=useState(currentUser()),[login,setLogin]=useState({email:'admin@fitfood.test',password:'demo'}),[active,setActive]=useState('dashboard'),[dash,setDash]=useState(null),[showOnboarding,setShowOnboarding]=useState(false);
  const[recipes,setRecipes]=useState([]),[ingredients,setIngredients]=useState([]),[allergens,setAllergens]=useState([]),[pricing,setPricing]=useState([]),[areas,setAreas]=useState([]),[selectedAreas,setSelectedAreas]=useState([]),[tiers,setTiers]=useState([]);
  const[customers,setCustomers]=useState([]),[subs,setSubs]=useState([]),[orders,setOrders]=useState([]),[deliveries,setDeliveries]=useState([]),[menu,setMenu]=useState([]),[billing,setBilling]=useState(null),[selectedSub,setSelectedSub]=useState(null),[kitchen,setKitchen]=useState(null),[kitchenDate,setKitchenDate]=useState(new Date().toISOString().slice(0,10));
  const[customerEditorOpen,setCustomerEditorOpen]=useState(false),[customerEditorSaving,setCustomerEditorSaving]=useState(false),[customerEditorForm,setCustomerEditorForm]=useState({firstName:'',lastName:'',email:'',password:'',weightKg:'',heightCm:'',dateOfBirth:'',goal:'WeightLoss',activityLevel:'Moderate',diet:'',allergyIds:[]});
@@ -102,6 +103,8 @@ function App(){
  const openMarkPaid=id=>{setManualPaymentPackageId(id);setManualPaymentMethod('Cash');};
  const markPackagePaid=async()=>{try{if(!manualPaymentPackageId)return;const s=await outletAdmin.markPackagePaid(manualPaymentPackageId,{paymentMethod:manualPaymentMethod});setSubs(v=>v.map(x=>x.id===manualPaymentPackageId?s:x));setManualPaymentPackageId('');await load('subscriptions');notify('Payment recorded and package activated.')}catch(e){fail(e)}};
  const saveTax=async e=>{e.preventDefault();const rate=Number(taxForm.restaurantGstRate);if(!Number.isFinite(rate)||rate<0||rate>100)return fail({message:'Restaurant GST rate must be between 0% and 100%.'});try{const x=await outletAdmin.updateTaxSettings({restaurantGstRate:rate,restaurantGstMode:taxForm.restaurantGstMode});setTaxSettings(x);setTaxForm({restaurantGstRate:x?.restaurantGstRate??rate,restaurantGstMode:x?.restaurantGstMode||taxForm.restaurantGstMode});notify('Tax and GST settings saved')}catch(e){fail(e)}};
+
+ if(!user&&showOnboarding)return <OutletOnboarding onBack={()=>setShowOnboarding(false)}/>;
 
  if(!user)return <div className="loginPage"><div className="loginCard"><div className="brand"><span className="brandMark">H</span><div><b>HealthApp</b><small>Outlet management</small></div></div><h1>Welcome back</h1><p>Run your meal business from one workspace.</p><form onSubmit={signIn}><Field label="Email"><input value={login.email} onChange={e=>setLogin({...login,email:e.target.value})}/></Field><Field label="Password"><input type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})}/></Field><button className="primary full">Sign in</button>{error&&<div className="error">{error}</div>}<small className="demo">Demo: admin@fitfood.test / demo</small></form></div></div>;
 
