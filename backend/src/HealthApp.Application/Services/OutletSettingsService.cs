@@ -61,7 +61,11 @@ public sealed class OutletSettingsService(
                 null,
                 "",
                 "",
-                ""));
+                "",
+                "Cloudflare Pages",
+                "active",
+                "active",
+                null));
         }
 
         var custom = await domains.GetByOutletAsync(outletId);
