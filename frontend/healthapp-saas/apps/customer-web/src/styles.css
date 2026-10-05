@@ -810,3 +810,39 @@ textarea{resize:vertical}
  .publicCta{margin:18px 12px 28px;padding:21px 18px;display:grid}.publicCta h2{font-size:22px}.publicCta p{font-size:8px}.publicCta .primary{width:100%}
  .publicAuthShell{grid-template-columns:1fr;padding:18px}.publicAuthIntro{padding:18px 0 8px;align-self:auto}.publicAuthIntro h1{font-size:34px}.publicAuthIntro p{font-size:10px}.publicAuthCard{width:100%}
 }
+
+/* Public landing visual polish */
+.publicHome{font-family:inherit;background:#f7faf7}
+.publicNav{min-height:64px;padding:12px clamp(22px,5vw,76px);box-shadow:0 3px 18px #12351a0a}
+.publicBrand b{font-size:17px}.publicBrand small{font-size:8px}
+.publicNavLinks button{font-size:11px}.publicNavActions .smallBtn{font-size:10px;padding:10px 15px}
+.publicHero{min-height:510px;background:
+ radial-gradient(circle at 12% 25%,#ffffffaa 0 12%,transparent 28%),
+ radial-gradient(circle at 58% 88%,#cfe7d3aa 0 9%,transparent 25%),
+ linear-gradient(120deg,#eaf7ed 0%,#f7fbf5 48%,#dfeee2 100%)}
+.publicHeroCopy{padding:72px clamp(28px,6vw,92px)}
+.publicEyebrow{font-size:10px;letter-spacing:1.7px}.publicHero h1{font-size:clamp(54px,6vw,82px);max-width:720px;margin:14px 0 18px}.publicHero p{font-size:16px;line-height:1.68;max-width:660px;color:#405a49}
+.publicLocationBar{max-width:650px;margin-top:27px;padding:8px 9px 8px 14px;border-radius:14px;box-shadow:0 15px 36px #163d1c18}.publicLocationBar input{font-size:12px}.publicLocationBar .primary{font-size:11px;font-weight:900;padding:13px 22px}
+.publicHeroBadges{max-width:670px;margin-top:20px;gap:9px}.publicHeroBadges span{font-size:9px;padding:10px 12px;background:#ffffffd4;box-shadow:0 5px 13px #12351a08}
+.publicHeroImage{min-height:510px}.publicHeroImage img{transform:scale(1.02)}.publicHeroCallout{right:7%;top:9%;width:190px;padding:16px 18px;border-radius:20px}.publicHeroCallout b{font-size:20px}.publicHeroCallout span{font-size:9px}
+.publicSection{padding:66px clamp(22px,6vw,92px)}.publicSectionHead{margin-bottom:32px}.publicSectionHead h2{font-size:36px;margin:7px 0 8px}.publicSectionHead p{font-size:12px}
+.publicHow{position:relative;overflow:hidden;background:linear-gradient(180deg,#f7fbf7 0%,#eef8f0 100%)}.publicHow:before,.publicHow:after{content:'';position:absolute;border-radius:50%;pointer-events:none}.publicHow:before{width:280px;height:280px;left:-120px;top:50px;background:#d9eddc66}.publicHow:after{width:320px;height:320px;right:-150px;bottom:-120px;background:#d1e8d566}
+.publicHow>.publicSectionHead,.publicHow>.publicSteps{position:relative;z-index:1}
+.publicSteps{max-width:1250px;gap:5px}.publicStep{padding:12px 10px 8px;border-radius:18px;background:#ffffffc7;border:1px solid #dfece1;box-shadow:0 8px 22px #173c2109;backdrop-filter:blur(4px)}.publicStepTop{gap:18px}.publicStepTop>span{width:34px;height:34px;font-size:12px;box-shadow:0 4px 10px #1f7a4330}.publicStepIcon{width:92px;height:92px;margin:13px auto 11px;border-radius:28px;background:#f8fcf8;border:1px solid #dbe9dd;font-size:43px;box-shadow:inset 0 1px 0 #fff,0 8px 16px #173c2108}.publicStep h3{font-size:14px}.publicStep p{font-size:10px;line-height:1.5}
+.publicBenefits{padding:26px clamp(22px,6vw,92px);background:linear-gradient(100deg,#0e5730,#1f7a43,#145f36);border:0;color:white}.publicBenefits>div{padding:5px 24px;border-right:1px solid #ffffff36}.publicBenefits b{background:#ffffff19;color:#d9f2df;width:45px;height:45px;font-size:22px}.publicBenefits strong{font-size:11px;color:white}.publicBenefits span{font-size:8px;color:#c8e2cd}
+.publicSection:not(.publicHow):not(.publicOutletsSection){background:#fbfdfb}.publicPlanGrid{gap:18px}.publicPlanCard{border-radius:16px;box-shadow:0 10px 28px #173c2110;transition:transform .18s ease,box-shadow .18s ease}.publicPlanCard:hover{transform:translateY(-4px);box-shadow:0 16px 34px #173c2118}.publicPlanCard>img{height:170px}.publicPlanCard>div{padding:15px}.publicPlanBadge{font-size:8px;padding:5px 8px}.publicPlanCard h3{font-size:16px;margin:9px 0 6px}.publicPlanCard p{font-size:10px;min-height:44px}.publicPlanCard .smallBtn{font-size:9px;padding:9px}
+.publicOutletsSection{background:#f1f8f2!important}.publicOutletGrid{gap:15px}.publicOutletCard{padding:13px;border-radius:14px;box-shadow:0 7px 20px #173c210a;transition:transform .18s ease}.publicOutletCard:hover{transform:translateY(-3px)}.publicOutletCard>img{width:70px;height:70px;border-radius:14px}.publicOutletCard b{font-size:12px}.publicOutletCard span{font-size:9px}.publicOutletCard small{font-size:8px}
+.publicStory{box-shadow:inset 0 1px #fff}.publicStoryImage{min-height:360px}.publicStory h2{font-size:34px}.publicStory p{font-size:12px}
+.publicCta{margin:48px clamp(18px,6vw,92px) 64px;padding:34px 38px;border-radius:22px;box-shadow:0 18px 40px #173c211c}.publicCta h2{font-size:32px}.publicCta p{font-size:11px}.publicCta .primary{font-size:11px;padding:13px 21px}
+@media(max-width:820px){
+ .publicNav{min-height:56px;padding:9px 14px}.publicNavActions .smallBtn{font-size:8px;padding:8px 10px}
+ .publicHero{min-height:0}.publicHeroCopy{padding:30px 18px 23px}.publicEyebrow{font-size:8px}.publicHero h1{font-size:39px;line-height:1.01;margin:10px 0 13px}.publicHero p{font-size:10px;line-height:1.55}.publicLocationBar{margin-top:15px;border-radius:10px}.publicLocationBar input{font-size:8px}.publicLocationBar .primary{font-size:8px;padding:10px 11px}.publicHeroBadges{margin-top:11px;gap:6px}.publicHeroBadges span{font-size:6.5px;padding:7px}
+ .publicHeroImage{min-height:235px}.publicHeroCallout{width:125px;padding:9px 10px}.publicHeroCallout b{font-size:12px}.publicHeroCallout span{font-size:6.5px}
+ .publicSection{padding:38px 14px}.publicSectionHead{margin-bottom:21px}.publicSectionHead h2{font-size:25px}.publicSectionHead p{font-size:9px}
+ .publicStep{border-radius:12px;padding:10px 8px;background:#ffffffdb}.publicStepIcon{width:58px;height:58px;border-radius:18px;font-size:27px;margin:0}.publicStep h3{font-size:11px}.publicStep p{font-size:8px}
+ .publicBenefits{padding:12px 9px}.publicBenefits>div{padding:8px 7px}.publicBenefits b{width:34px;height:34px;font-size:16px}.publicBenefits strong{font-size:7.5px}.publicBenefits span{font-size:6.5px}
+ .publicPlanGrid{gap:10px}.publicPlanCard{border-radius:12px}.publicPlanCard>img{height:112px}.publicPlanCard>div{padding:8px}.publicPlanCard h3{font-size:11px}.publicPlanCard p{font-size:7.5px;min-height:38px}.publicPlanBadge{font-size:6px}
+ .publicOutletGrid{gap:8px}.publicOutletCard{padding:8px;border-radius:10px}.publicOutletCard>img{width:46px;height:46px}.publicOutletCard b{font-size:8px}.publicOutletCard span,.publicOutletCard small{font-size:6px}
+ .publicStoryImage{min-height:210px}.publicStory>div:last-child{padding:26px 18px}.publicStory h2{font-size:23px}.publicStory p{font-size:9px}
+ .publicCta{margin:20px 10px 30px;padding:22px 18px;border-radius:16px}.publicCta h2{font-size:23px}.publicCta p{font-size:8px}.publicCta .primary{font-size:8px}
+}
