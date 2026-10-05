@@ -47,4 +47,39 @@ public sealed class AzureBlobFileStorage(IOptions<StorageOptions> options) : IFi
         var url = string.IsNullOrWhiteSpace(publicBase) ? blob.Uri.ToString() : $"{publicBase}/{key}";
         return new FileStorageResult(url, key, resolvedContentType);
     }
+    public async Task<FileStorageResult> UploadPrivateAsync(Stream content, string fileName, string contentType, string folder, CancellationToken cancellationToken = default)
+    {
+        await _container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+
+        var segments = (folder ?? "private")
+            .Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => x != "." && x != "..");
+        var safeFolder = string.Join("/", segments);
+        var extension = Path.GetExtension(fileName);
+        var key = $"{safeFolder}/{Guid.NewGuid():N}{extension.ToLowerInvariant()}".Replace("\\", "/");
+        var blob = _container.GetBlobClient(key);
+        var resolvedContentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType;
+
+        await blob.UploadAsync(
+            content,
+            new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = resolvedContentType } },
+            cancellationToken);
+
+        // Private objects are never returned as public URLs. The API streams them after authorization.
+        return new FileStorageResult(string.Empty, key, resolvedContentType);
+    }
+
+    public async Task<FileStorageDownload?> OpenReadAsync(string key, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return null;
+
+        var blob = _container.GetBlobClient(key);
+        if (!await blob.ExistsAsync(cancellationToken))
+            return null;
+
+        var response = await blob.DownloadStreamingAsync(cancellationToken: cancellationToken);
+        return new FileStorageDownload(response.Value.Content, response.Value.Details.ContentType ?? "application/octet-stream");
+    }
+
 }
