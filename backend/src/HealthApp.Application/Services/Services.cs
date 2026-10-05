@@ -106,11 +106,7 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
             .Where(x => string.IsNullOrWhiteSpace(city) || x.City.Equals(city.Trim(), StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        var activeOutletIds = (await Task.WhenAll(candidateOutlets.Select(async outlet =>
-                (outlet.Id, Subscription: await outletSubscriptions.GetByOutletAsync(outlet.Id)))))
-            .Where(x => x.Subscription is not null)
-            .Select(x => x.Id)
-            .ToHashSet();
+        var activeOutletIds = await outletSubscriptions.GetActiveOutletIdsAsync();
 
         var result = candidateOutlets
             .Where(x => activeOutletIds.Contains(x.Id))
@@ -154,12 +150,8 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
         if (!string.IsNullOrWhiteSpace(city))
             rows = rows.Where(x => x.City.Equals(city.Trim(), StringComparison.OrdinalIgnoreCase));
 
-        var eligible = new List<Outlet>();
-        foreach (var outlet in rows)
-            if (await outletSubscriptions.GetByOutletAsync(outlet.Id) is not null)
-                eligible.Add(outlet);
-
-        return eligible.Select(x => ToDto(x, 0)).ToList();
+        var activeOutletIds = await outletSubscriptions.GetActiveOutletIdsAsync();
+        return rows.Where(x => activeOutletIds.Contains(x.Id)).Select(x => ToDto(x, 0)).ToList();
     }
     public async Task<OutletDto?> GetOutletAsync(string slug) {
         var x = await outlets.GetBySlugAsync(slug);
