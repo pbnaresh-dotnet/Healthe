@@ -452,10 +452,10 @@ public sealed class OutletOnboardingService(
     private static OutletOnboardingDto ToDto(OutletOnboardingApplication x)
     {
         var documents = new List<OutletOnboardingDocumentDto>();
-        if (!string.IsNullOrWhiteSpace(x.AadhaarCardKey) || !string.IsNullOrWhiteSpace(x.AadhaarCardUrl)) documents.Add(new("AadhaarCard", $"/api/outlet-onboarding/me/documents/AadhaarCard", x.AadhaarCardFileName, x.CreatedAtUtc));
-        if (!string.IsNullOrWhiteSpace(x.BusinessRegistrationKey) || !string.IsNullOrWhiteSpace(x.BusinessRegistrationUrl)) documents.Add(new("BusinessRegistration", $"/api/outlet-onboarding/me/documents/BusinessRegistration", x.BusinessRegistrationFileName, x.CreatedAtUtc));
-        if (!string.IsNullOrWhiteSpace(x.BusinessPanDocumentKey) || !string.IsNullOrWhiteSpace(x.BusinessPanDocumentUrl)) documents.Add(new("BusinessPan", $"/api/outlet-onboarding/me/documents/BusinessPan", x.BusinessPanDocumentFileName, x.CreatedAtUtc));
-        if (!string.IsNullOrWhiteSpace(x.GstCertificateKey) || !string.IsNullOrWhiteSpace(x.GstCertificateUrl)) documents.Add(new("GstCertificate", $"/api/outlet-onboarding/me/documents/GstCertificate", x.GstCertificateFileName, x.CreatedAtUtc));
+        if (!string.IsNullOrWhiteSpace(x.AadhaarCardKey)) documents.Add(new("AadhaarCard", "/api/outlet-onboarding/me/documents/AadhaarCard", x.AadhaarCardFileName, x.CreatedAtUtc));
+        if (!string.IsNullOrWhiteSpace(x.BusinessRegistrationKey)) documents.Add(new("BusinessRegistration", "/api/outlet-onboarding/me/documents/BusinessRegistration", x.BusinessRegistrationFileName, x.CreatedAtUtc));
+        if (!string.IsNullOrWhiteSpace(x.BusinessPanDocumentKey)) documents.Add(new("BusinessPan", "/api/outlet-onboarding/me/documents/BusinessPan", x.BusinessPanDocumentFileName, x.CreatedAtUtc));
+        if (!string.IsNullOrWhiteSpace(x.GstCertificateKey)) documents.Add(new("GstCertificate", "/api/outlet-onboarding/me/documents/GstCertificate", x.GstCertificateFileName, x.CreatedAtUtc));
 
         return new(
             x.Id, x.Status, x.PaymentStatus, x.PlanName, x.BillingCycle, x.SubscriptionFee, x.SetupFee,
