@@ -303,12 +303,12 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
     {!TENANT_OUTLET_SLUG&&<section className="publicSection" id="plans">
       <div className="publicSectionHead inline"><div><span className="publicEyebrow">POPULAR OPTIONS</span><h2>Explore meal plans</h2><p>Choose a subscription style that fits your goals and routine.</p></div><button className="linkBtn" onClick={openLocationExplorer}>View all plans →</button></div>
       <div className="publicPlanGrid">{plans.map(p=><article className="publicPlanCard" key={p.title}><img src={p.image} alt=""/><div><span className="publicPlanBadge">✓ {p.badge}</span><h3>{p.title}</h3><p>{p.copy}</p><button className="secondary smallBtn" onClick={openLocationExplorer}>Explore plan →</button></div></article>)}</div>
-    </section>
+    </section>}
 
     {!TENANT_OUTLET_SLUG&&<section className="publicSection publicOutletsSection" id="outlets">
       <div className="publicSectionHead inline"><div><span className="publicEyebrow">LOCAL PARTNERS</span><h2>Our featured outlets</h2><p>Healthy meal options from outlets serving supported cities.</p></div><button className="linkBtn" onClick={openLocationExplorer}>View all outlets →</button></div>
       <div className="publicOutletGrid">{outletsFeatured.map(o=><article className="publicOutletCard" key={o.name}><img src={o.image} alt=""/><div><b>{o.name}</b><span>{o.city}</span><small>{o.copy}</small></div></article>)}</div>
-    </section>
+    </section>}
 
     <section className="publicStory"><div className="publicStoryImage"><img src={tenantOutlet?.heroImageUrl?getImg(tenantOutlet.heroImageUrl):IMAGE_FALLBACKS.nonveg} alt={tenantOutlet?.name||'Prepared healthy meal'} onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.nonveg}}/></div><div><span className="publicEyebrow">{tenantOutlet?'BUILT FOR YOU':'BUILT FOR EVERYDAY LIFE'}</span><h2>{tenantOutlet?tenantOutlet.name+' — healthy meals built around your routine.':'One place to discover, subscribe and manage healthy meals.'}</h2><p>Set your delivery location, choose an outlet, build a package around your preferred meals and manage addresses, meal calendars, skips and credits from one customer account.</p><button className="primary" onClick={()=>openAuth('register')}>Create account →</button></div></section>
 
