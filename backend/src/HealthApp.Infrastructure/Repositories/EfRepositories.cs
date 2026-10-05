@@ -47,6 +47,28 @@ public sealed class OutletBrandingRepository(HealthAppDbContext db) : EfReposito
     public async Task UpdateAsync(OutletBranding branding) { db.OutletBrandings.Update(branding); await SaveAsync(); }
 }
 
+public sealed class OutletDomainRepository(HealthAppDbContext db) : EfRepository(db), IOutletDomainRepository
+{
+    public Task<OutletDomain?> GetActiveByHostnameAsync(string hostname)
+    {
+        var value = hostname.Trim().TrimEnd('.').ToLowerInvariant();
+        return db.OutletDomains.AsNoTracking()
+            .Include(x => x.Outlet)
+            .ThenInclude(x => x.Branding)
+            .FirstOrDefaultAsync(x => x.Hostname == value && x.Status == OutletDomainStatus.Active);
+    }
+
+    public async Task<IReadOnlyList<OutletDomain>> GetByOutletAsync(Guid outletId) =>
+        await db.OutletDomains.AsNoTracking()
+            .Where(x => x.OutletId == outletId)
+            .OrderByDescending(x => x.IsPrimary)
+            .ThenBy(x => x.Hostname)
+            .ToListAsync();
+
+    public async Task AddAsync(OutletDomain domain) { db.OutletDomains.Add(domain); await SaveAsync(); }
+    public async Task UpdateAsync(OutletDomain domain) { db.OutletDomains.Update(domain); await SaveAsync(); }
+}
+
 public sealed class SaaSPlanRepository(HealthAppDbContext db) : EfRepository(db), ISaaSPlanRepository
 {
     public async Task<IReadOnlyList<SaaSPlan>> GetActiveAsync() => await db.SaaSPlans.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.MonthlyFee).ToListAsync();
