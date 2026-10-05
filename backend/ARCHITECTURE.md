@@ -22,7 +22,7 @@ Tenant isolation is enforced in layers:
 - SQL Server foreign keys connect tenant-owned tables to `Outlets`;
 - customer email uniqueness is scoped to outlet for tenant accounts.
 
-Marketplace APIs remain multi-outlet when no tenant is supplied. Standalone customer deployments set `VITE_OUTLET_SLUG`, which scopes their public discovery and authenticated requests to one outlet.
+Marketplace APIs remain multi-outlet when no tenant is supplied. Standalone customer deployments can still set `VITE_OUTLET_SLUG` for local or build-time compatibility, but the customer SPA can now resolve the tenant from its runtime hostname. Platform subdomains such as `fitfood.healthapp.com` resolve through the outlet's existing `Subdomain`; custom domains are stored in `OutletDomains` and only `Active` mappings are resolved. Hostname/header/authenticated-tenant mismatches are rejected.
 
 
 Transactions use EF Core execution strategies and explicit SQL transactions.
