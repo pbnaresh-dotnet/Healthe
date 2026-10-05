@@ -430,7 +430,7 @@ public sealed class DeliveryLabelService(
 
             foreach(var meal in mealRows)
             {
-                var recipe=await recipes.GetAsync(meal.RecipeId);
+                var recipe=await recipes.GetForOutletAsync(meal.RecipeId, id);
                 var slot=GetMealSlotInfo(delivery.MealSlot);
 
                 result.Add(new DeliveryLabelDto(
