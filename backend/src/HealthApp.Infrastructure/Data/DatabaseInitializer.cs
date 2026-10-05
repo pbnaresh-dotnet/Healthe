@@ -443,6 +443,19 @@ END;
         // non-nullable C# strings. EF Core materializes those columns with GetString(), which
         // results in SqlNullValueException. Normalize legacy NULLs before any repository query runs.
         await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Users','OutletId') IS NOT NULL
+   AND EXISTS (SELECT 1 FROM dbo.Outlets WHERE Slug='fitfood')
+BEGIN
+    UPDATE u
+    SET OutletId = o.Id
+    FROM dbo.Users u
+    CROSS JOIN dbo.Outlets o
+    WHERE u.Email = 'customer@healthapp.test'
+      AND u.Role = 0
+      AND u.OutletId IS NULL
+      AND o.Slug = 'fitfood';
+END;
+
 IF COL_LENGTH('dbo.Users','Email') IS NOT NULL UPDATE dbo.Users SET Email = COALESCE(Email,'');
 IF COL_LENGTH('dbo.Users','PasswordHash') IS NOT NULL UPDATE dbo.Users SET PasswordHash = COALESCE(PasswordHash,'');
 IF COL_LENGTH('dbo.Users','FirstName') IS NOT NULL UPDATE dbo.Users SET FirstName = COALESCE(FirstName,'');
