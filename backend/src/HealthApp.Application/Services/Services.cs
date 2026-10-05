@@ -28,10 +28,10 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
         }
         else
         {
-            var customerMatches = await users.FindCustomersByEmailAsync(r.Email);
-            if (customerMatches.Count > 1)
+            var tenantMatches = await users.FindTenantUsersByEmailAsync(r.Email);
+            if (tenantMatches.Count > 1)
                 throw new ArgumentException("This email is registered with multiple outlets. Select the outlet before signing in.");
-            user = customerMatches.FirstOrDefault() ?? await users.FindByEmailAsync(r.Email);
+            user = tenantMatches.FirstOrDefault() ?? await users.FindByEmailAsync(r.Email);
         }
 
         if (user is null || !user.IsActive || !passwords.Verify(r.Password, user.PasswordHash))
