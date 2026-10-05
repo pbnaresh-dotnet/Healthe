@@ -673,6 +673,7 @@ public sealed class Outlet
         get;
         set;
     } = GstMode.Exclusive;
+    public OutletBranding? Branding { get; set; }
 }
 
 public sealed class SaaSPlan
