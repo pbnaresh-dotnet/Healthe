@@ -190,6 +190,18 @@ public sealed class OutletPackageService(
         if (await users.FindByEmailAsync(request.Email) is not null)
             throw new InvalidOperationException("A customer with this email already exists.");
 
+        var requestedAllergies = (request.AllergyIds ?? []).Distinct().ToList();
+        var validAllergies = await allergens.GetByIdsAsync(requestedAllergies);
+        if (validAllergies.Count != requestedAllergies.Count)
+            throw new ArgumentException("One or more selected allergies are invalid.");
+
+        if (request.WeightKg is <= 0 || request.HeightCm is <= 0)
+            throw new ArgumentException("Weight and height must be positive when supplied.");
+
+        var bmi = request.WeightKg.HasValue && request.HeightCm.HasValue
+            ? Math.Round(request.WeightKg.Value / ((request.HeightCm.Value / 100m) * (request.HeightCm.Value / 100m)), 2)
+            : null;
+
         var customer = new User
         {
             Id = Guid.NewGuid(),
@@ -203,18 +215,6 @@ public sealed class OutletPackageService(
         };
 
         await users.AddAsync(customer);
-
-        var requestedAllergies = (request.AllergyIds ?? []).Distinct().ToList();
-        var validAllergies = await allergens.GetByIdsAsync(requestedAllergies);
-        if (validAllergies.Count != requestedAllergies.Count)
-            throw new ArgumentException("One or more selected allergies are invalid.");
-
-        if (request.WeightKg is <= 0 || request.HeightCm is <= 0)
-            throw new ArgumentException("Weight and height must be positive when supplied.");
-
-        var bmi = request.WeightKg.HasValue && request.HeightCm.HasValue
-            ? Math.Round(request.WeightKg.Value / ((request.HeightCm.Value / 100m) * (request.HeightCm.Value / 100m)), 2)
-            : null;
 
         await profiles.AddOrUpdateAsync(new CustomerProfile
         {
