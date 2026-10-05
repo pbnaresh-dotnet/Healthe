@@ -1,4 +1,5 @@
 using HealthApp.Application.Abstractions;
+using HealthApp.Shared.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace HealthApp.Api.Controllers;
