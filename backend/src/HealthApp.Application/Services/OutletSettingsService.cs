@@ -13,7 +13,8 @@ public sealed class OutletSettingsService(
     IOutletMenuRepository menu,
     IOutletDeliveryAreaRepository deliveryAreas,
     IDeliveryPricingRepository pricing,
-    IOutletSubscriptionRepository outletSubscriptions) : IOutletSettingsService
+    IOutletSubscriptionRepository outletSubscriptions,
+    IOutletBrandingRepository brandingRepository) : IOutletSettingsService
 {
     private static readonly DayOfWeek[] Weekdays =
     [
@@ -26,10 +27,128 @@ public sealed class OutletSettingsService(
         if (current.OutletId is not Guid outletId) return null;
         var outlet = await outlets.GetByIdAsync(outletId);
         if (outlet is null) return null;
+        var branding = await EnsureBrandingAsync(outlet);
         return new(
             outlet.Id, outlet.Name, outlet.City, outlet.State, outlet.Pincode,
             outlet.DeliveryDays, outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString(),
-            await BuildReadinessAsync(outlet));
+            await BuildReadinessAsync(outlet), MapBranding(branding));
+    }
+
+    public async Task<OutletBrandingDto?> UpdateBrandingAsync(UpdateOutletBrandingRequest request)
+    {
+        if (current.OutletId is not Guid outletId) return null;
+        var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
+
+        if (string.IsNullOrWhiteSpace(request.BrandName) || request.BrandName.Trim().Length > 200)
+            throw new ArgumentException("Brand name is required and must be 200 characters or fewer.");
+        if (request.Tagline?.Trim().Length > 300)
+            throw new ArgumentException("Tagline must be 300 characters or fewer.");
+        if (request.HealthHighlights?.Trim().Length > 2000)
+            throw new ArgumentException("Health highlights must be 2,000 characters or fewer.");
+        if (request.About?.Trim().Length > 4000)
+            throw new ArgumentException("About text must be 4,000 characters or fewer.");
+        if (request.FooterText?.Trim().Length > 1000)
+            throw new ArgumentException("Footer text must be 1,000 characters or fewer.");
+
+        var primary = NormalizeColor(request.PrimaryColor, "#14532d");
+        var secondary = NormalizeColor(request.SecondaryColor, "#166534");
+        var branding = await EnsureBrandingAsync(outlet);
+
+        branding.BrandName = request.BrandName.Trim();
+        branding.Tagline = (request.Tagline ?? string.Empty).Trim();
+        branding.PrimaryColor = primary;
+        branding.SecondaryColor = secondary;
+        branding.HealthHighlights = (request.HealthHighlights ?? string.Empty).Trim();
+        branding.About = (request.About ?? string.Empty).Trim();
+        branding.FooterText = (request.FooterText ?? string.Empty).Trim();
+        branding.UpdatedAtUtc = DateTime.UtcNow;
+
+        // Keep legacy Outlet columns synchronized for older labels/reports while the
+        // dedicated OutletBranding row remains the authoritative presentation model.
+        outlet.LogoUrl = branding.LogoUrl;
+        outlet.HeroImageUrl = branding.HeroImageUrl;
+        outlet.PrimaryColor = branding.PrimaryColor;
+        outlet.HealthHighlights = branding.HealthHighlights;
+        outlet.About = branding.About;
+
+        await brandingRepository.UpdateAsync(branding);
+        return MapBranding(branding);
+    }
+
+    public async Task<OutletBrandingDto?> UpdateBrandingAssetAsync(string assetType, string url)
+    {
+        if (current.OutletId is not Guid outletId) return null;
+        if (string.IsNullOrWhiteSpace(url) || url.Length > 1000)
+            throw new ArgumentException("The uploaded asset URL is invalid.");
+
+        var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
+        var branding = await EnsureBrandingAsync(outlet);
+
+        switch ((assetType ?? string.Empty).Trim().ToLowerInvariant())
+        {
+            case "logo":
+                branding.LogoUrl = url;
+                outlet.LogoUrl = url;
+                break;
+            case "hero":
+                branding.HeroImageUrl = url;
+                outlet.HeroImageUrl = url;
+                break;
+            case "favicon":
+                branding.FaviconUrl = url;
+                break;
+            default:
+                throw new ArgumentException("Supported branding assets are: logo, hero and favicon.");
+        }
+
+        branding.UpdatedAtUtc = DateTime.UtcNow;
+        await brandingRepository.UpdateAsync(branding);
+        return MapBranding(branding);
+    }
+
+    private async Task<OutletBranding> EnsureBrandingAsync(HealthApp.Domain.Entities.Outlet outlet)
+    {
+        var branding = await brandingRepository.GetByOutletAsync(outlet.Id);
+        if (branding is not null) return branding;
+
+        branding = new OutletBranding
+        {
+            Id = Guid.NewGuid(),
+            OutletId = outlet.Id,
+            BrandName = string.IsNullOrWhiteSpace(outlet.Name) ? "Outlet" : outlet.Name,
+            LogoUrl = outlet.LogoUrl ?? string.Empty,
+            HeroImageUrl = outlet.HeroImageUrl ?? string.Empty,
+            PrimaryColor = string.IsNullOrWhiteSpace(outlet.PrimaryColor) ? "#14532d" : outlet.PrimaryColor,
+            SecondaryColor = string.IsNullOrWhiteSpace(outlet.PrimaryColor) ? "#166534" : outlet.PrimaryColor,
+            HealthHighlights = outlet.HealthHighlights ?? string.Empty,
+            About = outlet.About ?? string.Empty
+        };
+        await brandingRepository.AddAsync(branding);
+        return branding;
+    }
+
+    private static OutletBrandingDto MapBranding(OutletBranding branding)
+        => new(
+            branding.BrandName,
+            branding.Tagline,
+            branding.LogoUrl,
+            branding.HeroImageUrl,
+            branding.FaviconUrl,
+            branding.PrimaryColor,
+            branding.SecondaryColor,
+            (branding.HealthHighlights ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList(),
+            branding.About,
+            branding.FooterText);
+
+    private static string NormalizeColor(string? value, string fallback)
+    {
+        var color = (value ?? string.Empty).Trim();
+        if (color.Length == 0) return fallback;
+        if (System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9a-fA-F]{6}$"))
+            return color;
+        throw new ArgumentException("Brand colours must be six-digit hexadecimal values such as #14532d.");
     }
 
     public async Task<OutletSettingsDto?> UpdateDeliveryDaysAsync(UpdateOutletSettingsRequest request)
