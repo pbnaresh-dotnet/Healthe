@@ -538,7 +538,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     public async Task<IReadOnlyList<MealSelectionDto>> GetMealSelectionsAsync(Guid subscriptionId,DateTime? weekStart) {
         var s=await GetOwnedSubscription(subscriptionId);
         var from=(weekStart??s.StartDate).Date;
-        return await MapSelections(await selections.GetBySubscriptionAndDateRangeAsync(s.Id,from,from.AddDays(7)));
+        return await MapSelections(s.OutletId, await selections.GetBySubscriptionAndDateRangeAsync(s.Id,from,from.AddDays(7)));
     }
     public async Task<IReadOnlyList<MealSelectionDto>> SaveMealSelectionsAsync(Guid subscriptionId,SaveMealSelectionsRequest r)
     {
@@ -560,7 +560,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         await unitOfWork.ExecuteAsync(async()=> {
             await selections.DeleteBySubscriptionAndDateRangeAsync(s.Id,from,to); await selections.AddRangeAsync(newRows);
         });
-        return await MapSelections(await selections.GetBySubscriptionAndDateRangeAsync(s.Id,from,to));
+        return await MapSelections(s.OutletId, await selections.GetBySubscriptionAndDateRangeAsync(s.Id,from,to));
     }
     public async Task<MealSelectionDto?> SkipMealAsync(Guid subscriptionId,Guid selectionId,SkipMealRequest r)
     {
@@ -587,7 +587,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 Id=Guid.NewGuid(),MealSelectionId=item.Id,SubscriptionId=s.Id,Action="Skipped",OccurredAtUtc=now,FromMealDate=item.MealDate,Reason=r.Reason,Amount=fee
             }); if(late)await events.PublishAsync(new MealSkippedEvent(s.Id,item.Id,s.CustomerId,s.OutletId,item.MealPrice,item.DeliveryFee,true,fee,r.Reason));
         });
-        return (await MapSelections(new[] {
+        return (await MapSelections(s.OutletId, new[] {
             item
         })).FirstOrDefault();
     }
@@ -607,7 +607,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 d.Status=DeliveryStatus.Skipped; await deliveries.UpdateAsync(d);
             }
         });
-        return await MapSelections(items);
+        return await MapSelections(s.OutletId, items);
     }
     public async Task<MealSelectionDto?> RescheduleMealAsync(Guid subscriptionId,Guid selectionId,RescheduleMealRequest r)
     {
@@ -649,7 +649,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 Id=Guid.NewGuid(),OrderId=existing.FirstOrDefault()?.OrderId??Guid.Empty,SubscriptionId=s.Id,OutletId=s.OutletId,CustomerId=s.CustomerId,DeliveryAddressId=address.Id,ScheduledDate=newDate,MealSlot=s.DeliveryMode==SubscriptionDeliveryMode.OneDeliveryPerDay?MealSlot.Afternoon:(MealSlot)r.NewMealSlot,CustomerName=customer is null?"":$"{customer.FirstName} {customer.LastName}".Trim(),Address=$"{address.AddressLine1}, {address.AddressLine2}, {address.ContactPhone}".Trim(' ',','),DeliveryFee=q.DeliveryFee,Status=DeliveryStatus.Scheduled
             }); await events.PublishAsync(new MealRescheduledEvent(s.Id,replacement.Id,oldDate,newDate,s.CustomerId,s.OutletId));
         });
-        return (await MapSelections(new[] {
+        return (await MapSelections(s.OutletId, new[] {
             replacement
         })).FirstOrDefault();
     }
@@ -694,10 +694,10 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var payment=await payments.GetLatestBySubscriptionAsync(x.Id);
         return new(x.Id,x.CustomerId,x.OutletId,x.MealPlanId,x.PlanName,x.DeliveryMode.ToString(),x.Price,x.DeliveryFee,x.CustomerTransactionFeePercent,x.TransactionFee,x.TotalCharged,x.OutletAmount,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Status.ToString(),x.NextDeliveryDate,await credits.GetBalanceAsync(x.CustomerId),payment?.Status??"Pending",x.DeliveryCity,x.GrossMealAmount,x.SubscriptionDiscountAmount,x.RestaurantTaxableAmount,x.RestaurantGstAmount,x.RestaurantGstRate,x.RestaurantGstMode.ToString(),x.PlatformServiceFee,x.PlatformServiceGst,x.PackageStatus,x.IsOutletCreated,x.OutletDiscountType.ToString(),x.OutletDiscountValue,x.OutletDiscountReason);
     }
-    private async Task<IReadOnlyList<MealSelectionDto>> MapSelections(IEnumerable<SubscriptionMealSelection> rows) {
+    private async Task<IReadOnlyList<MealSelectionDto>> MapSelections(Guid outletId, IEnumerable<SubscriptionMealSelection> rows) {
         var result=new List<MealSelectionDto>();
         foreach(var x in rows) {
-            var r=await recipes.GetAsync(x.RecipeId);
+            var r=await recipes.GetForOutletAsync(x.RecipeId, outletId);
             result.Add(new(x.Id,x.SubscriptionId,x.MealDate,(int)x.MealSlot,x.RecipeId,r?.Name??"",r?.Category.ToString()??"",(int)x.PortionSize,x.Status.ToString(),x.MealPrice,x.DeliveryFee,x.LateSkipFee,x.SkippedAtUtc,x.RescheduledAtUtc));
         }
         return result;
