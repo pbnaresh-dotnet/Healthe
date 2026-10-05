@@ -35,7 +35,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
     { ValidateIssuer=true, ValidIssuer=jwt.Issuer, ValidateAudience=true, ValidAudience=jwt.Audience, ValidateIssuerSigningKey=true, IssuerSigningKey=key, ValidateLifetime=true, ClockSkew=TimeSpan.FromSeconds(30) };
 });
 builder.Services.AddAuthorization();
-builder.Services.AddCors(options => options.AddPolicy("WebApps", policy => policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+builder.Services.AddCors(options => options.AddPolicy("WebApps", policy =>
+{
+    if (allowedOrigins.Length > 0)
+        policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
+    else if (builder.Environment.IsDevelopment())
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+    else
+        policy.SetIsOriginAllowed(_ => false);
+}));
 
 var app = builder.Build();
 await DatabaseInitializer.InitializeAsync(app.Services);
