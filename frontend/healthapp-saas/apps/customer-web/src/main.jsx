@@ -64,6 +64,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  const[guestBuilderOpen,setGuestBuilderOpen]=useState(false);
  const[guestBuilderOutlet,setGuestBuilderOutlet]=useState(null);
  const[guestDuration,setGuestDuration]=useState('OneWeek');
+ const[guestStartDate,setGuestStartDate]=useState(todayISO());
  const[guestSelections,setGuestSelections]=useState({});
  const trackingRef=useRef(null);
  const lastTrackedRef=useRef(null);
@@ -148,7 +149,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  };
  const publicBuilderDays=()=>{
    const d=DURATIONS.find(x=>x.id===guestDuration)||DURATIONS[2];
-   const start=nextMonday();
+   const start=guestStartDate||todayISO();
    return Array.from({length:d.days},(_,i)=>({date:addDays(start,i),index:i}));
  };
  const publicMenuFor=(date,slot)=>{
@@ -178,7 +179,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
      sessionStorage.setItem('healthapp.guestPackageDraft',JSON.stringify({
        outlet:guestBuilderOutlet,
        duration:guestDuration,
-       startDate:nextMonday(),
+       startDate:guestStartDate||todayISO(),
        selections:Object.entries(guestSelections).filter(([,recipeId])=>recipeId).map(([k,recipeId])=>{
          const parts=k.split('_'); return {date:parts[0],slot:Number(parts[1]),recipeId,portion:1};
        })
@@ -293,9 +294,10 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
        </div>
        <div className="publicGuestBuilderToolbar">
          <label><span>Package duration</span><select value={guestDuration} onChange={e=>{setGuestDuration(e.target.value);setGuestSelections({})}}>{DURATIONS.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}</select></label>
+         <label><span>Start date</span><input type="date" min={todayISO()} value={guestStartDate} onChange={e=>{setGuestStartDate(e.target.value);setGuestSelections({})}}/></label>
          <div className="publicGuestCount"><b>{guestSelectedCount}</b><span>meals selected</span></div>
          <div className="publicGuestOutlet"><span>OUTLET</span><b>{guestBuilderOutlet?.name}</b><small>{guestBuilderOutlet?.city}</small></div>
-       </div>
+       </div></div>
        <div className="publicGuestWeeks">
          {publicBuilderDays().map(d=><section className="publicGuestDay" key={d.date}>
            <div className="publicGuestDayHead"><div><b>{dayName(dayId(d.date))}</b><span>{shortDate(d.date)}</span></div><small>{SLOT.filter(s=>publicMenuFor(d.date,s.id).length).length} meal slots available</small></div>
