@@ -50,8 +50,7 @@ public sealed class AzureBlobFileStorage(IOptions<StorageOptions> options) : IFi
     }
     public async Task<FileStorageResult> UploadPrivateAsync(Stream content, string fileName, string contentType, string folder, CancellationToken cancellationToken = default)
     {
-        await _privateContainer.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
-        await _privateContainer.SetAccessPolicyAsync(Azure.Storage.Blobs.Models.PublicAccessType.None, cancellationToken: cancellationToken);
+        await _privateContainer.CreateIfNotExistsAsync(Azure.Storage.Blobs.Models.PublicAccessType.None, cancellationToken: cancellationToken);
 
         var segments = (folder ?? "private")
             .Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
