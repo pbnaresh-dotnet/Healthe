@@ -202,7 +202,20 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
     private static RecipeDto Map(Recipe x) => new(x.Id,x.OutletId,x.Name,x.Calories,x.ProteinGrams,x.CarbsGrams,x.FatGrams,x.Category.ToString(),x.PricePerMeal,x.LargePricePerMeal,x.Description,x.ImageUrl,x.Tags,x.IsActive,
     x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId,i.Ingredient.Name,i.Quantity,i.Unit,i.Ingredient.Allergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).OrderBy(a=>a.Name).ToList())).ToList(),
     x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams);
-    private static OutletDto ToDto(Outlet x, double distance) => new(x.Id, x.Name, x.Slug, x.Subdomain, x.City, x.State, x.Pincode, x.Status.ToString(), x.BillingPlan.ToString(), x.LogoUrl, x.HeroImageUrl, (x.HealthHighlights??string.Empty).Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToList(), x.PrimaryColor, x.Status == OutletStatus.Live, Math.Round(distance, 1), x.Rating, x.ReviewCount, x.About, x.Latitude, x.Longitude);
+    private static OutletDto ToDto(Outlet x, double distance)
+    {
+        var b = x.Branding;
+        var brandName = string.IsNullOrWhiteSpace(b?.BrandName) ? x.Name : b.BrandName;
+        var logo = string.IsNullOrWhiteSpace(b?.LogoUrl) ? x.LogoUrl : b.LogoUrl;
+        var hero = string.IsNullOrWhiteSpace(b?.HeroImageUrl) ? x.HeroImageUrl : b.HeroImageUrl;
+        var highlights = (string.IsNullOrWhiteSpace(b?.HealthHighlights) ? x.HealthHighlights : b!.HealthHighlights ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        var primary = string.IsNullOrWhiteSpace(b?.PrimaryColor) ? x.PrimaryColor : b.PrimaryColor;
+        var secondary = b?.SecondaryColor ?? string.Empty;
+        var about = string.IsNullOrWhiteSpace(b?.About) ? x.About : b.About;
+        return new(x.Id, brandName, x.Slug, x.Subdomain, x.City, x.State, x.Pincode, x.Status.ToString(), x.BillingPlan.ToString(), logo, hero, highlights, primary, x.Status == OutletStatus.Live, Math.Round(distance, 1), x.Rating, x.ReviewCount, about, x.Latitude, x.Longitude, b?.Tagline ?? string.Empty, secondary, b?.FaviconUrl ?? string.Empty);
+    }
     private static double Distance(double lat1,double lon1,double lat2,double lon2) {
         const double R=6371d;
         var p1=lat1*Math.PI/180d;
@@ -1036,7 +1049,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
         return new OutletKitchenDayDto(
             date.Date,
             outlet.Name,
-            outlet.LogoUrl,
+            string.IsNullOrWhiteSpace(outlet.Branding?.LogoUrl) ? outlet.LogoUrl : outlet.Branding.LogoUrl,
             labels.Count,
             labels.Select(x=>x.CustomerName).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
             labels.Select(x=>x.SubscriptionId).Distinct().Count(),
