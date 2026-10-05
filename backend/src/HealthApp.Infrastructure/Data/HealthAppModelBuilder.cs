@@ -68,8 +68,14 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.Email).HasMaxLength(320).IsRequired();
         // Customer identities are tenant-scoped. Keep a single global identity for
         // platform users while allowing the same email in different outlet tenants.
-        e.HasIndex(x => x.Email).IsUnique().HasFilter("[OutletId] IS NULL");
-        e.HasIndex(x => new { x.OutletId, x.Email }).IsUnique().HasFilter("[OutletId] IS NOT NULL");
+        e.HasIndex(x => x.Email)
+            .HasDatabaseName("IX_Users_Email_Global")
+            .IsUnique()
+            .HasFilter("[OutletId] IS NULL");
+        e.HasIndex(x => new { x.OutletId, x.Email })
+            .HasDatabaseName("IX_Users_OutletId_Email")
+            .IsUnique()
+            .HasFilter("[OutletId] IS NOT NULL");
         e.Property(x => x.PasswordHash).HasMaxLength(500).IsRequired();
         e.Property(x => x.FirstName).HasMaxLength(100);
         e.Property(x => x.LastName).HasMaxLength(100);
