@@ -300,16 +300,18 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var gross = Math.Round(meals.Sum(x => x.MealPrice), 2);
         var codeAmount = await CalculateDiscountCodeAmountAsync(outlet.Id, gross, r.DiscountCode);
         var totalDiscount = Math.Min(gross, packageDiscount.Amount + codeAmount);
-        var net = Math.Round(gross - totalDiscount, 2);
+        var discountedMealAmount = Math.Round(gross - totalDiscount, 2);
         var delivery = await CalculateDeliveryAsync(outlet.Id, deliveryMode, meals, customerId);
+        var taxes = taxStrategy.Calculate(discountedMealAmount, 0m, outlet.RestaurantGstRate, outlet.RestaurantGstMode);
+        var net = taxes.RestaurantTaxableAmount;
         var service = platformFee.Calculate(net);
-        var taxes = taxStrategy.Calculate(net, service);
+        taxes = taxStrategy.Calculate(discountedMealAmount, service, outlet.RestaurantGstRate, outlet.RestaurantGstMode);
         var commissionRate = await GetOutletCommissionAsync(outlet.Id);
         var commission = Math.Round(net * commissionRate, 2);
         var quotes = new List<DeliveryQuoteDto>();
         foreach (var addressId in meals.Select(x => x.AddressId!.Value).Distinct()) quotes.Add(await deliveryCalculator.QuoteAsync(outlet.Id, customerId, addressId));
         var payable = net + taxes.RestaurantAmount + delivery + service + taxes.PlatformAmount;
-        return new(gross, gross == 0 ? 0 : Math.Round(totalDiscount / gross * 100m, 4), totalDiscount, net, taxes.RestaurantAmount, delivery, service, taxes.PlatformAmount, payable, commissionRate, commission, service + commission, quotes, allergyWarnings, allergyWarnings.Count>0 && !allergyWarnings.All(x=>(r.ConfirmedAllergyRecipeIds??[]).Contains(x.RecipeId)));
+        return new(gross, gross == 0 ? 0 : Math.Round(totalDiscount / gross * 100m, 4), totalDiscount, net, taxes.RestaurantAmount, delivery, service, taxes.PlatformAmount, payable, commissionRate, commission, service + commission, quotes, allergyWarnings, allergyWarnings.Count>0 && !allergyWarnings.All(x=>(r.ConfirmedAllergyRecipeIds??[]).Contains(x.RecipeId)), taxes.RestaurantTaxableAmount, taxes.RestaurantRate, taxes.RestaurantMode.ToString());
     }
     public async Task<SubscriptionDto?> SubscribeAsync(CreateSubscriptionRequest r)
     {
@@ -332,10 +334,13 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var gross = Math.Round(mealEntities.Sum(x => x.MealPrice), 2);
         var discountCodeResult = await CalculateDiscountCodeAsync(outlet.Id, gross, r.DiscountCode);
         var totalDiscount = Math.Min(gross, discount.Amount + discountCodeResult.Amount);
-        var net = Math.Round(gross - totalDiscount, 2);
+        var discountedMealAmount = Math.Round(gross - totalDiscount, 2);
         var delivery = await CalculateDeliveryAsync(outlet.Id, deliveryMode, mealEntities, customerId);
+        var taxes = taxStrategy.Calculate(discountedMealAmount, 0m, outlet.RestaurantGstRate, outlet.RestaurantGstMode);
+        var net = taxes.RestaurantTaxableAmount;
         var serviceFee = platformFee.Calculate(net);
-        var taxes = taxStrategy.Calculate(net, serviceFee);
+        taxes = taxStrategy.Calculate(discountedMealAmount, serviceFee, outlet.RestaurantGstRate, outlet.RestaurantGstMode);
+        net = taxes.RestaurantTaxableAmount;
         var commissionRate = await GetOutletCommissionAsync(outlet.Id);
         var commission = Math.Round(net * commissionRate, 2);
         var start = mealEntities.Min(x => x.MealDate).Date;
@@ -380,6 +385,8 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             PlatformServiceFeePercent=platformFee.Percent,
             PlatformServiceGstRate=taxes.PlatformRate,
             RestaurantGstRate=taxes.RestaurantRate,
+            RestaurantGstMode=taxes.RestaurantMode,
+            RestaurantTaxableAmount=taxes.RestaurantTaxableAmount,
             RestaurantGstAmount=taxes.RestaurantAmount,
             LateSkipFee=0,
             Price=net,
@@ -409,7 +416,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             };
             await orders.AddAsync(order);
             await orderFinancials.AddAsync(new OrderFinancialBreakdown {
-                Id=Guid.NewGuid(),OrderId=order.Id,GrossMealAmount=gross,DiscountAmount=totalDiscount,NetMealAmount=net,DeliveryAmount=delivery,PlatformServiceFee=serviceFee,PlatformServiceGst=taxes.PlatformAmount,RestaurantGstAmount=taxes.RestaurantAmount,LateSkipFee=0,CustomerPayable=subscription.TotalCharged,OutletCommission=commission,OutletCommissionGst=0,OutletSettlementAmount=subscription.OutletAmount,HealthAppRevenue=serviceFee+commission
+                Id=Guid.NewGuid(),OrderId=order.Id,GrossMealAmount=gross,DiscountAmount=totalDiscount,NetMealAmount=net,DeliveryAmount=delivery,PlatformServiceFee=serviceFee,PlatformServiceGst=taxes.PlatformAmount,RestaurantGstRate=taxes.RestaurantRate,RestaurantGstMode=taxes.RestaurantMode,RestaurantTaxableAmount=taxes.RestaurantTaxableAmount,RestaurantGstAmount=taxes.RestaurantAmount,LateSkipFee=0,CustomerPayable=subscription.TotalCharged,OutletCommission=commission,OutletCommissionGst=0,OutletSettlementAmount=subscription.OutletAmount,HealthAppRevenue=serviceFee+commission
             });
             var customer = await users.FindByIdAsync(customerId);
             var groups = deliveryMode == SubscriptionDeliveryMode.OneDeliveryPerDay ? mealEntities.GroupBy(x=>x.MealDate.Date).Select(g=>(IEnumerable<SubscriptionMealSelection>)g) : mealEntities.Select(x=>(IEnumerable<SubscriptionMealSelection>)new[] {
@@ -676,6 +683,28 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
 }
 public sealed class OutletService(ICurrentUser current,IOutletRepository outlets,IOutletSubscriptionRepository outletSubs,ISaaSPlanRepository saasPlans,IMealPlanRepository plans,IRecipeRepository recipes,IOutletMenuRepository menu,IUserRepository users,ISubscriptionRepository subscriptions,IOrderRepository orders,IDeliveryRepository deliveries,IIngredientRepository ingredients,IAllergenRepository allergens,ISubscriptionMealSelectionRepository selections,ICustomerAddressRepository addresses,ICityAreaRepository areas,IDeliveryLabelService deliveryLabels) : IOutletService
 {
+    public async Task<OutletTaxSettingsDto?> GetTaxSettingsAsync()
+    {
+        if (current.OutletId is not Guid id) return null;
+        var outlet = await outlets.GetByIdAsync(id);
+        return outlet is null ? null : new(outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString());
+    }
+
+    public async Task<OutletTaxSettingsDto?> UpdateTaxSettingsAsync(UpdateOutletTaxSettingsRequest request)
+    {
+        if (current.OutletId is not Guid id) return null;
+        if (request.RestaurantGstRate < 0m || request.RestaurantGstRate > 100m)
+            throw new ArgumentException("Restaurant GST rate must be between 0% and 100%.");
+        if (!Enum.TryParse<GstMode>(request.RestaurantGstMode, true, out var mode))
+            throw new ArgumentException("GST mode must be Inclusive or Exclusive.");
+
+        var outlet = await outlets.GetByIdAsync(id) ?? throw new KeyNotFoundException("Outlet not found.");
+        outlet.RestaurantGstRate = Math.Round(request.RestaurantGstRate, 4);
+        outlet.RestaurantGstMode = mode;
+        await outlets.UpdateAsync(outlet);
+        return new(outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString());
+    }
+
     public async Task<OutletDashboardDto> GetDashboardAsync()
     {
         if (current.OutletId is not Guid id)
@@ -849,7 +878,10 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             Math.Round(subscription.NetMealAmount+subscription.RestaurantGstAmount,2),
             subscription.DeliveryFee,
             subscription.Status.ToString(),
-            meals);
+            meals,
+            subscription.RestaurantTaxableAmount,
+            subscription.RestaurantGstRate,
+            subscription.RestaurantGstMode.ToString());
     }
 
     public async Task<OutletKitchenDayDto> GetKitchenDayAsync(DateTime date)
