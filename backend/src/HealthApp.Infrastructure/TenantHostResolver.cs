@@ -9,6 +9,7 @@ namespace HealthApp.Infrastructure;
 public sealed class TenantHostResolver(
     IOutletRepository outlets,
     IOutletDomainRepository domains,
+    IOutletSubscriptionRepository outletSubscriptions,
     IOptions<TenantDomainSettings> settings) : ITenantHostResolver
 {
     public async Task<Outlet?> ResolveAsync(string? hostname)
@@ -18,7 +19,7 @@ public sealed class TenantHostResolver(
 
         // Explicit custom-domain mappings take precedence over platform subdomains.
         var custom = await domains.GetActiveByHostnameAsync(host);
-        if (custom?.Outlet is not null)
+        if (custom?.Outlet is not null && await IsCustomerTenantAsync(custom.Outlet))
             return custom.Outlet;
 
         var baseDomain = NormalizeHostname(settings.Value.PlatformBaseDomain);
@@ -39,7 +40,16 @@ public sealed class TenantHostResolver(
         if (subdomain is "www" or "api" or "admin" or "outlet")
             return null;
 
-        return await outlets.GetBySubdomainAsync(subdomain);
+        var platformOutlet = await outlets.GetBySubdomainAsync(subdomain);
+        return platformOutlet is not null && await IsCustomerTenantAsync(platformOutlet)
+            ? platformOutlet
+            : null;
+    }
+
+    private async Task<bool> IsCustomerTenantAsync(Outlet outlet)
+    {
+        if (outlet.Status != OutletStatus.Live) return false;
+        return await outletSubscriptions.GetByOutletAsync(outlet.Id) is not null;
     }
 
     private static string NormalizeHostname(string? value)
