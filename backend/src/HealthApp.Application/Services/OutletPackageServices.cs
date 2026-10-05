@@ -614,6 +614,8 @@ public sealed class OutletPackageService(
         if (customer.Role != UserRole.Customer || !customer.IsActive)
             throw new InvalidOperationException("Select an active customer.");
 
+        await EnsureCustomerAccessAsync(customer.Id);
+
         var duration = Parse<SubscriptionDuration>(request.Duration, "package duration");
         var deliveryMode = Parse<SubscriptionDeliveryMode>(request.DeliveryMode, "delivery mode");
         var city = string.IsNullOrWhiteSpace(request.DeliveryCity) ? outlet.City : request.DeliveryCity.Trim();
@@ -804,13 +806,8 @@ public sealed class OutletPackageService(
         if (user is null || user.Role != UserRole.Customer)
             throw new KeyNotFoundException("Customer not found.");
 
-        if (user.OutletId == outletId)
-            return;
-
-        if ((await subscriptions.GetByOutletAsync(outletId)).Any(x => x.CustomerId == customerId))
-            return;
-
-        throw new UnauthorizedAccessException("Customer is not connected to this outlet.");
+        if (user.OutletId != outletId)
+            throw new UnauthorizedAccessException("Customer is not associated with this outlet.");
     }
 
     private static SubscriptionDto MapSubscription(Subscription x, string paymentStatus)
