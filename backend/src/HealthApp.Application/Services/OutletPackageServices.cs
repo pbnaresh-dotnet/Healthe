@@ -477,6 +477,10 @@ public sealed class OutletPackageService(
             return MapSubscription(await activation.ActivateAsync(subscription.Id, existing.Provider, outletUserId), "Paid");
 
         var method = string.IsNullOrWhiteSpace(request.PaymentMethod) ? "Cash" : request.PaymentMethod.Trim();
+        var allowedMethods = new[] { "Cash", "UPI", "BankTransfer", "Manual" };
+        if (!allowedMethods.Contains(method, StringComparer.OrdinalIgnoreCase))
+            throw new ArgumentException("Payment method must be Cash, UPI, BankTransfer or Manual.");
+        method = allowedMethods.First(x => x.Equals(method, StringComparison.OrdinalIgnoreCase));
         var now = DateTime.UtcNow;
         await payments.AddAsync(new PaymentTransaction
         {
@@ -569,6 +573,8 @@ public sealed class OutletPackageService(
             _ => 0m
         };
         discountAmount = Math.Min(gross, Math.Max(0m, discountAmount));
+        if (discountAmount > 0m && string.IsNullOrWhiteSpace(request.DiscountReason))
+            throw new ArgumentException("A reason is required when applying a negotiated outlet discount.");
         var discountedMealAmount = Math.Round(gross - discountAmount, 2);
 
         var delivery = await CalculateDeliveryAsync(outletId, deliveryMode, mealRows, customer.Id);
