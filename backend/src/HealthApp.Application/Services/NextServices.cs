@@ -350,7 +350,22 @@ public sealed class PaymentService(ICurrentUser current,IPaymentTransactionRepos
         }
         return Map(p);
     }
-    public async Task<PaymentDto?> GetAsync(Guid id){if(current.UserId is not Guid uid)return null;var p=await payments.GetAsync(id);return p is null||p.CustomerId!=uid?null:Map(p);}
+    public async Task<PaymentDto?> GetAsync(Guid id)
+    {
+        if(current.UserId is not Guid uid) return null;
+
+        var p = await payments.GetAsync(id);
+        if(p is null || p.CustomerId != uid) return null;
+
+        if(current.OutletId is not Guid customerOutletId) return null;
+        if(p.SubscriptionId is not Guid subscriptionId) return null;
+
+        var subscription = await subscriptions.GetAsync(subscriptionId);
+        if(subscription is null || subscription.CustomerId != uid || subscription.OutletId != customerOutletId)
+            return null;
+
+        return Map(p);
+    }
     private static PaymentDto Map(PaymentTransaction p)=>new(p.Id,p.SubscriptionId,p.Provider,p.ProviderPaymentId,p.Amount,p.Currency,p.Status,p.CreatedAtUtc,p.PaidAtUtc);
 }
 
