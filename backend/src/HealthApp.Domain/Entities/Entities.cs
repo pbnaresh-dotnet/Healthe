@@ -479,6 +479,18 @@ public sealed class OrderFinancialBreakdown
         get;
         set;
     }
+    public decimal RestaurantGstRate {
+        get;
+        set;
+    }
+    public decimal RestaurantTaxableAmount {
+        get;
+        set;
+    }
+    public GstMode RestaurantGstMode {
+        get;
+        set;
+    } = GstMode.Exclusive;
     public decimal RestaurantGstAmount {
         get;
         set;
@@ -615,6 +627,14 @@ public sealed class Outlet
         set;
     }
     = true;
+    public decimal RestaurantGstRate {
+        get;
+        set;
+    } = 5m;
+    public GstMode RestaurantGstMode {
+        get;
+        set;
+    } = GstMode.Exclusive;
 }
 
 public sealed class SaaSPlan
@@ -1114,6 +1134,14 @@ public sealed class Subscription
         get;
         set;
     }
+    public GstMode RestaurantGstMode {
+        get;
+        set;
+    } = GstMode.Exclusive;
+    public decimal RestaurantTaxableAmount {
+        get;
+        set;
+    }
     public decimal RestaurantGstAmount {
         get;
         set;
@@ -1188,6 +1216,51 @@ public sealed class Subscription
         set;
     }
     public SubscriptionStatus Status {
+        get;
+        set;
+    }
+    // Outlet-created package workflow snapshot.
+    public string PackageStatus {
+        get;
+        set;
+    } = "Active";
+    public bool IsOutletCreated {
+        get;
+        set;
+    }
+    public Guid? CreatedByOutletUserId {
+        get;
+        set;
+    }
+    public OutletPackageDiscountType OutletDiscountType {
+        get;
+        set;
+    } = OutletPackageDiscountType.None;
+    public decimal OutletDiscountValue {
+        get;
+        set;
+    }
+    public string OutletDiscountReason {
+        get;
+        set;
+    } = "";
+    public string PaymentMethod {
+        get;
+        set;
+    } = "Online";
+    public Guid? PaidByUserId {
+        get;
+        set;
+    }
+    public DateTime? PaidAtUtc {
+        get;
+        set;
+    }
+    public DateTime? AcceptedAtUtc {
+        get;
+        set;
+    }
+    public DateTime? SentAtUtc {
         get;
         set;
     }

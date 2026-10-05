@@ -314,9 +314,32 @@ public sealed class CityAreaAdminService(ICityAreaRepository areas) : ICityAreaA
     public async Task<CityAreaDto?> CreateAsync(CreateCityAreaRequest r){var x=new CityArea{Id=Guid.NewGuid(),City=r.City,State=r.State,Name=r.Name,Pincode=r.Pincode,Latitude=r.Latitude,Longitude=r.Longitude};await areas.AddAsync(x);return new(x.Id,x.City,x.State,x.Name,x.Pincode,x.Latitude,x.Longitude,x.IsActive);}
 }
 
-public sealed class PaymentService(ICurrentUser current,IPaymentTransactionRepository payments,ISubscriptionRepository subscriptions,IOrderRepository orders) : IPaymentService
+public sealed class PaymentService(ICurrentUser current,IPaymentTransactionRepository payments,ISubscriptionRepository subscriptions,IOrderRepository orders,IOutletPackageActivationService outletPackageActivation) : IPaymentService
 {
-    public async Task<PaymentDto?> CreateAsync(CreatePaymentRequest r){if(current.UserId is not Guid id)return null;if(string.IsNullOrWhiteSpace(r.IdempotencyKey))throw new ArgumentException("Idempotency key is required.");var s=await subscriptions.GetAsync(r.SubscriptionId)??throw new KeyNotFoundException("Subscription not found.");if(s.CustomerId!=id)throw new UnauthorizedAccessException();var existing=await payments.GetByIdempotencyKeyAsync(r.IdempotencyKey);if(existing is not null)return Map(existing);var now=DateTime.UtcNow;var p=new PaymentTransaction{Id=Guid.NewGuid(),CustomerId=id,SubscriptionId=s.Id,Provider=r.Provider,ProviderPaymentId=$"mock_{Guid.NewGuid():N}",IdempotencyKey=r.IdempotencyKey,Amount=s.TotalCharged,Currency="INR",Status="Paid",CreatedAtUtc=now,PaidAtUtc=now};await payments.AddAsync(p);var order=await orders.GetBySubscriptionAsync(s.Id);if(order is not null){order.Status=OrderStatus.Confirmed;await orders.UpdateAsync(order);}return Map(p);}
+    public async Task<PaymentDto?> CreateAsync(CreatePaymentRequest r)
+    {
+        if(current.UserId is not Guid id)return null;
+        if(string.IsNullOrWhiteSpace(r.IdempotencyKey))throw new ArgumentException("Idempotency key is required.");
+        var s=await subscriptions.GetAsync(r.SubscriptionId)??throw new KeyNotFoundException("Subscription not found.");
+        if(s.CustomerId!=id)throw new UnauthorizedAccessException();
+        if(s.IsOutletCreated&&s.PackageStatus!="PaymentPending")
+            throw new InvalidOperationException("Accept the outlet-created package before making payment.");
+        var existing=await payments.GetByIdempotencyKeyAsync(r.IdempotencyKey);
+        if(existing is not null)return Map(existing);
+        var now=DateTime.UtcNow;
+        var p=new PaymentTransaction{Id=Guid.NewGuid(),CustomerId=id,SubscriptionId=s.Id,Provider=r.Provider,ProviderPaymentId=$"mock_{Guid.NewGuid():N}",IdempotencyKey=r.IdempotencyKey,Amount=s.TotalCharged,Currency="INR",Status="Paid",CreatedAtUtc=now,PaidAtUtc=now};
+        await payments.AddAsync(p);
+        if(s.IsOutletCreated)
+        {
+            await outletPackageActivation.ActivateAsync(s.Id,"Online",id);
+        }
+        else
+        {
+            var order=await orders.GetBySubscriptionAsync(s.Id);
+            if(order is not null){order.Status=OrderStatus.Confirmed;await orders.UpdateAsync(order);}
+        }
+        return Map(p);
+    }
     public async Task<PaymentDto?> GetAsync(Guid id){if(current.UserId is not Guid uid)return null;var p=await payments.GetAsync(id);return p is null||p.CustomerId!=uid?null:Map(p);}
     private static PaymentDto Map(PaymentTransaction p)=>new(p.Id,p.SubscriptionId,p.Provider,p.ProviderPaymentId,p.Amount,p.Currency,p.Status,p.CreatedAtUtc,p.PaidAtUtc);
 }

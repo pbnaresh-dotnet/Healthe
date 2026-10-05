@@ -32,6 +32,10 @@ public sealed class OutletRepository(HealthAppDbContext db) : EfRepository(db), 
         db.Outlets.Add(outlet);
         await SaveAsync();
     }
+    public async Task UpdateAsync(Outlet outlet) {
+        db.Outlets.Update(outlet);
+        await SaveAsync();
+    }
 }
 
 public sealed class SaaSPlanRepository(HealthAppDbContext db) : EfRepository(db), ISaaSPlanRepository
@@ -163,6 +167,10 @@ public sealed class SubscriptionRepository(HealthAppDbContext db) : EfRepository
     public Task<Subscription?> GetAsync(Guid id) => db.Subscriptions.FirstOrDefaultAsync(x => x.Id == id);
     public async Task AddAsync(Subscription s) {
         db.Subscriptions.Add(s);
+        await SaveAsync();
+    }
+    public async Task UpdateAsync(Subscription s) {
+        db.Subscriptions.Update(s);
         await SaveAsync();
     }
 }

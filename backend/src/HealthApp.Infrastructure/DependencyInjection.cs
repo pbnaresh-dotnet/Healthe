@@ -130,6 +130,8 @@ public static class DependencyInjection
         services.AddScoped<IAllergySafetyService, AllergySafetyService>();
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IOutletService, OutletService>();
+        services.AddScoped<IOutletPackageService, OutletPackageService>();
+        services.AddScoped<IOutletPackageActivationService, OutletPackageActivationService>();
         services.AddScoped<IAdminService, AdminService>();
         services.AddScoped<ICustomerProfileService, CustomerProfileService>();
         services.AddScoped<ICustomerAddressService, CustomerAddressService>();

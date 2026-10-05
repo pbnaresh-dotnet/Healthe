@@ -211,6 +211,42 @@ IF COL_LENGTH('dbo.Outlets','ReviewCount') IS NULL
     ALTER TABLE dbo.Outlets ADD ReviewCount int NOT NULL CONSTRAINT DF_Outlets_ReviewCount DEFAULT 0;
 IF COL_LENGTH('dbo.Outlets','About') IS NULL
     ALTER TABLE dbo.Outlets ADD About nvarchar(2000) NULL;
+IF COL_LENGTH('dbo.Outlets','RestaurantGstRate') IS NULL
+    ALTER TABLE dbo.Outlets ADD RestaurantGstRate decimal(9,4) NOT NULL CONSTRAINT DF_Outlets_RestaurantGstRate DEFAULT 5;
+IF COL_LENGTH('dbo.Outlets','RestaurantGstMode') IS NULL
+    ALTER TABLE dbo.Outlets ADD RestaurantGstMode int NOT NULL CONSTRAINT DF_Outlets_RestaurantGstMode DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','RestaurantGstMode') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD RestaurantGstMode int NOT NULL CONSTRAINT DF_Subscriptions_RestaurantGstMode DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','RestaurantTaxableAmount') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD RestaurantTaxableAmount decimal(18,2) NOT NULL CONSTRAINT DF_Subscriptions_RestaurantTaxableAmount DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','PackageStatus') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PackageStatus nvarchar(40) NOT NULL CONSTRAINT DF_Subscriptions_PackageStatus DEFAULT 'Active';
+IF COL_LENGTH('dbo.Subscriptions','IsOutletCreated') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD IsOutletCreated bit NOT NULL CONSTRAINT DF_Subscriptions_IsOutletCreated DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','CreatedByOutletUserId') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD CreatedByOutletUserId uniqueidentifier NULL;
+IF COL_LENGTH('dbo.Subscriptions','OutletDiscountType') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD OutletDiscountType int NOT NULL CONSTRAINT DF_Subscriptions_OutletDiscountType DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','OutletDiscountValue') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD OutletDiscountValue decimal(18,2) NOT NULL CONSTRAINT DF_Subscriptions_OutletDiscountValue DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','OutletDiscountReason') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD OutletDiscountReason nvarchar(500) NOT NULL CONSTRAINT DF_Subscriptions_OutletDiscountReason DEFAULT '';
+IF COL_LENGTH('dbo.Subscriptions','PaymentMethod') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PaymentMethod nvarchar(40) NOT NULL CONSTRAINT DF_Subscriptions_PaymentMethod DEFAULT 'Online';
+IF COL_LENGTH('dbo.Subscriptions','PaidByUserId') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PaidByUserId uniqueidentifier NULL;
+IF COL_LENGTH('dbo.Subscriptions','PaidAtUtc') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PaidAtUtc datetime2 NULL;
+IF COL_LENGTH('dbo.Subscriptions','AcceptedAtUtc') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD AcceptedAtUtc datetime2 NULL;
+IF COL_LENGTH('dbo.Subscriptions','SentAtUtc') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD SentAtUtc datetime2 NULL;
+IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantGstRate') IS NULL
+    ALTER TABLE dbo.OrderFinancialBreakdowns ADD RestaurantGstRate decimal(9,4) NOT NULL CONSTRAINT DF_OrderFinancialBreakdowns_RestaurantGstRate DEFAULT 5;
+IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantGstMode') IS NULL
+    ALTER TABLE dbo.OrderFinancialBreakdowns ADD RestaurantGstMode int NOT NULL CONSTRAINT DF_OrderFinancialBreakdowns_RestaurantGstMode DEFAULT 0;
+IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantTaxableAmount') IS NULL
+    ALTER TABLE dbo.OrderFinancialBreakdowns ADD RestaurantTaxableAmount decimal(18,2) NOT NULL CONSTRAINT DF_OrderFinancialBreakdowns_RestaurantTaxableAmount DEFAULT 0;
 
 IF COL_LENGTH('dbo.CustomerProfiles','Allergies') IS NOT NULL
     ALTER TABLE dbo.CustomerProfiles ALTER COLUMN Allergies nvarchar(max) NULL;
@@ -299,6 +335,14 @@ IF COL_LENGTH('dbo.CustomerAddresses','AddressLine1') IS NOT NULL UPDATE dbo.Cus
 IF COL_LENGTH('dbo.CustomerAddresses','AddressLine2') IS NOT NULL UPDATE dbo.CustomerAddresses SET AddressLine2 = COALESCE(AddressLine2,'');
 IF COL_LENGTH('dbo.CustomerAddresses','ContactName') IS NOT NULL UPDATE dbo.CustomerAddresses SET ContactName = COALESCE(ContactName,'');
 IF COL_LENGTH('dbo.CustomerAddresses','ContactPhone') IS NOT NULL UPDATE dbo.CustomerAddresses SET ContactPhone = COALESCE(ContactPhone,'');
+
+IF COL_LENGTH('dbo.Outlets','RestaurantGstRate') IS NOT NULL UPDATE dbo.Outlets SET RestaurantGstRate = COALESCE(RestaurantGstRate,5);
+IF COL_LENGTH('dbo.Outlets','RestaurantGstMode') IS NOT NULL UPDATE dbo.Outlets SET RestaurantGstMode = COALESCE(RestaurantGstMode,0);
+IF COL_LENGTH('dbo.Subscriptions','RestaurantGstMode') IS NOT NULL UPDATE dbo.Subscriptions SET RestaurantGstMode = COALESCE(RestaurantGstMode,0);
+IF COL_LENGTH('dbo.Subscriptions','RestaurantTaxableAmount') IS NOT NULL UPDATE dbo.Subscriptions SET RestaurantTaxableAmount = CASE WHEN RestaurantTaxableAmount=0 THEN COALESCE(NetMealAmount,0) ELSE RestaurantTaxableAmount END;
+IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantGstRate') IS NOT NULL UPDATE dbo.OrderFinancialBreakdowns SET RestaurantGstRate = COALESCE(RestaurantGstRate,5);
+IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantGstMode') IS NOT NULL UPDATE dbo.OrderFinancialBreakdowns SET RestaurantGstMode = COALESCE(RestaurantGstMode,0);
+IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantTaxableAmount') IS NOT NULL UPDATE dbo.OrderFinancialBreakdowns SET RestaurantTaxableAmount = CASE WHEN RestaurantTaxableAmount=0 AND RestaurantGstAmount=0 THEN COALESCE(NetMealAmount,0) ELSE RestaurantTaxableAmount END;
 
 IF COL_LENGTH('dbo.Subscriptions','DeliveryCity') IS NOT NULL UPDATE dbo.Subscriptions SET DeliveryCity = COALESCE(DeliveryCity,'');
 IF COL_LENGTH('dbo.Subscriptions','PlanName') IS NOT NULL UPDATE dbo.Subscriptions SET PlanName = COALESCE(PlanName,'');
