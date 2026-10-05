@@ -70,6 +70,8 @@ public sealed class OutletVerificationService(
 
         if (user is null)
         {
+            if (await users.FindByEmailAsync(x.Email) is not null)
+                throw new InvalidOperationException("An account already exists for this email address.");
             var parts = SplitName(x.OwnerName);
             user = new User
             {
