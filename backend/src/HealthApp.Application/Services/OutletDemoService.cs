@@ -3,6 +3,7 @@ using HealthApp.Application.Abstractions;
 using HealthApp.Domain.Entities;
 using HealthApp.Domain.Enums;
 using HealthApp.Shared.DTOs;
+using Microsoft.Extensions.Configuration;
 
 namespace HealthApp.Application.Services;
 
@@ -19,6 +20,7 @@ public sealed class OutletDemoService(
     IOutletDeliveryAreaRepository outletDeliveryAreas,
     IDeliveryPricingRepository deliveryPricing,
     IPasswordService passwords,
+    IConfiguration configuration,
     IEmailService email)
     : IOutletDemoService
 {
@@ -99,7 +101,7 @@ public sealed class OutletDemoService(
 
         await SeedDemoWorkspaceAsync(outlet.Id, city.City, cancellationToken);
 
-        var portalUrl = "http://localhost:5175";
+        var portalUrl = configuration["Demo:OutletPortalUrl"] ?? "http://localhost:5175";
         var body = $"Hello,\n\nYour HealthApp outlet demo account is ready.\n\nLogin: {email}\nPassword: {password}\nDemo portal: {portalUrl}\nValid until: {demoExpires:dd MMM yyyy HH:mm} UTC\n\nDuring the 7-day demo you can create customers, build subscriptions, add drivers, manage recipes and menus, review kitchen orders and explore delivery planning.\n\nThis is a demo account. No subscription payment is required and access is automatically blocked after the expiry date.\n\nRegards,\nHealthApp";
         await email.SendAsync(email, "Your HealthApp outlet demo account", body, cancellationToken);
 
