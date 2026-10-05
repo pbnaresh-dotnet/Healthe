@@ -12,6 +12,7 @@ internal static class HealthAppModelBuilder
         ConfigureOutlet(b.Entity<Outlet>());
         ConfigureSaaSPlan(b.Entity<SaaSPlan>());
         ConfigureOutletSubscription(b.Entity<OutletSubscription>());
+        ConfigureOutletOnboarding(b.Entity<OutletOnboardingApplication>());
         ConfigurePlatformTransaction(b.Entity<PlatformTransaction>());
         ConfigureMealPlan(b.Entity<MealPlan>());
         ConfigureRecipe(b.Entity<Recipe>());
@@ -99,6 +100,50 @@ internal static class HealthAppModelBuilder
         e.HasIndex(x => x.OutletId).IsUnique();
         e.HasIndex(x => x.SaaSPlanId);
     }
+    private static void ConfigureOutletOnboarding(EntityTypeBuilder<OutletOnboardingApplication> e)
+    {
+        e.ToTable("OutletOnboardingApplications");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.AccessKeyHash).HasMaxLength(128).IsRequired();
+        e.Property(x => x.Email).HasMaxLength(320).IsRequired();
+        e.Property(x => x.PasswordHash).HasMaxLength(500).IsRequired();
+        e.Property(x => x.AccountFirstName).HasMaxLength(100);
+        e.Property(x => x.AccountLastName).HasMaxLength(100);
+        e.Property(x => x.PlanName).HasMaxLength(100).IsRequired();
+        e.Property(x => x.BillingCycle).HasMaxLength(30);
+        e.Property(x => x.SubscriptionFee).HasPrecision(18,2);
+        e.Property(x => x.SetupFee).HasPrecision(18,2);
+        e.Property(x => x.PaymentStatus).HasMaxLength(30);
+        e.Property(x => x.PaymentReference).HasMaxLength(100);
+        e.HasIndex(x => x.PaymentReference).IsUnique();
+        e.Property(x => x.Status).HasMaxLength(40);
+        e.HasIndex(x => x.Status);
+        e.Property(x => x.BusinessType).HasMaxLength(40);
+        e.Property(x => x.OutletName).HasMaxLength(200);
+        e.Property(x => x.Description).HasMaxLength(2000);
+        e.Property(x => x.City).HasMaxLength(100);
+        e.Property(x => x.State).HasMaxLength(100);
+        e.Property(x => x.Pincode).HasMaxLength(20);
+        e.Property(x => x.AddressLine1).HasMaxLength(500);
+        e.Property(x => x.AddressLine2).HasMaxLength(500);
+        e.Property(x => x.OwnerName).HasMaxLength(200);
+        e.Property(x => x.OwnerEmail).HasMaxLength(320);
+        e.Property(x => x.OwnerPhone).HasMaxLength(40);
+        e.Property(x => x.AadhaarNumber).HasMaxLength(20);
+        e.Property(x => x.AadhaarCardUrl).HasMaxLength(1000);
+        e.Property(x => x.AadhaarCardFileName).HasMaxLength(255);
+        e.Property(x => x.BusinessRegistrationUrl).HasMaxLength(1000);
+        e.Property(x => x.BusinessRegistrationFileName).HasMaxLength(255);
+        e.Property(x => x.BusinessPan).HasMaxLength(20);
+        e.Property(x => x.BusinessPanDocumentUrl).HasMaxLength(1000);
+        e.Property(x => x.BusinessPanDocumentFileName).HasMaxLength(255);
+        e.Property(x => x.GstNumber).HasMaxLength(30);
+        e.Property(x => x.GstCertificateUrl).HasMaxLength(1000);
+        e.Property(x => x.GstCertificateFileName).HasMaxLength(255);
+        e.Property(x => x.VerificationNotes).HasMaxLength(2000);
+        e.HasIndex(x => x.Email);
+    }
+
     private static void ConfigurePlatformTransaction(EntityTypeBuilder<PlatformTransaction> e)
     {
         e.ToTable("PlatformTransactions");
