@@ -54,6 +54,8 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.LastName).HasMaxLength(100);
         e.Property(x => x.Role).HasConversion<int>();
         e.HasIndex(x => x.OutletId);
+        e.HasIndex(x => x.IsDemo);
+        e.Property(x => x.DemoExpiresAtUtc);
     }
     private static void ConfigureOutlet(EntityTypeBuilder<Outlet> e)
     {
