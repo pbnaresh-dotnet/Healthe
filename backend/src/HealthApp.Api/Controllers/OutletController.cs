@@ -2,7 +2,7 @@ using HealthApp.Application.Abstractions; using HealthApp.Shared.DTOs; using Mic
 using Microsoft.AspNetCore.Http;
 namespace HealthApp.Api.Controllers;
 [ApiController,Route("api/outlets/me"),Authorize(Roles="OutletAdmin")]
-public sealed class OutletController(IOutletService service, IFileStorage fileStorage, IOutletPackageService outletPackages, IOutletSettingsService settings):ControllerBase
+public sealed class OutletController(IOutletService service, IFileStorage fileStorage, IOutletPackageService outletPackages, IOutletSettingsService settings, ICurrentUser current):ControllerBase
 { [HttpGet("settings")] public async Task<IActionResult> Settings()=>Ok(await settings.GetAsync()); [HttpGet("settings/readiness")] public async Task<IActionResult> SettingsReadiness()=>Ok(await settings.GetReadinessAsync()); [HttpPut("settings/delivery-days")] public async Task<IActionResult> UpdateDeliveryDays(UpdateOutletSettingsRequest request)=>Ok(await settings.UpdateDeliveryDaysAsync(request)); [HttpPost("settings/go-live")] public async Task<IActionResult> GoLive()=>Ok(await settings.GoLiveAsync()); [HttpGet] public async Task<IActionResult> Me()=>Ok(await service.GetCurrentAsync()); [HttpGet("tax-settings")] public async Task<IActionResult> TaxSettings()=>Ok(await service.GetTaxSettingsAsync()); [HttpPut("tax-settings")] public async Task<IActionResult> UpdateTaxSettings(UpdateOutletTaxSettingsRequest r)=>Ok(await service.UpdateTaxSettingsAsync(r)); [HttpGet("dashboard")] public async Task<IActionResult> Dashboard()=>Ok(await service.GetDashboardAsync()); [HttpGet("subscriptions/{subscriptionId:guid}")] public async Task<IActionResult> SubscriptionDetail(Guid subscriptionId)=>await service.GetSubscriptionDetailAsync(subscriptionId) is { } result?Ok(result):NotFound(); [HttpGet("kitchen")] public async Task<IActionResult> Kitchen([FromQuery]DateTime? date)=>Ok(await service.GetKitchenDayAsync((date??DateTime.UtcNow).Date)); [HttpGet("billing")] public async Task<IActionResult> Billing()=>Ok(await service.GetBillingAsync()); [HttpGet("subscription/plans")] public async Task<IActionResult> SubscriptionPlans()=>Ok(await service.GetSaaSPlansAsync()); [HttpPut("subscription")] public async Task<IActionResult> ChangeSubscription(ChangeOutletSubscriptionRequest r)=>Ok(await service.ChangeSubscriptionAsync(r)); [HttpGet("meal-plans")] public async Task<IActionResult> Plans()=>Ok(await service.GetPlansAsync()); [HttpPost("meal-plans")] public async Task<IActionResult> CreatePlan(CreateMealPlanRequest r)=>Ok(await service.CreatePlanAsync(r)); [HttpGet("recipes")] public async Task<IActionResult> Recipes([FromQuery]string? category)=>Ok(await service.GetRecipesAsync(category)); [HttpGet("menu")] public async Task<IActionResult> Menu()=>Ok(await service.GetMenuAsync()); [HttpPut("menu")] public async Task<IActionResult> SaveMenu(BulkMenuRequest r)=>Ok(await service.SaveMenuAsync(r)); [HttpPost("recipes")] public async Task<IActionResult> CreateRecipe(CreateRecipeRequest r)=>Ok(await service.CreateRecipeAsync(r)); [HttpPost("recipes/image")] [RequestSizeLimit(5_000_000)] public async Task<IActionResult> UploadRecipeImage(IFormFile file)
 {
     if (file is null || file.Length == 0) return BadRequest(new { message = "Please select an image." });
@@ -11,8 +11,16 @@ public sealed class OutletController(IOutletService service, IFileStorage fileSt
     var ext = Path.GetExtension(file.FileName);
     var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
     if (!allowed.Contains(ext, StringComparer.OrdinalIgnoreCase)) return BadRequest(new { message = "Supported formats: JPG, PNG and WEBP." });
+    if (current.OutletId is not Guid outletId)
+        return Unauthorized(new { message = "The current user is not associated with an outlet." });
+
     await using var stream = file.OpenReadStream();
-    var stored = await fileStorage.UploadAsync(stream, file.FileName, file.ContentType, "recipes", HttpContext.RequestAborted);
+    var stored = await fileStorage.UploadAsync(
+        stream,
+        file.FileName,
+        file.ContentType,
+        $"outlets/{outletId:N}/recipes",
+        HttpContext.RequestAborted);
     return Ok(new { url = stored.Url, key = stored.Key, contentType = stored.ContentType });
 } [HttpPut("recipes/{recipeId:guid}")] public async Task<IActionResult> UpdateRecipe(Guid recipeId,UpdateRecipeRequest r){var result=await service.UpdateRecipeAsync(recipeId,r);return result is null?NotFound():Ok(result);} [HttpDelete("recipes/{recipeId:guid}")] public async Task<IActionResult> DeleteRecipe(Guid recipeId)=>await service.DeleteRecipeAsync(recipeId)?NoContent():NotFound(); [HttpGet("customers")] public async Task<IActionResult> Customers()=>Ok(await outletPackages.GetCustomersAsync());
  [HttpPost("customers")] public async Task<IActionResult> CreateCustomer(CreateOutletCustomerRequest request)=>Ok(await outletPackages.CreateCustomerAsync(request));
