@@ -18,7 +18,7 @@ public interface IPlatformTransactionRepository { Task AddAsync(PlatformTransact
 public interface IMealPlanRepository { Task<IReadOnlyList<MealPlan>> GetByOutletAsync(Guid outletId); Task<MealPlan?> GetAsync(Guid id); Task AddAsync(MealPlan plan); }
 public interface IRecipeRepository { Task<IReadOnlyList<Recipe>> GetByOutletAsync(Guid outletId); Task<IReadOnlyList<Recipe>> GetByOutletAndCategoryAsync(Guid outletId, string? category); Task<IReadOnlyList<Recipe>> GetByIdsAsync(IEnumerable<Guid> ids); Task<Recipe?> GetAsync(Guid id); Task AddAsync(Recipe recipe); Task UpdateAsync(Recipe recipe); Task DeleteAsync(Guid id); }
 public interface IOutletMenuRepository { Task<IReadOnlyList<OutletMenuItem>> GetByOutletAsync(Guid outletId); Task<IReadOnlyList<OutletMenuItem>> GetByOutletDayAsync(Guid outletId, DayOfWeek day); Task AddAsync(OutletMenuItem item); Task DeleteAsync(Guid id); Task ReplaceAsync(Guid outletId, IEnumerable<OutletMenuItem> items); }
-public interface ISubscriptionRepository { Task<IReadOnlyList<Subscription>> GetByCustomerAsync(Guid customerId); Task<IReadOnlyList<Subscription>> GetByOutletAsync(Guid outletId); Task<Subscription?> GetAsync(Guid id); Task AddAsync(Subscription subscription); }
+public interface ISubscriptionRepository { Task<IReadOnlyList<Subscription>> GetByCustomerAsync(Guid customerId); Task<IReadOnlyList<Subscription>> GetByOutletAsync(Guid outletId); Task<Subscription?> GetAsync(Guid id); Task AddAsync(Subscription subscription); Task UpdateAsync(Subscription subscription); }
 public interface ISubscriptionMealSelectionRepository { Task<IReadOnlyList<SubscriptionMealSelection>> GetBySubscriptionAsync(Guid subscriptionId); Task<IReadOnlyList<SubscriptionMealSelection>> GetBySubscriptionAndDateRangeAsync(Guid subscriptionId, DateTime from, DateTime to); Task<SubscriptionMealSelection?> GetAsync(Guid id); Task AddRangeAsync(IEnumerable<SubscriptionMealSelection> selections); Task UpdateAsync(SubscriptionMealSelection selection); Task DeleteBySubscriptionAndDateRangeAsync(Guid subscriptionId, DateTime from, DateTime to); }
 public interface ICustomerCreditRepository { Task<decimal> GetBalanceAsync(Guid customerId); Task<IReadOnlyList<CustomerCreditTransaction>> GetTransactionsAsync(Guid customerId); Task AddAsync(CustomerCreditTransaction transaction); }
 public interface IOrderRepository { Task<IReadOnlyList<Order>> GetByCustomerAsync(Guid customerId); Task<IReadOnlyList<Order>> GetByOutletAsync(Guid outletId); Task<Order?> GetBySubscriptionAsync(Guid subscriptionId); Task AddAsync(Order order); Task UpdateAsync(Order order); }
@@ -91,3 +91,20 @@ public interface IDeliveryRouteService
     Task<DeliveryRoutePlanDto> PlanRoutesAsync(PlanDeliveryRoutesRequest request);
 }
 public interface IOutletDiscountCodeService { Task<IReadOnlyList<DiscountCodeDto>> GetAsync(); Task<DiscountCodeDto?> CreateAsync(CreateDiscountCodeRequest request); Task<bool> DisableAsync(Guid id); }
+
+public interface IOutletPackageService
+{
+    Task<IReadOnlyList<UserDto>> GetCustomersAsync();
+    Task<UserDto?> CreateCustomerAsync(CreateOutletCustomerRequest request);
+    Task<IReadOnlyList<CustomerAddressDto>> GetCustomerAddressesAsync(Guid customerId);
+    Task<CustomerAddressDto?> CreateCustomerAddressAsync(Guid customerId, OutletPackageAddressRequest request);
+    Task<OutletPackageQuoteDto?> QuoteAsync(OutletPackageQuoteRequest request);
+    Task<SubscriptionDto?> CreateAsync(CreateOutletPackageRequest request);
+    Task<SubscriptionDto?> MarkPaidAsync(Guid subscriptionId, MarkOutletPackagePaidRequest request);
+    Task<SubscriptionDto?> AcceptAsync(Guid subscriptionId);
+}
+
+public interface IOutletPackageActivationService
+{
+    Task<Subscription> ActivateAsync(Guid subscriptionId, string paymentMethod, Guid? paidByUserId);
+}
