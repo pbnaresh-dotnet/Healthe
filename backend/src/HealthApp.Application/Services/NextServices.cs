@@ -325,10 +325,17 @@ public sealed class PaymentService(ICurrentUser current,IPaymentTransactionRepos
         if(string.IsNullOrWhiteSpace(r.IdempotencyKey))throw new ArgumentException("Idempotency key is required.");
         var s=await subscriptions.GetAsync(r.SubscriptionId)??throw new KeyNotFoundException("Subscription not found.");
         if(s.CustomerId!=id)throw new UnauthorizedAccessException();
+        if(current.OutletId is not Guid customerOutletId || customerOutletId != s.OutletId)
+            throw new UnauthorizedAccessException("The current customer is not associated with the subscription outlet.");
         if(s.IsOutletCreated&&s.PackageStatus!="PaymentPending")
             throw new InvalidOperationException("Accept the outlet-created package before making payment.");
         var existing=await payments.GetByIdempotencyKeyAsync(r.IdempotencyKey);
-        if(existing is not null)return Map(existing);
+        if(existing is not null)
+        {
+            if(existing.CustomerId != id)
+                throw new InvalidOperationException("The payment idempotency key is already in use.");
+            return Map(existing);
+        }
         var now=DateTime.UtcNow;
         var p=new PaymentTransaction{Id=Guid.NewGuid(),CustomerId=id,SubscriptionId=s.Id,Provider=r.Provider,ProviderPaymentId=$"mock_{Guid.NewGuid():N}",IdempotencyKey=r.IdempotencyKey,Amount=s.TotalCharged,Currency="INR",Status="Paid",CreatedAtUtc=now,PaidAtUtc=now};
         await payments.AddAsync(p);
