@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState}from'react';
 import{createRoot}from'react-dom/client';
-import{auth,outlets,locations,recipes,menu,customer,catalog,money,currentUser}from'@healthapp/shared';
+import{auth,outlets,locations,recipes,menu,customer,catalog,money,currentUser,API_URL}from'@healthapp/shared';
 import{MapContainer,TileLayer,CircleMarker,useMap,useMapEvents}from'react-leaflet';
 import'leaflet/dist/leaflet.css';
 import'./styles.css';
@@ -25,7 +25,7 @@ const slotName=id=>SLOT.find(x=>x.id===Number(id))?.label||'Meal';
 const dayName=id=>DAYS.find(x=>x.id===id)?.label||'Day';
 const key=(date,slot)=>date+'_'+slot;
 const IMAGE_FALLBACKS={hero:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1400&q=85',logo:'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=240&q=85',veg:'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=85',nonveg:'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=85',vegan:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=85'};
-const getImg=u=>u?((u.startsWith('http://')||u.startsWith('https://'))?u:(new URL(import.meta.env.VITE_API_BASE_URL||'http://localhost:50448/api').origin+u)):null;
+const getImg=u=>u?((u.startsWith('http://')||u.startsWith('https://'))?u:(API_URL?(new URL(API_URL).origin+u):null)):null;
 const fallbackImg=(category='')=>{const k=String(category).toLowerCase();return k.includes('vegan')?IMAGE_FALLBACKS.vegan:k.includes('non')?IMAGE_FALLBACKS.nonveg:IMAGE_FALLBACKS.veg};
 const blankWeeks={1:[1,2,3,4,5]};
 const MAP_TILE_URL=import.meta.env.VITE_MAP_TILE_URL||'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
