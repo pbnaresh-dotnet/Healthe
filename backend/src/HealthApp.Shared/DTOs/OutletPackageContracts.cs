@@ -4,7 +4,19 @@ public record CreateOutletCustomerRequest(
     string FirstName,
     string LastName,
     string Email,
-    string Password);
+    string Password,
+    decimal? WeightKg = null,
+    decimal? HeightCm = null,
+    DateTime? DateOfBirth = null,
+    string Goal = "WeightLoss",
+    string ActivityLevel = "Moderate",
+    string Diet = "",
+    IReadOnlyList<Guid>? AllergyIds = null);
+
+public record OutletCustomerProfileDto(
+    UserDto Customer,
+    CustomerProfileDto? Profile,
+    IReadOnlyList<CustomerAddressDto> Addresses);
 
 public record OutletPackageQuoteRequest(
     Guid CustomerId,
