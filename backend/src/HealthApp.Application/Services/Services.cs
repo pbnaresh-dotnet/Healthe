@@ -1260,8 +1260,7 @@ public sealed class AdminService(
         if (status is not (OutletDomainStatus.Pending or OutletDomainStatus.Verified or OutletDomainStatus.Active or OutletDomainStatus.Disabled))
             throw new ArgumentException("Unsupported outlet domain status.");
 
-        var domain = await domains.GetByHostnameAsync((await domains.GetAllAsync())
-            .FirstOrDefault(x => x.Id == domainId)?.Hostname ?? "")
+        var domain = await domains.GetAsync(domainId)
             ?? throw new KeyNotFoundException("Outlet domain not found.");
 
         if (domain.Outlet is null)
