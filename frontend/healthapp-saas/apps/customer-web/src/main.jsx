@@ -61,6 +61,9 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  const[publicOutletError,setPublicOutletError]=useState('');
  const[location,setLocation]=useState('');
  const[locationHint,setLocationHint]=useState('');
+ const[guestBuilderOpen,setGuestBuilderOpen]=useState(false);
+ const[guestDuration,setGuestDuration]=useState('OneWeek');
+ const[guestSelections,setGuestSelections]=useState({});
  const trackingRef=useRef(null);
  const lastTrackedRef=useRef(null);
 
@@ -124,6 +127,49 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    setLocationHint(value?("We'll use "+value+" to find outlets that can deliver to you."):"Pin your location to see nearby outlets and delivery coverage.");
    openLocationExplorer();
  };
+ const publicBuilderDays=()=>{
+   const d=DURATIONS.find(x=>x.id===guestDuration)||DURATIONS[2];
+   const start=nextMonday();
+   return Array.from({length:d.days},(_,i)=>({date:addDays(start,i),index:i}));
+ };
+ const publicMenuFor=(date,slot)=>{
+   const day=dayId(date);
+   return (publicOutletMenu||[]).filter(x=>Number(x.mealSlotValue)===Number(slot)&&Number(x.dayOfWeek)===Number(day));
+ };
+ const openGuestBuilder=()=>{
+   if(!publicOutlet)return;
+   const days=publicBuilderDays();
+   const first={};
+   for(const d of days){
+     for(const s of SLOT){
+       const opts=publicMenuFor(d.date,s.id);
+       if(opts.length&&guestSelections[key(d.date,s.id)]===undefined) first[key(d.date,s.id)]='';
+     }
+   }
+   setGuestSelections(g=>({...first,...g}));
+   setGuestBuilderOpen(true);
+   setPublicOutlet(null);
+ };
+ const guestMealRows=Object.values(guestSelections).filter(Boolean);
+ const guestSelectedCount=guestMealRows.length;
+ const saveGuestDraftAndCreateAccount=()=>{
+   if(!publicOutlet||!guestSelectedCount)return;
+   try{
+     sessionStorage.setItem('healthapp.guestPackageDraft',JSON.stringify({
+       outlet:publicOutlet,
+       duration:guestDuration,
+       startDate:nextMonday(),
+       selections:Object.entries(guestSelections).filter(([,recipeId])=>recipeId).map(([k,recipeId])=>{
+         const parts=k.split('_'); return {date:parts[0],slot:Number(parts[1]),recipeId,portion:1};
+       })
+     }));
+   }catch{}
+   setGuestBuilderOpen(false);
+   setPublicOutlet(null);
+   setLocationHint('Your package is ready. Create an account to add delivery details, allergy preferences and continue to payment.');
+   openAuth('register');
+ };
+
  const openPublicOutlet=async o=>{
    setPublicOutlet(o);setPublicOutletError('');setPublicOutletBusy(true);
    try{
@@ -217,10 +263,40 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
      </div>
    </div>}
 
+
+   {guestBuilderOpen&&<div className="publicOverlayBackdrop" onMouseDown={e=>e.target===e.currentTarget&&setGuestBuilderOpen(false)}>
+     <div className="publicGuestBuilder">
+       <div className="publicExplorerHead">
+         <div><span className="publicEyebrow">GUEST PACKAGE BUILDER</span><h2>Build your package</h2><p>Choose your meals first. We'll ask you to create an account when you're ready to continue.</p></div>
+         <button className="publicExplorerClose" onClick={()=>setGuestBuilderOpen(false)}>×</button>
+       </div>
+       <div className="publicGuestBuilderToolbar">
+         <label><span>Package duration</span><select value={guestDuration} onChange={e=>{setGuestDuration(e.target.value);setGuestSelections({})}}>{DURATIONS.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}</select></label>
+         <div className="publicGuestCount"><b>{guestSelectedCount}</b><span>meals selected</span></div>
+         <div className="publicGuestOutlet"><span>OUTLET</span><b>{publicOutlet?.name}</b><small>{publicOutlet?.city}</small></div>
+       </div>
+       <div className="publicGuestWeeks">
+         {publicBuilderDays().map(d=><section className="publicGuestDay" key={d.date}>
+           <div className="publicGuestDayHead"><div><b>{dayName(dayId(d.date))}</b><span>{shortDate(d.date)}</span></div><small>{SLOT.filter(s=>publicMenuFor(d.date,s.id).length).length} meal slots available</small></div>
+           <div className="publicGuestSlots">
+             {SLOT.map(s=>{
+               const opts=publicMenuFor(d.date,s.id);
+               if(!opts.length)return null;
+               const selected=guestSelections[key(d.date,s.id)]||'';
+               return <label key={s.id}><span>{s.icon} {s.label}</span><select value={selected} onChange={e=>setGuestSelections(g=>({...g,[key(d.date,s.id)]:e.target.value}))}><option value="">Choose a meal</option>{opts.map(m=><option key={m.recipeId} value={m.recipeId}>{m.recipeName} · {money(m.pricePerMeal)}</option>)}</select></label>;
+             })}
+           </div>
+           {!SLOT.some(s=>publicMenuFor(d.date,s.id).length)&&<div className="publicGuestNoMenu">No menu is published for this day.</div>}
+         </section>)}
+       </div>
+       <div className="publicGuestFooter"><div><b>{guestSelectedCount} meals selected</b><span>After creating your account, we'll ask for your exact delivery address and allergy preferences before payment.</span></div><button className="primary big" disabled={!guestSelectedCount} onClick={saveGuestDraftAndCreateAccount}>Create account to continue →</button></div>
+     </div>
+   </div>}
+
    {publicOutlet&&<div className="publicOverlayBackdrop" onMouseDown={e=>e.target===e.currentTarget&&setPublicOutlet(null)}>
      <div className="publicOutletPreview">
        <div className="publicPreviewHero"><img src={publicOutlet.heroImageUrl?getImg(publicOutlet.heroImageUrl):IMAGE_FALLBACKS.hero} alt="" onError={e=>e.currentTarget.src=IMAGE_FALLBACKS.hero}/><div><span className="publicEyebrow">HEALTHY LOCAL OUTLET</span><h2>{publicOutlet.name}</h2><p>{publicOutlet.city}, {publicOutlet.state} · ★ {Number(publicOutlet.rating||4.8).toFixed(1)} ({publicOutlet.reviewCount||0})</p></div><button className="publicExplorerClose" onClick={()=>setPublicOutlet(null)}>×</button></div>
-       <div className="publicPreviewBody">{publicOutletBusy?<div className="publicNearbyEmpty">Loading outlet menu…</div>:publicOutletError?<div className="publicExplorerError">{publicOutletError}</div>:<><div className="publicPreviewIntro"><div><b>Explore the menu before creating an account</b><span>Browse meals and nutrition from this outlet as a guest.</span></div><button className="primary" onClick={()=>openAuth('register')}>Create account to build →</button></div><div className="publicPreviewMeals">{publicOutletMenu.slice(0,6).map(m=><article key={m.id}><img src={m.imageUrl?getImg(m.imageUrl):IMAGE_FALLBACKS.veg} alt="" onError={e=>e.currentTarget.src=IMAGE_FALLBACKS.veg}/><div><b>{m.recipeName}</b><span>{m.calories} kcal · {m.proteinGrams}g protein</span><small>{m.category} · {money(m.pricePerMeal)}</small></div></article>)}</div>{!publicOutletMenu.length&&<div className="publicNearbyEmpty"><b>No menu published yet</b><span>This outlet has not published meals for guest browsing.</span></div>}</>}</div>
+       <div className="publicPreviewBody">{publicOutletBusy?<div className="publicNearbyEmpty">Loading outlet menu…</div>:publicOutletError?<div className="publicExplorerError">{publicOutletError}</div>:<><div className="publicPreviewIntro"><div><b>Explore the menu before creating an account</b><span>Browse meals and nutrition from this outlet as a guest.</span></div><button className="primary" onClick={openGuestBuilder}>Build Package →</button></div><div className="publicPreviewMeals">{publicOutletMenu.slice(0,6).map(m=><article key={m.id}><img src={m.imageUrl?getImg(m.imageUrl):IMAGE_FALLBACKS.veg} alt="" onError={e=>e.currentTarget.src=IMAGE_FALLBACKS.veg}/><div><b>{m.recipeName}</b><span>{m.calories} kcal · {m.proteinGrams}g protein</span><small>{m.category} · {money(m.pricePerMeal)}</small></div></article>)}</div>{!publicOutletMenu.length&&<div className="publicNearbyEmpty"><b>No menu published yet</b><span>This outlet has not published meals for guest browsing.</span></div>}</>}</div>
      </div>
    </div>}
  </div>;
