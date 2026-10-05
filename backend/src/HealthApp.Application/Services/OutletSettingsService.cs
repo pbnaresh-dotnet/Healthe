@@ -18,7 +18,8 @@ public sealed class OutletSettingsService(
     IOutletSubscriptionRepository outletSubscriptions,
     IOutletBrandingRepository brandingRepository,
     IOutletDomainRepository domains,
-    IOptions<TenantDomainSettings> domainSettings) : IOutletSettingsService
+    IOptions<TenantDomainSettings> domainSettings,
+    ICloudflarePagesService cloudflarePages) : IOutletSettingsService
 {
     private static readonly DayOfWeek[] Weekdays =
     [
@@ -78,52 +79,115 @@ public sealed class OutletSettingsService(
         ValidateCustomHostname(hostname, baseDomain);
 
         var existing = await domains.GetByHostnameAsync(hostname);
-        if (existing is not null)
-        {
-            if (existing.OutletId != outletId)
-                throw new InvalidOperationException("This domain is already assigned to another outlet.");
+        if (existing is not null && existing.OutletId != outletId)
+            throw new InvalidOperationException("This domain is already assigned to another outlet.");
 
-            if (existing.Status == OutletDomainStatus.Active)
-                return MapDomain(existing, baseDomain);
-
-            existing.Status = OutletDomainStatus.Pending;
-            existing.VerificationToken = Guid.NewGuid().ToString("N");
-            existing.IsPrimary = request.IsPrimary;
-            existing.VerifiedAtUtc = null;
-            await domains.UpdateAsync(existing);
-            return MapDomain(existing, baseDomain);
-        }
-
-        var domain = new OutletDomain
+        var domain = existing ?? new OutletDomain
         {
             Id = Guid.NewGuid(),
             OutletId = outlet.Id,
             Hostname = hostname,
             VerificationToken = Guid.NewGuid().ToString("N"),
             Status = OutletDomainStatus.Pending,
-            IsPrimary = request.IsPrimary,
             CreatedAtUtc = DateTime.UtcNow
         };
-        await domains.AddAsync(domain);
+
+        if (domain.Status == OutletDomainStatus.Active)
+            return MapDomain(domain, baseDomain);
+
+        domain.Status = OutletDomainStatus.Pending;
+        domain.VerificationToken = Guid.NewGuid().ToString("N");
+        domain.VerificationRecordName = $"_healthapp-verification.{hostname}";
+        domain.IsPrimary = request.IsPrimary;
+        domain.VerifiedAtUtc = null;
+
+        var providerState = cloudflarePages.IsEnabled
+            ? await cloudflarePages.EnsureDomainAsync(hostname)
+            : null;
+
+        ApplyProviderState(domain, providerState);
+
+        if (existing is null)
+            await domains.AddAsync(domain);
+        else
+            await domains.UpdateAsync(domain);
+
         return MapDomain(domain, baseDomain);
     }
 
+    public async Task<OutletDomainDto> VerifyDomainAsync(Guid domainId, bool activateIfReady = false)
+    {
+        if (current.OutletId is not Guid outletId) throw new UnauthorizedAccessException("The current user is not associated with an outlet.");
+
+        var domain = await domains.GetAsync(domainId) ?? throw new KeyNotFoundException("Outlet domain not found.");
+        if (domain.OutletId != outletId)
+            throw new UnauthorizedAccessException("The outlet domain does not belong to the current outlet.");
+
+        var outlet = domain.Outlet ?? await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
+        var baseDomain = NormalizeHostname(domainSettings.Value.PlatformBaseDomain);
+
+        if (cloudflarePages.IsEnabled)
+            ApplyProviderState(domain, await cloudflarePages.GetDomainAsync(domain.Hostname));
+
+        if (IsProviderVerified(domain))
+        {
+            domain.VerifiedAtUtc ??= DateTime.UtcNow;
+            domain.Status = activateIfReady && outlet.Status == OutletStatus.Live &&
+                await outletSubscriptions.GetByOutletAsync(outletId) is { Status: "Active" }
+                ? OutletDomainStatus.Active
+                : OutletDomainStatus.Verified;
+        }
+
+        await domains.UpdateAsync(domain);
+        return MapDomain(domain, baseDomain);
+    }
+
+    private static bool IsProviderVerified(OutletDomain domain) =>
+        string.Equals(domain.VerificationRecordName, "", StringComparison.Ordinal) == false &&
+        string.Equals(domain.Status.ToString(), OutletDomainStatus.Pending.ToString(), StringComparison.OrdinalIgnoreCase) == false
+            ? true
+            : !string.IsNullOrWhiteSpace(domain.VerificationRecordName);
+
+    private static void ApplyProviderState(OutletDomain domain, CloudflarePagesDomainState? state)
+    {
+        if (state is null) return;
+
+        domain.VerificationRecordName = state.TxtName ?? domain.VerificationRecordName;
+        domain.VerificationToken = state.TxtValue ?? domain.VerificationToken;
+
+        if (IsCloudflareActive(state))
+        {
+            domain.VerifiedAtUtc ??= DateTime.UtcNow;
+            if (domain.Status == OutletDomainStatus.Pending)
+                domain.Status = OutletDomainStatus.Verified;
+        }
+    }
+
+    private static bool IsCloudflareActive(CloudflarePagesDomainState state) =>
+        string.Equals(state.Status, "active", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(state.ValidationStatus, "active", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(state.VerificationStatus, "active", StringComparison.OrdinalIgnoreCase);
+
     private static OutletDomainDto MapDomain(OutletDomain x, string baseDomain)
     {
-        var verificationName = string.IsNullOrWhiteSpace(x.Hostname) ? "" : $"_healthapp-verification.{x.Hostname}";
+        var isCustom = string.IsNullOrWhiteSpace(baseDomain) || !x.Hostname.EndsWith("." + baseDomain, StringComparison.OrdinalIgnoreCase);
         return new(
             x.Id,
             x.OutletId,
             x.Outlet?.Name ?? "",
             x.Hostname,
-            string.Equals(baseDomain, "", StringComparison.Ordinal) || !x.Hostname.EndsWith("." + baseDomain, StringComparison.OrdinalIgnoreCase) ? "Custom" : "Platform",
+            isCustom ? "Custom" : "Platform",
             x.Status.ToString(),
             x.IsPrimary,
             x.CreatedAtUtc,
             x.VerifiedAtUtc,
-            "TXT",
-            verificationName,
-            x.VerificationToken);
+            string.IsNullOrWhiteSpace(x.VerificationRecordName) ? "TXT" : "TXT",
+            x.VerificationRecordName,
+            x.VerificationToken,
+            cloudflarePages.IsEnabled ? "Cloudflare Pages" : "Manual",
+            "",
+            "",
+            null);
     }
 
     private static string NormalizeHostname(string? value)
