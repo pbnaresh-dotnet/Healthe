@@ -676,6 +676,8 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     private async Task<Subscription> GetOwnedSubscription(Guid id) {
         var s=await subs.GetAsync(id)??throw new KeyNotFoundException("Subscription not found.");
         if(current.UserId is not Guid uid||s.CustomerId!=uid)throw new UnauthorizedAccessException("Subscription does not belong to the current customer.");
+        if(current.OutletId is not Guid outletId || s.OutletId != outletId)
+            throw new UnauthorizedAccessException("Subscription does not belong to the current outlet.");
         return s;
     }
     private async Task<SubscriptionDto> ToDto(Subscription x)
