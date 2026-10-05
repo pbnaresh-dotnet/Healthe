@@ -188,7 +188,7 @@ public sealed class OutletSettingsService(
             x.IsPrimary,
             x.CreatedAtUtc,
             x.VerifiedAtUtc,
-            "TXT",
+            providerState?.ValidationMethod ?? "TXT",
             x.VerificationRecordName,
             x.VerificationToken,
             cloudflarePages.IsEnabled ? "Cloudflare Pages" : "Manual",
