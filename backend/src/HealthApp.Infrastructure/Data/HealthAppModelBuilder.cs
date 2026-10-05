@@ -60,6 +60,15 @@ internal static class HealthAppModelBuilder
         b.Entity<DeliveryPricingRule>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
         b.Entity<SubscriptionDiscountTier>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
         b.Entity<DiscountCode>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+
+        b.Entity<CustomerProfile>().HasOne<User>().WithOne().HasForeignKey<CustomerProfile>(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<CustomerAddress>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<CustomerCreditTransaction>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Subscription>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Order>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<PaymentTransaction>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<PlatformTransaction>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Delivery>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
     }
     private static void ConfigureUser(EntityTypeBuilder<User> e)
     {
