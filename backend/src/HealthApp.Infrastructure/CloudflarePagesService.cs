@@ -84,28 +84,43 @@ public sealed class CloudflarePagesService(
     private async Task<JsonDocument> ReadResponseAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         var raw = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (!response.IsSuccessStatusCode)
+
+        JsonDocument doc;
+        try
         {
-            try
-            {
-                using var doc = JsonDocument.Parse(raw);
-                var message = doc.RootElement
-                    .GetProperty("errors")[0]
-                    .GetProperty("message")
-                    .GetString();
-                throw new InvalidOperationException(message ?? $"Cloudflare request failed with {(int)response.StatusCode}.");
-            }
-            catch (KeyNotFoundException)
-            {
-                throw new InvalidOperationException($"Cloudflare request failed with {(int)response.StatusCode}.");
-            }
-            catch (JsonException)
-            {
-                throw new InvalidOperationException($"Cloudflare request failed with {(int)response.StatusCode}.");
-            }
+            doc = JsonDocument.Parse(raw);
+        }
+        catch (JsonException)
+        {
+            throw new InvalidOperationException($"Cloudflare returned an invalid response with HTTP {(int)response.StatusCode}.");
         }
 
-        return JsonDocument.Parse(raw);
+        var success = doc.RootElement.TryGetProperty("success", out var successValue) &&
+                      successValue.ValueKind == JsonValueKind.True;
+
+        if (!response.IsSuccessStatusCode || !success)
+        {
+            string? message = null;
+            if (doc.RootElement.TryGetProperty("errors", out var errors) &&
+                errors.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var error in errors.EnumerateArray())
+                {
+                    if (error.TryGetProperty("message", out var messageValue))
+                    {
+                        message = messageValue.GetString();
+                        if (!string.IsNullOrWhiteSpace(message))
+                            break;
+                    }
+                }
+            }
+
+            doc.Dispose();
+            throw new InvalidOperationException(
+                message ?? $"Cloudflare request failed with HTTP {(int)response.StatusCode}.");
+        }
+
+        return doc;
     }
 
     private static CloudflarePagesDomainState ParseDomain(JsonDocument payload, string requestedHostname)
