@@ -36,6 +36,8 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
 
         if (user is null || !user.IsActive || !passwords.Verify(r.Password, user.PasswordHash))
             return null;
+        if (user.Role == UserRole.Customer && !user.OutletId.HasValue)
+            return null;
         if (user.IsDemo && user.DemoExpiresAtUtc.HasValue && user.DemoExpiresAtUtc.Value <= DateTime.UtcNow)
             throw new UnauthorizedAccessException("Your 7-day demo has expired. Request a new demo account to continue exploring HealthApp.");
         return tokens.CreateToken(user);
@@ -698,7 +700,9 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     }
     private void EnsureCustomerOutletAccess(Guid outletId)
     {
-        if (current.OutletId is Guid customerOutletId && customerOutletId != outletId)
+        if (current.OutletId is not Guid customerOutletId)
+            throw new UnauthorizedAccessException("The current customer is not associated with an outlet.");
+        if (customerOutletId != outletId)
             throw new UnauthorizedAccessException("The current customer is not associated with the selected outlet.");
     }
 
