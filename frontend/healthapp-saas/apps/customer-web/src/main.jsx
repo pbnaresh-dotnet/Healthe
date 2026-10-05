@@ -505,7 +505,7 @@ function App(){
        deliveryMode:draft.deliveryMode||'OneDeliveryPerDay',
        startDate:start,
        weeks:d.weeks,
-       weekActiveDays:defaultActiveDays,
+       weekActiveDays:draft.weekActiveDays||defaultActiveDays,
        selections,
        allergyAcknowledged:{},
        dayAddresses:draft.dayAddresses||{},
@@ -599,6 +599,8 @@ function App(){
  const copyWeek=fromWeek=>setBuilder(b=>{const nextSel={...b.selections};const source=builderDays.filter(x=>x.week===fromWeek);for(let w=1;w<=b.weeks;w++){if(w===fromWeek)continue;for(const d of source){const target=builderDays.find(x=>x.week===w&&x.index%7===d.index%7);if(!target)continue;for(const s of SLOT){const v=nextSel[key(d.date,s.id)];nextSel[key(target.date,s.id)]=v?{...v,date:target.date}:undefined}}}const base=b.weekActiveDays[fromWeek]||[];const wa={...b.weekActiveDays};for(let w=1;w<=b.weeks;w++)if(w!==fromWeek)wa[w]=[...base];return{...b,selections:nextSel,weekActiveDays:wa,quote:null}});
  const selectionPayload=useMemo(()=>builderSelections.map(x=>({mealDate:x.date,mealSlot:x.slot,recipeId:x.recipeId,portionSize:x.portion,addressId:builder.deliveryMode==='OneDeliveryPerDay'?(builder.dayAddresses[x.date]||null):(builder.dayAddresses[key(x.date,x.slot)]||builder.dayAddresses[x.date]||null)})),[builderSelections,builder.dayAddresses,builder.deliveryMode]);
  const confirmedAllergyRecipeIds=useMemo(()=>Object.keys(builder.allergyAcknowledged).filter(id=>builderSelections.some(x=>x.recipeId===id)),[builder.allergyAcknowledged,builderSelections]);
+ const openReviewStep=()=>{setActive('builder');if(builder.quote)return;quoteBuilder()};
+
  const savePackageDraft=()=>{ 
    if(!builder.outlet||!selectedCount){
      notify('Select at least one meal before saving the package.','warning');
@@ -633,7 +635,7 @@ function App(){
  };
 
  useEffect(()=>{
-   if(!user||!builder.outlet||!selectedCount)return;
+   if(!user||active!=='builder'||!builder.outlet||!selectedCount)return;
    const draft={
      outlet:builder.outlet,
      deliveryCity:builder.deliveryCity||builder.outlet?.city||'',
@@ -655,7 +657,7 @@ function App(){
      setPackageDraftSaved(true);
      setPackageDraftSavedAt('Auto-saved');
    }catch{}
- },[user,builder.outlet?.id,builder.deliveryCity,builder.duration,builder.deliveryMode,builder.startDate,builder.weeks,builder.weekActiveDays,builder.selections,builder.dayAddresses,builder.discountCode,selectedCount]);
+ },[user,active,builder.outlet?.id,builder.deliveryCity,builder.duration,builder.deliveryMode,builder.startDate,builder.weeks,builder.weekActiveDays,builder.selections,builder.dayAddresses,builder.discountCode,selectedCount]);
 
  const builderMissingAddresses=useMemo(()=>selectionPayload.filter(x=>!x.addressId),[selectionPayload]);
  const quoteBuilder=async()=>run(async()=>{
@@ -722,7 +724,7 @@ function App(){
    <div className="packageTopbarLabel"><span>PACKAGE</span><small>{packageDraftSaved?packageDraftSavedAt:'Ready when you are'}</small></div>
    <button type="button" className={active==='builder'&&!builder.quote?'packageStep active':'packageStep'} onClick={()=>go('builder')}><b>1</b><span>Build</span></button>
    <span className="packageStepArrow">→</span>
-   <button type="button" className={active==='builder'&&builder.quote?'packageStep active':'packageStep'} disabled={!builder.outlet||!selectedCount} onClick={()=>builder.quote?go('builder'):quoteBuilder()}><b>2</b><span>Review</span></button>
+   <button type="button" className={active==='builder'&&builder.quote?'packageStep active':'packageStep'} disabled={!builder.outlet||!selectedCount} onClick={openReviewStep}><b>2</b><span>Review</span></button>
    <span className="packageStepArrow">→</span>
    <button type="button" className={active==='payment'?'packageStep active':'packageStep'} disabled={!paymentSubId} onClick={()=>paymentSubId&&go('payment')}><b>3</b><span>Payment</span></button>
    <button type="button" className="packageSaveBtn" disabled={!builder.outlet||!selectedCount} onClick={savePackageDraft}>{packageDraftSaved?'✓ Saved':'Save & resume'}</button>
