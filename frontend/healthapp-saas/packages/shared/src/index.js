@@ -1,9 +1,9 @@
-const CONFIGURED_API_BASE=String(import.meta?.env?.VITE_API_BASE_URL||'').trim();
+const CONFIGURED_API_BASE=String(import.meta.env.VITE_API_BASE_URL||'').trim();
 const HOSTNAME=typeof globalThis!=='undefined'&&globalThis.location?.hostname?String(globalThis.location.hostname).toLowerCase():'';
 const LOCAL_API_BASE=(HOSTNAME==='localhost'||HOSTNAME==='127.0.0.1'||HOSTNAME==='::1')?'http://localhost:50448/api':'';
 const API_BASE=(CONFIGURED_API_BASE||LOCAL_API_BASE).replace(/\/$/,'');
 export const API_URL=API_BASE;
-export const CUSTOMER_URL=import.meta?.env?.VITE_CUSTOMER_URL||'http://localhost:5173';
+export const CUSTOMER_URL=import.meta.env.VITE_CUSTOMER_URL||'http://localhost:5173';
 const readToken=()=>localStorage.getItem('ha_token');
 export const currentUser=()=>{try{return JSON.parse(localStorage.getItem('ha_current_user')||'null')}catch{return null}};
 const storeUser=u=>localStorage.setItem('ha_current_user',JSON.stringify(u));
