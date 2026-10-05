@@ -15,6 +15,15 @@ public sealed class AdminOutletOnboardingController(IOutletVerificationService s
     public async Task<IActionResult> Get(Guid id) =>
         await service.GetAsync(id) is { } result ? Ok(result) : NotFound();
 
+    [HttpGet("{id:guid}/documents/{documentType}")]
+    public async Task<IActionResult> Document(Guid id, string documentType)
+    {
+        var result = await service.GetDocumentAsync(id, documentType);
+        return result is null
+            ? NotFound(new { message = "The requested document was not found." })
+            : File(result.Content, result.ContentType, result.FileName);
+    }
+
     [HttpPost("{id:guid}/decision")]
     public async Task<IActionResult> Decide(Guid id, DecideOutletVerificationRequest request) =>
         await service.DecideAsync(id, request) is { } result ? Ok(result) : NotFound();
