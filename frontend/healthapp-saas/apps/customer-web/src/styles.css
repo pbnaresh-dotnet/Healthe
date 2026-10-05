@@ -1246,3 +1246,87 @@ textarea{resize:vertical}
 @keyframes healthAppLoading{0%{transform:translateX(-120%)}100%{transform:translateX(280%)}}
 @keyframes healthAppSpin{to{transform:rotate(360deg)}}
 @media(max-width:600px){.appLoadingPill{top:12px;font-size:11px;padding:7px 11px}.appLoadingPill i{display:none}}
+
+
+/* Customer package review step */
+.reviewConfirmOverlay{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(7,27,15,.62);backdrop-filter:blur(7px);animation:reviewFadeIn .18s ease-out}
+.reviewConfirmModal{width:min(1180px,96vw);max-height:94vh;overflow:auto;background:#f6faf7;border:1px solid #d8e7dc;border-radius:24px;box-shadow:0 32px 90px rgba(6,31,15,.32)}
+.reviewConfirmHeader{display:flex;justify-content:space-between;gap:20px;padding:23px 28px 20px;background:#fff;border-bottom:1px solid #e4ece5}
+.reviewConfirmHeader h2{margin:7px 0 5px;font-size:27px;line-height:1.1;color:#124e2e}
+.reviewConfirmHeader p{margin:0;max-width:760px;color:#6a796f;font-size:10px;line-height:1.55}
+.reviewCloseBtn{flex:0 0 auto;width:36px;height:36px;border:1px solid #dbe7dd;border-radius:50%;background:#fff;color:#41604d;font-size:24px;line-height:1;cursor:pointer}
+.reviewProgress{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:#849087;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.3px}
+.reviewProgress span{display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border:1px solid #dce7df;border-radius:999px;background:#fafcf9}
+.reviewProgress span.active{background:#eaf7ed;border-color:#cde4d2;color:#247141}
+.reviewProgress i{font-style:normal;color:#8a958e}
+.reviewConfirmBody{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;padding:16px}
+.reviewConfirmMain{display:grid;gap:12px;min-width:0}
+.reviewSectionCard,.reviewSafeBanner{background:#fff;border:1px solid #dfe8e1;border-radius:16px;box-shadow:0 6px 20px rgba(31,59,39,.04)}
+.reviewSectionCard{padding:16px}
+.reviewCardTop,.reviewCardHeading,.reviewAllergyHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.reviewCardHeading{align-items:center}
+.reviewCardHeading h3,.reviewCardTop h3,.reviewAllergyHeader h3{margin:3px 0 4px;font-size:16px;color:#183b27}
+.reviewCardHeading p,.reviewCardTop p,.reviewAllergyHeader p{margin:0;color:#718078;font-size:9px;line-height:1.45}
+.reviewCardHeading .eyebrow,.reviewCardTop .eyebrow,.reviewAllergyHeader .eyebrow{font-size:7px}
+.reviewQuickStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.reviewQuickStats span{padding:9px 10px;border:1px solid #e2ebe3;border-radius:10px;background:#f6faf7;color:#708076;font-size:8px}
+.reviewQuickStats b{display:block;color:#214a30;font-size:10px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reviewCountPill{padding:6px 8px;border-radius:999px;background:#edf7ef;color:#267344;font-size:7px;font-weight:900;white-space:nowrap}
+.reviewMealGroups{display:grid;gap:9px;margin-top:12px}
+.reviewMealGroup{border:1px solid #e4ebe5;border-radius:12px;overflow:hidden;background:#fbfdfb}
+.reviewMealDay{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 11px;background:#f0f7f2;border-bottom:1px solid #e1e9e3}
+.reviewMealDay b,.reviewMealDay span{display:block}
+.reviewMealDay b{font-size:10px;color:#21452c}
+.reviewMealDay span{font-size:7px;color:#6e7d73;margin-top:2px}
+.reviewMealDay>span{font-size:7px;margin:0;padding:4px 7px;border-radius:999px;background:#fff;border:1px solid #dce7de;color:#557064}
+.reviewMealRows{display:grid}
+.reviewMealRow{display:grid;grid-template-columns:45px 1fr auto;gap:9px;align-items:center;padding:8px 10px;border-bottom:1px solid #edf1ed}
+.reviewMealRow:last-child{border-bottom:0}
+.reviewMealImage{width:45px;height:45px;border-radius:9px;overflow:hidden;background:#e9f2eb;display:grid;place-items:center}
+.reviewMealImage img{width:100%;height:100%;object-fit:cover}.reviewMealImage span{font-size:20px}
+.reviewMealInfo b,.reviewMealInfo span{display:block}
+.reviewMealInfo b{font-size:10px;line-height:1.2;color:#183b27}
+.reviewMealInfo span{font-size:8px;color:#768279;margin-top:4px}
+.reviewMealRow>strong{font-size:9px;color:#21492e;white-space:nowrap}
+.reviewAddressList{display:grid;gap:8px;margin-top:12px}
+.reviewAddressRow{display:grid;grid-template-columns:34px 1fr auto;gap:9px;align-items:center;padding:10px;border:1px solid #e2ebe3;border-radius:11px;background:#fbfdfb}
+.reviewAddressIcon{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:#eaf6ec;color:#287443;font-size:18px}
+.reviewAddressRow b,.reviewAddressRow span,.reviewAddressRow small{display:block}
+.reviewAddressRow b{font-size:9px;color:#21452c}.reviewAddressRow span{font-size:8px;color:#66766d;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.reviewAddressRow small{font-size:7px;color:#819087;margin-top:3px}
+.reviewAddressDistance{text-align:right}.reviewAddressDistance b{font-size:9px}.reviewAddressDistance span{font-size:7px;color:#2b7444;margin-top:3px}
+.reviewEmptyState{padding:20px;text-align:center;border:1px dashed #cddbd0;border-radius:11px;color:#748178;font-size:8px}
+.reviewAllergyCard{border-color:#f0d7af;background:#fffdfa}
+.reviewAllergyHeader{justify-content:flex-start;align-items:center}
+.reviewAllergyIcon{flex:0 0 35px;width:35px;height:35px;border-radius:50%;display:grid;place-items:center;background:#fff0da;color:#a1661e;font-size:17px}
+.reviewWarningList{display:grid;gap:7px;margin-top:13px}
+.reviewWarningRow{padding:9px 10px;border:1px solid #f0dfc5;border-radius:10px;background:#fff}
+.reviewWarningRow b,.reviewWarningRow span,.reviewWarningRow small{display:block}
+.reviewWarningRow b{font-size:9px;color:#754b1d}.reviewWarningRow span{font-size:8px;color:#6f746e;line-height:1.45;margin-top:3px}.reviewWarningRow small{font-size:7px;color:#987246;margin-top:5px}
+.reviewSafetyCheck{display:flex;gap:9px;align-items:flex-start;margin-top:11px;padding:10px;border-radius:11px;background:#fff3df;border:1px solid #efd5ae;cursor:pointer}
+.reviewSafetyCheck input{margin-top:2px;accent-color:#247342}
+.reviewSafetyCheck b,.reviewSafetyCheck small{display:block}
+.reviewSafetyCheck b{font-size:8px;color:#71491d}.reviewSafetyCheck small{font-size:7px;color:#856d4e;margin-top:3px;line-height:1.4}
+.reviewSafeBanner{display:flex;gap:10px;align-items:center;padding:12px 14px;background:#eef8f0;border-color:#cfe5d3}
+.reviewSafeBanner>span{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#247342;color:#fff;font-weight:900}
+.reviewSafeBanner b,.reviewSafeBanner small{display:block}.reviewSafeBanner b{font-size:9px;color:#215331}.reviewSafeBanner small{font-size:7px;color:#688073;margin-top:2px}
+.reviewPolicyCard{background:#fbfdfb}.reviewPolicyCard p{margin:5px 0 0;font-size:8px;color:#78857e;line-height:1.5}
+.reviewOrderSummary{min-width:0}
+.reviewOrderSummaryInner{position:sticky;top:16px;padding:18px;border:1px solid #cfe0d3;border-radius:17px;background:#173b24;color:#fff;box-shadow:0 12px 28px rgba(13,54,28,.16)}
+.reviewOrderSummaryInner h3{font-size:16px;margin:6px 0;color:#fff}.reviewSummaryMeta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px}.reviewSummaryMeta span{font-size:7px;padding:5px 7px;border-radius:999px;background:#255536;color:#d9eee0}
+.reviewSummaryLines{padding:4px 0 6px;border-top:1px solid rgba(255,255,255,.14);border-bottom:1px solid rgba(255,255,255,.14)}.reviewSummaryLines .summaryLine{border-bottom:1px solid rgba(255,255,255,.09);color:#d6e8da;font-size:9px}.reviewSummaryLines .summaryLine span{color:#abc4b2}.reviewSummaryLines .summaryLine:last-child{border-bottom:0}
+.reviewTotal{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:15px 0 10px}.reviewTotal span{font-size:9px;color:#c6dccb}.reviewTotal strong{font-size:22px;color:#fff}
+.reviewSecureNote{font-size:7px;color:#b7d1bd;line-height:1.45;margin-bottom:10px}.reviewContinueBtn{width:100%;background:#2b8a50}.reviewContinueBtn:disabled{opacity:.45;cursor:not-allowed}.reviewEditHint{display:block;margin-top:8px;font-size:6.5px;line-height:1.45;color:#9eb8a5;text-align:center}
+@keyframes reviewFadeIn{from{opacity:0;transform:scale(.99)}to{opacity:1;transform:scale(1)}}
+
+@media(max-width:900px){
+ .reviewConfirmOverlay{padding:10px}.reviewConfirmModal{max-height:96vh;border-radius:18px}.reviewConfirmHeader{padding:16px 15px 14px}.reviewConfirmHeader h2{font-size:21px}.reviewConfirmHeader p{font-size:8px}.reviewProgress{gap:5px;margin-bottom:9px}.reviewProgress span{font-size:6.5px;padding:5px 7px}.reviewCloseBtn{width:32px;height:32px;font-size:21px}
+ .reviewConfirmBody{grid-template-columns:1fr;padding:10px}.reviewOrderSummary{order:-1}.reviewOrderSummaryInner{position:relative;top:auto;padding:13px}.reviewOrderSummaryInner h3{font-size:14px}.reviewTotal{padding:12px 0 7px}.reviewTotal strong{font-size:19px}.reviewContinueBtn{font-size:11px}
+ .reviewSectionCard{padding:12px}.reviewCardTop,.reviewCardHeading{gap:8px}.reviewQuickStats{gap:6px}.reviewQuickStats span{padding:7px 8px;font-size:7px}.reviewQuickStats b{font-size:9px}
+ .reviewMealRow{grid-template-columns:38px 1fr auto;padding:7px 8px}.reviewMealImage{width:38px;height:38px}.reviewMealInfo b{font-size:8px}.reviewMealInfo span{font-size:7px}.reviewMealRow>strong{font-size:8px}
+ .reviewAddressRow{grid-template-columns:30px 1fr;}.reviewAddressDistance{grid-column:2;text-align:left}.reviewAddressDistance b{display:inline;margin-right:6px}.reviewAddressDistance span{display:inline}
+ .reviewAllergyHeader h3{font-size:13px}
+}
+@media(max-width:600px){
+ .reviewProgress i{display:none}.reviewProgress span:nth-of-type(1){display:none}.reviewProgress span{font-size:6px}.reviewConfirmHeader h2{font-size:19px}.reviewConfirmHeader p{font-size:7.5px}
+ .reviewQuickStats{grid-template-columns:1fr 1fr}.reviewQuickStats span:last-child{grid-column:1/-1}.reviewCardTop .secondary{font-size:7px;padding:7px 8px}
+}
