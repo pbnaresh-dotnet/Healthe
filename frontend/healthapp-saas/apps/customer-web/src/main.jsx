@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState}from'react';
+import React,{useEffect,useMemo,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
 import{auth,outlets,locations,recipes,menu,customer,catalog,money,currentUser,API_URL}from'@healthapp/shared';
 import{MapContainer,TileLayer,CircleMarker,useMap,useMapEvents}from'react-leaflet';
@@ -14,13 +14,40 @@ const ACTIVITY=[['Sedentary','Sedentary'],['Light','Lightly active'],['Moderate'
 const CATEGORIES=['All','Veg','NonVeg','Vegan','Eggetarian','Pescatarian'];
 const todayISO=()=>new Date().toISOString().slice(0,10);
 const nextMonday=()=>{const d=new Date();const n=((8-(d.getDay()||7))%7)||7;d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
-const addDays=(iso,n)=>{const d=new Date(iso+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
-const dateObj=iso=>new Date(iso+'T00:00:00');
+const defaultWeekActiveDays=(startDate,duration)=>{
+ const d=DURATIONS.find(x=>x.id===duration)||DURATIONS[2];
+ const result={};
+ for(let i=0;i<d.days;i++){
+   const date=addDays(startDate,i);
+   const week=Math.floor(i/7)+1;
+   const day=dayId(date);
+   result[week]=result[week]||[];
+   if(!result[week].includes(day))result[week].push(day);
+ }
+ return result;
+};
 const normalizeMealDate=value=>String(value??'').slice(0,10);
-const weekStartForDate=iso=>{const d=dateObj(normalizeMealDate(iso));const day=d.getDay();d.setDate(d.getDate()-(day===0?6:day-1));return d.toISOString().slice(0,10)};
-const formatDate=iso=>new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short',year:'numeric'}).format(dateObj(iso));
-const shortDate=iso=>new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short'}).format(dateObj(iso));
-const dayId=iso=>dateObj(iso).getDay();
+// Date-only package dates must never depend on the browser's timezone.
+// Use UTC internally so 12-Oct always remains 12-Oct and Monday remains Monday.
+const dateObj=iso=>{
+ const value=normalizeMealDate(iso);
+ const [year,month,day]=value.split('-').map(Number);
+ return new Date(Date.UTC(year,month-1,day));
+};
+const addDays=(iso,n)=>{
+ const d=dateObj(iso);
+ d.setUTCDate(d.getUTCDate()+Number(n||0));
+ return d.toISOString().slice(0,10);
+};
+const weekStartForDate=iso=>{
+ const d=dateObj(iso);
+ const day=d.getUTCDay();
+ d.setUTCDate(d.getUTCDate()-(day===0?6:day-1));
+ return d.toISOString().slice(0,10);
+};
+const formatDate=iso=>new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'}).format(dateObj(iso));
+const shortDate=iso=>new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short',timeZone:'UTC'}).format(dateObj(iso));
+const dayId=iso=>dateObj(iso).getUTCDay();
 const slotName=id=>SLOT.find(x=>x.id===Number(id))?.label||'Meal';
 const dayName=id=>DAYS.find(x=>x.id===id)?.label||'Day';
 const key=(date,slot)=>date+'_'+slot;
@@ -43,6 +70,353 @@ const cityMapCenter=city=>{
   const match=Object.keys(CITY_MAP_CENTERS).find(x=>x.toLowerCase()===String(city||'').trim().toLowerCase());
   return match?CITY_MAP_CENTERS[match]:INDIA_MAP_CENTER;
 };
+
+
+function LoadingIndicator({active,label='Loading'}){return active?<div className="appLoadingIndicator" role="status" aria-live="polite"><div className="appLoadingBar"><span/></div><div className="appLoadingPill"><span className="appLoadingSpinner"/><b>{label}</b><i>Working…</i></div></div>:null}
+
+function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setError}){
+ const[showAuth,setShowAuth]=useState(false);
+ const[showLocationExplorer,setShowLocationExplorer]=useState(false);
+ const[publicCities,setPublicCities]=useState([]);
+ const[publicCity,setPublicCity]=useState('');
+ const[publicPin,setPublicPin]=useState(null);
+ const[nearbyOutlets,setNearbyOutlets]=useState([]);
+ const[publicMapBusy,setPublicMapBusy]=useState(false);
+ const[publicMapError,setPublicMapError]=useState('');
+ const[trackingLocation,setTrackingLocation]=useState(false);
+ const[publicOutlet,setPublicOutlet]=useState(null);
+ const[publicOutletMenu,setPublicOutletMenu]=useState([]);
+ const[publicOutletBusy,setPublicOutletBusy]=useState(false);
+ const[publicOutletError,setPublicOutletError]=useState('');
+ const[location,setLocation]=useState('');
+ const[locationHint,setLocationHint]=useState('');
+ const[guestBuilderOpen,setGuestBuilderOpen]=useState(false);
+ const[guestBuilderOutlet,setGuestBuilderOutlet]=useState(null);
+ const[guestDuration,setGuestDuration]=useState('OneWeek');
+ const[guestStartDate,setGuestStartDate]=useState(todayISO());
+ const[guestSelections,setGuestSelections]=useState({});
+ const trackingRef=useRef(null);
+ const lastTrackedRef=useRef(null);
+
+ useEffect(()=>{
+   let disposed=false;
+   locations.cities().then(rows=>{
+     if(disposed)return;
+     const list=rows||[];
+     setPublicCities(list);
+     if(!publicCity)setPublicCity(list[0]?.city||'');
+   }).catch(()=>{});
+   return()=>{disposed=true};
+ },[]);
+
+ const loadNearbyOutlets=async(latitude,longitude,city)=>{
+   if(!Number.isFinite(latitude)||!Number.isFinite(longitude))return;
+   setPublicPin([latitude,longitude]);
+   setPublicMapBusy(true);
+   setPublicMapError('');
+   try{
+     const result=await outlets.availability(latitude,longitude,city||'');
+     setNearbyOutlets(result?.outlets||[]);
+   }catch(e){
+     setNearbyOutlets([]);
+     setPublicMapError(e.message||'Unable to find nearby outlets.');
+   }finally{setPublicMapBusy(false)}
+ };
+
+ const openLocationExplorer=async()=>{
+   setShowLocationExplorer(true);
+   setPublicMapError('');
+   if(!publicPin){
+     setPublicMapBusy(true);
+     try{setNearbyOutlets(await outlets.list(publicCity||undefined)||[]);}
+     catch(e){setPublicMapError(e.message||'Unable to load outlets.');}
+     finally{setPublicMapBusy(false);}
+   }
+ };
+ const closeLocationExplorer=()=>{
+   setShowLocationExplorer(false);
+   if(trackingRef.current&&navigator.geolocation)navigator.geolocation.clearWatch(trackingRef.current);
+   trackingRef.current=null;
+   setTrackingLocation(false);
+ };
+ const useCurrentLocation=()=>{
+   if(!navigator.geolocation){setPublicMapError('Location services are not available in this browser.');return;}
+   setTrackingLocation(true);
+   setPublicMapError('');
+   const onSuccess=pos=>{
+     const{latitude,longitude}=pos.coords;
+     const last=lastTrackedRef.current;
+     if(last){
+       const distance=Math.sqrt(Math.pow((latitude-last[0])*111,2)+Math.pow((longitude-last[1])*111,2));
+       if(distance<0.08)return;
+     }
+     lastTrackedRef.current=[latitude,longitude];
+     loadNearbyOutlets(latitude,longitude,publicCity);
+   };
+   const onError=()=>{setTrackingLocation(false);setPublicMapError('Unable to access your current location. You can pin a location on the map instead.');};
+   try{
+     trackingRef.current=navigator.geolocation.watchPosition(onSuccess,onError,{enableHighAccuracy:true,maximumAge:10000,timeout:15000});
+   }catch{
+     navigator.geolocation.getCurrentPosition(onSuccess,onError,{enableHighAccuracy:true,timeout:15000});
+   }
+ };
+ const changePublicCity=async city=>{
+   setPublicCity(city);
+   setPublicPin(null);
+   lastTrackedRef.current=null;
+   setPublicMapBusy(true);
+   setPublicMapError('');
+   try{setNearbyOutlets(await outlets.list(city)||[]);}
+   catch(e){setNearbyOutlets([]);setPublicMapError(e.message||'Unable to load outlets for this city.');}
+   finally{setPublicMapBusy(false);}
+ };
+ const selectPublicPin=(latitude,longitude)=>loadNearbyOutlets(latitude,longitude,publicCity);
+ const startWithLocation=()=>{
+   const value=location.trim();
+   setLocationHint(value?("We'll use "+value+" to find outlets that can deliver to you."):"Pin your location to see nearby outlets and delivery coverage.");
+   openLocationExplorer();
+ };
+ const publicBuilderDays=()=>{
+   const d=DURATIONS.find(x=>x.id===guestDuration)||DURATIONS[2];
+   const start=guestStartDate||todayISO();
+   return Array.from({length:d.days},(_,i)=>({date:addDays(start,i),index:i}));
+ };
+ const publicMenuFor=(date,slot)=>{
+   const day=dayId(date);
+   return (publicOutletMenu||[]).filter(x=>Number(x.mealSlotValue)===Number(slot)&&Number(x.dayOfWeek)===Number(day));
+ };
+ const openGuestBuilder=()=>{
+   if(!publicOutlet)return;
+   setGuestBuilderOutlet(publicOutlet);
+   const days=publicBuilderDays();
+   const first={};
+   for(const d of days){
+     for(const s of SLOT){
+       const opts=publicMenuFor(d.date,s.id);
+       if(opts.length&&guestSelections[key(d.date,s.id)]===undefined) first[key(d.date,s.id)]='';
+     }
+   }
+   setGuestSelections(g=>({...first,...g}));
+   setGuestBuilderOpen(true);
+   setPublicOutlet(null);
+ };
+ const guestMealRows=Object.values(guestSelections).filter(Boolean);
+ const guestSelectedCount=guestMealRows.length;
+ const saveGuestDraftAndCreateAccount=()=>{
+   if(!guestBuilderOutlet||!guestSelectedCount)return;
+   try{
+     sessionStorage.setItem('healthapp.guestPackageDraft',JSON.stringify({
+       outlet:guestBuilderOutlet,
+       duration:guestDuration,
+       startDate:guestStartDate||todayISO(),
+       selections:Object.entries(guestSelections).filter(([,recipeId])=>recipeId).map(([k,recipeId])=>{
+         const parts=k.split('_'); return {date:parts[0],slot:Number(parts[1]),recipeId,portion:1};
+       })
+     }));
+   }catch{}
+   setGuestBuilderOpen(false);
+   setGuestBuilderOutlet(null);
+   setPublicOutlet(null);
+   setLocationHint('Your package is ready. Create an account to add delivery details, allergy preferences and continue to payment.');
+   openAuth('register');
+ };
+
+ const openPublicOutlet=async o=>{
+   setPublicOutlet(o);setPublicOutletError('');setPublicOutletBusy(true);
+   try{
+     const[m]=await Promise.all([menu.outlet(o.id)]);
+     setPublicOutletMenu(m||[]);
+   }catch(e){setPublicOutletMenu([]);setPublicOutletError(e.message||'Unable to load this outlet menu.');}
+   finally{setPublicOutletBusy(false);}
+ };
+ const openAuth=mode=>{setAuthMode(mode);setShowAuth(true);setError('');window.scrollTo({top:0,behavior:'smooth'});};
+ const goTo=id=>document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'});
+ const plans=[
+  {title:'Healthy Weekly',copy:'Balanced meals for the week with flexible meal choices.',badge:'Balanced nutrition',image:IMAGE_FALLBACKS.veg},
+  {title:'Performance',copy:'Higher-protein meals designed for strength and active routines.',badge:'High protein',image:IMAGE_FALLBACKS.nonveg},
+  {title:'Monthly Wellness',copy:'Wholesome everyday meals with convenient scheduled delivery.',badge:'Everyday wellness',image:IMAGE_FALLBACKS.hero},
+  {title:'Plant Powered',copy:'Fresh vegetarian and vegan-friendly meals packed with variety.',badge:'Plant forward',image:IMAGE_FALLBACKS.vegan}
+ ];
+ const outletsFeatured=[
+  {name:'FitFood Kitchen',city:'Bengaluru',copy:'Healthy · Fresh · Tasty',image:IMAGE_FALLBACKS.veg},
+  {name:'Andhra Ruchulu',city:'Chennai',copy:'Regional · Fresh · Balanced',image:IMAGE_FALLBACKS.hero},
+  {name:'Hyderabad Zaika',city:'Hyderabad',copy:'Deccan · Slow cooked · Fresh',image:IMAGE_FALLBACKS.nonveg},
+  {name:'Deccan Wok',city:'Hyderabad',copy:'Wok tossed · Fast · Fresh',image:IMAGE_FALLBACKS.vegan}
+ ];
+ const steps=[
+  ['1','📍','Set your location','Tell us where you want your meals delivered.'],
+  ['2','🏪','Select an outlet','Choose a healthy meal outlet that serves your location.'],
+  ['3','🍱','Explore meal plans','Browse meals, nutrition, ingredients and available plans.'],
+  ['4','📅','Select & subscribe','Choose your schedule, meals, portions and subscribe.'],
+  ['5','🚚','Outlet delivers','Your selected outlet prepares and delivers your meals.']
+ ];
+
+ if(showAuth) return <div className="publicAuthShell">
+   <button className="publicBackBtn" type="button" onClick={()=>setShowAuth(false)}>← Back to HealthApp</button>
+   <div className="publicAuthIntro"><span className="eyebrow">CUSTOMER PORTAL</span><h1>{authMode==='login'?'Welcome back':'Start your healthy journey'}</h1><p>{authMode==='login'?'Sign in to manage your meals and deliveries.':'Create your account to explore healthy outlets, meal plans and subscriptions.'}</p>{locationHint&&<div className="publicLocationNote">📍 {locationHint}</div>}</div>
+   <form className="authCard publicAuthCard" onSubmit={doAuth}><div className="eyebrow">{authMode==='login'?'SIGN IN':'CREATE YOUR ACCOUNT'}</div><h2>{authMode==='login'?'Welcome back':'Create your account'}</h2><p>{authMode==='login'?'Sign in to manage your meals and deliveries.':'Start with your health profile and build your first package.'}</p>{authMode==='register'&&<div className="twoCol"><label>First name<input value={authForm.firstName} onChange={e=>setAuthForm({...authForm,firstName:e.target.value})}/></label><label>Last name<input value={authForm.lastName} onChange={e=>setAuthForm({...authForm,lastName:e.target.value})}/></label></div>}<label>Email<input type="email" value={authForm.email} onChange={e=>setAuthForm({...authForm,email:e.target.value})}/></label><label>Password<input type="password" value={authForm.password} onChange={e=>setAuthForm({...authForm,password:e.target.value})}/></label><button className="primary big">{authMode==='login'?'Sign in':'Create account'}</button>{error&&<div className="error">{error}</div>}<div className="authSwitch">{authMode==='login'?'New to HealthApp?':'Already have an account?'} <button type="button" className="linkBtn" onClick={()=>setAuthMode(authMode==='login'?'register':'login')}>{authMode==='login'?'Create account':'Sign in'}</button></div>{authMode==='login'&&<small>Demo: customer@healthapp.test / demo</small>}</form>
+ </div>;
+
+ if(publicOutlet&&!guestBuilderOpen) return <PublicOutletHome outlet={publicOutlet} menu={publicOutletMenu} busy={publicOutletBusy} error={publicOutletError} onBack={()=>setPublicOutlet(null)} onBuild={openGuestBuilder}/>;
+
+ return <><LoadingIndicator active={publicMapBusy||publicOutletBusy} label={publicOutletBusy?'Loading outlet menu':'Finding outlets'}/><div className="publicHome">
+   <header className="publicNav">
+     <button className="publicBrand" type="button" onClick={()=>goTo('public-top')}><span className="brandMark">H</span><span><b>HealthApp</b><small>Healthy meals, built around you</small></span></button>
+     <nav className="publicNavLinks"><button onClick={()=>goTo('how-it-works')}>How it works</button><button onClick={()=>goTo('plans')}>Meal Plans</button><button onClick={()=>goTo('outlets')}>Our Outlets</button><button onClick={()=>goTo('why-healthapp')}>Why HealthApp</button></nav>
+     <div className="publicNavActions"><button className="secondary smallBtn" onClick={()=>openAuth('login')}>Sign in</button><button className="primary smallBtn" onClick={()=>openAuth('register')}>Create account</button></div>
+   </header>
+   <main id="public-top">
+    <section className="publicHero">
+      <div className="publicHeroImage"><img src={IMAGE_FALLBACKS.hero} alt="Healthy meal bowl"/><div className="publicHeroCallout"><b>Good food.<br/>Better days.</b><span>Nutritious meals from local outlets</span></div></div>
+      <div className="publicHeroCopy">
+        <span className="publicEyebrow">HEALTHY MEAL SUBSCRIPTION</span><h1>Healthy Meals.<br/>Happier You.</h1>
+        <p>Discover healthy meal subscriptions from trusted local outlets. Choose where you want delivery, explore plans and let your selected outlet do the rest.</p>
+        <div className="publicLocationBar"><span>⌖</span><input value={location} onChange={e=>setLocation(e.target.value)} placeholder="Enter your delivery location"/><button className="primary" onClick={startWithLocation}>Find Meals →</button></div>
+        <div className="publicHeroBadges"><span>✓ Healthy & balanced</span><span>✓ Trusted local outlets</span><span>✓ Flexible subscriptions</span><span>✓ Freshly prepared & delivered</span></div>
+      </div>
+    </section>
+
+    <section className="publicSection publicHow" id="how-it-works">
+      <div className="publicSectionHead"><span className="publicEyebrow">SIMPLE FROM START TO FINISH</span><h2>How it works</h2><p>Five simple steps from choosing your location to receiving your meals.</p></div>
+      <div className="publicSteps">{steps.map(([n,icon,title,copy],idx)=><div className={"publicStep "+(n==='1'?'publicStepLive':'')} key={n}><button className="publicStepInteractive" type="button" onClick={()=>n==='1'&&openLocationExplorer()}><div className="publicStepTop"><span>{n}</span>{idx<steps.length-1&&<i>→</i>}</div><div className="publicStepIcon">{icon}</div><h3>{title}</h3><p>{copy}</p></button>{n==='1'&&<small className="publicStepLiveHint">Live outlet availability</small>}</div>)}</div>
+    </section>
+
+    <section className="publicBenefits" id="why-healthapp">
+      <div><b>♥</b><strong>Healthy & Nutritious</strong><span>Meals built around better everyday choices.</span></div>
+      <div><b>◉</b><strong>Local Trusted Outlets</strong><span>Choose outlets serving healthy options near you.</span></div>
+      <div><b>↔</b><strong>Flexible Plans</strong><span>Daily, weekly or monthly subscription options.</span></div>
+      <div><b>⌖</b><strong>Convenient Delivery</strong><span>Meals delivered to home or office on schedule.</span></div>
+    </section>
+
+    <section className="publicSection" id="plans">
+      <div className="publicSectionHead inline"><div><span className="publicEyebrow">POPULAR OPTIONS</span><h2>Explore meal plans</h2><p>Choose a subscription style that fits your goals and routine.</p></div><button className="linkBtn" onClick={openLocationExplorer}>View all plans →</button></div>
+      <div className="publicPlanGrid">{plans.map(p=><article className="publicPlanCard" key={p.title}><img src={p.image} alt=""/><div><span className="publicPlanBadge">✓ {p.badge}</span><h3>{p.title}</h3><p>{p.copy}</p><button className="secondary smallBtn" onClick={openLocationExplorer}>Explore plan →</button></div></article>)}</div>
+    </section>
+
+    <section className="publicSection publicOutletsSection" id="outlets">
+      <div className="publicSectionHead inline"><div><span className="publicEyebrow">LOCAL PARTNERS</span><h2>Our featured outlets</h2><p>Healthy meal options from outlets serving supported cities.</p></div><button className="linkBtn" onClick={openLocationExplorer}>View all outlets →</button></div>
+      <div className="publicOutletGrid">{outletsFeatured.map(o=><article className="publicOutletCard" key={o.name}><img src={o.image} alt=""/><div><b>{o.name}</b><span>{o.city}</span><small>{o.copy}</small></div></article>)}</div>
+    </section>
+
+    <section className="publicStory"><div className="publicStoryImage"><img src={IMAGE_FALLBACKS.nonveg} alt="Prepared healthy meal"/></div><div><span className="publicEyebrow">BUILT FOR EVERYDAY LIFE</span><h2>One place to discover, subscribe and manage healthy meals.</h2><p>Set your delivery location, choose an outlet, build a package around your preferred meals and manage addresses, meal calendars, skips and credits from one customer account.</p><button className="primary" onClick={()=>openAuth('register')}>Create account →</button></div></section>
+
+    <section className="publicCta"><div><span className="publicEyebrow">READY TO GET STARTED?</span><h2>Find healthy meals that fit your life.</h2><p>Create an account and start exploring outlets and meal subscriptions in your supported city.</p></div><button className="primary big" onClick={()=>openAuth('register')}>Create account</button></section>
+   </main>
+
+   {showLocationExplorer&&<div className="publicOverlayBackdrop" onMouseDown={e=>e.target===e.currentTarget&&closeLocationExplorer()}>
+     <div className="publicLocationExplorer">
+       <div className="publicExplorerHead"><div><span className="publicEyebrow">LIVE OUTLET DISCOVERY</span><h2>Find healthy outlets near you</h2><p>Move the map or use your current location to see outlets that can deliver to you.</p></div><button className="publicExplorerClose" onClick={closeLocationExplorer}>×</button></div>
+       <div className="publicExplorerToolbar"><label><span>Delivery city</span><select value={publicCity} onChange={e=>changePublicCity(e.target.value)}>{publicCities.map(x=><option key={x.city+'|'+x.state} value={x.city}>{x.city} · {x.state}</option>)}</select></label><button className="secondary smallBtn" onClick={useCurrentLocation}>{trackingLocation?'● Live location on':'⌖ Use my current location'}</button>{publicPin&&<span className="publicPinStatus">● Pin updated · {nearbyOutlets.length} outlet{nearbyOutlets.length===1?'':'s'} nearby</span>}</div>
+       {publicMapError&&<div className="publicExplorerError">{publicMapError}</div>}
+       <div className="publicExplorerGrid">
+         <div className="publicExplorerMap"><MapContainer center={publicPin||cityMapCenter(publicCity)} zoom={13} scrollWheelZoom className="publicLiveMap"><TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION}/><MapRecenter center={publicPin||cityMapCenter(publicCity)}/><MapClickHandler onPick={selectPublicPin}/>{nearbyOutlets.map(o=>Number.isFinite(Number(o.latitude))&&Number.isFinite(Number(o.longitude))&&<CircleMarker key={o.id} center={[Number(o.latitude),Number(o.longitude)]} radius={9} pathOptions={{fillOpacity:.9}} eventHandlers={{click:()=>openPublicOutlet(o)}}/>)}{publicPin&&<CircleMarker center={publicPin} radius={10} pathOptions={{weight:3,fillOpacity:.2}}/>}</MapContainer>{publicMapBusy&&<div className="publicMapLoading">Finding outlets…</div>}<div className="publicMapHint">Click anywhere on the map to check outlet coverage at that location.</div></div>
+         <aside className="publicNearbyPanel"><div className="publicNearbyHead"><div><b>{nearbyOutlets.length?nearbyOutlets.length+' outlets nearby':'Nearby outlets'}</b><span>{publicCity||'Choose a city'}</span></div><span>LIVE</span></div>{nearbyOutlets.length?nearbyOutlets.map(o=><article className="publicNearbyOutlet" key={o.id} onClick={()=>openPublicOutlet(o)}><img src={o.logoUrl?getImg(o.logoUrl):IMAGE_FALLBACKS.logo} alt="" onError={e=>e.currentTarget.src=IMAGE_FALLBACKS.logo}/><div><b>{o.name}</b><small>★ {Number(o.rating||4.8).toFixed(1)} · {o.distanceKm?o.distanceKm+' km':'Nearby'}</small><span>{(o.healthHighlights||[]).slice(0,2).join(' · ')}</span></div><strong>→</strong></article>):<div className="publicNearbyEmpty"><div>⌖</div><b>Set a location to discover outlets</b><span>Use your current location or click a point on the map.</span></div>}</aside>
+       </div>
+       {locationHint&&<div className="publicLocationExplorerNote">📍 {locationHint}</div>}
+     </div>
+   </div>}
+
+
+   {guestBuilderOpen&&<GuestPackageModal
+     outlet={guestBuilderOutlet}
+     menu={publicOutletMenu}
+     duration={guestDuration}
+     setDuration={value=>{setGuestDuration(value);setGuestSelections({})}}
+     startDate={guestStartDate}
+     setStartDate={value=>{setGuestStartDate(value);setGuestSelections({})}}
+     selections={guestSelections}
+     setSelections={setGuestSelections}
+     selectedCount={guestSelectedCount}
+     onClose={()=>setGuestBuilderOpen(false)}
+     onContinue={saveGuestDraftAndCreateAccount}
+   />}
+ </div></>;
+}
+
+function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild}){
+ const[slot,setSlot]=useState(1);
+ const[filter,setFilter]=useState('All');
+ const healthy=outlet?.healthHighlights||[];
+ const filtered=(menu||[]).filter(x=>Number(x.mealSlotValue)===slot).filter(x=>{
+   if(filter==='All')return true;
+   const category=String(x.category||'').toLowerCase();
+   if(filter==='High Protein')return Number(x.proteinGrams||0)>=25;
+   if(filter==='Low Carb')return Number(x.carbsGrams||0)<=30;
+   if(filter==='Vegan')return category==='vegan';
+   if(filter==='Vegetarian')return category==='veg'||category==='vegetarian';
+   if(filter==='Gluten Free')return String(x.tags||'').toLowerCase().includes('gluten');
+   return true;
+ });
+ return <><LoadingIndicator active={busy} label="Loading outlet menu"/><div className="publicOutletHome">
+   <header className="publicOutletTopbar">
+     <button className="publicBrand" type="button" onClick={onBack}><span className="brandMark">H</span><span><b>HealthApp</b><small>Healthy meals, built around you</small></span></button>
+     <div className="publicOutletTopActions"><button className="secondary" onClick={onBack}>← Find outlets</button><button className="primary" onClick={onBuild}>Build Package →</button></div>
+   </header>
+   <main>
+     <section className="publicOutletHero">
+       <img src={outlet?.heroImageUrl?getImg(outlet.heroImageUrl):IMAGE_FALLBACKS.hero} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/>
+       <div className="publicOutletHeroOverlay">
+         <span className="publicEyebrow">HEALTHY LOCAL OUTLET</span>
+         <h1>{outlet?.name}</h1>
+         <p>{outlet?.city}, {outlet?.state}{outlet?.distanceKm?' · '+outlet.distanceKm+' km away':''}</p>
+         <div className="publicOutletMeta"><span>★ <b>{Number(outlet?.rating||4.8).toFixed(1)}</b> ({outlet?.reviewCount||0} reviews)</span>{healthy.slice(0,4).map((h,i)=><span key={i}>✓ {h}</span>)}</div>
+       </div>
+       <button className="publicOutletBackFloating" onClick={onBack}>← Back to outlets</button>
+       <button className="primary publicOutletHeroBuild" onClick={onBuild}>Build Package →</button>
+     </section>
+     <section className="publicOutletBody">
+       <div className="publicOutletIntro"><div><span className="publicEyebrow">EXPLORE THE MENU</span><h2>Meals prepared for your routine</h2><p>Browse this outlet's menu, nutrition and meal choices before creating an account.</p></div><div className="publicOutletIntroBadges">{healthy.slice(0,4).map((h,i)=><span key={i}>✓ {h}</span>)}</div></div>
+       <div className="publicOutletSlots">{[[1,'☀','Morning','7 AM – 10 AM'],[2,'☀','Afternoon','12 PM – 2 PM'],[3,'☾','Evening','6 PM – 8 PM'],[4,'☾','Night','8 PM – 10 PM']].map(([id,icon,label,time])=><button key={id} className={slot===id?'active':''} onClick={()=>setSlot(id)}><span>{icon}</span><b>{label}</b><small>{time}</small></button>)}</div>
+       <div className="publicOutletFilterRow"><div>{['All','High Protein','Low Carb','Vegan','Vegetarian','Gluten Free'].map(x=><button key={x} className={filter===x?'chip active':'chip'} onClick={()=>setFilter(x)}>{x}</button>)}</div><button className="linkBtn" onClick={onBuild}>Build with these meals →</button></div>
+       {busy?<div className="publicOutletMessage">Loading menu…</div>:error?<div className="publicExplorerError">{error}</div>:<div className="publicOutletMealGrid">{filtered.map(x=><article className="publicOutletMealCard" key={x.id}><div className="publicOutletMealImage"><img src={x.imageUrl?getImg(x.imageUrl):fallbackImg(x.category)} alt="" onError={e=>{e.currentTarget.src=fallbackImg(x.category)}}/></div><div className="publicOutletMealBody"><span className="publicPlanBadge">{x.category||'Meal'}</span><h3>{x.recipeName}</h3><div className="publicOutletNutrition"><span>{x.calories??0} kcal</span><span>{x.proteinGrams??0}g protein</span><span>{x.carbsGrams??0}g carbs</span><span>{x.fiberGrams??0}g fibre</span></div><p>{x.description||'Wholesome meal prepared with fresh ingredients.'}</p><strong>{money(x.pricePerMeal)}</strong></div></article>)}</div>}
+       {!busy&&!error&&!filtered.length&&<div className="publicOutletMessage"><b>No meals published for this slot.</b><span>Try another meal time.</span></div>}
+       <section className="publicOutletAbout"><div><span className="publicEyebrow">ABOUT THIS OUTLET</span><h2>{outlet?.name}</h2><p>{outlet?.about||'Fresh, healthy meals prepared with quality ingredients and balanced portions for your everyday routine.'}</p></div><div className="publicOutletAboutCard"><b>Delivery coverage</b><span>{outlet?.city}, {outlet?.state}</span><small>This outlet delivers within its configured service radius.</small></div></section>
+     </section>
+   </main>
+ </div></>;
+}
+
+function GuestPackageModal({outlet,menu,duration,setDuration,startDate,setStartDate,selections,setSelections,selectedCount,onClose,onContinue}){
+ const days=useMemo(()=>{
+   const d=DURATIONS.find(x=>x.id===duration)||DURATIONS[2];
+   const start=startDate||todayISO();
+   return Array.from({length:d.days},(_,i)=>({date:addDays(start,i),index:i}));
+ },[duration,startDate]);
+ const menuFor=(date,slot)=>(menu||[]).filter(x=>Number(x.dayOfWeek)===Number(dayId(date))&&Number(x.mealSlotValue)===Number(slot));
+ return <div className="publicOverlayBackdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}>
+   <div className="publicGuestBuilder">
+     <div className="publicExplorerHead">
+       <div><span className="publicEyebrow">GUEST PACKAGE BUILDER</span><h2>Build your package</h2><p>Choose your meals first. We'll ask you to create an account when you're ready to continue.</p></div>
+       <button className="publicExplorerClose" onClick={onClose}>×</button>
+     </div>
+     <div className="publicGuestBuilderToolbar">
+       <label><span>Package duration</span><select value={duration} onChange={e=>setDuration(e.target.value)}>{DURATIONS.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}</select></label>
+       <label><span>Start date</span><input type="date" min={todayISO()} value={startDate} onChange={e=>setStartDate(e.target.value)}/></label>
+       <div className="publicGuestCount"><b>{selectedCount}</b><span>meals selected</span></div>
+       <div className="publicGuestOutlet"><span>OUTLET</span><b>{outlet?.name}</b><small>{outlet?.city}</small></div>
+     </div>
+     <div className="publicGuestWeeks">
+       {days.map(d=><section className="publicGuestDay" key={d.date}>
+         <div className="publicGuestDayHead"><div><b>{dayName(dayId(d.date))}</b><span>{shortDate(d.date)}</span></div><small>{SLOT.filter(s=>menuFor(d.date,s.id).length).length} meal slots available</small></div>
+         <div className="publicGuestSlots">
+           {SLOT.map(s=>{
+             const opts=menuFor(d.date,s.id);
+             if(!opts.length)return null;
+             const selected=selections[key(d.date,s.id)]||'';
+             return <label key={s.id}><span>{s.icon} {s.label}</span><select value={selected} onChange={e=>setSelections(g=>({...g,[key(d.date,s.id)]:e.target.value}))}><option value="">Choose a meal</option>{opts.map(m=><option key={m.recipeId} value={m.recipeId}>{m.recipeName} · {money(m.pricePerMeal)}</option>)}</select></label>;
+           })}
+         </div>
+         {!SLOT.some(s=>menuFor(d.date,s.id).length)&&<div className="publicGuestNoMenu">No menu is published for this day.</div>}
+       </section>)}
+     </div>
+     <div className="publicGuestFooter">
+       <div><b>{selectedCount} meals selected</b><span>After creating your account, we'll ask for your exact delivery address and allergy preferences before payment.</span></div>
+       <button className="primary big" disabled={!selectedCount} onClick={onContinue}>Create account to continue →</button>
+     </div>
+   </div>
+ </div>;
+}
+
 
 function App(){
  const[user,setUser]=useState(currentUser());
@@ -77,9 +451,13 @@ function App(){
  const[paymentSubId,setPaymentSubId]=useState('');
  const[cityFilter,setCityFilter]=useState('');
  const[availableOutlets,setAvailableOutlets]=useState(null);
+ const[guestPackageReady,setGuestPackageReady]=useState(false);
+ const[guestPackageRestored,setGuestPackageRestored]=useState(false);
+ const[packageDraftSaved,setPackageDraftSaved]=useState(false);
+ const[packageDraftSavedAt,setPackageDraftSavedAt]=useState('');
 
  const notify=(m,type='success')=>{setToast(m);setToastType(type);setTimeout(()=>setToast(''),2600)};
- const run=async(fn)=>{setLoading(true);setError('');try{return await fn()}catch(e){setError(e.message||'Something went wrong');throw e}finally{setLoading(false)}};
+ const run=async(fn)=>{setLoading(true);setError('');try{return await fn()}catch(e){if(Number(e?.status)===401||String(e?.message||'').includes('401')){auth.logout();setUser(null);setError('');setToast('Your session expired. Please sign in again.');setToastType('info')}else setError(e.message||'Something went wrong');throw e}finally{setLoading(false)}};
  const reload=async()=>run(async()=>{
    const[cities,os,ads,p,allergens,ss,orders,credit,transactions,dashboard,likedMeals]=await Promise.all([locations.cities(),outlets.list(cityFilter),customer.addresses(),customer.profile(),catalog.allergens(),customer.subscriptions(),customer.orders(),customer.credit(),customer.dashboard(),customer.likedMeals()]);
    setGlobal({outlets:os,areas:[],cities,addresses:ads,profile:p,allergens,subscriptions:ss,orders,credit,transactions,likedMeals:likedMeals||[]});setSubs(ss);setCustomerDashboard(dashboard);
@@ -87,9 +465,27 @@ function App(){
    const cityAddresses=ads.filter(x=>x.city?.toLowerCase()===initialCity.toLowerCase());setSelectedAddressId((cityAddresses.find(x=>x.isDefault)||cityAddresses[0])?.id||'');
    if(p)setProfileForm({weightKg:p.weightKg??'',heightCm:p.heightCm??'',dateOfBirth:p.dateOfBirth?.slice?.(0,10)||'',goal:p.goal||'WeightLoss',activityLevel:p.activityLevel||'Moderate',allergyIds:(p.allergies||[]).map(a=>a.id),diet:p.diet||'Veg'});
  });
+ useEffect(()=>{
+   if(!user||guestPackageRestored)return;
+   let raw=null;
+   try{raw=localStorage.getItem('healthapp.savedPackageDraft')||sessionStorage.getItem('healthapp.guestPackageDraft')}catch{}
+   if(!raw)return;
+   let draft=null;
+   try{draft=JSON.parse(raw)}catch{}
+   if(!draft||!draft.outlet?.id||!Array.isArray(draft.selections)||!draft.selections.length)return;
+   const currentId=currentUser()?.id;
+   if(draft.customerId&&currentId&&draft.customerId!==currentId)return;
+   setGuestPackageRestored(true);
+   restoreSavedPackage(draft).catch(()=>{});
+ },[user,guestPackageRestored]);
  useEffect(()=>{if(user)reload().catch(()=>{})},[user]);
  useEffect(()=>{if(!user||!cityFilter)return;let disposed=false;outlets.list(cityFilter).then(outletsForCity=>{if(disposed)return;setGlobal(g=>({...g,outlets:outletsForCity}));setAvailableOutlets(outletsForCity)}).catch(()=>{});return()=>{disposed=true}},[cityFilter,user]);
  useEffect(()=>{if(!user)return;const city=cityFilter.toLowerCase();const cityAddresses=global.addresses.filter(a=>a.city?.toLowerCase()===city);setSelectedAddressId(prev=>{const current=global.addresses.find(x=>x.id===prev);if(current?.city?.toLowerCase()===city)return prev;return(cityAddresses.find(x=>x.isDefault)||cityAddresses[0])?.id||''})},[cityFilter,global.addresses,user]);
+ useEffect(()=>{
+   if(active!=='builder'||!builder.startDate)return;
+   const expected=defaultWeekActiveDays(builder.startDate,builder.duration);
+   setBuilder(b=>JSON.stringify(b.weekActiveDays||{})===JSON.stringify(expected)?b:{...b,weekActiveDays:expected,quote:null});
+ },[active,builder.startDate,builder.duration]);
  useEffect(()=>{
    if(!user||active!=='dashboard')return;
    let disposed=false;
@@ -101,7 +497,64 @@ function App(){
  },[user,active]);
  useEffect(()=>{if(!selectedAddressId){setAvailableOutlets(global.outlets);return}const a=global.addresses.find(x=>x.id===selectedAddressId);if(!a||a.city?.toLowerCase()!==cityFilter.toLowerCase()){setAvailableOutlets(global.outlets);return}outlets.availability(a.latitude,a.longitude,cityFilter).then(x=>setAvailableOutlets(x.outlets||[])).catch(()=>setAvailableOutlets(global.outlets))},[selectedAddressId,global.addresses,global.outlets,cityFilter]);
 
- const doAuth=async e=>{e.preventDefault();await run(async()=>{const x=authMode==='login'?await auth.login({email:authForm.email,password:authForm.password}):await auth.register({firstName:authForm.firstName,lastName:authForm.lastName,email:authForm.email,password:authForm.password,role:'Customer'});setUser(x.user);notify(authMode==='login'?'Welcome back':'Account created')})};
+ const restoreSavedPackage=async draft=>{
+   if(!draft?.outlet?.id||!Array.isArray(draft.selections)||!draft.selections.length)return false;
+   const d=DURATIONS.find(x=>x.id===draft.duration)||DURATIONS[2];
+   const start=draft.startDate||nextMonday();
+   try{
+     setLoading(true);
+     const[m,rs]=await Promise.all([menu.outlet(draft.outlet.id),recipes.list(draft.outlet.id)]);
+     const selections={};
+     draft.selections.forEach(x=>{
+       if(x?.date&&x?.slot&&x?.recipeId)selections[key(x.date,Number(x.slot))]={date:x.date,slot:Number(x.slot),recipeId:x.recipeId,portion:Number(x.portion||1)};
+     });
+     const defaultActiveDays=defaultWeekActiveDays(start,d.id);
+     setSelectedOutlet(draft.outlet);
+     setOutletMenu(m||[]);
+     setOutletRecipes(rs||[]);
+     setOutletCategory('All');
+     setBuilder({
+       outlet:draft.outlet,
+       deliveryCity:draft.outlet.city||'',
+       duration:draft.duration||'OneWeek',
+       deliveryMode:draft.deliveryMode||'OneDeliveryPerDay',
+       startDate:start,
+       weeks:d.weeks,
+       weekActiveDays:draft.weekActiveDays||defaultActiveDays,
+       selections,
+       allergyAcknowledged:{},
+       dayAddresses:draft.dayAddresses||{},
+       discountCode:draft.discountCode||'',
+       quote:null,
+       step:1
+     });
+     setPackageDraftSaved(true);
+     setPackageDraftSavedAt('Saved just now');
+     setActive('builder');
+     try{localStorage.setItem('healthapp.savedPackageDraft',JSON.stringify({...draft,customerId:currentUser()?.id||null}));sessionStorage.removeItem('healthapp.guestPackageDraft')}catch{}
+     notify('Your saved package is ready. Complete delivery and allergy details before payment.','info');
+     return true;
+   }catch(e){
+     setError(e.message||'Unable to restore your saved package.');
+     return false;
+   }finally{setLoading(false)}
+ };
+
+ const doAuth=async e=>{e.preventDefault();await run(async()=>{
+   const x=authMode==='login'
+     ?await auth.login({email:authForm.email,password:authForm.password})
+     :await auth.register({firstName:authForm.firstName,lastName:authForm.lastName,email:authForm.email,password:authForm.password,role:'Customer'});
+   setUser(x.user);
+   const draftRaw=(()=>{try{return sessionStorage.getItem('healthapp.guestPackageDraft')||localStorage.getItem('healthapp.savedPackageDraft')}catch{return null}})();
+   const draft=draftRaw?(()=>{try{return JSON.parse(draftRaw)}catch{return null}})():null;
+   if(draft&&(!draft.customerId||draft.customerId===x.user.id)){
+     await restoreSavedPackage(draft);
+     setGuestPackageRestored(true);
+   }else{
+     setActive('dashboard');
+     notify(authMode==='login'?'Welcome back':'Account created');
+   }
+ })};
  const logout=()=>{auth.logout();setUser(null);setMobileMenuOpen(false)};
  const go=tab=>{setActive(tab);setMobileMenuOpen(false)};
  const toggleLikedMeal=async recipeId=>{
@@ -115,11 +568,11 @@ function App(){
  const changeDiscoveryCity=city=>{setCityFilter(city);setSelectedOutlet(null);setOutletMenu([]);setOutletRecipes([]);setOutletCategory('All');setSelectedAddressId('')};
  const openOutlet=async o=>{setSelectedOutlet(o);setOutletMenu([]);setOutletRecipes([]);setOutletCategory('All');setActive('discover');setError('');try{setLoading(true);const[m,rs]=await Promise.all([menu.outlet(o.id),recipes.list(o.id)]);setOutletMenu(m||[]);setOutletRecipes(rs||[])}catch(e){setError(e.message||'Unable to load outlet menu.')}finally{setLoading(false)}};
  const openAddressForCity=async(city,reason=true)=>{setCityFilter(city);setAddressModal('new');setAddressForm({id:null,city,pincode:'',locality:'',cityAreaId:null,label:'Home',addressLine1:'',addressLine2:'',contactName:(user.firstName+' '+user.lastName).trim(),contactPhone:'',latitude:'',longitude:'',isDefault:global.addresses.length===0});if(reason)notify('Set the exact delivery pin anywhere in '+city+'. We will check outlet availability from this location.','info')};
- const startBuilder=async(o,preferredAddress=null)=>{const city=o.city||'';const cityAddress=preferredAddress?.id?preferredAddress:(selectedAddressId?global.addresses.find(a=>a.id===selectedAddressId&&a.city?.toLowerCase()===city.toLowerCase()):null)||global.addresses.find(a=>a.city?.toLowerCase()===city.toLowerCase()&&a.isDefault)||global.addresses.find(a=>a.city?.toLowerCase()===city.toLowerCase());if(!cityAddress){setPendingBuilderOutlet(o);await openAddressForCity(city,true);return}setPendingBuilderOutlet(null);const d=DURATIONS.find(x=>x.id==='OneWeek')||DURATIONS[2];const start=nextMonday();const dayAddresses={};for(let i=0;i<d.days;i++)dayAddresses[addDays(start,i)]=cityAddress.id;setSelectedOutlet(o);setError('');setActive('builder');try{setLoading(true);const[m,rs]=await Promise.all([menu.outlet(o.id),recipes.list(o.id)]);setOutletMenu(m||[]);setOutletRecipes(rs||[]);setBuilder({outlet:o,deliveryCity:city,duration:'OneWeek',deliveryMode:'OneDeliveryPerDay',startDate:start,weeks:d.weeks,weekActiveDays:blankWeeks,selections:{},allergyAcknowledged:{},dayAddresses,discountCode:'',quote:null,step:1})}catch(e){setError(e.message||'Unable to load outlet menu.')}finally{setLoading(false)}};
+ const startBuilder=async(o,preferredAddress=null)=>{setGuestPackageReady(false);setPackageDraftSaved(false);setPackageDraftSavedAt('');try{localStorage.removeItem('healthapp.savedPackageDraft')}catch{}const city=o.city||'';const cityAddress=preferredAddress?.id?preferredAddress:(selectedAddressId?global.addresses.find(a=>a.id===selectedAddressId&&a.city?.toLowerCase()===city.toLowerCase()):null)||global.addresses.find(a=>a.city?.toLowerCase()===city.toLowerCase()&&a.isDefault)||global.addresses.find(a=>a.city?.toLowerCase()===city.toLowerCase());if(!cityAddress){setPendingBuilderOutlet(o);await openAddressForCity(city,true);return}setPendingBuilderOutlet(null);const d=DURATIONS.find(x=>x.id==='OneWeek')||DURATIONS[2];const start=nextMonday();const dayAddresses={};for(let i=0;i<d.days;i++)dayAddresses[addDays(start,i)]=cityAddress.id;setSelectedOutlet(o);setError('');setActive('builder');try{setLoading(true);const[m,rs]=await Promise.all([menu.outlet(o.id),recipes.list(o.id)]);setOutletMenu(m||[]);setOutletRecipes(rs||[]);setBuilder({outlet:o,deliveryCity:city,duration:'OneWeek',deliveryMode:'OneDeliveryPerDay',startDate:start,weeks:d.weeks,weekActiveDays:blankWeeks,selections:{},allergyAcknowledged:{},dayAddresses,discountCode:'',quote:null,step:1})}catch(e){setError(e.message||'Unable to load outlet menu.')}finally{setLoading(false)}};
 
  const filteredRecipes=useMemo(()=>outletCategory==='All'?outletRecipes:outletRecipes.filter(r=>r.category===outletCategory),[outletRecipes,outletCategory]);
 
- const saveProfile=async()=>run(async()=>{const x=await customer.saveProfile({...profileForm,weightKg:profileForm.weightKg===''?null:Number(profileForm.weightKg),heightCm:profileForm.heightCm===''?null:Number(profileForm.heightCm),dateOfBirth:profileForm.dateOfBirth||null,allergyIds:profileForm.allergyIds||[]});setGlobal(g=>({...g,profile:x}));setBuilder(b=>({...b,allergyAcknowledged:{},quote:null}));notify('Health profile saved')});
+ const saveProfile=async()=>run(async()=>{const x=await customer.saveProfile({...profileForm,weightKg:profileForm.weightKg===''?null:Number(profileForm.weightKg),heightCm:profileForm.heightCm===''?null:Number(profileForm.heightCm),dateOfBirth:profileForm.dateOfBirth||null,allergyIds:profileForm.allergyIds||[]});setGlobal(g=>({...g,profile:x}));setBuilder(b=>({...b,allergyAcknowledged:{},quote:null}));if(guestPackageReady)setActive('builder');notify(guestPackageReady?'Preferences saved. Review your package for any allergy warnings.':'Health profile saved')});
  const openNewAddress=()=>openAddressForCity(cityFilter,false);
  const editAddress=a=>{setAddressModal('edit');setAddressForm({id:a.id,city:a.city,pincode:a.pincode||'',locality:a.areaName||'',cityAreaId:null,label:a.label,addressLine1:a.addressLine1,addressLine2:a.addressLine2,contactName:a.contactName,contactPhone:a.contactPhone,latitude:a.latitude,longitude:a.longitude,isDefault:a.isDefault});setCityFilter(a.city)};
  const pickAddressLocation=async(latitude,longitude)=>{const requestedCity=(addressForm.city||cityFilter||'').trim();
@@ -143,10 +596,11 @@ function App(){
    setAddressForm(f=>({...f,latitude,longitude}));
  }finally{setMapBusy(false)}};
 
- const saveAddress=async()=>run(async()=>{if(!addressForm.city.trim())throw new Error('Delivery city is required.');if(!addressForm.addressLine1.trim())throw new Error('Address line 1 is required.');const lat=Number(addressForm.latitude),lng=Number(addressForm.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lng))throw new Error('Pick the exact delivery location on the map.');const payload={city:addressForm.city,pincode:addressForm.pincode||'',locality:addressForm.locality||'',label:addressForm.label,addressLine1:addressForm.addressLine1,addressLine2:addressForm.addressLine2,contactName:addressForm.contactName,contactPhone:addressForm.contactPhone,latitude:lat,longitude:lng,cityAreaId:null,isDefault:Boolean(addressForm.isDefault)};const x=addressModal==='new'?await customer.createAddress(payload):await customer.updateAddress(addressForm.id,payload);const list=addressModal==='new'?[...global.addresses,x]:global.addresses.map(a=>a.id===x.id?x:a);setGlobal(g=>({...g,addresses:list}));setSelectedAddressId(x.id);const nextBuilderOutlet=pendingBuilderOutlet;setPendingBuilderOutlet(null);setAddressModal(null);if(nextBuilderOutlet&&nextBuilderOutlet.city?.toLowerCase()===x.city?.toLowerCase()){await startBuilder(nextBuilderOutlet,x)}else{notify('Address saved with exact map location')}});
+ const saveAddress=async()=>run(async()=>{if(!addressForm.city.trim())throw new Error('Delivery city is required.');if(!addressForm.addressLine1.trim())throw new Error('Address line 1 is required.');const lat=Number(addressForm.latitude),lng=Number(addressForm.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lng))throw new Error('Pick the exact delivery location on the map.');const payload={city:addressForm.city,pincode:addressForm.pincode||'',locality:addressForm.locality||'',label:addressForm.label,addressLine1:addressForm.addressLine1,addressLine2:addressForm.addressLine2,contactName:addressForm.contactName,contactPhone:addressForm.contactPhone,latitude:lat,longitude:lng,cityAreaId:null,isDefault:Boolean(addressForm.isDefault)};const x=addressModal==='new'?await customer.createAddress(payload):await customer.updateAddress(addressForm.id,payload);const list=addressModal==='new'?[...global.addresses,x]:global.addresses.map(a=>a.id===x.id?x:a);setGlobal(g=>({...g,addresses:list}));setSelectedAddressId(x.id);const nextBuilderOutlet=pendingBuilderOutlet;setPendingBuilderOutlet(null);setAddressModal(null);if(nextBuilderOutlet&&nextBuilderOutlet.city?.toLowerCase()===x.city?.toLowerCase()){await startBuilder(nextBuilderOutlet,x)}else{if(guestPackageReady||builder.outlet)setActive('builder');notify(guestPackageReady?'Delivery address saved. Review your package to continue.':'Address saved with exact map location')}});
  const deleteAddress=async a=>{if(!confirm('Delete this address?'))return;await run(async()=>{await customer.deleteAddress(a.id);const next=global.addresses.filter(x=>x.id!==a.id);setGlobal(g=>({...g,addresses:next}));setSelectedAddressId(next[0]?.id||'');notify('Address deleted')})};
 
- const setBuilderDuration=value=>{const d=DURATIONS.find(x=>x.id===value)||DURATIONS[0];setBuilder(b=>{const next={...b.weekActiveDays};for(let i=1;i<=d.weeks;i++)next[i]=next[i]||next[1]||[1,2,3,4,5];const city=(b.deliveryCity||b.outlet?.city||'').toLowerCase();const defaultAddress=global.addresses.find(a=>a.city?.toLowerCase()===city);const nextAddresses={...b.dayAddresses};for(let i=0;i<d.days;i++){const date=addDays(b.startDate,i);if(defaultAddress&&!nextAddresses[date])nextAddresses[date]=defaultAddress.id}return{...b,duration:value,weeks:d.weeks,weekActiveDays:next,dayAddresses:nextAddresses,quote:null}})};
+ const setBuilderDuration=value=>{const d=DURATIONS.find(x=>x.id===value)||DURATIONS[0];setBuilder(b=>{const nextWeekActiveDays=defaultWeekActiveDays(b.startDate,value);const city=(b.deliveryCity||b.outlet?.city||'').toLowerCase();const defaultAddress=global.addresses.find(a=>a.city?.toLowerCase()===city);const nextAddresses={...b.dayAddresses};for(let i=0;i<d.days;i++){const date=addDays(b.startDate,i);if(defaultAddress&&!nextAddresses[date])nextAddresses[date]=defaultAddress.id}return{...b,duration:value,weeks:d.weeks,weekActiveDays:nextWeekActiveDays,dayAddresses:nextAddresses,selections:Object.fromEntries(Object.entries(b.selections).filter(([k,v])=>{if(!v?.date)return false;return builderDateIndex(v.date,b.startDate)<d.days})),quote:null}})};
+ const builderDateIndex=(date,start)=>{const a=dateObj(start),b=dateObj(date);return Math.round((b.getTime()-a.getTime())/86400000)};
  const builderDays=useMemo(()=>Array.from({length:builder.weeks*7},(_,i)=>({date:addDays(builder.startDate,i),index:i,week:Math.floor(i/7)+1})),[builder.startDate,builder.weeks]);
  const menuMap=useMemo(()=>{const m={};for(const x of outletMenu){const k=key(x.dayOfWeek,x.mealSlotValue);(m[k]??=[]).push(x)}return m},[outletMenu]);
  const isActiveDay=(week,date)=>Boolean(builder.weekActiveDays[week]?.includes(dayId(date)));
@@ -159,13 +613,106 @@ function App(){
  const copyWeek=fromWeek=>setBuilder(b=>{const nextSel={...b.selections};const source=builderDays.filter(x=>x.week===fromWeek);for(let w=1;w<=b.weeks;w++){if(w===fromWeek)continue;for(const d of source){const target=builderDays.find(x=>x.week===w&&x.index%7===d.index%7);if(!target)continue;for(const s of SLOT){const v=nextSel[key(d.date,s.id)];nextSel[key(target.date,s.id)]=v?{...v,date:target.date}:undefined}}}const base=b.weekActiveDays[fromWeek]||[];const wa={...b.weekActiveDays};for(let w=1;w<=b.weeks;w++)if(w!==fromWeek)wa[w]=[...base];return{...b,selections:nextSel,weekActiveDays:wa,quote:null}});
  const selectionPayload=useMemo(()=>builderSelections.map(x=>({mealDate:x.date,mealSlot:x.slot,recipeId:x.recipeId,portionSize:x.portion,addressId:builder.deliveryMode==='OneDeliveryPerDay'?(builder.dayAddresses[x.date]||null):(builder.dayAddresses[key(x.date,x.slot)]||builder.dayAddresses[x.date]||null)})),[builderSelections,builder.dayAddresses,builder.deliveryMode]);
  const confirmedAllergyRecipeIds=useMemo(()=>Object.keys(builder.allergyAcknowledged).filter(id=>builderSelections.some(x=>x.recipeId===id)),[builder.allergyAcknowledged,builderSelections]);
- const builderMissingAddresses=useMemo(()=>selectionPayload.filter(x=>!x.addressId),[selectionPayload]);
- const quoteBuilder=async()=>run(async()=>{if(!builder.outlet)throw new Error('Select an outlet from Find Meals first.');if(!builder.deliveryCity)throw new Error('Choose a package delivery city first.');if(!selectedCount)throw new Error('Select at least one meal.');if(!global.addresses.length)throw new Error('Add a delivery address first.');if(builderMissingAddresses.length)throw new Error('Select a delivery address for all scheduled meals.');const wrongCity=selectionPayload.map(x=>global.addresses.find(a=>a.id===x.addressId)).find(a=>a&&a.city?.toLowerCase()!==(builder.deliveryCity||builder.outlet?.city||'').toLowerCase());if(wrongCity)throw new Error('The package is for '+(builder.deliveryCity||builder.outlet?.city)+', but '+wrongCity.label+' is in '+wrongCity.city+'. Add/select an address in the delivery city.');const q=await customer.quote({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity});setBuilder(b=>({...b,quote:q,step:2}))});
+ const openReviewStep=()=>{setActive('builder');if(builder.quote)return;quoteBuilder()};
 
- const subscribeBuilder=async()=>run(async()=>{if(!builder.quote)await quoteBuilder();const q=builder.quote||await customer.quote({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity});const s=await customer.subscribe({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,frequency:'Weekly',selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity});setSubs(x=>[s,...x.filter(y=>y.id!==s.id)]);setGlobal(g=>({...g,subscriptions:[s,...g.subscriptions.filter(y=>y.id!==s.id)]}));setSelectedSubId(s.id);setBuilder(b=>({...b,quote:q,step:3}));setActive('subscriptions');notify('Package created. Complete payment to confirm the order.')});
+ const savePackageDraft=()=>{ 
+   if(!builder.outlet||!selectedCount){
+     notify('Select at least one meal before saving the package.','warning');
+     return false;
+   }
+   const draft={
+     outlet:builder.outlet,
+     deliveryCity:builder.deliveryCity||builder.outlet?.city||'',
+     duration:builder.duration,
+     deliveryMode:builder.deliveryMode,
+     startDate:builder.startDate,
+     weeks:builder.weeks,
+     weekActiveDays:builder.weekActiveDays,
+     selections:Object.values(builder.selections).filter(Boolean),
+     dayAddresses:builder.dayAddresses,
+     discountCode:builder.discountCode||'',
+     customerId:currentUser()?.id||null,
+     savedAt:new Date().toISOString()
+   };
+   try{
+     localStorage.setItem('healthapp.savedPackageDraft',JSON.stringify(draft));
+     sessionStorage.removeItem('healthapp.guestPackageDraft');
+     setGuestPackageReady(true);
+     setPackageDraftSaved(true);
+     setPackageDraftSavedAt('Saved just now');
+     notify('Package saved. You can leave and resume it anytime.','success');
+     return true;
+   }catch(e){
+     setError('Unable to save your package on this device.');
+     return false;
+   }
+ };
+
+ useEffect(()=>{
+   if(!user||active!=='builder'||!builder.outlet||!selectedCount)return;
+   const draft={
+     outlet:builder.outlet,
+     deliveryCity:builder.deliveryCity||builder.outlet?.city||'',
+     duration:builder.duration,
+     deliveryMode:builder.deliveryMode,
+     startDate:builder.startDate,
+     weeks:builder.weeks,
+     weekActiveDays:builder.weekActiveDays,
+     selections:Object.values(builder.selections).filter(Boolean),
+     dayAddresses:builder.dayAddresses,
+     discountCode:builder.discountCode||'',
+     customerId:currentUser()?.id||null,
+     savedAt:new Date().toISOString()
+   };
+   try{
+     localStorage.setItem('healthapp.savedPackageDraft',JSON.stringify(draft));
+     sessionStorage.removeItem('healthapp.guestPackageDraft');
+     setPackageDraftSaved(true);
+     setPackageDraftSavedAt('Auto-saved');
+   }catch{}
+ },[user,active,builder.outlet?.id,builder.deliveryCity,builder.duration,builder.deliveryMode,builder.startDate,builder.weeks,builder.weekActiveDays,builder.selections,builder.dayAddresses,builder.discountCode,selectedCount]);
+
+ const builderMissingAddresses=useMemo(()=>selectionPayload.filter(x=>!x.addressId),[selectionPayload]);
+ const quoteBuilder=async()=>run(async()=>{
+   if(!builder.outlet)throw new Error('Select an outlet from Find Meals first.');
+   if(!builder.deliveryCity)throw new Error('Choose a package delivery city first.');
+   if(!selectedCount)throw new Error('Select at least one meal.');
+   if(!global.addresses.length)throw new Error('Add a delivery address first.');
+   if(builderMissingAddresses.length)throw new Error('Select a delivery address for all scheduled meals.');
+   if(guestPackageReady&&!global.profile)throw new Error('Complete your allergy and dietary preferences before continuing.');
+   const wrongCity=selectionPayload.map(x=>global.addresses.find(a=>a.id===x.addressId)).find(a=>a&&a.city?.toLowerCase()!==(builder.deliveryCity||builder.outlet?.city||'').toLowerCase());
+   if(wrongCity)throw new Error('The package is for '+(builder.deliveryCity||builder.outlet?.city)+', but '+wrongCity.label+' is in '+wrongCity.city+'. Add/select an address in the delivery city.');
+   const pendingWarning=selectionPayload.map(x=>{
+     const recipe=outletRecipes.find(r=>r.id===x.recipeId);
+     const matched=allergyMatches(recipe,global.profile?.allergies||[]);
+     return matched.length&&!builder.allergyAcknowledged?.[x.recipeId]?{x,recipe,matched}:null;
+   }).find(Boolean);
+   if(pendingWarning){
+     setPicker({date:pendingWarning.x.mealDate,slot:Number(pendingWarning.x.mealSlot),current:{date:pendingWarning.x.mealDate,slot:Number(pendingWarning.x.mealSlot),recipeId:pendingWarning.x.recipeId,portion:pendingWarning.x.portionSize||1}});
+     notify('Please review the allergy warning before continuing.','warning');
+     return;
+   }
+   const q=await customer.quote({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity});
+   setBuilder(b=>({...b,quote:q,step:2}));
+ });
+
+ const subscribeBuilder=async()=>run(async()=>{
+   const q=builder.quote||await customer.quote({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity});
+   if(q.requiresAllergyConfirmation)throw new Error('Please review and confirm the allergy warning before continuing.');
+   const s=await customer.subscribe({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,frequency:'Weekly',selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity});
+   setSubs(x=>[s,...x.filter(y=>y.id!==s.id)]);
+   setGlobal(g=>({...g,subscriptions:[s,...g.subscriptions.filter(y=>y.id!==s.id)]}));
+   setSelectedSubId(s.id);
+   setBuilder(b=>({...b,quote:q,step:3}));
+   setGuestPackageReady(false);
+   try{localStorage.removeItem('healthapp.savedPackageDraft')}catch{}
+   setPaymentSubId(s.id);
+   setActive('payment');
+   notify('Package confirmed. Continue with payment to complete your order.');
+ });
 
  const paySubscription=s=>{setPaymentSubId(s.id);setActive('payment')};
- const completeSandboxPayment=async s=>run(async()=>{const p=await customer.pay(s.id,'subscription-'+s.id+'-'+Date.now(),'MockSandbox');if(String(p?.status||'').toLowerCase()!=='paid')throw new Error('Sandbox payment was not completed.');await reload();setPaymentSubId('');setActive('subscriptions');notify('Payment successful. Your subscription is now paid.')});
+ const completeSandboxPayment=async s=>run(async()=>{const p=await customer.pay(s.id,'subscription-'+s.id+'-'+Date.now(),'MockSandbox');if(String(p?.status||'').toLowerCase()!=='paid')throw new Error('Sandbox payment was not completed.');try{localStorage.removeItem('healthapp.savedPackageDraft')}catch{}setPackageDraftSaved(false);setPackageDraftSavedAt('');setGuestPackageReady(false);await reload();setPaymentSubId('');setActive('subscriptions');notify('Payment successful. Your subscription is now active.')});
 
  const normalizeMealRows=rows=>(rows||[]).map(r=>({...r,mealDate:normalizeMealDate(r.mealDate)}));
  const selectSub=async id=>{const sub=subs.find(x=>x.id===id);const anchor=weekStartForDate(sub?.nextDeliveryDate||todayISO());setSelectedSubId(id);setCalendarWeek(anchor);const rows=await run(()=>customer.mealSelections(id,anchor));setMealSelections(normalizeMealRows(rows));setActive('calendar')};
@@ -179,11 +726,30 @@ function App(){
  const upcoming=useMemo(()=>customerDashboard?.todayMeals?.length?customerDashboard.todayMeals:mealSelections.filter(x=>x.status==='Scheduled').slice(0,6),[customerDashboard,mealSelections]);
  const tabs=[['dashboard','⌂','Dashboard'],['discover','🍽','Find Meals'],['builder','✦','Build Package'],['subscriptions','▣','My Subscriptions'],['calendar','◷','Meal Calendar'],['payment','₹','Payment'],['orders','🧾','Orders'],['addresses','⌂','Addresses'],['profile','♥','Health Profile'],['wallet','₹','Wallet']];
  const sideTabs=tabs.filter(x=>x[0]!=='builder');
+ const paidActiveSubscription=useMemo(()=>subs.find(s=>String(s.paymentStatus||'').toLowerCase()==='paid'&&String(s.status||'').toLowerCase()!=='cancelled'),[subs]);
+ const hasDraftPackage=Boolean(packageDraftSaved||guestPackageReady||((builder.outlet&&selectedCount)>0));
  const pageTitle=tabs.find(x=>x[0]===active)?.[2]||'Dashboard';
 
- if(!user)return <div className="authShell"><div className="authHero"><div className="brandLarge"><span>H</span><div><b>HealthApp</b><small>Healthy meals, built around you</small></div></div><h1>Personalised meal subscriptions for everyday life.</h1><p>Choose your outlet, build every meal, manage deliveries and stay on track with your goals.</p><div className="authFeatures"><span>✓ Personalised nutrition profile</span><span>✓ Flexible meal calendar</span><span>✓ Multiple delivery addresses</span></div></div><form className="authCard" onSubmit={doAuth}><div className="eyebrow">{authMode==='login'?'CUSTOMER PORTAL':'CREATE YOUR ACCOUNT'}</div><h2>{authMode==='login'?'Welcome back':'Create your account'}</h2><p>{authMode==='login'?'Sign in to manage your meals and deliveries.':'Start with your health profile and build your first package.'}</p>{authMode==='register'&&<div className="twoCol"><label>First name<input value={authForm.firstName} onChange={e=>setAuthForm({...authForm,firstName:e.target.value})}/></label><label>Last name<input value={authForm.lastName} onChange={e=>setAuthForm({...authForm,lastName:e.target.value})}/></label></div>}<label>Email<input type="email" value={authForm.email} onChange={e=>setAuthForm({...authForm,email:e.target.value})}/></label><label>Password<input type="password" value={authForm.password} onChange={e=>setAuthForm({...authForm,password:e.target.value})}/></label><button className="primary big">{authMode==='login'?'Sign in':'Create account'}</button>{error&&<div className="error">{error}</div>}<div className="authSwitch">{authMode==='login'?'New to HealthApp?':'Already have an account?'} <button type="button" className="linkBtn" onClick={()=>setAuthMode(authMode==='login'?'register':'login')}>{authMode==='login'?'Create account':'Sign in'}</button></div>{authMode==='login'&&<small>Demo: customer@healthapp.test / demo</small>}</form></div>;
+ if(!user)return <PublicHome authMode={authMode} setAuthMode={setAuthMode} authForm={authForm} setAuthForm={setAuthForm} doAuth={doAuth} error={error} setError={setError}/>;
 
- return <div className="customerShell">{loading&&<div className="loadbar"/>}<aside className="sidebar"><div className="sideBrand"><div className="brandMark">H</div><div><b>HealthApp</b><small>Customer portal</small></div></div><div className="customerMini"><div className="avatar">{(user.firstName||'C')[0]}</div><div><b>{user.firstName} {user.lastName}</b><span>Customer</span></div></div><div className="sideSection">Your journey</div>{sideTabs.slice(0,4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="sideSection">Manage</div>{sideTabs.slice(4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="sideBottom"><div className="miniCredit">Wallet <b>{money(global.credit.balance)}</b></div><button className="logoutBtn" onClick={logout}>Log out</button></div></aside><section className="mainPanel"><header className="topbar"><div className="mobileTopLeft"><button className="mobileMenuBtn" onClick={()=>setMobileMenuOpen(true)} aria-label="Open menu">☰</button><div><h1>{pageTitle}</h1><span>{global.profile?.goal?GOALS.find(x=>x[0]===global.profile.goal)?.[1]:'Build your personalised meal plan'}</span></div></div><div className="topbarDesktopTitle"><h1>{pageTitle}</h1><span>{global.profile?.goal?GOALS.find(x=>x[0]===global.profile.goal)?.[1]:'Build your personalised meal plan'}</span></div><div className="headerActions"><button className="iconBtn" onClick={()=>reload()} title="Refresh">↻</button><button className="profilePill" onClick={()=>go('profile')}><div className="avatar sm">{(user.firstName||'C')[0]}</div><div><b>{user.firstName}</b><small>{global.profile?.diet||'Set profile'}</small></div></button></div></header><main className={active==='discover'?'content discoverContent':'content'}>{error&&<div className="statusBanner error"><span><b>⚠ Something needs attention</b>{error}</span><button onClick={()=>setError('')}>×</button></div>}{toast&&<div className={'statusToast '+toastType}><span>{toastType==='success'?'✓':toastType==='warning'?'⚠':toastType==='info'?'ℹ':'×'}</span><div><b>{toastType==='success'?'Success':toastType==='warning'?'Warning':toastType==='info'?'Info':'Error'}</b><small>{toast}</small></div><button onClick={()=>setToast('')}>×</button></div>}{active==='dashboard'&&<Dashboard user={user} global={global} dashboard={customerDashboard} dashboardMeals={dashboardMeals} upcoming={upcoming} setActive={setActive}/>} {active==='discover'&&<Discover likedMeals={global.likedMeals} onToggleLikedMeal={toggleLikedMeal} outlets={availableOutlets===null?global.outlets:availableOutlets} cities={global.cities} customerAllergies={global.profile?.allergies||[]} addresses={global.addresses} selectedAddressId={selectedAddressId} setSelectedAddressId={setSelectedAddressId} selectedOutlet={selectedOutlet} setSelectedOutlet={setSelectedOutlet} menu={outletMenu} recipes={outletRecipes} category={outletCategory} setCategory={setOutletCategory} openOutlet={openOutlet} recipeView={recipeView} setRecipeView={setRecipeView} startBuilder={startBuilder} cityFilter={cityFilter} setCityFilter={changeDiscoveryCity} openAddressForCity={openAddressForCity}/>} {active==='builder'&&<Builder likedMeals={global.likedMeals} builder={builder} setBuilder={setBuilder} days={builderDays} menuMap={menuMap} recipes={outletRecipes} customerAllergies={global.profile?.allergies||[]} addresses={global.addresses} selectedCount={selectedCount} selectionPayload={selectionPayload} missingAddresses={builderMissingAddresses} quote={builder.quote} picker={picker} setPicker={setPicker} setSelection={setSelection} toggleDay={toggleDay} copyWeek={copyWeek} setDayAddress={setDayAddress} setMealAddress={setMealAddress} setBuilderDuration={setBuilderDuration} quoteBuilder={quoteBuilder} subscribeBuilder={subscribeBuilder} setActive={setActive}/>} {active==='subscriptions'&&<Subscriptions subs={subs} selectSub={selectSub} paySubscription={paySubscription}/>} {active==='calendar'&&<Calendar subs={subs} selectedSubId={selectedSubId} setSelectedSubId={selectSub} rows={mealSelections} week={calendarWeek} moveWeek={moveWeek} skipMeal={skipMeal} skipDay={skipDay} openReschedule={setReschedule}/>} {active==='payment'&&<PaymentPage subscription={subs.find(x=>x.id===paymentSubId)} onBack={()=>setActive('subscriptions')} onPay={completeSandboxPayment}/>} {active==='orders'&&<Orders orders={global.orders}/>} {active==='addresses'&&<Addresses addresses={global.addresses} cities={global.cities} city={cityFilter} setCity={setCityFilter} areas={global.areas} openNew={openNewAddress} edit={editAddress} remove={deleteAddress}/>} {active==='profile'&&<Profile form={profileForm} setForm={setProfileForm} save={saveProfile} profile={global.profile} allergens={global.allergens}/>} {active==='wallet'&&<Wallet credit={global.credit} transactions={global.transactions}/>}</main></section><div className={mobileMenuOpen?'mobileDrawerBackdrop open':'mobileDrawerBackdrop'} onClick={()=>setMobileMenuOpen(false)}><aside className="mobileDrawer" onClick={e=>e.stopPropagation()}><div className="mobileDrawerHead"><div className="sideBrand"><div className="brandMark">H</div><div><b>HealthApp</b><small>Customer portal</small></div></div><button className="iconBtn" onClick={()=>setMobileMenuOpen(false)}>×</button></div><div className="mobileCustomer"><div className="avatar">{(user.firstName||'C')[0]}</div><div><b>{user.firstName} {user.lastName}</b><span>{user.email}</span></div></div><div className="sideSection">Your journey</div>{sideTabs.slice(0,4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="sideSection">Manage</div>{sideTabs.slice(4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="mobileDrawerBottom"><div className="miniCredit">Wallet <b>{money(global.credit.balance)}</b></div><button className="logoutBtn" onClick={logout}>Log out</button></div></aside></div><nav className="mobileBottomNav">{[['dashboard','⌂','Home'],['subscriptions','▣','Plans'],['calendar','◷','Calendar'],['orders','🧾','Orders']].map(t=><button key={t[0]} className={active===t[0]?'mobileBottomItem active':'mobileBottomItem'} onClick={()=>go(t[0])}><span>{t[1]}</span><small>{t[2]}</small></button>)}<button className="mobileBottomItem" onClick={()=>setMobileMenuOpen(true)}><span>☰</span><small>More</small></button></nav>{addressModal&&<AddressModal form={addressForm} setForm={setAddressForm} mode={addressModal} areas={global.areas} cities={global.cities} city={cityFilter} setCity={setCityFilter} mapBusy={mapBusy} onMapPick={pickAddressLocation} onSave={saveAddress} onClose={()=>setAddressModal(null)}/>} {reschedule&&<RescheduleModal row={reschedule} addresses={global.addresses} onClose={()=>setReschedule(null)} onChange={setReschedule} onSave={rescheduleMeal}/>}</div>;
+ return <><LoadingIndicator active={loading||mapBusy} label={loading?'Loading HealthApp data':'Updating location'}/><div className="customerShell"><aside className="sidebar"><div className="sideBrand"><div className="brandMark">H</div><div><b>HealthApp</b><small>Customer portal</small></div></div><div className="sideSection">Your journey</div>{sideTabs.slice(0,4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="sideSection">Manage</div>{sideTabs.slice(4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="sideBottom"><div className="miniCredit">Wallet <b>{money(global.credit.balance)}</b></div><button className="logoutBtn" onClick={logout}>Log out</button></div></aside><section className="mainPanel"><header className={active==='builder'?'topbar builderTopbar':'topbar'}>
+ <div className="mobileTopLeft"><button className="mobileMenuBtn" onClick={()=>setMobileMenuOpen(true)} aria-label="Open menu">☰</button><div><h1>{pageTitle}</h1><span>{global.profile?.goal?GOALS.find(x=>x[0]===global.profile.goal)?.[1]:'Build your personalised meal plan'}</span></div></div>
+ <div className="topbarDesktopTitle"><h1>{pageTitle}</h1><span>{global.profile?.goal?GOALS.find(x=>x[0]===global.profile.goal)?.[1]:'Build your personalised meal plan'}</span></div>
+ {paidActiveSubscription?<div className="packageActiveTopbar" aria-label="Active package">
+   <div className="packageActiveIcon">✓</div>
+   <div className="packageActiveText"><span>ACTIVE PACKAGE</span><b>{paidActiveSubscription.planName||'Meal subscription'}</b><small>Next delivery · {shortDate(String(paidActiveSubscription.nextDeliveryDate||'').slice(0,10)||todayISO())}</small></div>
+   <button type="button" className="packageActiveBtn" onClick={()=>go('subscriptions')}>View plan →</button>
+ </div>:hasDraftPackage?<div className="packageTopbar" aria-label="Package progress">
+   <div className="packageTopbarLabel"><span>DRAFT PACKAGE</span><small>{packageDraftSaved?packageDraftSavedAt:'Not saved yet'}</small></div>
+   <button type="button" className={active==='builder'&&!builder.quote?'packageStep active':'packageStep'} onClick={()=>go('builder')}><b>1</b><span>Build</span></button>
+   <span className="packageStepArrow">→</span>
+   <button type="button" className={active==='builder'&&builder.quote?'packageStep active':'packageStep'} disabled={!builder.outlet||!selectedCount} onClick={openReviewStep}><b>2</b><span>Review</span></button>
+   <span className="packageStepArrow">→</span>
+   <button type="button" className={active==='payment'?'packageStep active':'packageStep'} disabled={!paymentSubId} onClick={()=>paymentSubId&&go('payment')}><b>3</b><span>Payment</span></button>
+   <button type="button" className="packageSaveBtn" disabled={!builder.outlet||!selectedCount} onClick={savePackageDraft}>{packageDraftSaved?'✓ Saved':'Save & resume'}</button>
+ </div>:<button type="button" className="packageStartTopbar" onClick={()=>go('discover')}><span>＋</span><div><b>Build a meal package</b><small>Choose meals and create your plan</small></div><strong>Start →</strong></button>}
+ <div className="headerActions">{hasDraftPackage&&!paidActiveSubscription&&<button className="savedPackagePill" onClick={()=>go('builder')} title="Resume saved package"><span>🛒</span><div><b>Draft package</b><small>Resume</small></div></button>}<button className="iconBtn" onClick={()=>reload().catch(()=>{})} title="Refresh">↻</button><button className="profilePill" onClick={()=>go('profile')}><div className="avatar sm">{(user.firstName||'C')[0]}</div><div><b>{user.firstName}</b><small>{global.profile?.diet||'Set profile'}</small></div></button></div>
+ </header><main className={'content '+(active==='discover'?'discoverContent ':'')+(active==='builder'?'builderContent':'')}>{error&&<div className="statusBanner error"><span><b>⚠ Something needs attention</b>{error}</span><button onClick={()=>setError('')}>×</button></div>}{toast&&<div className={'statusToast '+toastType}><span>{toastType==='success'?'✓':toastType==='warning'?'⚠':toastType==='info'?'ℹ':'×'}</span><div><b>{toastType==='success'?'Success':toastType==='warning'?'Warning':toastType==='info'?'Info':'Error'}</b><small>{toast}</small></div><button onClick={()=>setToast('')}>×</button></div>}{active==='dashboard'&&<Dashboard user={user} global={global} dashboard={customerDashboard} dashboardMeals={dashboardMeals} upcoming={upcoming} setActive={setActive}/>} {active==='discover'&&<Discover likedMeals={global.likedMeals} onToggleLikedMeal={toggleLikedMeal} outlets={availableOutlets===null?global.outlets:availableOutlets} cities={global.cities} customerAllergies={global.profile?.allergies||[]} addresses={global.addresses} selectedAddressId={selectedAddressId} setSelectedAddressId={setSelectedAddressId} selectedOutlet={selectedOutlet} setSelectedOutlet={setSelectedOutlet} menu={outletMenu} recipes={outletRecipes} category={outletCategory} setCategory={setOutletCategory} openOutlet={openOutlet} recipeView={recipeView} setRecipeView={setRecipeView} startBuilder={startBuilder} cityFilter={cityFilter} setCityFilter={changeDiscoveryCity} openAddressForCity={openAddressForCity}/>} {active==='builder'&&<Builder guestPackageReady={guestPackageReady} profile={global.profile} likedMeals={global.likedMeals} builder={builder} setBuilder={setBuilder} days={builderDays} menuMap={menuMap} recipes={outletRecipes} customerAllergies={global.profile?.allergies||[]} addresses={global.addresses} selectedCount={selectedCount} selectionPayload={selectionPayload} missingAddresses={builderMissingAddresses} quote={builder.quote} picker={picker} setPicker={setPicker} setSelection={setSelection} toggleDay={toggleDay} copyWeek={copyWeek} setDayAddress={setDayAddress} setMealAddress={setMealAddress} setBuilderDuration={setBuilderDuration} quoteBuilder={quoteBuilder} subscribeBuilder={subscribeBuilder} setActive={setActive}/>} {active==='subscriptions'&&<Subscriptions subs={subs} selectSub={selectSub} paySubscription={paySubscription}/>} {active==='calendar'&&<Calendar subs={subs} selectedSubId={selectedSubId} setSelectedSubId={selectSub} rows={mealSelections} week={calendarWeek} moveWeek={moveWeek} skipMeal={skipMeal} skipDay={skipDay} openReschedule={setReschedule}/>} {active==='payment'&&<PaymentPage subscription={subs.find(x=>x.id===paymentSubId)} onBack={()=>setActive('subscriptions')} onPay={completeSandboxPayment}/>} {active==='orders'&&<Orders orders={global.orders}/>} {active==='addresses'&&<Addresses addresses={global.addresses} cities={global.cities} city={cityFilter} setCity={setCityFilter} areas={global.areas} openNew={openNewAddress} edit={editAddress} remove={deleteAddress}/>} {active==='profile'&&<Profile form={profileForm} setForm={setProfileForm} save={saveProfile} profile={global.profile} allergens={global.allergens}/>} {active==='wallet'&&<Wallet credit={global.credit} transactions={global.transactions}/>}</main></section><div className={mobileMenuOpen?'mobileDrawerBackdrop open':'mobileDrawerBackdrop'} onClick={()=>setMobileMenuOpen(false)}><aside className="mobileDrawer" onClick={e=>e.stopPropagation()}><div className="mobileDrawerHead"><div className="sideBrand"><div className="brandMark">H</div><div><b>HealthApp</b><small>Customer portal</small></div></div><button className="iconBtn" onClick={()=>setMobileMenuOpen(false)}>×</button></div><div className="sideSection">Your journey</div>{sideTabs.slice(0,4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="sideSection">Manage</div>{sideTabs.slice(4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="mobileDrawerBottom"><div className="miniCredit">Wallet <b>{money(global.credit.balance)}</b></div><button className="logoutBtn" onClick={logout}>Log out</button></div></aside></div><nav className="mobileBottomNav">{[['dashboard','⌂','Home'],['subscriptions','▣','Plans'],['calendar','◷','Calendar'],['orders','🧾','Orders']].map(t=><button key={t[0]} className={active===t[0]?'mobileBottomItem active':'mobileBottomItem'} onClick={()=>go(t[0])}><span>{t[1]}</span><small>{t[2]}</small></button>)}<button className="mobileBottomItem" onClick={()=>setMobileMenuOpen(true)}><span>☰</span><small>More</small></button></nav>{addressModal&&<AddressModal form={addressForm} setForm={setAddressForm} mode={addressModal} areas={global.areas} cities={global.cities} city={cityFilter} setCity={setCityFilter} mapBusy={mapBusy} onMapPick={pickAddressLocation} onSave={saveAddress} onClose={()=>setAddressModal(null)}/>} {reschedule&&<RescheduleModal row={reschedule} addresses={global.addresses} onClose={()=>setReschedule(null)} onChange={setReschedule} onSave={rescheduleMeal}/>}</div></>;
 }
 
 function Dashboard({user,global,dashboard,dashboardMeals,upcoming,setActive}){const activeSubs=dashboard?.activeSubscriptions?.length?dashboard.activeSubscriptions:global.subscriptions.filter(x=>x.status==='Active');const todayDeliveries=dashboard?.todayDeliveries||[];const todayMeals=dashboard?.todayMeals||upcoming||[];const benefits=dashboard?.benefits||{mealsThisWeek:dashboardMeals,proteinGramsThisWeek:0,caloriesThisWeek:0,subscriptionSavings:0,deliveryDaysThisWeek:0,activeSubscriptions:activeSubs.length};return <div className="page dashboardPage"><section className="dashboardWelcome"><div><span className="eyebrow">YOUR HEALTH JOURNEY</span><h2>Good {new Date().getHours()<12?'morning':new Date().getHours()<18?'afternoon':'evening'}, {user.firstName}!</h2><p>Here’s what is happening with your meals, deliveries and plan today.</p></div><button className="secondary" onClick={()=>setActive('calendar')}>View calendar →</button></section><div className="liveStats"><button className="liveStat delivery" onClick={()=>todayDeliveries.length&&setActive('orders')}><div className="liveIcon">🚚</div><div><span>Today’s delivery</span><b>{todayDeliveries[0]?todayDeliveries[0].status==='OutForDelivery'?'Out for delivery':todayDeliveries[0].status: 'No delivery today'}</b><small>{todayDeliveries[0]?todayDeliveries[0].deliveryWindow+(todayDeliveries[0].mealCount>1?' · '+todayDeliveries[0].mealCount+' meals':''):'Your next delivery will appear here'}</small></div><strong>›</strong></button><button className="liveStat" onClick={()=>setActive('subscriptions')}><div className="liveIcon">▣</div><div><span>Active subscriptions</span><b>{activeSubs.length}</b><small>{activeSubs.length?'Manage your plans':'Build your first package'}</small></div><strong>›</strong></button><button className="liveStat" onClick={()=>setActive('calendar')}><div className="liveIcon">🍽</div><div><span>Meals this week</span><b>{benefits.mealsThisWeek}</b><small>Across your active plans</small></div><strong>›</strong></button><button className="liveStat"><div className="liveIcon">♥</div><div><span>Nutrition planned</span><b>{benefits.proteinGramsThisWeek}g protein</b><small>{benefits.caloriesThisWeek.toLocaleString()} kcal this week</small></div></button></div><div className="dashboardGrid liveGrid"><section className="panel deliveryPanel"><div className="panelHead"><div><h3>Track today’s delivery</h3><p>Live delivery status from your outlet.</p></div>{todayDeliveries.length>0&&<button className="linkBtn" onClick={()=>setActive('orders')}>View orders →</button>}</div>{todayDeliveries.length?<div className="deliveryTrackList">{todayDeliveries.map(d=><article className="deliveryTrackCard" key={d.deliveryId}><div className="deliveryTrackHead"><div><b>{d.mealSlot} delivery</b><span>{d.deliveryWindow} · {d.mealCount} meal{d.mealCount===1?'':'s'}</span></div><span className={'deliveryPill '+String(d.status).toLowerCase()}>{d.status==='OutForDelivery'?'Out for delivery':d.status}</span></div><DeliveryTimeline status={d.status}/><div className="deliveryAddress"><span>📍</span><div><b>Delivery address</b><p>{d.address}</p></div></div></article>)}</div>:<div className="dashboardEmpty"><div className="emptyIcon">🚚</div><h3>No delivery scheduled today</h3><p>Your next delivery will appear here as soon as it is scheduled.</p><button className="secondary" onClick={()=>setActive('calendar')}>View upcoming meals</button></div>}</section><section className="panel mealsPanel"><div className="panelHead"><div><h3>Today’s meals</h3><p>Your meals arriving today.</p></div><button className="linkBtn" onClick={()=>setActive('calendar')}>View calendar →</button></div>{todayMeals.length?<div className="todayMealList">{todayMeals.map(m=><button className="todayMealRow" key={m.selectionId||m.id} onClick={()=>setActive('calendar')}><div className="todayMealImage">{m.imageUrl?<img src={getImg(m.imageUrl)} alt=""/>:<span>🍽</span>}</div><div><b>{m.recipeName}</b><span>{m.mealSlot} · {m.category} · {m.calories} kcal · {m.proteinGrams}g protein</span></div><strong>›</strong></button>)}</div>:<div className="dashboardEmpty compact"><p>No meals scheduled for today.</p><button className="linkBtn" onClick={()=>setActive('calendar')}>Open meal calendar →</button></div>}</section></div><div className="dashboardLower"><section className="panel"><div className="panelHead"><div><h3>Your active subscriptions</h3><p>Plans currently powering your meal schedule.</p></div><button className="linkBtn" onClick={()=>setActive('subscriptions')}>View all →</button></div>{activeSubs.length?<div className="dashboardSubList">{activeSubs.slice(0,3).map(s=><button className="dashboardSubCard" key={s.id} onClick={()=>setActive('subscriptions')}><div><span className="subStatus">{String(s.paymentStatus||'Pending').toLowerCase()==='paid'?'PAID':'ACTIVE'}</span><b>{s.planName}</b><small>{s.mealsPerWeek} meals · {s.deliveryMode==='OneDeliveryPerDay'?'One delivery/day':'Meal-by-meal'}</small></div><div><strong>{money(s.totalCharged)}</strong><small>Next {shortDate(String(s.nextDeliveryDate).slice(0,10)||todayISO())}</small></div></button>)}</div>:<div className="dashboardEmpty compact"><p>Build a personalised meal package to get started.</p><button className="primary" onClick={()=>setActive('discover')}>Find meals</button></div>}</section><section className="panel benefitsPanel"><div className="panelHead"><div><h3>Your benefits so far</h3><p>Based on your current active subscriptions.</p></div><span className="benefitPeriod">This week</span></div><div className="benefitGrid"><div><span>🥗</span><b>{benefits.mealsThisWeek}</b><small>Healthy meals planned</small></div><div><span>💪</span><b>+{benefits.proteinGramsThisWeek}g</b><small>Protein planned</small></div><div><span>♥</span><b>{benefits.caloriesThisWeek.toLocaleString()}</b><small>Calories planned</small></div><div><span>₹</span><b>{money(benefits.subscriptionSavings)}</b><small>Subscription savings</small></div></div><div className="benefitNotes"><p>✓ Flexible meal planning around your week</p><p>✓ Delivery days and multiple addresses supported</p><p>✓ Nutrition information shown before you choose</p></div></section></div><section className="tipsStrip"><span>💡</span><div><b>Get more from your plan</b><p>Keep your health profile up to date so meal choices stay aligned with your goals.</p></div><button className="secondary" onClick={()=>setActive('profile')}>Update profile</button></section></div>}
@@ -337,7 +903,106 @@ function RecipeCard({recipe,customerAllergies,onClick}){const matched=allergyMat
 function RecipeModal({recipe,onClose}){return <Modal title={recipe.name} onClose={onClose}><div className="recipeDetail"><div className="recipeDetailImage">{recipe.imageUrl?<img src={getImg(recipe.imageUrl)} alt=""/>:<span>🍱</span>}</div><div><div className="tag">{recipe.category}</div><p>{recipe.description}</p><div className="nutritionGrid"><StatBox label="Calories" value={recipe.calories+' kcal'}/><StatBox label="Protein" value={recipe.proteinGrams+' g'}/><StatBox label="Carbs" value={recipe.carbsGrams+' g'}/><StatBox label="Fiber" value={(recipe.fiberGrams??0)+' g'}/></div><h4>Ingredients</h4><div className="ingredientList">{(recipe.ingredients||[]).length?(recipe.ingredients||[]).map(i=><div key={i.ingredientId}><div><b>{i.name}</b><span>{i.quantity} {i.unit}</span></div>{(i.allergens||[]).length>0&&<small className="ingredientAllergen">⚠ {i.allergens.map(a=>a.name).join(', ')}</small>}</div>):<p>Ingredient details not provided by outlet.</p>}</div><h4>Allergens</h4><div className="allergenList">{(recipe.allergens||[]).length?(recipe.allergens||[]).map(a=><span key={a.id}>{a.name}</span>):<p>No allergens listed</p>}</div><h4>Tags</h4><p>{recipe.tags||'—'}</p><div className="priceLine"><span>Regular</span><b>{money(recipe.pricePerMeal)}</b><span>Large</span><b>{money(recipe.largePricePerMeal)}</b></div></div></div></Modal>}
 function StatBox({label,value}){return <div className="statBox"><span>{label}</span><b>{value}</b></div>}
 
-function Builder({likedMeals,builder,setBuilder,days,menuMap,recipes,customerAllergies,addresses,selectedCount,selectionPayload,missingAddresses,quote,picker,setPicker,setSelection,toggleDay,copyWeek,setDayAddress,setMealAddress,setBuilderDuration,quoteBuilder,subscribeBuilder,setActive}){
+function ReviewConfirm({quote,selectionPayload,menuMap,addresses,outlet,duration,deliveryMode,profile,onBack,onConfirm}){
+ const [safetyAcknowledged,setSafetyAcknowledged]=useState(false);
+ const mealRows=selectionPayload.map(x=>{
+   const opts=menuMap[key(dayId(x.mealDate),x.mealSlot)]||[];
+   return {...x,meal:opts.find(y=>y.recipeId===x.recipeId)||null};
+ }).sort((a,b)=>String(a.mealDate).localeCompare(String(b.mealDate))||Number(a.mealSlot)-Number(b.mealSlot));
+ const dates=[...new Set(mealRows.map(x=>x.mealDate))];
+ const deliveryRows=(quote.deliveryQuotes||[]).map(q=>{
+   const a=addresses.find(x=>x.id===q.addressId);
+   return {...q,address:a};
+ });
+ const goalKey=profile?.goal;
+ const goalLabel=GOALS.find(x=>x[0]===goalKey)?.[1]||goalKey||'Personalised plan';
+ const warnings=quote.allergyWarnings||[];
+ const reviewComplete=!quote.requiresAllergyConfirmation&&(!warnings.length||safetyAcknowledged);
+ return <div className="reviewConfirmOverlay" role="dialog" aria-modal="true" aria-labelledby="review-confirm-title">
+   <section className="reviewConfirmModal">
+     <header className="reviewConfirmHeader">
+       <div>
+         <div className="reviewProgress"><span className="active">1 <b>Choose</b></span><i>→</i><span className="active">2 <b>Review & confirm</b></span><i>→</i><span>3 <b>Payment</b></span></div>
+         <span className="eyebrow">STEP 2 OF 3</span>
+         <h2 id="review-confirm-title">Review & confirm your package</h2>
+         <p>Everything looks good? Check your meals, delivery details and safety warnings before continuing to payment.</p>
+       </div>
+       <button className="reviewCloseBtn" type="button" onClick={onBack} aria-label="Back to build package">×</button>
+     </header>
+     <div className="reviewConfirmBody">
+       <main className="reviewConfirmMain">
+         <section className="reviewSectionCard reviewPlanCard">
+           <div className="reviewCardTop"><div><span className="eyebrow">YOUR PLAN</span><h3>{goalLabel}</h3><p>{duration} · {selectionPayload.length} meals · {deliveryMode==='OneDeliveryPerDay'?'One delivery per day':'Meal-by-meal delivery'}</p></div><button className="secondary smallBtn" type="button" onClick={onBack}>← Edit meals</button></div>
+           <div className="reviewQuickStats"><span><b>{selectionPayload.length}</b> meals</span><span><b>{dates.length}</b> delivery days</span><span><b>{outlet?.name||'Selected outlet'}</b> outlet</span></div>
+         </section>
+
+         <section className="reviewSectionCard">
+           <div className="reviewCardHeading"><div><span className="eyebrow">MEAL SCHEDULE</span><h3>Your selected meals</h3></div><span className="reviewCountPill">{selectionPayload.length} selections</span></div>
+           <div className="reviewMealGroups">
+             {dates.map(date=><div className="reviewMealGroup" key={date}>
+               <div className="reviewMealDay"><div><b>{dayName(dayId(date))}</b><span>{formatDate(date)}</span></div><span>{mealRows.filter(x=>x.mealDate===date).length} meal(s)</span></div>
+               <div className="reviewMealRows">
+                 {mealRows.filter(x=>x.mealDate===date).map((x,i)=><div className="reviewMealRow" key={date+'_'+x.mealSlot+'_'+x.recipeId+'_'+i}>
+                   <div className="reviewMealImage">{x.meal?.imageUrl?<img src={getImg(x.meal.imageUrl)} alt=""/>:<span>🍱</span>}</div>
+                   <div className="reviewMealInfo"><b>{x.meal?.recipeName||'Selected meal'}</b><span>{slotName(x.mealSlot)} · {x.portionSize===2?'Large':'Regular'}{x.meal?.category?' · '+x.meal.category:''}</span></div>
+                   <strong>{money(x.portionSize===2?(x.meal?.largePricePerMeal||0):(x.meal?.pricePerMeal||0))}</strong>
+                 </div>)}
+               </div>
+             </div>)}
+           </div>
+         </section>
+
+         <section className="reviewSectionCard">
+           <div className="reviewCardHeading"><div><span className="eyebrow">DELIVERY</span><h3>Where your meals will arrive</h3></div><button className="secondary smallBtn" type="button" onClick={onBack}>Change</button></div>
+           <div className="reviewAddressList">
+             {deliveryRows.map(x=><div className="reviewAddressRow" key={x.addressId}>
+               <div className="reviewAddressIcon">⌖</div>
+               <div><b>{x.address?.label||x.areaName||'Delivery address'}</b><span>{x.address?.addressLine1||''}{x.address?.addressLine2?' · '+x.address.addressLine2:''}{x.address?.locality?' · '+x.address.locality:''}</span><small>{x.address?.city||''}{x.address?.pincode?' · '+x.address.pincode:''}</small></div>
+               <div className="reviewAddressDistance"><b>{Number(x.distanceKm).toFixed(2)} km</b><span>{money(x.deliveryFee)} delivery</span></div>
+             </div>)}
+             {!deliveryRows.length&&<div className="reviewEmptyState">Delivery details will be shown after you select an address.</div>}
+           </div>
+         </section>
+
+         {warnings.length>0?<section className="reviewSectionCard reviewAllergyCard">
+           <div className="reviewAllergyHeader"><div className="reviewAllergyIcon">⚠</div><div><span className="eyebrow">SAFETY CHECK</span><h3>{warnings.length} meal{warnings.length===1?'':'s'} need{warnings.length===1?'s':''} your attention</h3><p>Your health profile matches ingredients in the meals below. Please review them before continuing.</p></div></div>
+           <div className="reviewWarningList">{warnings.map(w=><div className="reviewWarningRow" key={w.recipeId}>
+             <div><b>{w.recipeName}</b><span>{w.message||'This meal contains an ingredient associated with an allergy in your profile.'}</span>{w.matchedIngredients?.length>0&&<small>Matched: {w.matchedIngredients.join(', ')}</small>}</div>
+           </div>)}</div>
+           <label className="reviewSafetyCheck"><input type="checkbox" checked={safetyAcknowledged} onChange={e=>setSafetyAcknowledged(e.target.checked)}/><span><b>I have reviewed the allergy warnings</b><small>I understand the caution above and want to continue with these meal selections.</small></span></label>
+         </section>:<section className="reviewSafeBanner"><span>✓</span><div><b>No additional allergy warnings</b><small>Your selected meals are ready for the final order review.</small></div></section>}
+
+         <section className="reviewSectionCard reviewPolicyCard">
+           <div><b>Before you continue</b><p>Skipping a meal on or after the delivery day can add the configured late-skip fee. Unused meals are handled according to the subscription rescheduling rules rather than being automatically refunded.</p></div>
+         </section>
+       </main>
+
+       <aside className="reviewOrderSummary">
+         <div className="reviewOrderSummaryInner">
+           <span className="eyebrow">ORDER SUMMARY</span>
+           <h3>{outlet?.name||'HealthApp package'}</h3>
+           <div className="reviewSummaryMeta"><span>{duration}</span><span>{selectionPayload.length} meals</span></div>
+           <div className="reviewSummaryLines">
+             <Line label="Meals" value={money(quote.grossMealAmount)}/>
+             {Number(quote.subscriptionDiscountAmount)>0&&<Line label="Package discount" value={'- '+money(quote.subscriptionDiscountAmount)}/>}
+             <Line label="Net meals" value={money(quote.netMealAmount)}/>
+             <Line label="Restaurant GST" value={money(quote.restaurantGstAmount)}/>
+             <Line label="Delivery" value={money(quote.deliveryFee)}/>
+             <Line label="HealthApp service fee" value={money(quote.platformServiceFee)}/>
+             <Line label="Service fee GST" value={money(quote.platformServiceGst)}/>
+           </div>
+           <div className="reviewTotal"><span>Total payable</span><strong>{money(quote.totalCharged)}</strong></div>
+           <div className="reviewSecureNote">🔒 Secure checkout · You will review payment details next</div>
+           <button className="primary big reviewContinueBtn" disabled={!reviewComplete} onClick={onConfirm}>{!reviewComplete?(quote.requiresAllergyConfirmation?'Review the allergy warning first':'Acknowledge allergy warnings to continue'):'Confirm & continue to payment →'}</button>
+           <small className="reviewEditHint">You can go back and change meals or delivery details before confirming.</small>
+         </div>
+       </aside>
+     </div>
+   </section>
+ </div>;
+}
+
+function Builder({guestPackageReady,profile,likedMeals,builder,setBuilder,days,menuMap,recipes,customerAllergies,addresses,selectedCount,selectionPayload,missingAddresses,quote,picker,setPicker,setSelection,toggleDay,copyWeek,setDayAddress,setMealAddress,setBuilderDuration,quoteBuilder,subscribeBuilder,setActive}){
  const weeks=Array.from({length:builder.weeks},(_,i)=>i+1);
  const deliveryAddresses=addresses.filter(a=>a.city?.toLowerCase()===(builder.deliveryCity||builder.outlet?.city||'').toLowerCase());
  const picked=(date,slot)=>builder.selections[key(date,slot)];
@@ -345,7 +1010,10 @@ function Builder({likedMeals,builder,setBuilder,days,menuMap,recipes,customerAll
  const visibleSlots=SLOT.filter(s=>menuMapForOutletSlot(s.id,menuMap));
  const mealValue=selectionPayload.reduce((sum,x)=>{const opts=menuMap[key(dayId(x.mealDate),x.mealSlot)]||[];const m=opts.find(y=>y.recipeId===x.recipeId);return sum+(m?Number(x.portionSize===2?m.largePricePerMeal:m.pricePerMeal):0)},0);
  const selectedMealRows=selectionPayload.slice(0,8).map(x=>{const opts=menuMap[key(dayId(x.mealDate),x.mealSlot)]||[];const meal=opts.find(y=>y.recipeId===x.recipeId);return {...x,meal}});
- return <div className="page"><section className="builderTop wireBuilderTop"><div><span className="eyebrow">CUSTOM PACKAGE BUILDER</span><h2>Build your meals, your way.</h2><p>Pick active days, meal slots, portions and delivery addresses. The meals you actually select become the package.</p></div><div className="builderSteps"><span className="done">1 <b>Choose</b></span><span className={builder.step>=2?'done':''}>2 <b>Review</b></span><span className={builder.step>=3?'done':''}>3 <b>Created</b></span></div></section><div className="builderControls"><label>Package delivery city<input value={builder.deliveryCity||builder.outlet?.city||''} readOnly/><small>Your home/residence city can be different. Every package is tied to this delivery city and requires an address in the same city.</small></label><label>Outlet<select value={builder.outlet?.id||''} readOnly><option>{builder.outlet?.name||'Select an outlet from Find Meals'}</option></select></label><label>Duration<select value={builder.duration} onChange={e=>setBuilderDuration(e.target.value)}>{DURATIONS.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}</select></label><label>Start date<input type="date" value={builder.startDate} onChange={e=>setBuilder(b=>({...b,startDate:e.target.value,quote:null}))}/></label><label>Delivery mode<select value={builder.deliveryMode} onChange={e=>setBuilder(b=>({...b,deliveryMode:e.target.value,quote:null}))}><option value="OneDeliveryPerDay">One delivery per day</option><option value="IndividualMealDelivery">Individual meal delivery</option></select></label><label>Discount code<input value={builder.discountCode} onChange={e=>setBuilder(b=>({...b,discountCode:e.target.value,quote:null}))} placeholder="Optional"/></label></div><div className="builderInfo"><div><b>{selectedCount}</b><span>meals selected</span></div><div><b>{days.filter(d=>d.week===1&&isWeekDayActive(builder,1,d.date)).length}</b><span>active days in week 1</span></div><div><b>{money(mealValue)}</b><span>meal value before discounts</span></div><button className="secondary" onClick={()=>setBuilder(b=>({...b,selections:{},quote:null}))}>Clear meals</button></div><div className="builderLayout"><section className="panel builderCalendarPanel"><div className="builderHead"><div><h3>Choose your meals</h3><p>Each week is editable. Copy week 1 to later weeks when you want a starting template, then change any week independently.</p></div><div className="weekTools">{weeks.length>1&&<button className="secondary" onClick={()=>copyWeek(1)}>Copy week 1 → all weeks</button>}<button className="secondary" onClick={()=>setActive('addresses')}>Manage addresses</button></div></div>{weeks.map(w=><div className="weekBlock" key={w}><div className="weekTitle"><div><h4>Week {w}</h4><span>{formatDate(days[(w-1)*7]?.date||builder.startDate)} – {formatDate(days[(w-1)*7+6]?.date||addDays(builder.startDate,(w-1)*7+6))}</span></div><div className="weekDays">{DAYS.map(d=><button key={d.id} className={(builder.weekActiveDays[w]||[]).includes(d.id)?'dayChip active':'dayChip'} onClick={()=>toggleDay(w,d.id)}>{d.short}</button>)}</div></div><div className="mealMatrix"><div className="matrixHeader"><div>Day</div>{visibleSlots.map(s=><div key={s.id}>{s.icon} {s.label}</div>)}</div>{days.filter(d=>d.week===w).map(d=><div className={'matrixRow '+(!isWeekDayActive(builder,w,d.date)?'inactive':'')} key={d.date}><div className="dayCell"><b>{dayName(dayId(d.date))}</b><span>{shortDate(d.date)}</span>{isWeekDayActive(builder,w,d.date)&&<><label className="tinyLabel">{builder.deliveryMode==='OneDeliveryPerDay'?'Day delivery address':'Default day address'}<select value={builder.dayAddresses[d.date]||''} onChange={e=>setDayAddress(d.date,e.target.value)}><option value="">Select</option>{deliveryAddresses.map(a=><option key={a.id} value={a.id}>{a.label} · {a.areaName}</option>)}</select></label><small>{countDaySelections(builder,d.date)} meal(s) selected</small></>}{!isWeekDayActive(builder,w,d.date)&&<small>Day disabled</small>}</div>{visibleSlots.map(s=>{const r=getRecipe(d.date,s.id);const opts=menuMap[key(dayId(d.date),s.id)]||[];const v=picked(d.date,s.id);return <div className="mealCell" key={s.id}>{!isWeekDayActive(builder,w,d.date)?<div className="disabledCell">Not active</div>:r?<div className="selectedMealWrap"><button className="selectedMeal" onClick={()=>setPicker({date:d.date,slot:s.id,current:v})}><div className="miniImage">{r.imageUrl?<img src={getImg(r.imageUrl)} alt=""/>:<span>🍱</span>}</div><div><b>{r.recipeName}</b><span>{r.category} · {v.portion===2?'Large':'Regular'}</span></div><strong>{money(v.portion===2?r.largePricePerMeal:r.pricePerMeal)}</strong></button>{builder.deliveryMode==='IndividualMealDelivery'&&<select className="cellAddress" value={builder.dayAddresses[key(d.date,s.id)]||builder.dayAddresses[d.date]||''} onChange={e=>setMealAddress(d.date,s.id,e.target.value)}><option value="">Meal address</option>{deliveryAddresses.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select>}</div>:<button className="emptyMeal" onClick={()=>setPicker({date:d.date,slot:s.id,current:null})}><span>+</span><b>Add meal</b><small>{opts.length?opts.length+' choices':'No outlet menu'}</small></button>}</div>})}</div>)}</div></div>)}</section><aside className="builderSummaryCard"><div className="builderSummaryHead"><span className="eyebrow">YOUR MEALS</span><h3>{selectedCount} selected</h3><p>{builder.outlet?.name||'Outlet'} · {builder.duration}</p></div><div className="builderSummaryList">{selectedMealRows.map((x,i)=><div className="builderSummaryMeal" key={x.date+'_'+x.slot+'_'+x.recipeId+'_'+i}><div className="summaryMealImage">{x.meal?.imageUrl?<img src={getImg(x.meal.imageUrl)} alt=""/>:<span>🍱</span>}</div><div><b>{x.meal?.recipeName||'Meal'}</b><span>{shortDate(x.mealDate)} · {slotName(x.mealSlot)}</span></div><strong>{money(x.portionSize===2?(x.meal?.largePricePerMeal||0):(x.meal?.pricePerMeal||0))}</strong></div>)}{selectedCount>8&&<div className="summaryMore">+ {selectedCount-8} more meal{selectedCount-8===1?'':'s'}</div>}{!selectedCount&&<div className="summaryEmpty">Your selected meals will appear here.</div>}</div><div className="builderSummaryTotals"><div><span>Meal total</span><b>{money(mealValue)}</b></div>{quote&&<div><span>Delivery + fees</span><b>{money(Number(quote.totalCharged)-Number(quote.netMealAmount))}</b></div>}<div className="summaryGrand"><span>{quote?'Total payable':'Before discounts'}</span><b>{quote?money(quote.totalCharged):money(mealValue)}</b></div></div><button className="primary big" onClick={quoteBuilder}>Review price →</button></aside></div><div className="builderFooter"><div><span>{selectedCount} meal selections</span><small>{missingAddresses.length?'Select addresses before quoting.':builder.deliveryMode==='OneDeliveryPerDay'?'One delivery fee per active day.':'Delivery fee is calculated for each meal.'}</small></div><button className="primary big" onClick={quoteBuilder}>Review price →</button></div>{quote&&<section className="checkoutPanel"><div className="checkoutSummary"><Line label="Gross meal amount" value={money(quote.grossMealAmount)}/><Line label="Package / code discount" value={'- '+money(quote.subscriptionDiscountAmount)}/><Line label="Net meal amount" value={money(quote.netMealAmount)}/><Line label="Restaurant GST" value={money(quote.restaurantGstAmount)}/><Line label="Delivery fee" value={money(quote.deliveryFee)}/><Line label="HealthApp service fee" value={money(quote.platformServiceFee)}/><Line label="Service fee GST" value={money(quote.platformServiceGst)}/><div className="totalLine"><span>Total payable</span><strong>{money(quote.totalCharged)}</strong></div></div><div className="quoteNotes"><h3>Review before creating</h3><div className="quoteCards">{quote.deliveryQuotes?.map(x=><div key={x.addressId}><span>{x.areaName}</span><b>{x.distanceKm} km</b><strong>{money(x.deliveryFee)}</strong></div>)}</div>{quote.allergyWarnings?.length>0&&<div className="quoteWarning"><b>⚠ Allergy caution</b>{quote.allergyWarnings.map(w=><div key={w.recipeId}><strong>{w.recipeName}</strong><p>{w.message}</p>{w.matchedIngredients?.length>0&&<small>Matched ingredients: {w.matchedIngredients.join(', ')}</small>}</div>)}</div>}<p>Late skipping on or after the delivery day can add a ₹50 late-skip fee. Unused meals can be rescheduled within the subscription rules instead of being automatically refunded.</p><button className="primary big" disabled={quote.requiresAllergyConfirmation} onClick={subscribeBuilder}>{quote.requiresAllergyConfirmation?'Confirm allergy warnings first':'Create package'}</button></div></section>}{picker&&<MealPicker picker={picker} menuMap={menuMap} recipes={recipes} customerAllergies={customerAllergies} likedMeals={likedMeals} current={picker.current} onClose={()=>setPicker(null)} onPick={(recipeId,portion,confirmed)=>{setSelection(picker.date,picker.slot,recipeId,portion,confirmed);setPicker(null)}}/>}</div>
+ const selectedWarnings=useMemo(()=>selectionPayload.map(x=>{const recipe=recipes.find(r=>r.id===x.recipeId);const matched=allergyMatches(recipe,customerAllergies);return matched.length?{...x,recipe,matched}:null}).filter(Boolean),[selectionPayload,recipes,customerAllergies]);
+ const unacknowledgedWarnings=selectedWarnings.filter(x=>!builder.allergyAcknowledged?.[x.recipeId]);
+ const detailsComplete=Boolean(profile)&&addresses.length>0&&!missingAddresses.length;
+ return <div className="page"><section className="builderTop wireBuilderTop"><div><span className="eyebrow">CUSTOM PACKAGE BUILDER</span><h2>Build your meals, your way.</h2><p>Pick active days, meal slots, portions and delivery addresses. The meals you actually select become the package.</p></div><div className="builderSteps"><span className="done">1 <b>Choose</b></span><span className={builder.step>=2?'done':''}>2 <b>Review</b></span><span className={builder.step>=3?'done':''}>3 <b>Payment</b></span></div></section>{guestPackageReady&&<section className="guestPackageResumePanel"><div className="guestPackageResumeIcon">✓</div><div className="guestPackageResumeCopy"><span className="eyebrow">SAVED GUEST PACKAGE</span><h3>Your package is ready to continue</h3><p>Your selected meals are preserved. Complete your delivery address and allergy/dietary preferences before payment.</p><div className="guestPackageChecklist"><span className={addresses.length?'complete':''}>{addresses.length?'✓':'1'} Delivery address</span><span className={profile?'complete':''}>{profile?'✓':'2'} Allergy & dietary preferences</span><span className={unacknowledgedWarnings.length?'attention':selectedCount?'complete':''}>{unacknowledgedWarnings.length?'⚠':'3'} Meal safety review</span></div></div><div className="guestPackageResumeActions"><button className="secondary smallBtn" onClick={()=>setActive('addresses')}>{addresses.length?'Review address':'Add address'}</button><button className="secondary smallBtn" onClick={()=>setActive('profile')}>{profile?'Review preferences':'Set preferences'}</button></div></section>}<div className="builderControls"><label>Package delivery city<input value={builder.deliveryCity||builder.outlet?.city||''} readOnly/><small>Your home/residence city can be different. Every package is tied to this delivery city and requires an address in the same city.</small></label><label>Outlet<select value={builder.outlet?.id||''} readOnly><option>{builder.outlet?.name||'Select an outlet from Find Meals'}</option></select></label><label>Duration<select value={builder.duration} onChange={e=>setBuilderDuration(e.target.value)}>{DURATIONS.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}</select></label><label>Start date<input type="date" value={builder.startDate} onChange={e=>{const value=e.target.value;setBuilder(b=>({...b,startDate:value,weekActiveDays:defaultWeekActiveDays(value,b.duration),selections:Object.fromEntries(Object.entries(b.selections).filter(([k,v])=>{if(!v?.date)return false;const delta=builderDateIndex(v.date,value);return delta>=0&&delta<DURATIONS.find(x=>x.id===b.duration)?.days})),quote:null}))}}/></label><label>Delivery mode<select value={builder.deliveryMode} onChange={e=>setBuilder(b=>({...b,deliveryMode:e.target.value,quote:null}))}><option value="OneDeliveryPerDay">One delivery per day</option><option value="IndividualMealDelivery">Individual meal delivery</option></select></label></div><div className="builderInfo"><div><b>{selectedCount}</b><span>meals selected</span></div><div><b>{days.filter(d=>d.week===1&&isWeekDayActive(builder,1,d.date)).length}</b><span>active days in week 1</span></div><div><b>{money(mealValue)}</b><span>meal value before discounts</span></div><button className="secondary" onClick={()=>setBuilder(b=>({...b,selections:{},quote:null}))}>Clear meals</button></div><div className="builderLayout"><section className="panel builderCalendarPanel"><div className="builderHead"><div><h3>Choose your meals</h3><p>Each week is editable. Copy week 1 to later weeks when you want a starting template, then change any week independently.</p></div><div className="weekTools">{weeks.length>1&&<button className="secondary" onClick={()=>copyWeek(1)}>Copy week 1 → all weeks</button>}<button className="secondary" onClick={()=>setActive('addresses')}>Manage addresses</button></div></div>{weeks.map(w=><div className="weekBlock" key={w}><div className="weekTitle"><div><h4>Week {w}</h4><span>{formatDate(days[(w-1)*7]?.date||builder.startDate)} – {formatDate(days[(w-1)*7+6]?.date||addDays(builder.startDate,(w-1)*7+6))}</span></div><div className="weekDays">{DAYS.map(d=><button key={d.id} className={(builder.weekActiveDays[w]||[]).includes(d.id)?'dayChip active':'dayChip'} onClick={()=>toggleDay(w,d.id)}>{d.short}</button>)}</div></div><div className="mealMatrix"><div className="matrixHeader"><div>Day</div>{visibleSlots.map(s=><div key={s.id}>{s.icon} {s.label}</div>)}</div>{days.filter(d=>d.week===w).map(d=><div className={'matrixRow '+(!isWeekDayActive(builder,w,d.date)?'inactive':'')} key={d.date}><div className="dayCell"><b>{dayName(dayId(d.date))}</b><span>{shortDate(d.date)}</span>{isWeekDayActive(builder,w,d.date)&&<><label className="tinyLabel">{builder.deliveryMode==='OneDeliveryPerDay'?'Day delivery address':'Default day address'}<select value={builder.dayAddresses[d.date]||''} onChange={e=>setDayAddress(d.date,e.target.value)}><option value="">Select</option>{deliveryAddresses.map(a=><option key={a.id} value={a.id}>{a.label} · {a.areaName}</option>)}</select></label><small>{countDaySelections(builder,d.date)} meal(s) selected</small></>}{!isWeekDayActive(builder,w,d.date)&&<small>Day disabled</small>}</div>{visibleSlots.map(s=>{const r=getRecipe(d.date,s.id);const opts=menuMap[key(dayId(d.date),s.id)]||[];const v=picked(d.date,s.id);return <div className="mealCell" key={s.id}>{!isWeekDayActive(builder,w,d.date)?<div className="disabledCell">Not active</div>:r?<div className="selectedMealWrap"><button className="selectedMeal" onClick={()=>setPicker({date:d.date,slot:s.id,current:v})}><div className="miniImage">{r.imageUrl?<img src={getImg(r.imageUrl)} alt=""/>:<span>🍱</span>}</div><div><b>{r.recipeName}</b><span>{r.category} · {v.portion===2?'Large':'Regular'}</span></div><strong>{money(v.portion===2?r.largePricePerMeal:r.pricePerMeal)}</strong></button>{builder.deliveryMode==='IndividualMealDelivery'&&<select className="cellAddress" value={builder.dayAddresses[key(d.date,s.id)]||builder.dayAddresses[d.date]||''} onChange={e=>setMealAddress(d.date,s.id,e.target.value)}><option value="">Meal address</option>{deliveryAddresses.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select>}</div>:<button className="emptyMeal" onClick={()=>setPicker({date:d.date,slot:s.id,current:null})}><span>+</span><b>Add meal</b><small>{opts.length?opts.length+' choices':'No outlet menu'}</small></button>}</div>})}</div>)}</div></div>)}</section><aside className="builderSummaryCard"><div className="builderSummaryHead"><span className="eyebrow">YOUR MEALS</span><h3>{selectedCount} selected</h3><p>{builder.outlet?.name||'Outlet'} · {builder.duration}</p></div><div className="builderSummaryList">{selectedMealRows.map((x,i)=><div className="builderSummaryMeal" key={x.date+'_'+x.slot+'_'+x.recipeId+'_'+i}><div className="summaryMealImage">{x.meal?.imageUrl?<img src={getImg(x.meal.imageUrl)} alt=""/>:<span>🍱</span>}</div><div><b>{x.meal?.recipeName||'Meal'}</b><span>{shortDate(x.mealDate)} · {slotName(x.mealSlot)}</span></div><strong>{money(x.portionSize===2?(x.meal?.largePricePerMeal||0):(x.meal?.pricePerMeal||0))}</strong></div>)}{selectedCount>8&&<div className="summaryMore">+ {selectedCount-8} more meal{selectedCount-8===1?'':'s'}</div>}{!selectedCount&&<div className="summaryEmpty">Your selected meals will appear here.</div>}</div><div className="builderSummaryTotals"><div><span>Meal total</span><b>{money(mealValue)}</b></div>{quote&&<div><span>Delivery + fees</span><b>{money(Number(quote.totalCharged)-Number(quote.netMealAmount))}</b></div>}<div className="summaryGrand"><span>{quote?'Total payable':'Before discounts'}</span><b>{quote?money(quote.totalCharged):money(mealValue)}</b></div></div><button className="primary big" onClick={quoteBuilder}>Review & continue →</button></aside></div><div className="builderFooter"><div><span>{selectedCount} meal selections</span><small>{missingAddresses.length?'Select addresses before quoting.':builder.deliveryMode==='OneDeliveryPerDay'?'One delivery fee per active day.':'Delivery fee is calculated for each meal.'}</small></div><button className="primary big" onClick={quoteBuilder}>Review & continue →</button></div>{quote&&<ReviewConfirm quote={quote} selectionPayload={selectionPayload} menuMap={menuMap} addresses={addresses} outlet={builder.outlet} duration={builder.duration} deliveryMode={builder.deliveryMode} profile={profile} onBack={()=>setBuilder(b=>({...b,quote:null,step:1}))} onConfirm={subscribeBuilder}/>} {picker&&<MealPicker picker={picker} menuMap={menuMap} recipes={recipes} customerAllergies={customerAllergies} likedMeals={likedMeals} current={picker.current} onClose={()=>setPicker(null)} onPick={(recipeId,portion,confirmed)=>{setSelection(picker.date,picker.slot,recipeId,portion,confirmed);setPicker(null)}}/>}</div>
 }
 function menuMapForOutletSlot(slot,map){return Object.keys(map).some(k=>Number(k.slice(k.lastIndexOf('_')+1))===Number(slot)&&map[k]?.length)}
 function isWeekDayActive(builder,w,date){return Boolean(builder.weekActiveDays[w]?.includes(dayId(date)))}

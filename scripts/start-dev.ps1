@@ -22,6 +22,31 @@ function Test-CommandExists {
     }
 }
 
+function Initialize-Git {
+    $git = Get-Command git.exe -ErrorAction SilentlyContinue
+    if ($git) {
+        return $git.Source
+    }
+
+    $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+    $candidates = @(
+        (Join-Path $env:ProgramFiles 'Git\cmd\git.exe'),
+        (Join-Path $programFilesX86 'Git\cmd\git.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\Git\cmd\git.exe')
+    ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+
+    $gitPath = $candidates | Select-Object -First 1
+    if ($gitPath) {
+        $gitDir = Split-Path -Parent $gitPath
+        if (-not ($env:Path -split ';' | Where-Object { $_ -ieq $gitDir })) {
+            $env:Path = $gitDir + ';' + $env:Path
+        }
+        return $gitPath
+    }
+
+    throw "Git was not found. Install Git for Windows or add git.exe to PATH."
+}
+
 function Invoke-Step {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
@@ -68,9 +93,23 @@ Write-Host 'HealthApp local development startup' -ForegroundColor Green
 Write-Host "Repository   : $RepoRoot"
 Write-Host "Configuration: $Configuration"
 
+$GitExecutable = Initialize-Git
 Test-CommandExists 'dotnet'
 Test-CommandExists 'node'
 Test-CommandExists 'npm'
+
+Write-Host ''
+Write-Host '=== Pulling latest code from Git ===' -ForegroundColor Cyan
+Push-Location $RepoRoot
+try {
+    & "$GitExecutable" pull --ff-only
+    if ($LASTEXITCODE -ne 0) {
+        throw "Git pull failed with exit code $LASTEXITCODE. Resolve the repository state and run start-dev.ps1 again."
+    }
+}
+finally {
+    Pop-Location
+}
 
 if (-not (Test-Path $SolutionPath)) { throw "Backend solution not found: $SolutionPath" }
 if (-not (Test-Path $FrontendRoot)) { throw "Frontend workspace not found: $FrontendRoot" }
