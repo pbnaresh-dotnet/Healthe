@@ -12,6 +12,10 @@ public static class DatabaseInitializer
         // replace EnsureCreatedAsync with EF Core MigrateAsync after generating migrations.
         await db.Database.EnsureCreatedAsync(cancellationToken);
         await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Outlets','DeliveryDays') IS NULL
+    ALTER TABLE dbo.Outlets ADD DeliveryDays nvarchar(200) NULL;
+", cancellationToken);
+        await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.Users','IsDemo') IS NULL
     ALTER TABLE dbo.Users ADD IsDemo bit NOT NULL CONSTRAINT DF_Users_IsDemo DEFAULT 0;
 IF COL_LENGTH('dbo.Users','DemoExpiresAtUtc') IS NULL
