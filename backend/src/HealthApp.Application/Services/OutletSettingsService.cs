@@ -1,6 +1,7 @@
 using HealthApp.Application.Abstractions;
 using HealthApp.Domain.Enums;
 using HealthApp.Shared.DTOs;
+using Microsoft.Extensions.Options;
 
 namespace HealthApp.Application.Services;
 
@@ -14,7 +15,9 @@ public sealed class OutletSettingsService(
     IOutletDeliveryAreaRepository deliveryAreas,
     IDeliveryPricingRepository pricing,
     IOutletSubscriptionRepository outletSubscriptions,
-    IOutletBrandingRepository brandingRepository) : IOutletSettingsService
+    IOutletBrandingRepository brandingRepository,
+    IOutletDomainRepository domains,
+    IOptions<TenantDomainSettings> domainSettings) : IOutletSettingsService
 {
     private static readonly DayOfWeek[] Weekdays =
     [
@@ -32,6 +35,128 @@ public sealed class OutletSettingsService(
             outlet.Id, outlet.Name, outlet.City, outlet.State, outlet.Pincode,
             outlet.DeliveryDays, outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString(),
             await BuildReadinessAsync(outlet), MapBranding(branding));
+    }
+
+    public async Task<IReadOnlyList<OutletDomainDto>> GetDomainsAsync()
+    {
+        if (current.OutletId is not Guid outletId) return [];
+
+        var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
+        var baseDomain = NormalizeHostname(domainSettings.Value.PlatformBaseDomain);
+        var result = new List<OutletDomainDto>();
+
+        if (!string.IsNullOrWhiteSpace(outlet.Subdomain) && !string.IsNullOrWhiteSpace(baseDomain))
+        {
+            result.Add(new OutletDomainDto(
+                Guid.Empty,
+                outlet.Id,
+                outlet.Name,
+                $"{outlet.Subdomain.Trim().ToLowerInvariant()}.{baseDomain}",
+                "Platform",
+                OutletDomainStatus.Active.ToString(),
+                true,
+                DateTime.MinValue,
+                null,
+                "",
+                "",
+                ""));
+        }
+
+        var custom = await domains.GetByOutletAsync(outletId);
+        result.AddRange(custom.Select(x => MapDomain(x, baseDomain)));
+        return result;
+    }
+
+    public async Task<OutletDomainDto> RequestDomainAsync(RequestOutletDomainRequest request)
+    {
+        if (current.OutletId is not Guid outletId) throw new UnauthorizedAccessException("The current user is not associated with an outlet.");
+        var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
+
+        var hostname = NormalizeHostname(request.Hostname);
+        var baseDomain = NormalizeHostname(domainSettings.Value.PlatformBaseDomain);
+        ValidateCustomHostname(hostname, baseDomain);
+
+        var existing = await domains.GetByHostnameAsync(hostname);
+        if (existing is not null)
+        {
+            if (existing.OutletId != outletId)
+                throw new InvalidOperationException("This domain is already assigned to another outlet.");
+
+            if (existing.Status == OutletDomainStatus.Active)
+                return MapDomain(existing, baseDomain);
+
+            existing.Status = OutletDomainStatus.Pending;
+            existing.VerificationToken = Guid.NewGuid().ToString("N");
+            existing.IsPrimary = request.IsPrimary;
+            existing.VerifiedAtUtc = null;
+            await domains.UpdateAsync(existing);
+            return MapDomain(existing, baseDomain);
+        }
+
+        var domain = new OutletDomain
+        {
+            Id = Guid.NewGuid(),
+            OutletId = outlet.Id,
+            Hostname = hostname,
+            VerificationToken = Guid.NewGuid().ToString("N"),
+            Status = OutletDomainStatus.Pending,
+            IsPrimary = request.IsPrimary,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        await domains.AddAsync(domain);
+        return MapDomain(domain, baseDomain);
+    }
+
+    private static OutletDomainDto MapDomain(OutletDomain x, string baseDomain)
+    {
+        var verificationName = string.IsNullOrWhiteSpace(x.Hostname) ? "" : $"_healthapp-verification.{x.Hostname}";
+        return new(
+            x.Id,
+            x.OutletId,
+            x.Outlet?.Name ?? "",
+            x.Hostname,
+            string.Equals(baseDomain, "", StringComparison.Ordinal) || !x.Hostname.EndsWith("." + baseDomain, StringComparison.OrdinalIgnoreCase) ? "Custom" : "Platform",
+            x.Status.ToString(),
+            x.IsPrimary,
+            x.CreatedAtUtc,
+            x.VerifiedAtUtc,
+            "TXT",
+            verificationName,
+            x.VerificationToken);
+    }
+
+    private static string NormalizeHostname(string? value)
+    {
+        var host = (value ?? "").Trim().TrimEnd('.');
+        if (host.Length == 0 || host.Contains("://", StringComparison.Ordinal) || host.Contains('/', StringComparison.Ordinal) || host.Contains(' ', StringComparison.Ordinal))
+            throw new ArgumentException("Enter a valid domain name, for example www.fitfood.com.");
+
+        try
+        {
+            var idn = new System.Globalization.IdnMapping();
+            return idn.GetAscii(host).ToLowerInvariant();
+        }
+        catch (ArgumentException)
+        {
+            throw new ArgumentException("Enter a valid domain name.");
+        }
+    }
+
+    private static void ValidateCustomHostname(string hostname, string baseDomain)
+    {
+        if (hostname.Length > 253 || hostname.Contains(':', StringComparison.Ordinal))
+            throw new ArgumentException("The domain name is too long or invalid.");
+
+        if (System.Net.IPAddress.TryParse(hostname, out _))
+            throw new ArgumentException("Use a domain name rather than an IP address.");
+
+        if (!hostname.Contains('.', StringComparison.Ordinal))
+            throw new ArgumentException("Enter a full custom domain such as www.fitfood.com.");
+
+        if (!string.IsNullOrWhiteSpace(baseDomain) &&
+            (string.Equals(hostname, baseDomain, StringComparison.OrdinalIgnoreCase) ||
+             hostname.EndsWith("." + baseDomain, StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException("Use the outlet platform subdomain for healthapp.com. Custom domain requests must use your own domain.");
     }
 
     public async Task<OutletBrandingDto?> UpdateBrandingAsync(UpdateOutletBrandingRequest request)
