@@ -203,6 +203,9 @@ public sealed class CustomerAddressService(
         if (current.UserId is not Guid id)
             return [];
 
+        if (current.OutletId is not Guid customerOutletId || customerOutletId != outletId)
+            throw new UnauthorizedAccessException("The current customer is not associated with the selected outlet.");
+
         var result = new List<DeliveryQuoteDto>();
         foreach (var address in await addresses.GetByCustomerAsync(id))
         {
