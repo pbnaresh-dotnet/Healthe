@@ -780,12 +780,15 @@ public sealed class OutletOnboardingApplication
     public string AadhaarCardKey { get; set; } = "";
     public string AadhaarCardFileName { get; set; } = "";
     public string BusinessRegistrationUrl { get; set; } = "";
+    public string BusinessRegistrationKey { get; set; } = "";
     public string BusinessRegistrationFileName { get; set; } = "";
     public string BusinessPan { get; set; } = "";
     public string BusinessPanDocumentUrl { get; set; } = "";
+    public string BusinessPanDocumentKey { get; set; } = "";
     public string BusinessPanDocumentFileName { get; set; } = "";
     public string GstNumber { get; set; } = "";
     public string GstCertificateUrl { get; set; } = "";
+    public string GstCertificateKey { get; set; } = "";
     public string GstCertificateFileName { get; set; } = "";
     public string VerificationNotes { get; set; } = "";
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
