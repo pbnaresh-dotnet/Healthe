@@ -135,7 +135,7 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.About).HasMaxLength(4000);
         e.Property(x => x.FooterText).HasMaxLength(1000);
         e.HasIndex(x => x.OutletId).IsUnique();
-        e.HasOne<Outlet>().WithOne().HasForeignKey<OutletBranding>(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<Outlet>().WithOne(x => x.Branding).HasForeignKey<OutletBranding>(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
     }
     private static void ConfigureSaaSPlan(EntityTypeBuilder<SaaSPlan> e)
     {
