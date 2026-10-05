@@ -11,13 +11,15 @@ function App(){
  const[form,setForm]=useState({city:'Hyderabad',state:'Telangana',country:'India',latitude:17.385,longitude:78.4867,isEnabled:true});
  const[error,setError]=useState('');
  const[toast,setToast]=useState('');
- const[loading,setLoading]=useState(false);\n const[verification,setVerification]=useState([]),[selectedVerification,setSelectedVerification]=useState(null),[verificationNotes,setVerificationNotes]=useState('');
- const notify=m=>{setToast(m);setTimeout(()=>setToast(''),2200)};\n const fileUrl=u=>{if(!u)return'';return u.startsWith('http')?u:(API_URL?new URL(API_URL).origin+u:u)};
+ const[loading,setLoading]=useState(false);
+ const[verification,setVerification]=useState([]),[selectedVerification,setSelectedVerification]=useState(null),[verificationNotes,setVerificationNotes]=useState('');
+ const notify=m=>{setToast(m);setTimeout(()=>setToast(''),2200)};
+ const fileUrl=u=>{if(!u)return'';return u.startsWith('http')?u:(API_URL?new URL(API_URL).origin+u:u)};
  const reload=async()=>{
    try{
      setLoading(true);
-     const[d,o,us,r,cs]=await Promise.all([admin.dashboard(),admin.outlets(),admin.users(),admin.revenue(),admin.cities()]);
-     setData({d,o,us,r});setCities(cs||[]);setError('');
+     const[d,o,us,r,cs,v]=await Promise.all([admin.dashboard(),admin.outlets(),admin.users(),admin.revenue(),admin.cities(),admin.outletOnboardingPending()]);
+     setData({d,o,us,r});setCities(cs||[]);setVerification(v||[]);setError('');
    }catch(e){setError(e.message||'Unable to load admin data.')}finally{setLoading(false)}
  };
  useEffect(()=>{if(u)reload()},[u]);
