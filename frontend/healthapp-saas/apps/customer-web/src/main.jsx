@@ -240,6 +240,8 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    <form className="authCard publicAuthCard" onSubmit={doAuth}><div className="eyebrow">{authMode==='login'?'SIGN IN':'CREATE YOUR ACCOUNT'}</div><h2>{authMode==='login'?'Welcome back':'Create your account'}</h2><p>{authMode==='login'?'Sign in to manage your meals and deliveries.':'Start with your health profile and build your first package.'}</p>{authMode==='register'&&<div className="twoCol"><label>First name<input value={authForm.firstName} onChange={e=>setAuthForm({...authForm,firstName:e.target.value})}/></label><label>Last name<input value={authForm.lastName} onChange={e=>setAuthForm({...authForm,lastName:e.target.value})}/></label></div>}<label>Email<input type="email" value={authForm.email} onChange={e=>setAuthForm({...authForm,email:e.target.value})}/></label><label>Password<input type="password" value={authForm.password} onChange={e=>setAuthForm({...authForm,password:e.target.value})}/></label><button className="primary big">{authMode==='login'?'Sign in':'Create account'}</button>{error&&<div className="error">{error}</div>}<div className="authSwitch">{authMode==='login'?'New to HealthApp?':'Already have an account?'} <button type="button" className="linkBtn" onClick={()=>setAuthMode(authMode==='login'?'register':'login')}>{authMode==='login'?'Create account':'Sign in'}</button></div>{authMode==='login'&&<small>Demo: customer@healthapp.test / demo</small>}</form>
  </div>;
 
+ if(publicOutlet&&!guestBuilderOpen) return <PublicOutletHome outlet={publicOutlet} menu={publicOutletMenu} busy={publicOutletBusy} error={publicOutletError} onBack={()=>setPublicOutlet(null)} onBuild={openGuestBuilder}/>;
+
  return <div className="publicHome">
    <header className="publicNav">
      <button className="publicBrand" type="button" onClick={()=>goTo('public-top')}><span className="brandMark">H</span><span><b>HealthApp</b><small>Healthy meals, built around you</small></span></button>
@@ -312,14 +314,49 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
      onContinue={saveGuestDraftAndCreateAccount}
    />}
 
-   {publicOutlet&&<div className="publicOverlayBackdrop" onMouseDown={e=>e.target===e.currentTarget&&setPublicOutlet(null)}>
-     <div className="publicOutletPreview">
-       <div className="publicPreviewHero"><img src={publicOutlet.heroImageUrl?getImg(publicOutlet.heroImageUrl):IMAGE_FALLBACKS.hero} alt="" onError={e=>e.currentTarget.src=IMAGE_FALLBACKS.hero}/><div><span className="publicEyebrow">HEALTHY LOCAL OUTLET</span><h2>{publicOutlet.name}</h2><p>{publicOutlet.city}, {publicOutlet.state} · ★ {Number(publicOutlet.rating||4.8).toFixed(1)} ({publicOutlet.reviewCount||0})</p></div><button className="publicExplorerClose" onClick={()=>setPublicOutlet(null)}>×</button></div>
-       <div className="publicPreviewBody">{publicOutletBusy?<div className="publicNearbyEmpty">Loading outlet menu…</div>:publicOutletError?<div className="publicExplorerError">{publicOutletError}</div>:<><div className="publicPreviewIntro"><div><b>Explore the menu before creating an account</b><span>Browse meals and nutrition from this outlet as a guest.</span></div><button className="primary" onClick={openGuestBuilder}>Build Package →</button></div><div className="publicPreviewMeals">{publicOutletMenu.slice(0,6).map(m=><article key={m.id}><img src={m.imageUrl?getImg(m.imageUrl):IMAGE_FALLBACKS.veg} alt="" onError={e=>e.currentTarget.src=IMAGE_FALLBACKS.veg}/><div><b>{m.recipeName}</b><span>{m.calories} kcal · {m.proteinGrams}g protein</span><small>{m.category} · {money(m.pricePerMeal)}</small></div></article>)}</div>{!publicOutletMenu.length&&<div className="publicNearbyEmpty"><b>No menu published yet</b><span>This outlet has not published meals for guest browsing.</span></div>}</>}</div>
-     </div>
-   </div>}
+function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild}){
+ const[slot,setSlot]=useState(1);
+ const[filter,setFilter]=useState('All');
+ const healthy=outlet?.healthHighlights||[];
+ const filtered=(menu||[]).filter(x=>Number(x.mealSlotValue)===slot).filter(x=>{
+   if(filter==='All')return true;
+   const category=String(x.category||'').toLowerCase();
+   if(filter==='High Protein')return Number(x.proteinGrams||0)>=25;
+   if(filter==='Low Carb')return Number(x.carbsGrams||0)<=30;
+   if(filter==='Vegan')return category==='vegan';
+   if(filter==='Vegetarian')return category==='veg'||category==='vegetarian';
+   if(filter==='Gluten Free')return String(x.tags||'').toLowerCase().includes('gluten');
+   return true;
+ });
+ return <div className="publicOutletHome">
+   <header className="publicOutletTopbar">
+     <button className="publicBrand" type="button" onClick={onBack}><span className="brandMark">H</span><span><b>HealthApp</b><small>Healthy meals, built around you</small></span></button>
+     <div className="publicOutletTopActions"><button className="secondary" onClick={onBack}>← Find outlets</button><button className="primary" onClick={onBuild}>Build Package →</button></div>
+   </header>
+   <main>
+     <section className="publicOutletHero">
+       <img src={outlet?.heroImageUrl?getImg(outlet.heroImageUrl):IMAGE_FALLBACKS.hero} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/>
+       <div className="publicOutletHeroOverlay">
+         <span className="publicEyebrow">HEALTHY LOCAL OUTLET</span>
+         <h1>{outlet?.name}</h1>
+         <p>{outlet?.city}, {outlet?.state}{outlet?.distanceKm?' · '+outlet.distanceKm+' km away':''}</p>
+         <div className="publicOutletMeta"><span>★ <b>{Number(outlet?.rating||4.8).toFixed(1)}</b> ({outlet?.reviewCount||0} reviews)</span>{healthy.slice(0,4).map((h,i)=><span key={i}>✓ {h}</span>)}</div>
+       </div>
+       <button className="publicOutletBackFloating" onClick={onBack}>← Back to outlets</button>
+       <button className="primary publicOutletHeroBuild" onClick={onBuild}>Build Package →</button>
+     </section>
+     <section className="publicOutletBody">
+       <div className="publicOutletIntro"><div><span className="publicEyebrow">EXPLORE THE MENU</span><h2>Meals prepared for your routine</h2><p>Browse this outlet's menu, nutrition and meal choices before creating an account.</p></div><div className="publicOutletIntroBadges">{healthy.slice(0,4).map((h,i)=><span key={i}>✓ {h}</span>)}</div></div>
+       <div className="publicOutletSlots">{[[1,'☀','Morning','7 AM – 10 AM'],[2,'☀','Afternoon','12 PM – 2 PM'],[3,'☾','Evening','6 PM – 8 PM'],[4,'☾','Night','8 PM – 10 PM']].map(([id,icon,label,time])=><button key={id} className={slot===id?'active':''} onClick={()=>setSlot(id)}><span>{icon}</span><b>{label}</b><small>{time}</small></button>)}</div>
+       <div className="publicOutletFilterRow"><div>{['All','High Protein','Low Carb','Vegan','Vegetarian','Gluten Free'].map(x=><button key={x} className={filter===x?'chip active':'chip'} onClick={()=>setFilter(x)}>{x}</button>)}</div><button className="linkBtn" onClick={onBuild}>Build with these meals →</button></div>
+       {busy?<div className="publicOutletMessage">Loading menu…</div>:error?<div className="publicExplorerError">{error}</div>:<div className="publicOutletMealGrid">{filtered.map(x=><article className="publicOutletMealCard" key={x.id}><div className="publicOutletMealImage"><img src={x.imageUrl?getImg(x.imageUrl):fallbackImg(x.category)} alt="" onError={e=>{e.currentTarget.src=fallbackImg(x.category)}}/></div><div className="publicOutletMealBody"><span className="publicPlanBadge">{x.category||'Meal'}</span><h3>{x.recipeName}</h3><div className="publicOutletNutrition"><span>{x.calories??0} kcal</span><span>{x.proteinGrams??0}g protein</span><span>{x.carbsGrams??0}g carbs</span><span>{x.fiberGrams??0}g fibre</span></div><p>{x.description||'Wholesome meal prepared with fresh ingredients.'}</p><strong>{money(x.pricePerMeal)}</strong></div></article>)}</div>}
+       {!busy&&!error&&!filtered.length&&<div className="publicOutletMessage"><b>No meals published for this slot.</b><span>Try another meal time.</span></div>}
+       <section className="publicOutletAbout"><div><span className="publicEyebrow">ABOUT THIS OUTLET</span><h2>{outlet?.name}</h2><p>{outlet?.about||'Fresh, healthy meals prepared with quality ingredients and balanced portions for your everyday routine.'}</p></div><div className="publicOutletAboutCard"><b>Delivery coverage</b><span>{outlet?.city}, {outlet?.state}</span><small>This outlet delivers within its configured service radius.</small></div></section>
+     </section>
+   </main>
  </div>;
 }
+
 function GuestPackageModal({outlet,menu,duration,setDuration,startDate,setStartDate,selections,setSelections,selectedCount,onClose,onContinue}){
  const days=useMemo(()=>{
    const d=DURATIONS.find(x=>x.id===duration)||DURATIONS[2];
