@@ -84,18 +84,10 @@ public sealed class OutletVerificationService(
             };
             await users.AddAsync(user);
         }
-        else
-        {
-            user.OutletId = outlet.Id;
-            user.IsActive = true;
-            user.PasswordHash = x.PasswordHash;
-            await users.UpdateAsync(user);
-        }
-
         var existingSubscription = await outletSubscriptions.GetByOutletAsync(outlet.Id);
         if (existingSubscription is null)
         {
-            await outletSubscriptions.AddAsync(new OutletSubscription
+            existingSubscription = new OutletSubscription
             {
                 Id = Guid.NewGuid(),
                 OutletId = outlet.Id,
@@ -106,8 +98,20 @@ public sealed class OutletVerificationService(
                 TransactionFeePercent = plan.CustomerTransactionFeePercent,
                 StartDate = DateTime.UtcNow.Date,
                 RenewalDate = DateTime.UtcNow.Date.AddMonths(x.BillingCycle.Equals("Annual", StringComparison.OrdinalIgnoreCase) ? 12 : 1),
-                Status = "Pending"
-            });
+                Status = "Active"
+            };
+            await outletSubscriptions.AddAsync(existingSubscription);
+        }
+        else
+        {
+            existingSubscription.SaaSPlanId = plan.Id;
+            existingSubscription.BillingCycle = x.BillingCycle;
+            existingSubscription.SubscriptionFee = x.SubscriptionFee;
+            existingSubscription.SetupFee = x.SetupFee;
+            existingSubscription.TransactionFeePercent = plan.CustomerTransactionFeePercent;
+            existingSubscription.Status = "Active";
+            existingSubscription.RenewalDate = DateTime.UtcNow.Date.AddMonths(x.BillingCycle.Equals("Annual", StringComparison.OrdinalIgnoreCase) ? 12 : 1);
+            await outletSubscriptions.UpdateAsync(existingSubscription);
         }
 
         outlet.Status = OutletStatus.Active;
@@ -149,7 +153,6 @@ public sealed class OutletVerificationService(
         return index < 0 ? (value, "") : (value[..index], value[(index + 1)..].Trim());
     }
 
-    private static string Slugify(string value)
     private static string Slugify(string value)
     {
         var chars = value.Trim().ToLowerInvariant().Select(c => char.IsLetterOrDigit(c) ? c : '-').ToArray();
