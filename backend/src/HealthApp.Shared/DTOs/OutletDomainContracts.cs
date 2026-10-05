@@ -16,3 +16,4 @@ public record OutletDomainDto(
 
 public record RequestOutletDomainRequest(string Hostname, bool IsPrimary = false);
 public record SetOutletDomainStatusRequest(string Status);
+public record VerifyOutletDomainRequest(bool ActivateIfReady = true);
