@@ -26,8 +26,68 @@ function Field({label,children,help}){return <label className="field"><span>{lab
 function Empty({title,text}){return <div className="empty"><div className="emptyIcon">＋</div><h3>{title}</h3><p>{text}</p></div>}
 function Table({columns,rows,empty}){return rows.length?<div className="dataTable"><div className="dataRow header">{columns.map(c=><span key={c}>{c}</span>)}</div>{rows.map((r,i)=><div className="dataRow" key={i}>{r.map((v,j)=><span key={j}>{v}</span>)}</div>)}</div>:<Empty title={empty} text="There is no activity to show yet."/>}
 
+
+const featureCards=[
+ {icon:'◫',title:'Manage subscriptions',text:'Turn recurring customers into predictable pre-orders and plan your week with confidence.'},
+ {icon:'◈',title:'Menu & recipes',text:'Keep healthy recipes, nutrition, ingredients and allergens organised in one place.'},
+ {icon:'▦',title:'Kitchen orders',text:'Know what needs cooking before the rush. Plan ingredients and portions from real orders.'},
+ {icon:'⌖',title:'Delivery management',text:'Coordinate delivery areas, routes and drivers without juggling separate spreadsheets.'},
+ {icon:'♙',title:'Customer management',text:'Keep profiles, preferences, allergies, addresses and subscription history together.'},
+ {icon:'↗',title:'Reports & analytics',text:'See sales, subscriptions and customer growth so you can make smarter decisions.'}
+];
+const benefitItems=[
+ ['↻','Predictable orders','Grow through recurring subscriptions'],
+ ['✦','Plan ingredients','Prepare closer to what customers actually ordered'],
+ ['◷','Reduce food waste','Cook with a clearer daily demand signal'],
+ ['⌖','Manage delivery','Organise drivers, routes and delivery slots'],
+ ['♙','Build loyalty','Give healthy customers a reason to come back'],
+ ['↗','Grow your way','Start small and scale as your outlet grows']
+];
+
+function MiniDashboard(){
+ return <div className="landingDashboard">
+  <div className="landingWindowTop"><div className="landingWindowBrand"><span className="brandMark">H</span><b>HealthApp</b></div><span className="landingWindowUser">Fit Food Kitchen ▾</span></div>
+  <div className="landingWindowBody">
+   <aside className="landingMiniNav"><b>⌂ Dashboard</b><span>◫ Orders</span><span>↻ Subscriptions</span><span>▦ Kitchen</span><span>⌖ Delivery</span><span>♙ Customers</span><span>◈ Menu & Recipes</span></aside>
+   <div className="landingDashMain">
+    <div className="landingDashTitle"><div><span>Today at a glance</span><b>Know your day before it starts</b></div><span className="landingLiveBadge">● Live</span></div>
+    <div className="landingStatRow"><div><span>Total orders</span><b>42</b><small>+18% this week</small></div><div><span>Subscriptions</span><b>38</b><small>Recurring customers</small></div><div><span>Kitchen</span><b>56</b><small>Meals to prepare</small></div><div><span>Delivery</span><b>12</b><small>Stops to plan</small></div></div>
+    <div className="landingDashGrid">
+      <div className="landingPanel"><div className="landingPanelHead"><b>Today’s meal plan</b><span>View all →</span></div><div className="landingMeal"><i>☀</i><div><b>Breakfast</b><span>24 meals · 6 subscriptions</span></div><strong>24</strong></div><div className="landingMeal"><i>◉</i><div><b>Lunch</b><span>56 meals · 18 subscriptions</span></div><strong>56</strong></div><div className="landingMeal"><i>◒</i><div><b>Evening</b><span>42 meals · 14 subscriptions</span></div><strong>42</strong></div></div>
+      <div className="landingPanel"><div className="landingPanelHead"><b>Order status</b><span>Today</span></div><div className="landingDonut"><div><b>140</b><span>Total meals</span></div></div><div className="landingLegend"><span><i></i>Prepared <b>38</b></span><span><i></i>Out for delivery <b>12</b></span><span><i></i>Delivered <b>80</b></span><span><i></i>Pending <b>10</b></span></div></div>
+    </div>
+   </div>
+  </div>
+ </div>
+}
+
+function LandingPage({onLogin,onRegister}){
+ return <div className="landingPage">
+  <header className="landingNav"><div className="landingNavBrand"><span className="brandMark">H</span><div><b>HealthApp</b><small>For healthy food outlets</small></div></div><nav><a href="#how">How It Works</a><a href="#features">Features</a><a href="#why">Why HealthApp</a><a href="#success">Success Stories</a><a href="#pricing">Pricing</a></nav><div className="landingNavActions"><button className="secondary" type="button" onClick={onLogin}>Login</button><button className="primary" type="button" onClick={onRegister}>Register Your Outlet →</button></div></header>
+  <section className="landingHero">
+   <div className="landingHeroCopy">
+    <span className="landingKicker">🌱 BUILT FOR HEALTHY FOOD BUSINESSES</span>
+    <h1>More orders.<br/>Less waste.<br/><em>A healthier business.</em></h1>
+    <p>HealthApp helps outlets grow with subscription-based orders, smarter kitchen planning, organised deliveries and loyal health-conscious customers — all in one simple platform.</p>
+    <div className="landingHeroActions"><button className="primary landingPrimaryCta" type="button" onClick={onRegister}>Register Your Outlet →</button><button className="secondary landingDemoCta" type="button" onClick={()=>document.getElementById('features')?.scrollIntoView({behavior:'smooth'})}>See how it helps ▷</button></div>
+    <div className="landingChecks"><span>✓ Subscription-based orders</span><span>✓ Reduce food waste</span><span>✓ Grow repeat customers</span></div>
+   </div>
+   <div className="landingHeroVisual"><div className="landingGlow"></div><MiniDashboard/><div className="landingFloat landingFloatOrders"><b>42</b><span>orders planned</span><i>↑ 18%</i></div><div className="landingFloat landingFloatWaste"><b>Better prep</b><span>Plan ingredients from pre-orders</span></div></div>
+  </section>
+  <section className="landingBenefitStrip">{benefitItems.map(([icon,title,text])=><div className="landingBenefit" key={title}><span>{icon}</span><b>{title}</b><small>{text}</small></div>)}</section>
+  <section className="landingHow" id="how"><div className="landingSectionIntro"><span className="landingKicker">HOW IT WORKS</span><h2>From signup to smooth operations</h2><p>HealthApp keeps the whole outlet journey in one predictable flow.</p></div><div className="landingSteps"><div><strong>1</strong><b>Register & choose a plan</b><span>Pick the operating model that fits your outlet.</span></div><i>→</i><div><strong>2</strong><b>Complete onboarding</b><span>Add your business, owner details and documents.</span></div><i>→</i><div><strong>3</strong><b>Get verified</b><span>HealthApp reviews the application and activates your outlet.</span></div><i>→</i><div><strong>4</strong><b>Open your workspace</b><span>Manage customers, subscriptions, kitchen and deliveries.</span></div><i>→</i><div><strong>5</strong><b>Grow with confidence</b><span>Use recurring demand to plan better and scale.</span></div></div></section>
+  <section className="landingFeatures" id="features"><div className="landingSectionIntro landingSectionIntroLeft"><span className="landingKicker">ONE PLATFORM FOR YOUR DAILY WORK</span><h2>Everything you need to run and grow your outlet</h2><p>Less switching between tools. More time improving your food and serving customers.</p></div><div className="landingFeatureGrid">{featureCards.map(f=><article key={f.title}><span className="landingFeatureIcon">{f.icon}</span><h3>{f.title}</h3><p>{f.text}</p><a href="#how">Learn more →</a></article>)}</div></section>
+  <section className="landingWhy" id="why"><div className="landingWhyVisual"><div className="landingPrepCard"><span>PRE-ORDERS</span><b>42 meals</b><small>planned before prep starts</small><div className="landingPrepBars"><i style={{width:'82%'}}></i><i style={{width:'63%'}}></i><i style={{width:'91%'}}></i><i style={{width:'47%'}}></i></div></div><div className="landingLeaf">🌿</div></div><div className="landingWhyCopy"><span className="landingKicker">WHY OUTLETS LOVE HEALTHAPP</span><h2>Run a healthier operation, not a more complicated one.</h2><p>Recurring subscriptions and pre-orders give you a clearer picture of demand. That means fewer last-minute surprises, better ingredient planning and less food prepared “just in case”.</p><div className="landingWhyList"><div><span>✓</span><div><b>Cook closer to demand</b><small>Use scheduled orders to estimate meals, portions and ingredients earlier.</small></div></div><div><span>✓</span><div><b>Keep the kitchen calm</b><small>Give the team a daily production view instead of chasing messages and spreadsheets.</small></div></div><div><span>✓</span><div><b>Deliver with a plan</b><small>Coordinate addresses, routes, drivers and slots from the same workspace.</small></div></div></div></div></section>
+  <section className="landingSuccess" id="success"><div className="landingSectionIntro"><span className="landingKicker">A BUSINESS MODEL THAT BUILDS LOYALTY</span><h2>Healthy customers become repeat customers</h2><p>Subscriptions help outlets create a consistent relationship with customers while keeping service simple.</p></div><div className="landingQuote"><div className="landingQuoteMark">“</div><blockquote>HealthApp helps us see what needs to be prepared, delivered and followed up — before the day gets busy.</blockquote><div className="landingQuotePerson"><div className="avatar">R</div><div><b>Healthy meal outlet</b><span>Subscription-based food business</span></div><strong>+32%<small>growth opportunity</small></strong></div></div></section>
+  <section className="landingPricing" id="pricing"><div><span className="landingKicker">FLEXIBLE OPERATING MODEL</span><h2>Start with what your outlet needs today.</h2><p>Choose a plan during onboarding, then scale as your customer base and operations grow.</p></div><div className="landingPricingCard"><span>One platform</span><b>Subscriptions + Kitchen + Delivery</b><small>One workspace for your outlet team</small><button className="primary" type="button" onClick={onRegister}>See plans & register →</button></div></section>
+  <section className="landingCta"><div><span className="landingKicker">READY WHEN YOU ARE</span><h2>Ready to grow your healthy food business?</h2><p>Start receiving subscription orders, plan your kitchen with confidence and keep your delivery operation organised.</p></div><button className="landingCtaButton" type="button" onClick={onRegister}>Register Your Outlet →<small>Quick onboarding · Verified before activation</small></button></section>
+  <footer className="landingFooter"><span>© HealthApp</span><span>Built for healthy food businesses · Subscriptions · Kitchen · Delivery · Customers</span></footer>
+ </div>
+}
+
+
 function App(){
- const[user,setUser]=useState(currentUser()),[login,setLogin]=useState({email:'admin@fitfood.test',password:'demo'}),[active,setActive]=useState('dashboard'),[dash,setDash]=useState(null),[showOnboarding,setShowOnboarding]=useState(false);
+ const[user,setUser]=useState(currentUser()),[login,setLogin]=useState({email:'admin@fitfood.test',password:'demo'}),[active,setActive]=useState('dashboard'),[dash,setDash]=useState(null),[showOnboarding,setShowOnboarding]=useState(false),[showLogin,setShowLogin]=useState(false);
  const[recipes,setRecipes]=useState([]),[ingredients,setIngredients]=useState([]),[allergens,setAllergens]=useState([]),[pricing,setPricing]=useState([]),[areas,setAreas]=useState([]),[selectedAreas,setSelectedAreas]=useState([]),[tiers,setTiers]=useState([]);
  const[customers,setCustomers]=useState([]),[subs,setSubs]=useState([]),[orders,setOrders]=useState([]),[deliveries,setDeliveries]=useState([]),[menu,setMenu]=useState([]),[billing,setBilling]=useState(null),[selectedSub,setSelectedSub]=useState(null),[kitchen,setKitchen]=useState(null),[kitchenDate,setKitchenDate]=useState(new Date().toISOString().slice(0,10));
  const[customerEditorOpen,setCustomerEditorOpen]=useState(false),[customerEditorSaving,setCustomerEditorSaving]=useState(false),[customerEditorForm,setCustomerEditorForm]=useState({firstName:'',lastName:'',email:'',password:'',weightKg:'',heightCm:'',dateOfBirth:'',goal:'WeightLoss',activityLevel:'Moderate',diet:'',allergyIds:[]});
@@ -105,8 +165,8 @@ function App(){
  const saveTax=async e=>{e.preventDefault();const rate=Number(taxForm.restaurantGstRate);if(!Number.isFinite(rate)||rate<0||rate>100)return fail({message:'Restaurant GST rate must be between 0% and 100%.'});try{const x=await outletAdmin.updateTaxSettings({restaurantGstRate:rate,restaurantGstMode:taxForm.restaurantGstMode});setTaxSettings(x);setTaxForm({restaurantGstRate:x?.restaurantGstRate??rate,restaurantGstMode:x?.restaurantGstMode||taxForm.restaurantGstMode});notify('Tax and GST settings saved')}catch(e){fail(e)}};
 
  if(!user&&showOnboarding)return <OutletOnboarding onBack={()=>setShowOnboarding(false)}/>;
-
- if(!user)return <div className="loginPage"><div className="loginCard"><div className="brand"><span className="brandMark">H</span><div><b>HealthApp</b><small>Outlet management</small></div></div><h1>Welcome back</h1><p>Run your meal business from one workspace.</p><form onSubmit={signIn}><Field label="Email"><input value={login.email} onChange={e=>setLogin({...login,email:e.target.value})}/></Field><Field label="Password"><input type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})}/></Field><button className="primary full">Sign in</button>{error&&<div className="error">{error}</div>}<small className="demo">Demo: admin@fitfood.test / demo</small><div className="registerPrompt"><span>New to HealthApp?</span><button type="button" className="linkBtn" onClick={()=>{setError('');setShowOnboarding(true)}}>Register your outlet →</button></div></form></div></div>;
+ if(!user&&showLogin)return <div className="loginPage"><div className="loginCard"><div className="brand"><span className="brandMark">H</span><div><b>HealthApp</b><small>Outlet management</small></div></div><button type="button" className="linkBtn landingBackHome" onClick={()=>{setError('');setShowLogin(false)}}>← Back to home</button><h1>Welcome back</h1><p>Run your meal business from one workspace.</p><form onSubmit={signIn}><Field label="Email"><input value={login.email} onChange={e=>setLogin({...login,email:e.target.value})}/></Field><Field label="Password"><input type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})}/></Field><button className="primary full">Sign in</button>{error&&<div className="error">{error}</div>}<small className="demo">Demo: admin@fitfood.test / demo</small><div className="registerPrompt"><span>New to HealthApp?</span><button type="button" className="linkBtn" onClick={()=>{setError('');setShowLogin(false);setShowOnboarding(true)}}>Register your outlet →</button></div></form></div></div>;
+ if(!user)return <LandingPage onLogin={()=>{setError('');setShowLogin(true)}} onRegister={()=>{setError('');setShowOnboarding(true)}}/>;
 
  const navs=[['dashboard','⌂','Dashboard'],['kitchen','▦','Kitchen'],['recipes','◈','Recipes'],['menu','☷','Weekly Menu'],['customers','♙','Customers'],['packages','✚','Create Package'],['subscriptions','◫','Subscriptions'],['orders','▤','Orders'],['deliveries','⌁','Deliveries'],['routes','⇢','Delivery Routes'],['delivery-areas','⌖','Delivery Areas'],['pricing','₹','Delivery Pricing'],['discounts','%','Discounts'],['tax','▤','Tax & GST'],['billing','▣','Billing']];
  const title=navs.find(n=>n[0]===active)?.[2]||'Dashboard';
