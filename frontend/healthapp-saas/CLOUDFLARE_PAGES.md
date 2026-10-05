@@ -35,6 +35,17 @@ In each Pages project go to Settings -> Environment variables and add:
 
 `VITE_API_BASE_URL=https://YOUR-PUBLIC-API-HOST/api`
 
+### Standalone outlet deployment
+
+For a standalone outlet customer portal, set the following build environment variable for that deployment:
+
+`VITE_OUTLET_SLUG=<outlet-slug>`
+
+The customer web app sends `X-Outlet-Slug` on API requests. The API resolves that slug to the outlet tenant and rejects authenticated requests when the slug does not match the account's `outlet_id`.
+
+Each standalone outlet can therefore use its own Cloudflare Pages deployment and custom domain while all outlets continue using the same API and SQL Server database.
+
+
 Set it for Production and Preview as appropriate.
 
 The current ASP.NET Core API already permits cross-origin requests, so the deployed Pages origins do not need a special CORS change for the present test setup.
