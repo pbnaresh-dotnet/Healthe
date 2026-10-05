@@ -1,5 +1,3 @@
-using HealthApp.Domain.Enums;
-
 namespace HealthApp.Shared.DTOs;
 
 public record OutletDomainDto(
