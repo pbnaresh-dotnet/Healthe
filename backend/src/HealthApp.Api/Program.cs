@@ -4,6 +4,7 @@ using HealthApp.Infrastructure;
 using HealthApp.Infrastructure.Authentication;
 using HealthApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
@@ -74,6 +75,6 @@ app.Use(async (context, next) =>
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseStaticFiles();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
-app.UseCors("WebApps"); app.UseRateLimiter(); app.UseAuthentication(); app.UseMiddleware<TenantContextMiddleware>(); app.UseMiddleware<OutletActivationMiddleware>(); app.UseAuthorization(); app.MapControllers();
+app.UseRouting(); app.UseCors("WebApps"); app.UseRateLimiter(); app.UseAuthentication(); app.UseMiddleware<TenantContextMiddleware>(); app.UseMiddleware<OutletActivationMiddleware>(); app.UseAuthorization(); app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status="ok", service="HealthApp.Api", framework=".NET 10", database="SQL Server / EF Core 10.0.12", time=DateTime.UtcNow }));
 app.Run();
