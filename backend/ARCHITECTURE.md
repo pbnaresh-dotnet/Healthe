@@ -63,3 +63,9 @@ Unused meals can be rescheduled through subscription end + seven calendar days.
 Images and other uploaded files use the `IFileStorage` abstraction. The default development provider stores files locally; production can switch to Azure Blob Storage through `Storage:Provider` configuration without changing the API/application layer.
 
 Address map lookup uses the `IGeocodingService` abstraction. Customer-selected latitude/longitude remains the authoritative delivery pinpoint; reverse geocoding only supplies editable address text and helps match the HealthApp city/area master.
+
+## Outlet branding ownership
+
+Visual branding is tenant-owned and configured by each **Outlet Admin**. The platform keeps a dedicated one-to-one `OutletBrandings` row per outlet for the presentation source of truth. It includes the brand name, tagline, logo, hero image, favicon, primary/secondary colours, health highlights, about text and footer text.
+
+Super Admin remains responsible for tenant/platform controls such as outlet activation, SaaS subscription and domain configuration. Outlet Admin controls the outlet's customer-facing presentation and operating content. Legacy branding fields on `Outlets` remain synchronized for backward compatibility with older reports and labels.
