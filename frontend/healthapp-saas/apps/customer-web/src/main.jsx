@@ -242,6 +242,14 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    finally{setPublicOutletBusy(false);}
  };
  const openAuth=mode=>{setAuthMode(mode);setShowAuth(true);setError('');window.scrollTo({top:0,behavior:'smooth'});};
+ const startRegistration=()=>{
+   if(TENANT_OUTLET_SLUG){
+     openAuth('register');
+     return;
+   }
+   setLocationHint('Choose an outlet first so your customer account is linked to the correct meal provider.');
+   openLocationExplorer();
+ };
  const goTo=id=>document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'});
  const plans=[
   {title:'Healthy Weekly',copy:'Balanced meals for the week with flexible meal choices.',badge:'Balanced nutrition',image:IMAGE_FALLBACKS.veg},
@@ -275,7 +283,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    <header className="publicNav">
      <button className="publicBrand" type="button" onClick={()=>goTo('public-top')}><span className="brandMark">{(tenantOutlet?.name||'HealthApp').slice(0,1).toUpperCase()}</span><span><b>{tenantOutlet?.name||'HealthApp'}</b><small>{tenantOutlet?'Healthy meals, prepared fresh for you':'Healthy meals, built around you'}</small></span></button>
      <nav className="publicNavLinks"><button onClick={()=>goTo('how-it-works')}>How it works</button>{!TENANT_OUTLET_SLUG&&<><button onClick={()=>goTo('plans')}>Meal Plans</button><button onClick={()=>goTo('outlets')}>Our Outlets</button></>}<button onClick={()=>goTo('why-healthapp')}>{TENANT_OUTLET_SLUG?'Why us':'Why HealthApp'}</button></nav>
-     <div className="publicNavActions"><button className="secondary smallBtn" onClick={()=>openAuth('login')}>Sign in</button><button className="primary smallBtn" onClick={()=>openAuth('register')}>Create account</button></div>
+     <div className="publicNavActions"><button className="secondary smallBtn" onClick={()=>openAuth('login')}>Sign in</button><button className="primary smallBtn" onClick={startRegistration}>Create account</button></div>
    </header>
    <main id="public-top">
     <section className="publicHero">
