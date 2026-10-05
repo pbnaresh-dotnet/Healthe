@@ -7,7 +7,11 @@ public sealed class TenantContextMiddleware(RequestDelegate next)
 {
     private const string TenantHeader = "X-Outlet-Slug";
 
-    public async Task InvokeAsync(HttpContext context, ITenantContext tenant, IOutletRepository outlets)
+    public async Task InvokeAsync(
+        HttpContext context,
+        ITenantContext tenant,
+        IOutletRepository outlets,
+        ITenantHostResolver hostResolver)
     {
         var claimValue = context.User.FindFirstValue("outlet_id");
         var userOutletId = Guid.TryParse(claimValue, out var parsedOutletId)
@@ -15,6 +19,29 @@ public sealed class TenantContextMiddleware(RequestDelegate next)
             : (Guid?)null;
 
         var requestedSlug = context.Request.Headers[TenantHeader].FirstOrDefault()?.Trim();
+        var hostOutlet = await hostResolver.ResolveAsync(context.Request.Host.Host);
+
+        if (hostOutlet is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(requestedSlug) &&
+                !string.Equals(requestedSlug, hostOutlet.Slug, StringComparison.OrdinalIgnoreCase))
+            {
+                await WriteErrorAsync(context, StatusCodes.Status403Forbidden,
+                    "The requested outlet tenant does not match the request hostname.");
+                return;
+            }
+
+            if (userOutletId.HasValue && userOutletId.Value != hostOutlet.Id)
+            {
+                await WriteErrorAsync(context, StatusCodes.Status403Forbidden,
+                    "The request hostname does not match the authenticated outlet tenant.");
+                return;
+            }
+
+            tenant.Set(hostOutlet.Id, hostOutlet.Slug);
+            await next(context);
+            return;
+        }
 
         if (!string.IsNullOrWhiteSpace(requestedSlug))
         {
@@ -22,13 +49,15 @@ public sealed class TenantContextMiddleware(RequestDelegate next)
 
             if (outlet is null)
             {
-                await WriteErrorAsync(context, StatusCodes.Status404NotFound, "The requested outlet tenant was not found.");
+                await WriteErrorAsync(context, StatusCodes.Status404NotFound,
+                    "The requested outlet tenant was not found.");
                 return;
             }
 
             if (userOutletId.HasValue && userOutletId.Value != outlet.Id)
             {
-                await WriteErrorAsync(context, StatusCodes.Status403Forbidden, "The requested outlet tenant does not match the authenticated account.");
+                await WriteErrorAsync(context, StatusCodes.Status403Forbidden,
+                    "The requested outlet tenant does not match the authenticated account.");
                 return;
             }
 
@@ -40,7 +69,8 @@ public sealed class TenantContextMiddleware(RequestDelegate next)
 
             if (outlet is null)
             {
-                await WriteErrorAsync(context, StatusCodes.Status403Forbidden, "The authenticated outlet tenant is no longer available.");
+                await WriteErrorAsync(context, StatusCodes.Status403Forbidden,
+                    "The authenticated outlet tenant is no longer available.");
                 return;
             }
 
