@@ -173,7 +173,11 @@ public sealed class OutletMenuRepository(HealthAppDbContext db) : EfRepository(d
 
 public sealed class SubscriptionRepository(HealthAppDbContext db) : EfRepository(db), ISubscriptionRepository
 {
-    public async Task<IReadOnlyList<Subscription>> GetByCustomerAsync(Guid id) => await db.Subscriptions.AsNoTracking().Where(x => x.CustomerId == id).OrderByDescending(x => x.StartDate).ToListAsync();
+    public async Task<IReadOnlyList<Subscription>> GetByCustomerAsync(Guid id) =>
+        await db.Subscriptions.AsNoTracking()
+            .Where(x => x.CustomerId == id && db.Users.Any(u => u.Id == id && u.OutletId == x.OutletId))
+            .OrderByDescending(x => x.StartDate)
+            .ToListAsync();
     public async Task<IReadOnlyList<Subscription>> GetByOutletAsync(Guid id) => await db.Subscriptions.AsNoTracking().Where(x => x.OutletId == id).OrderByDescending(x => x.StartDate).ToListAsync();
     public Task<Subscription?> GetAsync(Guid id) => db.Subscriptions.FirstOrDefaultAsync(x => x.Id == id);
     public async Task AddAsync(Subscription s) {
@@ -210,9 +214,26 @@ public sealed class CustomerCreditRepository(HealthAppDbContext db) : EfReposito
 {
     public async Task<decimal> GetBalanceAsync(Guid customerId)
     {
-        return await db.CustomerCreditTransactions.Where(x => x.CustomerId == customerId).Select(x => x.Type == CreditTransactionType.Credit || x.Type == CreditTransactionType.Refund ? x.Amount : -x.Amount).SumAsync();
+        var customer = await db.Users.AsNoTracking().Where(x => x.Id == customerId).Select(x => new { x.Role, x.OutletId }).FirstOrDefaultAsync();
+        if (customer is null || customer.Role != UserRole.Customer || !customer.OutletId.HasValue)
+            return 0m;
+
+        return await db.CustomerCreditTransactions
+            .Where(x => x.CustomerId == customerId)
+            .Select(x => x.Type == CreditTransactionType.Credit || x.Type == CreditTransactionType.Refund ? x.Amount : -x.Amount)
+            .SumAsync();
     }
-    public async Task<IReadOnlyList<CustomerCreditTransaction>> GetTransactionsAsync(Guid customerId) => await db.CustomerCreditTransactions.AsNoTracking().Where(x => x.CustomerId == customerId).OrderByDescending(x => x.CreatedAt).ToListAsync();
+    public async Task<IReadOnlyList<CustomerCreditTransaction>> GetTransactionsAsync(Guid customerId)
+    {
+        var customer = await db.Users.AsNoTracking().Where(x => x.Id == customerId).Select(x => new { x.Role, x.OutletId }).FirstOrDefaultAsync();
+        if (customer is null || customer.Role != UserRole.Customer || !customer.OutletId.HasValue)
+            return [];
+
+        return await db.CustomerCreditTransactions.AsNoTracking()
+            .Where(x => x.CustomerId == customerId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync();
+    }
     public async Task AddAsync(CustomerCreditTransaction transaction) {
         db.CustomerCreditTransactions.Add(transaction);
         await SaveAsync();
@@ -221,7 +242,11 @@ public sealed class CustomerCreditRepository(HealthAppDbContext db) : EfReposito
 
 public sealed class OrderRepository(HealthAppDbContext db) : EfRepository(db), IOrderRepository
 {
-    public async Task<IReadOnlyList<Order>> GetByCustomerAsync(Guid id) => await db.Orders.AsNoTracking().Where(x => x.CustomerId == id).OrderByDescending(x => x.DeliveryDate).ToListAsync();
+    public async Task<IReadOnlyList<Order>> GetByCustomerAsync(Guid id) =>
+        await db.Orders.AsNoTracking()
+            .Where(x => x.CustomerId == id && db.Users.Any(u => u.Id == id && u.OutletId == x.OutletId))
+            .OrderByDescending(x => x.DeliveryDate)
+            .ToListAsync();
     public async Task<IReadOnlyList<Order>> GetByOutletAsync(Guid id) => await db.Orders.AsNoTracking().Where(x => x.OutletId == id).OrderByDescending(x => x.DeliveryDate).ToListAsync();
     public Task<Order?> GetBySubscriptionAsync(Guid subscriptionId) => db.Orders.FirstOrDefaultAsync(x=>x.SubscriptionId==subscriptionId);
     public async Task AddAsync(Order order) {
