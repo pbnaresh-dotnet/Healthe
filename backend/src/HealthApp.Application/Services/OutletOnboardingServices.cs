@@ -152,6 +152,17 @@ public sealed class OutletOnboardingService(
         return await UploadDocumentInternalAsync(x, documentType, content, fileName, contentType, cancellationToken);
     }
 
+    public async Task<ProtectedFileDownload?> GetCurrentDocumentAsync(string documentType)
+    {
+        var x = await CurrentApplicationAsync();
+        if (x is null)
+            return null;
+
+        var type = NormalizeDocumentType(documentType)
+            ?? throw new ArgumentException("Unsupported document type.");
+        return await OpenDocumentAsync(x, type);
+    }
+
     public async Task<OutletOnboardingDto?> SubmitCurrentAsync()
     {
         var x = await CurrentApplicationAsync();
@@ -170,6 +181,17 @@ public sealed class OutletOnboardingService(
     {
         var x = await AuthorizeAsync(id, accessKey);
         return x is null ? null : ToDto(x);
+    }
+
+    public async Task<ProtectedFileDownload?> GetDocumentAsync(Guid id, string accessKey, string documentType)
+    {
+        var x = await AuthorizeAsync(id, accessKey);
+        if (x is null)
+            return null;
+
+        var type = NormalizeDocumentType(documentType)
+            ?? throw new ArgumentException("Unsupported document type.");
+        return await OpenDocumentAsync(x, type);
     }
 
     public async Task<OutletOnboardingDto?> SaveDetailsAsync(Guid id, string accessKey, SaveOutletOnboardingDetailsRequest request)
@@ -218,31 +240,70 @@ public sealed class OutletOnboardingService(
         var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp", ".pdf" };
         if (!allowed.Contains(ext, StringComparer.OrdinalIgnoreCase))
             throw new ArgumentException("Supported document formats are JPG, PNG, WEBP and PDF.");
-        var stored = await storage.UploadAsync(content, $"{x.Id:N}_{type}_{Guid.NewGuid():N}{ext}", contentType, "outlet-onboarding", cancellationToken);
+        var originalFileName = Path.GetFileName(fileName);
+        var stored = await storage.UploadPrivateAsync(
+            content,
+            $"{x.Id:N}_{type}_{Guid.NewGuid():N}{ext}",
+            contentType,
+            $"outlet-onboarding/{x.Id:N}",
+            cancellationToken);
         var now = DateTime.UtcNow;
 
         switch (type)
         {
             case "AadhaarCard":
-                x.AadhaarCardUrl = stored.Url;
-                x.AadhaarCardFileName = fileName;
+                x.AadhaarCardUrl = "";
+                x.AadhaarCardKey = stored.Key;
+                x.AadhaarCardFileName = originalFileName;
                 break;
             case "BusinessRegistration":
-                x.BusinessRegistrationUrl = stored.Url;
-                x.BusinessRegistrationFileName = fileName;
+                x.BusinessRegistrationUrl = "";
+                x.BusinessRegistrationKey = stored.Key;
+                x.BusinessRegistrationFileName = originalFileName;
                 break;
             case "BusinessPan":
-                x.BusinessPanDocumentUrl = stored.Url;
-                x.BusinessPanDocumentFileName = fileName;
+                x.BusinessPanDocumentUrl = "";
+                x.BusinessPanDocumentKey = stored.Key;
+                x.BusinessPanDocumentFileName = originalFileName;
                 break;
             case "GstCertificate":
-                x.GstCertificateUrl = stored.Url;
-                x.GstCertificateFileName = fileName;
+                x.GstCertificateUrl = "";
+                x.GstCertificateKey = stored.Key;
+                x.GstCertificateFileName = originalFileName;
                 break;
         }
 
         await applications.UpdateAsync(x);
         return new OutletOnboardingDocumentDto(type, stored.Url, fileName, now);
+    }
+
+    private async Task<ProtectedFileDownload?> OpenDocumentAsync(OutletOnboardingApplication x, string type)
+    {
+        var key = type switch
+        {
+            "AadhaarCard" => x.AadhaarCardKey,
+            "BusinessRegistration" => x.BusinessRegistrationKey,
+            "BusinessPan" => x.BusinessPanDocumentKey,
+            "GstCertificate" => x.GstCertificateKey,
+            _ => ""
+        };
+
+        var fileName = type switch
+        {
+            "AadhaarCard" => x.AadhaarCardFileName,
+            "BusinessRegistration" => x.BusinessRegistrationFileName,
+            "BusinessPan" => x.BusinessPanDocumentFileName,
+            "GstCertificate" => x.GstCertificateFileName,
+            _ => ""
+        };
+
+        if (string.IsNullOrWhiteSpace(key))
+            return null;
+
+        var file = await storage.OpenReadAsync(key);
+        return file is null
+            ? null
+            : new ProtectedFileDownload(file.Content, file.ContentType, string.IsNullOrWhiteSpace(fileName) ? "document" : fileName);
     }
 
     private static void SaveDetails(OutletOnboardingApplication x, SaveOutletOnboardingDetailsRequest request)
@@ -391,10 +452,10 @@ public sealed class OutletOnboardingService(
     private static OutletOnboardingDto ToDto(OutletOnboardingApplication x)
     {
         var documents = new List<OutletOnboardingDocumentDto>();
-        if (!string.IsNullOrWhiteSpace(x.AadhaarCardUrl)) documents.Add(new("AadhaarCard", x.AadhaarCardUrl, x.AadhaarCardFileName, x.CreatedAtUtc));
-        if (!string.IsNullOrWhiteSpace(x.BusinessRegistrationUrl)) documents.Add(new("BusinessRegistration", x.BusinessRegistrationUrl, x.BusinessRegistrationFileName, x.CreatedAtUtc));
-        if (!string.IsNullOrWhiteSpace(x.BusinessPanDocumentUrl)) documents.Add(new("BusinessPan", x.BusinessPanDocumentUrl, x.BusinessPanDocumentFileName, x.CreatedAtUtc));
-        if (!string.IsNullOrWhiteSpace(x.GstCertificateUrl)) documents.Add(new("GstCertificate", x.GstCertificateUrl, x.GstCertificateFileName, x.CreatedAtUtc));
+        if (!string.IsNullOrWhiteSpace(x.AadhaarCardKey) || !string.IsNullOrWhiteSpace(x.AadhaarCardUrl)) documents.Add(new("AadhaarCard", $"/api/outlet-onboarding/me/documents/AadhaarCard", x.AadhaarCardFileName, x.CreatedAtUtc));
+        if (!string.IsNullOrWhiteSpace(x.BusinessRegistrationKey) || !string.IsNullOrWhiteSpace(x.BusinessRegistrationUrl)) documents.Add(new("BusinessRegistration", $"/api/outlet-onboarding/me/documents/BusinessRegistration", x.BusinessRegistrationFileName, x.CreatedAtUtc));
+        if (!string.IsNullOrWhiteSpace(x.BusinessPanDocumentKey) || !string.IsNullOrWhiteSpace(x.BusinessPanDocumentUrl)) documents.Add(new("BusinessPan", $"/api/outlet-onboarding/me/documents/BusinessPan", x.BusinessPanDocumentFileName, x.CreatedAtUtc));
+        if (!string.IsNullOrWhiteSpace(x.GstCertificateKey) || !string.IsNullOrWhiteSpace(x.GstCertificateUrl)) documents.Add(new("GstCertificate", $"/api/outlet-onboarding/me/documents/GstCertificate", x.GstCertificateFileName, x.CreatedAtUtc));
 
         return new(
             x.Id, x.Status, x.PaymentStatus, x.PlanName, x.BillingCycle, x.SubscriptionFee, x.SetupFee,
