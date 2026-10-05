@@ -66,10 +66,10 @@ public static class DatabaseSeeder
         var superId=Guid.NewGuid();
         db.Outlets.AddRange(
         new Outlet {
-            Id=fitId, Name="FitFood Bengaluru", Slug="fitfood", Subdomain="fitfood", City="Bengaluru", State="Karnataka", Pincode="560001", Latitude=12.9716, Longitude=77.5946, ServiceRadiusKm=20, Status=OutletStatus.Active, BillingPlan=BillingPlan.Growth, LogoUrl="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=160&q=80", HeroImageUrl="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1200&q=85", HealthHighlights="Grilled,Cold Pressed Oil,High Protein,Exotic Bowls,Fresh Ingredients"
+            Id=fitId, Name="FitFood Bengaluru", Slug="fitfood", Subdomain="fitfood", City="Bengaluru", State="Karnataka", Pincode="560001", Latitude=12.9716, Longitude=77.5946, ServiceRadiusKm=20, Status=OutletStatus.Live, BillingPlan=BillingPlan.Growth, LogoUrl="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=160&q=80", HeroImageUrl="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1200&q=85", HealthHighlights="Grilled,Cold Pressed Oil,High Protein,Exotic Bowls,Fresh Ingredients"
         },
         new Outlet {
-            Id=abcId, Name="ABC Healthy Meals Mumbai", Slug="abc", Subdomain="abc", City="Mumbai", State="Maharashtra", Pincode="400001", Latitude=19.076, Longitude=72.8777, ServiceRadiusKm=20, Status=OutletStatus.Active, BillingPlan=BillingPlan.Starter, PrimaryColor="#166534", LogoUrl="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=160&q=80", HeroImageUrl="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=85", HealthHighlights="Fresh Ingredients,Balanced Nutrition,Vegetarian Friendly,High Protein"
+            Id=abcId, Name="ABC Healthy Meals Mumbai", Slug="abc", Subdomain="abc", City="Mumbai", State="Maharashtra", Pincode="400001", Latitude=19.076, Longitude=72.8777, ServiceRadiusKm=20, Status=OutletStatus.Live, BillingPlan=BillingPlan.Starter, PrimaryColor="#166534", LogoUrl="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=160&q=80", HeroImageUrl="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=85", HealthHighlights="Fresh Ingredients,Balanced Nutrition,Vegetarian Friendly,High Protein"
         });
         db.Users.AddRange(
         new User {
