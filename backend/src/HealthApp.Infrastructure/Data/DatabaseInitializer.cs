@@ -219,6 +219,28 @@ IF COL_LENGTH('dbo.Subscriptions','RestaurantGstMode') IS NULL
     ALTER TABLE dbo.Subscriptions ADD RestaurantGstMode int NOT NULL CONSTRAINT DF_Subscriptions_RestaurantGstMode DEFAULT 0;
 IF COL_LENGTH('dbo.Subscriptions','RestaurantTaxableAmount') IS NULL
     ALTER TABLE dbo.Subscriptions ADD RestaurantTaxableAmount decimal(18,2) NOT NULL CONSTRAINT DF_Subscriptions_RestaurantTaxableAmount DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','PackageStatus') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PackageStatus nvarchar(40) NOT NULL CONSTRAINT DF_Subscriptions_PackageStatus DEFAULT 'Active';
+IF COL_LENGTH('dbo.Subscriptions','IsOutletCreated') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD IsOutletCreated bit NOT NULL CONSTRAINT DF_Subscriptions_IsOutletCreated DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','CreatedByOutletUserId') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD CreatedByOutletUserId uniqueidentifier NULL;
+IF COL_LENGTH('dbo.Subscriptions','OutletDiscountType') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD OutletDiscountType int NOT NULL CONSTRAINT DF_Subscriptions_OutletDiscountType DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','OutletDiscountValue') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD OutletDiscountValue decimal(18,2) NOT NULL CONSTRAINT DF_Subscriptions_OutletDiscountValue DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','OutletDiscountReason') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD OutletDiscountReason nvarchar(500) NOT NULL CONSTRAINT DF_Subscriptions_OutletDiscountReason DEFAULT '';
+IF COL_LENGTH('dbo.Subscriptions','PaymentMethod') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PaymentMethod nvarchar(40) NOT NULL CONSTRAINT DF_Subscriptions_PaymentMethod DEFAULT 'Online';
+IF COL_LENGTH('dbo.Subscriptions','PaidByUserId') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PaidByUserId uniqueidentifier NULL;
+IF COL_LENGTH('dbo.Subscriptions','PaidAtUtc') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PaidAtUtc datetime2 NULL;
+IF COL_LENGTH('dbo.Subscriptions','AcceptedAtUtc') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD AcceptedAtUtc datetime2 NULL;
+IF COL_LENGTH('dbo.Subscriptions','SentAtUtc') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD SentAtUtc datetime2 NULL;
 IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantGstRate') IS NULL
     ALTER TABLE dbo.OrderFinancialBreakdowns ADD RestaurantGstRate decimal(9,4) NOT NULL CONSTRAINT DF_OrderFinancialBreakdowns_RestaurantGstRate DEFAULT 5;
 IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantGstMode') IS NULL
