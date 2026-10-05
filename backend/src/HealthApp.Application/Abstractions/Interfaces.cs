@@ -20,10 +20,13 @@ public interface IOutletBrandingRepository
 public interface IOutletDomainRepository
 {
     Task<OutletDomain?> GetActiveByHostnameAsync(string hostname);
+    Task<OutletDomain?> GetByHostnameAsync(string hostname);
     Task<IReadOnlyList<OutletDomain>> GetByOutletAsync(Guid outletId);
+    Task<IReadOnlyList<OutletDomain>> GetAllAsync();
     Task AddAsync(OutletDomain domain);
     Task UpdateAsync(OutletDomain domain);
 }
+
 
 public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); Task<Outlet?> GetByIdAsync(Guid id); Task<Outlet?> GetBySlugAsync(string slug); Task<Outlet?> GetBySubdomainAsync(string subdomain); Task AddAsync(Outlet outlet); Task UpdateAsync(Outlet outlet); }
 public interface ISaaSPlanRepository { Task<IReadOnlyList<SaaSPlan>> GetActiveAsync(); Task<SaaSPlan?> GetAsync(Guid id); }
@@ -89,6 +92,8 @@ public interface ICustomerService { Task<UserDto?> GetProfileAsync(); Task<Custo
 public interface IOutletSettingsService
 {
     Task<OutletSettingsDto?> GetAsync();
+    Task<IReadOnlyList<OutletDomainDto>> GetDomainsAsync();
+    Task<OutletDomainDto> RequestDomainAsync(RequestOutletDomainRequest request);
     Task<OutletSettingsDto?> UpdateDeliveryDaysAsync(UpdateOutletSettingsRequest request);
     Task<OutletBrandingDto?> UpdateBrandingAsync(UpdateOutletBrandingRequest request);
     Task<OutletBrandingDto?> UpdateBrandingAssetAsync(string assetType, string url);
@@ -98,7 +103,15 @@ public interface IOutletSettingsService
 }
 
 public interface IOutletService { Task<OutletTaxSettingsDto?> GetTaxSettingsAsync(); Task<OutletTaxSettingsDto?> UpdateTaxSettingsAsync(UpdateOutletTaxSettingsRequest request); Task<OutletDashboardDto> GetDashboardAsync(); Task<OutletSubscriptionDetailDto?> GetSubscriptionDetailAsync(Guid subscriptionId); Task<OutletKitchenDayDto> GetKitchenDayAsync(DateTime date); Task<OutletBillingDto?> GetBillingAsync(); Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync(); Task<OutletBillingDto?> ChangeSubscriptionAsync(ChangeOutletSubscriptionRequest request); Task<OutletDto?> GetCurrentAsync(); Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(); Task<MealPlanDto?> CreatePlanAsync(CreateMealPlanRequest request); Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(string? category); Task<RecipeDto?> CreateRecipeAsync(CreateRecipeRequest request); Task<RecipeDto?> UpdateRecipeAsync(Guid recipeId, UpdateRecipeRequest request); Task<bool> DeleteRecipeAsync(Guid recipeId); Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(); Task<IReadOnlyList<MenuItemDto>> SaveMenuAsync(BulkMenuRequest request); Task<IReadOnlyList<UserDto>> GetCustomersAsync(); Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync(); Task<IReadOnlyList<OrderDto>> GetOrdersAsync(); Task<IReadOnlyList<DeliveryDto>> GetDeliveriesAsync(); }
-public interface IAdminService { Task<IReadOnlyList<OutletDto>> GetOutletsAsync(); Task<IReadOnlyList<UserDto>> GetUsersAsync(); Task<object> GetDashboardAsync(); Task<PlatformRevenueDto> GetRevenueAsync(); }
+public interface IAdminService
+{
+    Task<IReadOnlyList<OutletDto>> GetOutletsAsync();
+    Task<IReadOnlyList<UserDto>> GetUsersAsync();
+    Task<object> GetDashboardAsync();
+    Task<PlatformRevenueDto> GetRevenueAsync();
+    Task<IReadOnlyList<OutletDomainDto>> GetOutletDomainsAsync();
+    Task<OutletDomainDto> SetOutletDomainStatusAsync(Guid domainId, OutletDomainStatus status);
+}
 
 
 public interface ICustomerProfileRepository { Task<CustomerProfile?> GetAsync(Guid customerId); Task AddOrUpdateAsync(CustomerProfile profile); }
