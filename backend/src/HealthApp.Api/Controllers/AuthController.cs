@@ -1,7 +1,7 @@
 using HealthApp.Application.Abstractions;
 using HealthApp.Shared.DTOs;
 using Microsoft.AspNetCore.Authorization;
-using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 namespace HealthApp.Api.Controllers;
 [ApiController,Route("api/auth")] public sealed class AuthController(IAuthService auth):ControllerBase {
