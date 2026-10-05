@@ -105,7 +105,8 @@ public sealed class OutletSettingsService(
             ? await cloudflarePages.EnsureDomainAsync(hostname)
             : null;
 
-        ApplyProviderState(domain, providerState);
+        if (providerState is not null)
+            ApplyProviderState(domain, providerState);
 
         if (existing is null)
             await domains.AddAsync(domain);
