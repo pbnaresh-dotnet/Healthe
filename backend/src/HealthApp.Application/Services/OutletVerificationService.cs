@@ -53,7 +53,7 @@ public sealed class OutletVerificationService(
             slug = $"{slugBase}-{counter++}";
 
         var plan = await plans.GetAsync(x.SaaSPlanId) ?? throw new KeyNotFoundException("Subscription plan not found.");
-        var billingPlan = Enum.TryParse<BillingPlan>(plan.Name, true, out var bp) ? bp : BillingPlan.Growth;
+        var billingPlan = plan.Name.Trim().ToLowerInvariant() switch { "professional" or "scale" => BillingPlan.Scale, "growth" => BillingPlan.Growth, _ => BillingPlan.Starter };
         var outlet = new Outlet
         {
             Id = Guid.NewGuid(),
