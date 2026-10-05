@@ -49,6 +49,9 @@ public sealed class OutletBrandingRepository(HealthAppDbContext db) : EfReposito
 
 public sealed class OutletDomainRepository(HealthAppDbContext db) : EfRepository(db), IOutletDomainRepository
 {
+    public Task<OutletDomain?> GetAsync(Guid id) =>
+        db.OutletDomains.Include(x => x.Outlet).FirstOrDefaultAsync(x => x.Id == id);
+
     public Task<OutletDomain?> GetActiveByHostnameAsync(string hostname)
     {
         var value = hostname.Trim().TrimEnd('.').ToLowerInvariant();
