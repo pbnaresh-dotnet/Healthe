@@ -8,6 +8,7 @@ public record CreateOutletCustomerRequest(
 
 public record OutletPackageQuoteRequest(
     Guid CustomerId,
+    Guid OutletId,
     string DeliveryMode,
     string Duration,
     IReadOnlyList<MealSelectionItem> Selections,
