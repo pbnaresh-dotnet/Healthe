@@ -1429,3 +1429,9 @@ textarea{resize:vertical}
 @keyframes skipFadeIn{from{opacity:0}to{opacity:1}}
 @keyframes skipPopIn{from{opacity:0;transform:translateY(5px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:560px){.skipConfirmModal{grid-template-columns:42px 1fr;gap:10px;padding:14px;border-radius:15px}.skipConfirmIcon{width:42px;height:42px;border-radius:12px;font-size:15px}.skipConfirmContent h3{font-size:14px}.skipConfirmContent p{font-size:8px}.skipFeeCard{margin-top:9px}.skipConfirmActions{margin-top:12px}.skipConfirmActions button{font-size:8px;padding:8px 10px}}
+
+.publicHome[data-public-tenant-root] .primary,.publicOutletHome .primary{background:var(--brand-primary,#14532d);border-color:var(--brand-primary,#14532d)}
+.publicHome[data-public-tenant-root] .chip.active{background:var(--brand-primary,#14532d);border-color:var(--brand-primary,#14532d);color:#fff}
+.publicHome[data-public-tenant-root] .publicHeroCallout{border-color:color-mix(in srgb,var(--brand-primary,#14532d) 22%,#dfe9e2)}
+.publicOutletHome .publicOutletSlots button.active{border-color:var(--brand-primary,#14532d);color:var(--brand-primary,#14532d)}
+.publicOutletHome .publicOutletTagline{font-size:clamp(15px,1.8vw,22px);font-weight:700;line-height:1.25;margin:8px 0 2px;color:#f5fff7}
