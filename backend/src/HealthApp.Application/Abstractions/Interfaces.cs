@@ -18,6 +18,7 @@ public interface IPlatformTransactionRepository { Task AddAsync(PlatformTransact
 public interface IOutletOnboardingRepository
 {
     Task<OutletOnboardingApplication?> GetAsync(Guid id);
+    Task<OutletOnboardingApplication?> GetByUserIdAsync(Guid userId);
     Task<IReadOnlyList<OutletOnboardingApplication>> GetByStatusAsync(string status);
     Task AddAsync(OutletOnboardingApplication application);
     Task UpdateAsync(OutletOnboardingApplication application);
@@ -27,6 +28,10 @@ public interface IOutletOnboardingService
 {
     Task<IReadOnlyList<SaaSPlanDto>> GetPlansAsync();
     Task<OutletOnboardingSessionDto> StartPaymentAsync(OutletOnboardingPaymentRequest request);
+    Task<OutletOnboardingDto?> GetCurrentAsync();
+    Task<OutletOnboardingDto?> SaveCurrentDetailsAsync(SaveOutletOnboardingDetailsRequest request);
+    Task<OutletOnboardingDocumentDto?> UploadCurrentDocumentAsync(string documentType, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default);
+    Task<OutletOnboardingDto?> SubmitCurrentAsync();
     Task<OutletOnboardingDto?> GetAsync(Guid id, string accessKey);
     Task<OutletOnboardingDto?> SaveDetailsAsync(Guid id, string accessKey, SaveOutletOnboardingDetailsRequest request);
     Task<OutletOnboardingDocumentDto?> UploadDocumentAsync(Guid id, string accessKey, string documentType, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default);
