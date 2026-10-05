@@ -67,6 +67,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID
     ALTER TABLE dbo.PlatformTransactions ADD CONSTRAINT FK_PlatformTransactions_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Deliveries') AND referenced_object_id = OBJECT_ID('dbo.Users'))
     ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.OutletOnboardingApplications') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.OutletOnboardingApplications ADD CONSTRAINT FK_OutletOnboardingApplications_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.OutletOnboardingApplications') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.OutletOnboardingApplications ADD CONSTRAINT FK_OutletOnboardingApplications_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
 ", cancellationToken);
 
         await db.Database.ExecuteSqlRawAsync(@"
