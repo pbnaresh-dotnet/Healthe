@@ -444,7 +444,7 @@ public sealed class DeliveryLabelService(
                     slot.Name,
                     slot.Window,
                     outlet.Name,
-                    outlet.LogoUrl,
+                    string.IsNullOrWhiteSpace(outlet.Branding?.LogoUrl) ? outlet.LogoUrl : outlet.Branding.LogoUrl,
                     customer is null
                         ? delivery.CustomerName
                         : $"{customer.FirstName} {customer.LastName}".Trim(),
