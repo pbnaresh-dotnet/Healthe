@@ -59,6 +59,7 @@ public interface IFileStorage { Task<FileStorageResult> UploadAsync(Stream conte
 public interface IGeocodingService { Task<ReverseGeocodeDto?> ReverseAsync(double latitude, double longitude, CancellationToken cancellationToken = default); }
 public interface IPasswordService { string Hash(string password); bool Verify(string password, string hash); }
 public interface ICurrentUser { Guid? UserId { get; } Guid? OutletId { get; } string? Role { get; } bool IsAuthenticated { get; } }
+public interface ITenantContext { Guid? OutletId { get; } string? OutletSlug { get; } bool IsResolved { get; } void Set(Guid outletId, string outletSlug); }
 public interface IAuthService { Task<AuthResponse?> LoginAsync(LoginRequest request); Task<AuthResponse> RegisterAsync(RegisterRequest request); }
 public interface IEmailService { Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default); }
 public interface IOutletDemoService { Task<OutletDemoRequestDto> RequestAsync(RequestOutletDemoRequest request, CancellationToken cancellationToken = default); }
