@@ -112,12 +112,13 @@ public sealed class OutletSettingsService(
         else
             await domains.UpdateAsync(domain);
 
-        return MapDomain(domain, baseDomain);
+        return MapDomain(domain, baseDomain, providerState);
     }
 
     public async Task<OutletDomainDto> VerifyDomainAsync(Guid domainId, bool activateIfReady = false)
     {
-        if (current.OutletId is not Guid outletId) throw new UnauthorizedAccessException("The current user is not associated with an outlet.");
+        if (current.OutletId is not Guid outletId)
+            throw new UnauthorizedAccessException("The current user is not associated with an outlet.");
 
         var domain = await domains.GetAsync(domainId) ?? throw new KeyNotFoundException("Outlet domain not found.");
         if (domain.OutletId != outletId)
@@ -126,41 +127,39 @@ public sealed class OutletSettingsService(
         var outlet = domain.Outlet ?? await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
         var baseDomain = NormalizeHostname(domainSettings.Value.PlatformBaseDomain);
 
+        CloudflarePagesDomainState? providerState = null;
         if (cloudflarePages.IsEnabled)
-            ApplyProviderState(domain, await cloudflarePages.GetDomainAsync(domain.Hostname));
-
-        if (IsProviderVerified(domain))
         {
-            domain.VerifiedAtUtc ??= DateTime.UtcNow;
-            domain.Status = activateIfReady && outlet.Status == OutletStatus.Live &&
-                await outletSubscriptions.GetByOutletAsync(outletId) is { Status: "Active" }
-                ? OutletDomainStatus.Active
-                : OutletDomainStatus.Verified;
+            providerState = await cloudflarePages.GetDomainAsync(domain.Hostname);
+            if (providerState is null)
+                throw new InvalidOperationException("Cloudflare Pages has not attached this domain yet.");
+            ApplyProviderState(domain, providerState);
+
+            if (IsCloudflareActive(providerState))
+            {
+                domain.VerifiedAtUtc ??= DateTime.UtcNow;
+                domain.Status = activateIfReady && outlet.Status == OutletStatus.Live &&
+                    await outletSubscriptions.GetByOutletAsync(outletId) is { Status: "Active" }
+                    ? OutletDomainStatus.Active
+                    : OutletDomainStatus.Verified;
+            }
+        }
+        else
+        {
+            throw new InvalidOperationException("Cloudflare Pages integration is not enabled. Configure it before checking DNS verification.");
         }
 
         await domains.UpdateAsync(domain);
-        return MapDomain(domain, baseDomain);
+        return MapDomain(domain, baseDomain, providerState);
     }
 
-    private static bool IsProviderVerified(OutletDomain domain) =>
-        string.Equals(domain.VerificationRecordName, "", StringComparison.Ordinal) == false &&
-        string.Equals(domain.Status.ToString(), OutletDomainStatus.Pending.ToString(), StringComparison.OrdinalIgnoreCase) == false
-            ? true
-            : !string.IsNullOrWhiteSpace(domain.VerificationRecordName);
-
-    private static void ApplyProviderState(OutletDomain domain, CloudflarePagesDomainState? state)
+    private static void ApplyProviderState(OutletDomain domain, CloudflarePagesDomainState state)
     {
-        if (state is null) return;
-
         domain.VerificationRecordName = state.TxtName ?? domain.VerificationRecordName;
         domain.VerificationToken = state.TxtValue ?? domain.VerificationToken;
 
         if (IsCloudflareActive(state))
-        {
             domain.VerifiedAtUtc ??= DateTime.UtcNow;
-            if (domain.Status == OutletDomainStatus.Pending)
-                domain.Status = OutletDomainStatus.Verified;
-        }
     }
 
     private static bool IsCloudflareActive(CloudflarePagesDomainState state) =>
@@ -168,7 +167,7 @@ public sealed class OutletSettingsService(
         string.Equals(state.ValidationStatus, "active", StringComparison.OrdinalIgnoreCase) &&
         string.Equals(state.VerificationStatus, "active", StringComparison.OrdinalIgnoreCase);
 
-    private static OutletDomainDto MapDomain(OutletDomain x, string baseDomain)
+    private OutletDomainDto MapDomain(OutletDomain x, string baseDomain, CloudflarePagesDomainState? providerState = null)
     {
         var isCustom = string.IsNullOrWhiteSpace(baseDomain) || !x.Hostname.EndsWith("." + baseDomain, StringComparison.OrdinalIgnoreCase);
         return new(
@@ -181,13 +180,13 @@ public sealed class OutletSettingsService(
             x.IsPrimary,
             x.CreatedAtUtc,
             x.VerifiedAtUtc,
-            string.IsNullOrWhiteSpace(x.VerificationRecordName) ? "TXT" : "TXT",
+            "TXT",
             x.VerificationRecordName,
             x.VerificationToken,
             cloudflarePages.IsEnabled ? "Cloudflare Pages" : "Manual",
-            "",
-            "",
-            null);
+            providerState?.Status ?? "not_checked",
+            providerState?.ValidationStatus ?? "not_checked",
+            providerState?.ValidationError ?? providerState?.VerificationError);
     }
 
     private static string NormalizeHostname(string? value)
