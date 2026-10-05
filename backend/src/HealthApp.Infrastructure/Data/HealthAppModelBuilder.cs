@@ -10,6 +10,7 @@ internal static class HealthAppModelBuilder
         b.HasDefaultSchema("dbo");
         ConfigureUser(b.Entity<User>());
         ConfigureOutlet(b.Entity<Outlet>());
+        ConfigureOutletBranding(b.Entity<OutletBranding>());
         ConfigureSaaSPlan(b.Entity<SaaSPlan>());
         ConfigureOutletSubscription(b.Entity<OutletSubscription>());
         ConfigureOutletOnboarding(b.Entity<OutletOnboardingApplication>());
@@ -118,6 +119,23 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.RestaurantGstMode).HasConversion<int>();
         e.HasIndex(x => x.Slug).IsUnique();
         e.HasIndex(x => x.Subdomain).IsUnique();
+    }
+    private static void ConfigureOutletBranding(EntityTypeBuilder<OutletBranding> e)
+    {
+        e.ToTable("OutletBrandings");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.BrandName).HasMaxLength(200).IsRequired();
+        e.Property(x => x.Tagline).HasMaxLength(300);
+        e.Property(x => x.LogoUrl).HasMaxLength(1000);
+        e.Property(x => x.HeroImageUrl).HasMaxLength(1000);
+        e.Property(x => x.FaviconUrl).HasMaxLength(1000);
+        e.Property(x => x.PrimaryColor).HasMaxLength(20);
+        e.Property(x => x.SecondaryColor).HasMaxLength(20);
+        e.Property(x => x.HealthHighlights).HasMaxLength(2000);
+        e.Property(x => x.About).HasMaxLength(4000);
+        e.Property(x => x.FooterText).HasMaxLength(1000);
+        e.HasIndex(x => x.OutletId).IsUnique();
+        e.HasOne<Outlet>().WithOne().HasForeignKey<OutletBranding>(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
     }
     private static void ConfigureSaaSPlan(EntityTypeBuilder<SaaSPlan> e)
     {
