@@ -49,6 +49,12 @@ public sealed class SaaSPlanRepository(HealthAppDbContext db) : EfRepository(db)
 public sealed class OutletSubscriptionRepository(HealthAppDbContext db) : EfRepository(db), IOutletSubscriptionRepository
 {
     public Task<OutletSubscription?> GetByOutletAsync(Guid outletId) => db.OutletSubscriptions.FirstOrDefaultAsync(x => x.OutletId == outletId && x.Status == "Active");
+    public async Task<IReadOnlySet<Guid>> GetActiveOutletIdsAsync() =>
+        (await db.OutletSubscriptions.AsNoTracking()
+            .Where(x => x.Status == "Active")
+            .Select(x => x.OutletId)
+            .ToListAsync())
+            .ToHashSet();
     public async Task AddAsync(OutletSubscription subscription) {
         db.OutletSubscriptions.Add(subscription);
         await SaveAsync();
