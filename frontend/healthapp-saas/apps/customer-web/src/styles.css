@@ -1233,3 +1233,16 @@ textarea{resize:vertical}
  .publicOutletSlots{grid-template-columns:repeat(2,1fr)}.publicOutletFilterRow{display:block}.publicOutletFilterRow>.linkBtn{margin-top:12px}
  .publicOutletMealGrid{grid-template-columns:1fr}.publicOutletAbout{grid-template-columns:1fr}
 }
+
+
+/* Live application loading progress */
+.appLoadingIndicator{position:fixed;inset:0;z-index:9999;pointer-events:none}
+.appLoadingBar{position:fixed;top:0;left:0;right:0;height:4px;background:rgba(20,92,45,.12);overflow:hidden}
+.appLoadingBar span{display:block;width:38%;height:100%;background:linear-gradient(90deg,transparent,#227744 25%,#5cab6d 65%,transparent);animation:healthAppLoading 1.15s ease-in-out infinite}
+.appLoadingPill{position:fixed;top:18px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:8px 13px;border:1px solid #d8e5da;border-radius:999px;background:rgba(255,255,255,.96);box-shadow:0 8px 28px rgba(31,59,39,.12);font-size:12px;color:#21452b;backdrop-filter:blur(8px)}
+.appLoadingPill b{font-weight:800}
+.appLoadingPill i{font-style:normal;color:#728077}
+.appLoadingSpinner{width:12px;height:12px;border:2px solid #d7e7d9;border-top-color:#227744;border-radius:50%;animation:healthAppSpin .7s linear infinite}
+@keyframes healthAppLoading{0%{transform:translateX(-120%)}100%{transform:translateX(280%)}}
+@keyframes healthAppSpin{to{transform:rotate(360deg)}}
+@media(max-width:600px){.appLoadingPill{top:12px;font-size:11px;padding:7px 11px}.appLoadingPill i{display:none}}
