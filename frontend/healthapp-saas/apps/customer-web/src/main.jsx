@@ -355,6 +355,16 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
 
 function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild}){
  const[slot,setSlot]=useState(1);
+ useEffect(()=>{
+   if(!outlet)return;
+   if(outlet.faviconUrl){
+     let link=document.querySelector('link[data-healthapp-favicon]');
+     if(!link){link=document.createElement('link');link.rel='icon';link.dataset.healthappFavicon='true';document.head.appendChild(link);}
+     link.href=getImg(outlet.faviconUrl);
+   }
+   document.title=outlet.tagline?outlet.name+' · '+outlet.tagline:outlet.name;
+   return()=>{document.title='HealthApp';};
+ },[outlet]);
  const[filter,setFilter]=useState('All');
  const healthy=outlet?.healthHighlights||[];
  const filtered=(menu||[]).filter(x=>Number(x.mealSlotValue)===slot).filter(x=>{
@@ -369,7 +379,7 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild}){
  });
  return <><LoadingIndicator active={busy} label="Loading outlet menu"/><div className="publicOutletHome">
    <header className="publicOutletTopbar">
-     <button className="publicBrand" type="button" onClick={onBack}><span className="brandMark">H</span><span><b>HealthApp</b><small>Healthy meals, built around you</small></span></button>
+     <button className="publicBrand" type="button" onClick={onBack}><span className="brandMark">{outlet?.logoUrl?<img src={getImg(outlet.logoUrl)} alt="" style={{width:28,height:28,objectFit:'cover',borderRadius:7}}/>:(outlet?.name||'H').slice(0,1).toUpperCase()}</span><span><b>{outlet?.name||'HealthApp'}</b><small>{outlet?.tagline||'Healthy meals, built around you'}</small></span></button>
      <div className="publicOutletTopActions"><button className="secondary" onClick={onBack}>← Find outlets</button><button className="primary" onClick={onBuild}>Build Package →</button></div>
    </header>
    <main>
@@ -378,6 +388,7 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild}){
        <div className="publicOutletHeroOverlay">
          <span className="publicEyebrow">HEALTHY LOCAL OUTLET</span>
          <h1>{outlet?.name}</h1>
+         {outlet?.tagline&&<div className="publicOutletTagline">{outlet.tagline}</div>}
          <p>{outlet?.city}, {outlet?.state}{outlet?.distanceKm?' · '+outlet.distanceKm+' km away':''}</p>
          <div className="publicOutletMeta"><span>★ <b>{Number(outlet?.rating||4.8).toFixed(1)}</b> ({outlet?.reviewCount||0} reviews)</span>{healthy.slice(0,4).map((h,i)=><span key={i}>✓ {h}</span>)}</div>
        </div>
