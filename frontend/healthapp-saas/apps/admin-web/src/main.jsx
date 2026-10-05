@@ -18,15 +18,17 @@ function App(){
  const openProtectedDocument=async url=>{
    const token=localStorage.getItem('ha_token');
    if(!token){setError('Your admin session has expired. Please sign in again.');return;}
+   const tab=window.open('about:blank','_blank');
+   if(!tab){setError('Please allow pop-ups to open protected documents.');return;}
    try{
      setLoading(true);
      const response=await fetch(fileUrl(url),{headers:{Authorization:`Bearer ${token}`}});
      if(!response.ok)throw new Error('Unable to open the document.');
      const blob=await response.blob();
      const objectUrl=URL.createObjectURL(blob);
-     window.open(objectUrl,'_blank','noopener,noreferrer');
+     tab.location.href=objectUrl;
      setTimeout(()=>URL.revokeObjectURL(objectUrl),60_000);
-   }catch(e){setError(e.message||'Unable to open the document.')}finally{setLoading(false)}
+   }catch(e){tab.close();setError(e.message||'Unable to open the document.')}finally{setLoading(false)}
  };
  const reload=async()=>{
    try{
