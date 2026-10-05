@@ -144,6 +144,7 @@ internal static class HealthAppModelBuilder
         e.HasKey(x => x.Id);
         e.Property(x => x.Hostname).HasMaxLength(253).IsRequired();
         e.Property(x => x.VerificationToken).HasMaxLength(128).IsRequired();
+        e.Property(x => x.VerificationRecordName).HasMaxLength(253).IsRequired();
         e.Property(x => x.Status).HasConversion<int>();
         e.HasIndex(x => x.Hostname).IsUnique();
         e.HasIndex(x => new { x.OutletId, x.Status });
