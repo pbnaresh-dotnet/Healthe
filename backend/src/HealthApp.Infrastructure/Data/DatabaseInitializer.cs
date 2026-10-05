@@ -372,12 +372,16 @@ BEGIN
         Id uniqueidentifier NOT NULL CONSTRAINT PK_OutletDomains PRIMARY KEY,
         OutletId uniqueidentifier NOT NULL,
         Hostname nvarchar(253) NOT NULL,
+        VerificationToken nvarchar(128) NOT NULL CONSTRAINT DF_OutletDomains_VerificationToken DEFAULT '',
         Status int NOT NULL CONSTRAINT DF_OutletDomains_Status DEFAULT 0,
         IsPrimary bit NOT NULL CONSTRAINT DF_OutletDomains_IsPrimary DEFAULT 0,
         CreatedAtUtc datetime2 NOT NULL CONSTRAINT DF_OutletDomains_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
         VerifiedAtUtc datetime2 NULL
     );
 END;
+
+IF COL_LENGTH('dbo.OutletDomains','VerificationToken') IS NULL
+    ALTER TABLE dbo.OutletDomains ADD VerificationToken nvarchar(128) NOT NULL CONSTRAINT DF_OutletDomains_VerificationToken_Compat DEFAULT '';
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletDomains_Hostname' AND object_id=OBJECT_ID('dbo.OutletDomains'))
     CREATE UNIQUE INDEX IX_OutletDomains_Hostname ON dbo.OutletDomains(Hostname);
