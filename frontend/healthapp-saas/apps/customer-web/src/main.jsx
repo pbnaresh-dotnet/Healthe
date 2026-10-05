@@ -26,13 +26,28 @@ const defaultWeekActiveDays=(startDate,duration)=>{
  }
  return result;
 };
-const addDays=(iso,n)=>{const d=new Date(iso+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
-const dateObj=iso=>new Date(iso+'T00:00:00');
 const normalizeMealDate=value=>String(value??'').slice(0,10);
-const weekStartForDate=iso=>{const d=dateObj(normalizeMealDate(iso));const day=d.getDay();d.setDate(d.getDate()-(day===0?6:day-1));return d.toISOString().slice(0,10)};
-const formatDate=iso=>new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short',year:'numeric'}).format(dateObj(iso));
-const shortDate=iso=>new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short'}).format(dateObj(iso));
-const dayId=iso=>dateObj(iso).getDay();
+// Date-only package dates must never depend on the browser's timezone.
+// Use UTC internally so 12-Oct always remains 12-Oct and Monday remains Monday.
+const dateObj=iso=>{
+ const value=normalizeMealDate(iso);
+ const [year,month,day]=value.split('-').map(Number);
+ return new Date(Date.UTC(year,month-1,day));
+};
+const addDays=(iso,n)=>{
+ const d=dateObj(iso);
+ d.setUTCDate(d.getUTCDate()+Number(n||0));
+ return d.toISOString().slice(0,10);
+};
+const weekStartForDate=iso=>{
+ const d=dateObj(iso);
+ const day=d.getUTCDay();
+ d.setUTCDate(d.getUTCDate()-(day===0?6:day-1));
+ return d.toISOString().slice(0,10);
+};
+const formatDate=iso=>new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'}).format(dateObj(iso));
+const shortDate=iso=>new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short',timeZone:'UTC'}).format(dateObj(iso));
+const dayId=iso=>dateObj(iso).getUTCDay();
 const slotName=id=>SLOT.find(x=>x.id===Number(id))?.label||'Meal';
 const dayName=id=>DAYS.find(x=>x.id===id)?.label||'Day';
 const key=(date,slot)=>date+'_'+slot;
@@ -585,7 +600,7 @@ function App(){
  const deleteAddress=async a=>{if(!confirm('Delete this address?'))return;await run(async()=>{await customer.deleteAddress(a.id);const next=global.addresses.filter(x=>x.id!==a.id);setGlobal(g=>({...g,addresses:next}));setSelectedAddressId(next[0]?.id||'');notify('Address deleted')})};
 
  const setBuilderDuration=value=>{const d=DURATIONS.find(x=>x.id===value)||DURATIONS[0];setBuilder(b=>{const nextWeekActiveDays=defaultWeekActiveDays(b.startDate,value);const city=(b.deliveryCity||b.outlet?.city||'').toLowerCase();const defaultAddress=global.addresses.find(a=>a.city?.toLowerCase()===city);const nextAddresses={...b.dayAddresses};for(let i=0;i<d.days;i++){const date=addDays(b.startDate,i);if(defaultAddress&&!nextAddresses[date])nextAddresses[date]=defaultAddress.id}return{...b,duration:value,weeks:d.weeks,weekActiveDays:nextWeekActiveDays,dayAddresses:nextAddresses,selections:Object.fromEntries(Object.entries(b.selections).filter(([k,v])=>{if(!v?.date)return false;return builderDateIndex(v.date,b.startDate)<d.days})),quote:null}})};
- const builderDateIndex=(date,start)=>{const a=dateObj(start),b=dateObj(date);return Math.round((b-a)/86400000)};
+ const builderDateIndex=(date,start)=>{const a=dateObj(start),b=dateObj(date);return Math.round((b.getTime()-a.getTime())/86400000)};
  const builderDays=useMemo(()=>Array.from({length:builder.weeks*7},(_,i)=>({date:addDays(builder.startDate,i),index:i,week:Math.floor(i/7)+1})),[builder.startDate,builder.weeks]);
  const menuMap=useMemo(()=>{const m={};for(const x of outletMenu){const k=key(x.dayOfWeek,x.mealSlotValue);(m[k]??=[]).push(x)}return m},[outletMenu]);
  const isActiveDay=(week,date)=>Boolean(builder.weekActiveDays[week]?.includes(dayId(date)));
