@@ -1117,7 +1117,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             RecipeId=x.Id,AllergenId=a
         });
         await recipes.AddAsync(x);
-        return (await recipes.GetAsync(x.Id)) is { } saved
+        return (await recipes.GetForOutletAsync(x.Id, id)) is { } saved
             ? Map(saved)
             : Map(x);
     }
@@ -1153,14 +1153,13 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             RecipeId=x.Id,AllergenId=a
         });
         await recipes.UpdateAsync(x);
-        return (await recipes.GetAsync(x.Id)) is { } saved
+        return (await recipes.GetForOutletAsync(x.Id, outletId)) is { } saved
             ? Map(saved)
             : Map(x);
     }
     public async Task<bool> DeleteRecipeAsync(Guid id) {
         if(current.OutletId is not Guid outletId)return false;
-        await recipes.DeleteAsync(id, outletId);
-        return true;
+        return await recipes.DeleteAsync(id, outletId);
     }
     public async Task<IReadOnlyList<MenuItemDto>> GetMenuAsync() {
         if(current.OutletId is not Guid id)return[];
