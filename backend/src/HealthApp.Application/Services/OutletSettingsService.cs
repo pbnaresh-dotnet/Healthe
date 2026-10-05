@@ -134,6 +134,10 @@ public sealed class OutletSettingsService(
             providerState = await cloudflarePages.GetDomainAsync(domain.Hostname);
             if (providerState is null)
                 throw new InvalidOperationException("Cloudflare Pages has not attached this domain yet.");
+
+            if (!IsCloudflareActive(providerState))
+                providerState = await cloudflarePages.RetryValidationAsync(domain.Hostname) ?? providerState;
+
             ApplyProviderState(domain, providerState);
 
             if (IsCloudflareActive(providerState))
