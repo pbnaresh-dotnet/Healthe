@@ -85,6 +85,19 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  const[trackingLocation,setTrackingLocation]=useState(false);
  const[publicOutlet,setPublicOutlet]=useState(null);
  const[tenantOutlet,setTenantOutlet]=useState(null);
+ useEffect(()=>{
+   if(!tenantOutlet)return;
+   if(tenantOutlet.faviconUrl){
+     let link=document.querySelector('link[data-healthapp-favicon]');
+     if(!link){link=document.createElement('link');link.rel='icon';link.dataset.healthappFavicon='true';document.head.appendChild(link);}
+     link.href=getImg(tenantOutlet.faviconUrl);
+   }
+   document.title=tenantOutlet.tagline?tenantOutlet.name+' · '+tenantOutlet.tagline:tenantOutlet.name;
+   const root=document.querySelector('[data-public-tenant-root]');
+   if(root){root.style.setProperty('--brand-primary',tenantOutlet.primaryColor||'#14532d');root.style.setProperty('--brand-secondary',tenantOutlet.secondaryColor||'#166534');}
+   return()=>{document.title='HealthApp';};
+ },[tenantOutlet]);
+
  const[publicOutletMenu,setPublicOutletMenu]=useState([]);
  const[publicOutletBusy,setPublicOutletBusy]=useState(false);
  const[publicOutletError,setPublicOutletError]=useState('');
@@ -279,9 +292,9 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
 
  if(publicOutlet&&!guestBuilderOpen) return <PublicOutletHome outlet={publicOutlet} menu={publicOutletMenu} busy={publicOutletBusy} error={publicOutletError} onBack={()=>setPublicOutlet(null)} onBuild={openGuestBuilder}/>;
 
- return <><LoadingIndicator active={publicMapBusy||publicOutletBusy} label={publicOutletBusy?'Loading outlet menu':'Finding outlets'}/><div className="publicHome">
+ return <><LoadingIndicator active={publicMapBusy||publicOutletBusy} label={publicOutletBusy?'Loading outlet menu':'Finding outlets'}/><div className="publicHome" data-public-tenant-root={TENANT_OUTLET_SLUG||undefined} style={TENANT_OUTLET_SLUG?{'--brand-primary':tenantOutlet?.primaryColor||'#14532d','--brand-secondary':tenantOutlet?.secondaryColor||'#166534'}:undefined}>
    <header className="publicNav">
-     <button className="publicBrand" type="button" onClick={()=>goTo('public-top')}><span className="brandMark">{(tenantOutlet?.name||'HealthApp').slice(0,1).toUpperCase()}</span><span><b>{tenantOutlet?.name||'HealthApp'}</b><small>{tenantOutlet?'Healthy meals, prepared fresh for you':'Healthy meals, built around you'}</small></span></button>
+     <button className="publicBrand" type="button" onClick={()=>goTo('public-top')}><span className="brandMark">{tenantOutlet?.logoUrl?<img src={getImg(tenantOutlet.logoUrl)} alt="" style={{width:30,height:30,objectFit:'cover',borderRadius:7}}/>:(tenantOutlet?.name||'HealthApp').slice(0,1).toUpperCase()}</span><span><b>{tenantOutlet?.name||'HealthApp'}</b><small>{tenantOutlet?'Healthy meals, prepared fresh for you':'Healthy meals, built around you'}</small></span></button>
      <nav className="publicNavLinks"><button onClick={()=>goTo('how-it-works')}>How it works</button>{!TENANT_OUTLET_SLUG&&<><button onClick={()=>goTo('plans')}>Meal Plans</button><button onClick={()=>goTo('outlets')}>Our Outlets</button></>}<button onClick={()=>goTo('why-healthapp')}>{TENANT_OUTLET_SLUG?'Why us':'Why HealthApp'}</button></nav>
      <div className="publicNavActions"><button className="secondary smallBtn" onClick={()=>openAuth('login')}>Sign in</button><button className="primary smallBtn" onClick={startRegistration}>Create account</button></div>
    </header>
@@ -289,8 +302,8 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
     <section className="publicHero">
       <div className="publicHeroImage"><img src={tenantOutlet?.heroImageUrl?getImg(tenantOutlet.heroImageUrl):IMAGE_FALLBACKS.hero} alt={tenantOutlet?.name||'Healthy meal bowl'} onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/><div className="publicHeroCallout"><b>{tenantOutlet?.name||'Good food.'}<br/>{tenantOutlet?'Healthy meals.':'Better days.'}</b><span>{tenantOutlet?.about||'Nutritious meals prepared fresh and delivered on schedule.'}</span></div></div>
       <div className="publicHeroCopy">
-        <span className="publicEyebrow">HEALTHY MEAL SUBSCRIPTION</span><h1>Healthy Meals.<br/>Happier You.</h1>
-        <p>Discover healthy meal subscriptions from trusted local outlets. Choose where you want delivery, explore plans and let your selected outlet do the rest.</p>
+        <span className="publicEyebrow">{tenantOutlet?.name||'HEALTHY MEAL SUBSCRIPTION'}</span><h1>{tenantOutlet?.tagline||<>Healthy Meals.<br/>Happier You.</>}</h1>
+        <p>{tenantOutlet?.about||'Discover healthy meal subscriptions from trusted local outlets. Choose where you want delivery, explore plans and let your selected outlet do the rest.'}</p>
         <div className="publicLocationBar"><span>⌖</span><input value={location} onChange={e=>setLocation(e.target.value)} placeholder="Enter your delivery location"/><button className="primary" onClick={startWithLocation}>Find Meals →</button></div>
         <div className="publicHeroBadges"><span>✓ Healthy & balanced</span><span>✓ Trusted local outlets</span><span>✓ Flexible subscriptions</span><span>✓ Freshly prepared & delivered</span></div>
       </div>
