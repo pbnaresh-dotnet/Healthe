@@ -1,7 +1,7 @@
 namespace HealthApp.Domain.Enums;
 
 public enum UserRole { Customer, OutletAdmin, SuperAdmin, Driver }
-public enum OutletStatus { Pending, Active, Suspended }
+public enum OutletStatus { Pending, Active, Live, Suspended }
 public enum SubscriptionStatus { Active, Paused, Cancelled, Pending }
 public enum SubscriptionDeliveryMode { IndividualMealDelivery = 1, OneDeliveryPerDay = 2 }
 public enum SubscriptionDuration { OneWeek = 1, TwoWeeks = 2, OneMonth = 3, ThreeDays = 4, FiveDays = 5 }
