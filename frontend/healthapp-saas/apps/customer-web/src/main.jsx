@@ -370,13 +370,22 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild}){
  const[slot,setSlot]=useState(1);
  useEffect(()=>{
    if(!outlet)return;
+   const previousTitle=document.title;
+   let link=document.querySelector('link[data-healthapp-favicon]');
+   const previousFavicon=link?.getAttribute('href')||'';
+   let created=false;
    if(outlet.faviconUrl){
-     let link=document.querySelector('link[data-healthapp-favicon]');
-     if(!link){link=document.createElement('link');link.rel='icon';link.dataset.healthappFavicon='true';document.head.appendChild(link);}
+     if(!link){link=document.createElement('link');link.rel='icon';link.dataset.healthappFavicon='true';document.head.appendChild(link);created=true;}
      link.href=getImg(outlet.faviconUrl);
    }
    document.title=outlet.tagline?outlet.name+' · '+outlet.tagline:outlet.name;
-   return()=>{document.title='HealthApp';};
+   return()=>{
+     document.title=previousTitle;
+     if(link){
+       if(previousFavicon)link.href=previousFavicon;
+       else if(created)link.remove();
+     }
+   };
  },[outlet]);
  const[filter,setFilter]=useState('All');
  const healthy=outlet?.healthHighlights||[];
