@@ -244,6 +244,11 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.OutletAmount).HasPrecision(18,2);
         e.Property(x => x.Frequency).HasMaxLength(30);
         e.Property(x => x.Status).HasConversion<int>();
+        e.Property(x => x.PackageStatus).HasMaxLength(40);
+        e.Property(x => x.OutletDiscountType).HasConversion<int>();
+        e.Property(x => x.OutletDiscountValue).HasPrecision(18,2);
+        e.Property(x => x.OutletDiscountReason).HasMaxLength(500);
+        e.Property(x => x.PaymentMethod).HasMaxLength(40);
         e.HasIndex(x => new {
             x.CustomerId, x.Status
         });
