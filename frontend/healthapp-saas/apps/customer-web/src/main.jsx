@@ -62,6 +62,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  const[location,setLocation]=useState('');
  const[locationHint,setLocationHint]=useState('');
  const[guestBuilderOpen,setGuestBuilderOpen]=useState(false);
+ const[guestBuilderOutlet,setGuestBuilderOutlet]=useState(null);
  const[guestDuration,setGuestDuration]=useState('OneWeek');
  const[guestSelections,setGuestSelections]=useState({});
  const trackingRef=useRef(null);
@@ -138,6 +139,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  };
  const openGuestBuilder=()=>{
    if(!publicOutlet)return;
+   setGuestBuilderOutlet(publicOutlet);
    const days=publicBuilderDays();
    const first={};
    for(const d of days){
@@ -153,10 +155,10 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  const guestMealRows=Object.values(guestSelections).filter(Boolean);
  const guestSelectedCount=guestMealRows.length;
  const saveGuestDraftAndCreateAccount=()=>{
-   if(!publicOutlet||!guestSelectedCount)return;
+   if(!guestBuilderOutlet||!guestSelectedCount)return;
    try{
      sessionStorage.setItem('healthapp.guestPackageDraft',JSON.stringify({
-       outlet:publicOutlet,
+       outlet:guestBuilderOutlet,
        duration:guestDuration,
        startDate:nextMonday(),
        selections:Object.entries(guestSelections).filter(([,recipeId])=>recipeId).map(([k,recipeId])=>{
@@ -165,6 +167,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
      }));
    }catch{}
    setGuestBuilderOpen(false);
+   setGuestBuilderOutlet(null);
    setPublicOutlet(null);
    setLocationHint('Your package is ready. Create an account to add delivery details, allergy preferences and continue to payment.');
    openAuth('register');
@@ -273,7 +276,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
        <div className="publicGuestBuilderToolbar">
          <label><span>Package duration</span><select value={guestDuration} onChange={e=>{setGuestDuration(e.target.value);setGuestSelections({})}}>{DURATIONS.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}</select></label>
          <div className="publicGuestCount"><b>{guestSelectedCount}</b><span>meals selected</span></div>
-         <div className="publicGuestOutlet"><span>OUTLET</span><b>{publicOutlet?.name}</b><small>{publicOutlet?.city}</small></div>
+         <div className="publicGuestOutlet"><span>OUTLET</span><b>{guestBuilderOutlet?.name}</b><small>{guestBuilderOutlet?.city}</small></div>
        </div>
        <div className="publicGuestWeeks">
          {publicBuilderDays().map(d=><section className="publicGuestDay" key={d.date}>
