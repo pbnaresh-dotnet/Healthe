@@ -49,6 +49,16 @@ public sealed class OutletOnboardingController(IOutletOnboardingService service)
         return result is null ? Unauthorized() : Ok(result);
     }
 
+    [Authorize(Roles = "OutletAdmin")]
+    [HttpGet("me/documents/{documentType}")]
+    public async Task<IActionResult> CurrentDocument(string documentType)
+    {
+        var result = await service.GetCurrentDocumentAsync(documentType);
+        return result is null
+            ? NotFound(new { message = "The requested document was not found." })
+            : File(result.Content, result.ContentType, result.FileName);
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
     {
@@ -82,5 +92,15 @@ public sealed class OutletOnboardingController(IOutletOnboardingService service)
         var key = Request.Headers["X-Onboarding-Key"].ToString();
         var result = await service.SubmitAsync(id, key);
         return result is null ? Unauthorized() : Ok(result);
+    }
+
+    [HttpGet("{id:guid}/documents/{documentType}")]
+    public async Task<IActionResult> Document(Guid id, string documentType)
+    {
+        var key = Request.Headers["X-Onboarding-Key"].ToString();
+        var result = await service.GetDocumentAsync(id, key, documentType);
+        return result is null
+            ? Unauthorized()
+            : File(result.Content, result.ContentType, result.FileName);
     }
 }
