@@ -70,6 +70,8 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.HeroImageUrl).HasMaxLength(1000);
         e.Property(x => x.HealthHighlights).HasMaxLength(2000);
         e.Property(x => x.PrimaryColor).HasMaxLength(20);
+        e.Property(x => x.RestaurantGstRate).HasPrecision(9,4);
+        e.Property(x => x.RestaurantGstMode).HasConversion<int>();
         e.HasIndex(x => x.Slug).IsUnique();
         e.HasIndex(x => x.Subdomain).IsUnique();
     }
@@ -230,6 +232,8 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.PlatformServiceFee).HasPrecision(18,2);
         e.Property(x => x.PlatformServiceGst).HasPrecision(18,2);
         e.Property(x => x.RestaurantGstRate).HasPrecision(9,4);
+        e.Property(x => x.RestaurantGstMode).HasConversion<int>();
+        e.Property(x => x.RestaurantTaxableAmount).HasPrecision(18,2);
         e.Property(x => x.RestaurantGstAmount).HasPrecision(18,2);
         e.Property(x => x.LateSkipFee).HasPrecision(18,2);
         e.Property(x => x.Price).HasPrecision(18,2);
@@ -468,6 +472,9 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.DeliveryAmount).HasPrecision(18,2);
         e.Property(x => x.PlatformServiceFee).HasPrecision(18,2);
         e.Property(x => x.PlatformServiceGst).HasPrecision(18,2);
+        e.Property(x => x.RestaurantGstRate).HasPrecision(9,4);
+        e.Property(x => x.RestaurantGstMode).HasConversion<int>();
+        e.Property(x => x.RestaurantTaxableAmount).HasPrecision(18,2);
         e.Property(x => x.RestaurantGstAmount).HasPrecision(18,2);
         e.Property(x => x.LateSkipFee).HasPrecision(18,2);
         e.Property(x => x.CustomerPayable).HasPrecision(18,2);
