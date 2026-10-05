@@ -82,7 +82,7 @@ export default function OutletSettings({onNavigate}){
         <div>
           <b>{d.hostname}</b>
           <span>{d.type} domain · {d.status}{d.isPrimary?' · Primary':''}</span>
-          {d.type==='Custom'&&<small>Cloudflare: {d.providerStatus||'not checked'} · DNS: {d.providerValidationStatus||'not checked'}{d.providerError?' · '+d.providerError:''}</small>}
+          {d.type==='Custom'&&<small>Cloudflare: {d.providerStatus||'not checked'} · Validation: {d.providerValidationStatus||'not checked'}{d.providerError?' · '+d.providerError:''}</small>}
         </div>
         <div className="settingsRowActions">
           {d.type==='Custom'&&<><span className="pill">{d.status}</span>{d.status!=='Active'&&<button type="button" className="secondary" onClick={()=>verifyDomain(d.id)} disabled={saving}>Check DNS</button>}</>}
