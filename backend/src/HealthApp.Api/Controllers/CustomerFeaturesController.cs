@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HealthApp.Api.Controllers;
 
 [ApiController, Route("api/customer"), Authorize(Roles="Customer")]
-public sealed class CustomerFeaturesController(ICustomerProfileService profile, ICustomerAddressService addresses, IPaymentService payments, ICustomerLikedMealRepository likedMeals, IRecipeRepository recipes) : ControllerBase
+public sealed class CustomerFeaturesController(ICustomerProfileService profile, ICustomerAddressService addresses, IPaymentService payments, ICustomerLikedMealRepository likedMeals, IRecipeRepository recipes, ICurrentUser current) : ControllerBase
 {
     [HttpGet("profile/preferences")] public async Task<IActionResult> GetProfile() => Ok(await profile.GetAsync());
     [HttpPut("profile/preferences")] public async Task<IActionResult> SaveProfile(SaveCustomerProfileRequest request) => Ok(await profile.SaveAsync(request));
@@ -17,7 +17,10 @@ public sealed class CustomerFeaturesController(ICustomerProfileService profile, 
         var recipeIds = liked.Select(x => x.RecipeId).ToHashSet();
         if (recipeIds.Count == 0) return Ok(Array.Empty<CustomerLikedMealDto>());
 
-        var result = (await recipes.GetByIdsAsync(recipeIds))
+        if (current.OutletId is not Guid outletId)
+            return Ok(Array.Empty<CustomerLikedMealDto>());
+
+        var result = (await recipes.GetByIdsForOutletAsync(recipeIds, outletId))
             .Select(x => new CustomerLikedMealDto(x.Id, x.Name, x.ImageUrl, x.Calories, x.ProteinGrams, x.CarbsGrams, x.FatGrams, x.Category.ToString(), x.PricePerMeal, x.FiberGrams))
             .ToList();
         return Ok(result);
@@ -26,7 +29,10 @@ public sealed class CustomerFeaturesController(ICustomerProfileService profile, 
     [HttpPost("liked-meals/{recipeId:guid}")]
     public async Task<IActionResult> LikeMeal(Guid recipeId)
     {
-        var recipe = await recipes.GetAsync(recipeId);
+        if (current.OutletId is not Guid outletId)
+            return Forbid();
+
+        var recipe = await recipes.GetForOutletAsync(recipeId, outletId);
         if (recipe is null || !recipe.IsActive) return NotFound();
         var customerId = GetCustomerId();
         if (!await likedMeals.ExistsAsync(customerId, recipeId))
