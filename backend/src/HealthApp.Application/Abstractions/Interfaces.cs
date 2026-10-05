@@ -11,7 +11,7 @@ public interface ICatalogService { Task<IReadOnlyList<IngredientDto>> GetIngredi
 public interface IAllergySafetyService { Task<IReadOnlyList<AllergyWarningDto>> GetWarningsAsync(Guid customerId, IReadOnlyCollection<Recipe> recipes); Task EnsureConfirmedAsync(Guid customerId, IReadOnlyCollection<Recipe> recipes, IReadOnlyCollection<Guid>? confirmedRecipeIds); }
 
 public interface IUserRepository { Task<User?> FindByEmailAsync(string email); Task<User?> FindByIdAsync(Guid id); Task AddAsync(User user); Task<IReadOnlyList<User>> GetAllAsync(); }
-public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); Task<Outlet?> GetByIdAsync(Guid id); Task<Outlet?> GetBySlugAsync(string slug); Task<Outlet?> GetBySubdomainAsync(string subdomain); Task AddAsync(Outlet outlet); }
+public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); Task<Outlet?> GetByIdAsync(Guid id); Task<Outlet?> GetBySlugAsync(string slug); Task<Outlet?> GetBySubdomainAsync(string subdomain); Task AddAsync(Outlet outlet); Task UpdateAsync(Outlet outlet); }
 public interface ISaaSPlanRepository { Task<IReadOnlyList<SaaSPlan>> GetActiveAsync(); Task<SaaSPlan?> GetAsync(Guid id); }
 public interface IOutletSubscriptionRepository { Task<OutletSubscription?> GetByOutletAsync(Guid outletId); Task AddAsync(OutletSubscription subscription); Task UpdateAsync(OutletSubscription subscription); }
 public interface IPlatformTransactionRepository { Task AddAsync(PlatformTransaction transaction); Task<IReadOnlyList<PlatformTransaction>> GetAllAsync(); Task<bool> ExistsByReferenceAsync(string referenceId); }
