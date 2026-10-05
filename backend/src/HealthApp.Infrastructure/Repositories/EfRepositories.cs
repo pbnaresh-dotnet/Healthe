@@ -91,6 +91,7 @@ public sealed class RecipeRepository(HealthAppDbContext db) : EfRepository(db), 
     }
     public async Task<IReadOnlyList<Recipe>> GetByIdsAsync(IEnumerable<Guid> ids) => await Details(db.Recipes.AsNoTracking().Where(x => ids.Contains(x.Id))).ToListAsync();
     public Task<Recipe?> GetAsync(Guid id) => Details(db.Recipes.Where(x => x.Id == id)).FirstOrDefaultAsync();
+    public Task<Recipe?> GetForOutletAsync(Guid id, Guid outletId) => Details(db.Recipes.Where(x => x.Id == id && x.OutletId == outletId)).FirstOrDefaultAsync();
     public async Task AddAsync(Recipe recipe) {
         db.Recipes.Add(recipe);
         await SaveAsync();
@@ -102,6 +103,14 @@ public sealed class RecipeRepository(HealthAppDbContext db) : EfRepository(db), 
     public async Task DeleteAsync(Guid id)
     {
         var recipe = await db.Recipes.FirstOrDefaultAsync(x => x.Id == id);
+        if (recipe is null) return;
+        db.Recipes.Remove(recipe);
+        await SaveAsync();
+    }
+
+    public async Task DeleteAsync(Guid id, Guid outletId)
+    {
+        var recipe = await db.Recipes.FirstOrDefaultAsync(x => x.Id == id && x.OutletId == outletId);
         if (recipe is null) return;
         db.Recipes.Remove(recipe);
         await SaveAsync();
