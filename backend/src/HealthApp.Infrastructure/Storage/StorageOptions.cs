@@ -4,6 +4,7 @@ public sealed class StorageOptions
 {
     public string Provider { get; set; } = "Local";
     public string Container { get; set; } = "healthapp-media";
+    public string PrivateContainer { get; set; } = "healthapp-private";
     public string ConnectionString { get; set; } = "";
     public string AccountUrl { get; set; } = "";
     public string PublicBaseUrl { get; set; } = "";
