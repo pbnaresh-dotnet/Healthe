@@ -107,6 +107,7 @@ public interface ICloudflarePagesService
     bool IsEnabled { get; }
     Task<CloudflarePagesDomainState> EnsureDomainAsync(string hostname, CancellationToken cancellationToken = default);
     Task<CloudflarePagesDomainState?> GetDomainAsync(string hostname, CancellationToken cancellationToken = default);
+    Task<CloudflarePagesDomainState?> RetryValidationAsync(string hostname, CancellationToken cancellationToken = default);
 }
 public interface IAuthService { Task<AuthResponse?> LoginAsync(LoginRequest request); Task<AuthResponse> RegisterAsync(RegisterRequest request); }
 public interface IEmailService { Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default); }
