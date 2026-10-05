@@ -25,6 +25,10 @@ public sealed class OutletPackageActivationService(
         if (!subscription.IsOutletCreated)
             throw new InvalidOperationException("This subscription is not an outlet-created package.");
 
+        var customer = await users.FindByIdAsync(subscription.CustomerId);
+        if (customer is null || customer.Role != UserRole.Customer || customer.OutletId != subscription.OutletId)
+            throw new InvalidOperationException("The package customer is not associated with the package outlet.");
+
         if (subscription.PackageStatus == "Active" && subscription.Status == SubscriptionStatus.Active)
             return subscription;
 
@@ -59,7 +63,6 @@ public sealed class OutletPackageActivationService(
             var existingDeliveries = await deliveries.GetBySubscriptionAsync(subscription.Id);
             if (existingDeliveries.Count == 0)
             {
-                var customer = await users.FindByIdAsync(subscription.CustomerId);
                 var groups = subscription.DeliveryMode == SubscriptionDeliveryMode.OneDeliveryPerDay
                     ? mealRows.GroupBy(x => x.MealDate.Date).Select(g => g.ToList())
                     : mealRows.Select(x => new List<SubscriptionMealSelection> { x });
