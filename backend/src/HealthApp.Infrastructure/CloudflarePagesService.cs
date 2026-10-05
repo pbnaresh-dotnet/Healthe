@@ -32,7 +32,23 @@ public sealed class CloudflarePagesService(
             "application/json");
 
         using var response = await http.SendAsync(request, cancellationToken);
-        var payload = await ReadResponseAsync(response, cancellationToken);
+        using var payload = await ReadResponseAsync(response, cancellationToken);
+        return ParseDomain(payload, hostname);
+    }
+
+    public async Task<CloudflarePagesDomainState?> RetryValidationAsync(string hostname, CancellationToken cancellationToken = default)
+    {
+        if (!settings.Enabled)
+            return null;
+
+        EnsureConfigured();
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Patch,
+            $"/accounts/{Uri.EscapeDataString(settings.AccountId)}/pages/projects/{Uri.EscapeDataString(settings.ProjectName)}/domains/{Uri.EscapeDataString(hostname)}");
+
+        using var response = await http.SendAsync(request, cancellationToken);
+        using var payload = await ReadResponseAsync(response, cancellationToken);
         return ParseDomain(payload, hostname);
     }
 
@@ -50,7 +66,7 @@ public sealed class CloudflarePagesService(
         if (response.StatusCode == HttpStatusCode.NotFound)
             return null;
 
-        var payload = await ReadResponseAsync(response, cancellationToken);
+        using var payload = await ReadResponseAsync(response, cancellationToken);
         return ParseDomain(payload, hostname);
     }
 
