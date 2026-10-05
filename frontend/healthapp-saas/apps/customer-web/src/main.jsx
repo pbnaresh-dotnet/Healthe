@@ -315,7 +315,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
      onClose={()=>setGuestBuilderOpen(false)}
      onContinue={saveGuestDraftAndCreateAccount}
    />}
- </div></div>;
+ </div></>;
 }
 
 function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild}){
@@ -358,7 +358,7 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild}){
        <section className="publicOutletAbout"><div><span className="publicEyebrow">ABOUT THIS OUTLET</span><h2>{outlet?.name}</h2><p>{outlet?.about||'Fresh, healthy meals prepared with quality ingredients and balanced portions for your everyday routine.'}</p></div><div className="publicOutletAboutCard"><b>Delivery coverage</b><span>{outlet?.city}, {outlet?.state}</span><small>This outlet delivers within its configured service radius.</small></div></section>
      </section>
    </main>
- </div></div>;
+ </div></>;
 }
 
 function GuestPackageModal({outlet,menu,duration,setDuration,startDate,setStartDate,selections,setSelections,selectedCount,onClose,onContinue}){
@@ -399,7 +399,7 @@ function GuestPackageModal({outlet,menu,duration,setDuration,startDate,setStartD
        <button className="primary big" disabled={!selectedCount} onClick={onContinue}>Create account to continue →</button>
      </div>
    </div>
- </div></div>;
+ </div>;
 }
 
 
