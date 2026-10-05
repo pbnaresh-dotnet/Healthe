@@ -6,6 +6,12 @@ public sealed class OutletController(IOutletService service, IFileStorage fileSt
 {
  [HttpGet("settings")] public async Task<IActionResult> Settings()=>Ok(await settings.GetAsync());
  [HttpGet("settings/domains")] public async Task<IActionResult> Domains()=>Ok(await settings.GetDomainsAsync());
+ [HttpPost("settings/domains/{id:guid}/verify")] public async Task<IActionResult> VerifyDomain(Guid id, VerifyOutletDomainRequest request)
+ {
+     try { return Ok(await settings.VerifyDomainAsync(id, request.ActivateIfReady)); }
+     catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+     catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+ }
  [HttpPost("settings/domains")] public async Task<IActionResult> RequestDomain(RequestOutletDomainRequest request)
  {
      try { return Ok(await settings.RequestDomainAsync(request)); }
