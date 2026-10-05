@@ -479,6 +479,10 @@ public sealed class OrderFinancialBreakdown
         get;
         set;
     }
+    public decimal RestaurantTaxableAmount {
+        get;
+        set;
+    }
     public decimal RestaurantGstAmount {
         get;
         set;
@@ -1111,6 +1115,14 @@ public sealed class Subscription
         set;
     }
     public decimal RestaurantGstRate {
+        get;
+        set;
+    }
+    public GstMode RestaurantGstMode {
+        get;
+        set;
+    } = GstMode.Exclusive;
+    public decimal RestaurantTaxableAmount {
         get;
         set;
     }
