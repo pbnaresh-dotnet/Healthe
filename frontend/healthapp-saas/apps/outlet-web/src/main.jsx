@@ -1,7 +1,7 @@
 
 import React,{useEffect,useMemo,useState}from'react';
 import{createRoot}from'react-dom/client';
-import{auth,outletAdmin,catalog,locations,currentUser,money,API_URL}from'@healthapp/shared';
+import{auth,outletAdmin,catalog,locations,currentUser,money,API_URL,outletDemo}from'@healthapp/shared';
 import{MapContainer,TileLayer,CircleMarker,Popup,Polyline,useMap,useMapEvents}from'react-leaflet';
 import'leaflet/dist/leaflet.css';
 import'./styles.css';
@@ -62,15 +62,22 @@ function MiniDashboard(){
  </div>
 }
 
-function LandingPage({onLogin,onRegister}){
+
+function DemoRequestModal({onClose}){
+ const[email,setEmail]=useState(''),[businessName,setBusinessName]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
+ const submit=async e=>{e.preventDefault();try{setBusy(true);setError('');setMessage('');await outletDemo.request({email,businessName:businessName||null});setMessage('Your 7-day demo account has been created. Login details have been sent to your email.');}catch(x){setError(x.message||'Unable to create demo account.')}finally{setBusy(false)}};
+ return <div className="demoModalBackdrop" role="dialog" aria-modal="true" onMouseDown={e=>e.target===e.currentTarget&&!busy&&onClose()}><div className="demoModal"><div className="demoModalHead"><div><span className="landingKicker">FREE 7-DAY DEMO</span><h2>See HealthApp from the inside.</h2><p>We create a temporary outlet account and email the login details so you can explore the real workflow.</p></div><button type="button" className="iconBtn" onClick={onClose} disabled={busy}>×</button></div>{message?<div className="demoSuccess"><b>✓ Demo account ready</b><span>{message}</span><small>Use the email address you entered to sign in. Demo access automatically expires after 7 days.</small><button type="button" className="primary" onClick={onClose}>Done</button></div>:<form onSubmit={submit}><label className="field"><span>Business / outlet name</span><input value={businessName} onChange={e=>setBusinessName(e.target.value)} placeholder="Example: Fit Food Kitchen"/></label><label className="field"><span>Email address *</span><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@yourbusiness.com" required/></label>{error&&<div className="error">{error}</div>}<div className="demoIncludes"><b>What you can explore</b><span>✓ Add customers & delivery addresses</span><span>✓ Create meal subscriptions and packages</span><span>✓ Add drivers and plan deliveries</span><span>✓ Manage recipes, menus and kitchen orders</span></div><div className="demoModalActions"><button type="button" className="secondary" onClick={onClose} disabled={busy}>Cancel</button><button className="primary big" disabled={busy||!email}>{busy?'Creating demo…':'Send me the demo login →'}</button></div></form>}</div></div>;
+}
+
+function LandingPage({onLogin,onRegister,onDemo}){
  return <div className="landingPage">
-  <header className="landingNav"><div className="landingNavBrand"><span className="brandMark">H</span><div><b>HealthApp</b><small>For healthy food outlets</small></div></div><nav><a href="#how">How It Works</a><a href="#features">Features</a><a href="#why">Why HealthApp</a><a href="#success">Success Stories</a><a href="#pricing">Pricing</a></nav><div className="landingNavActions"><button className="secondary" type="button" onClick={onLogin}>Login</button><button className="primary" type="button" onClick={onRegister}>Register Your Outlet →</button></div></header>
+  <header className="landingNav"><div className="landingNavBrand"><span className="brandMark">H</span><div><b>HealthApp</b><small>For healthy food outlets</small></div></div><nav><a href="#how">How It Works</a><a href="#features">Features</a><a href="#why">Why HealthApp</a><a href="#success">Success Stories</a><a href="#pricing">Pricing</a></nav><div className="landingNavActions"><button className="secondary" type="button" onClick={onLogin}>Login</button><button className="secondary demoNavButton" type="button" onClick={onDemo}>Request a Demo</button><button className="primary" type="button" onClick={onRegister}>Register Your Outlet →</button></div></header>
   <section className="landingHero">
    <div className="landingHeroCopy">
     <span className="landingKicker">🌱 BUILT FOR HEALTHY FOOD BUSINESSES</span>
     <h1>More orders.<br/>Less waste.<br/><em>A healthier business.</em></h1>
     <p>HealthApp helps outlets grow with subscription-based orders, smarter kitchen planning, organised deliveries and loyal health-conscious customers — all in one simple platform.</p>
-    <div className="landingHeroActions"><button className="primary landingPrimaryCta" type="button" onClick={onRegister}>Register Your Outlet →</button><button className="secondary landingDemoCta" type="button" onClick={()=>document.getElementById('features')?.scrollIntoView({behavior:'smooth'})}>See how it helps ▷</button></div>
+    <div className="landingHeroActions"><button className="primary landingPrimaryCta" type="button" onClick={onRegister}>Register Your Outlet →</button><button className="secondary landingDemoCta" type="button" onClick={onDemo}>Request a 7-day Demo ▷</button></div>
     <div className="landingChecks"><span>✓ Subscription-based orders</span><span>✓ Reduce food waste</span><span>✓ Grow repeat customers</span></div>
    </div>
    <div className="landingHeroVisual"><div className="landingGlow"></div><MiniDashboard/><div className="landingFloat landingFloatOrders"><b>42</b><span>orders planned</span><i>↑ 18%</i></div><div className="landingFloat landingFloatWaste"><b>Better prep</b><span>Plan ingredients from pre-orders</span></div></div>
@@ -88,7 +95,7 @@ function LandingPage({onLogin,onRegister}){
 
 
 function App(){
- const[user,setUser]=useState(currentUser()),[login,setLogin]=useState({email:'admin@fitfood.test',password:'demo'}),[active,setActive]=useState('dashboard'),[dash,setDash]=useState(null),[showOnboarding,setShowOnboarding]=useState(false),[showLogin,setShowLogin]=useState(false),[verificationApp,setVerificationApp]=useState(null),[verificationLoading,setVerificationLoading]=useState(false);
+ const[user,setUser]=useState(currentUser()),[demoOpen,setDemoOpen]=useState(false),[login,setLogin]=useState({email:'admin@fitfood.test',password:'demo'}),[active,setActive]=useState('dashboard'),[dash,setDash]=useState(null),[showOnboarding,setShowOnboarding]=useState(false),[showLogin,setShowLogin]=useState(false),[verificationApp,setVerificationApp]=useState(null),[verificationLoading,setVerificationLoading]=useState(false);
  const[recipes,setRecipes]=useState([]),[ingredients,setIngredients]=useState([]),[allergens,setAllergens]=useState([]),[pricing,setPricing]=useState([]),[areas,setAreas]=useState([]),[selectedAreas,setSelectedAreas]=useState([]),[tiers,setTiers]=useState([]);
  const[customers,setCustomers]=useState([]),[subs,setSubs]=useState([]),[orders,setOrders]=useState([]),[deliveries,setDeliveries]=useState([]),[menu,setMenu]=useState([]),[billing,setBilling]=useState(null),[selectedSub,setSelectedSub]=useState(null),[kitchen,setKitchen]=useState(null),[kitchenDate,setKitchenDate]=useState(new Date().toISOString().slice(0,10));
  const[customerEditorOpen,setCustomerEditorOpen]=useState(false),[customerEditorSaving,setCustomerEditorSaving]=useState(false),[customerEditorForm,setCustomerEditorForm]=useState({firstName:'',lastName:'',email:'',password:'',weightKg:'',heightCm:'',dateOfBirth:'',goal:'WeightLoss',activityLevel:'Moderate',diet:'',allergyIds:[]});
@@ -168,7 +175,7 @@ function App(){
  if(!user&&showOnboarding)return <OutletOnboarding onBack={()=>setShowOnboarding(false)} onLogin={()=>{setShowOnboarding(false);setShowLogin(true)}}/>;
  if(user&&!verificationLoading&&verificationApp&&verificationApp.status!=='Approved')return <OutletVerificationCenter user={user} onLogout={()=>{auth.logout();setUser(null);setVerificationApp(null)}}/>;
  if(!user&&showLogin)return <div className="loginPage"><div className="loginCard"><div className="brand"><span className="brandMark">H</span><div><b>HealthApp</b><small>Outlet management</small></div></div><button type="button" className="linkBtn landingBackHome" onClick={()=>{setError('');setShowLogin(false)}}>← Back to home</button><h1>Welcome back</h1><p>Run your meal business from one workspace.</p><form onSubmit={signIn}><Field label="Email"><input value={login.email} onChange={e=>setLogin({...login,email:e.target.value})}/></Field><Field label="Password"><input type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})}/></Field><button className="primary full">Sign in</button>{error&&<div className="error">{error}</div>}<small className="demo">Demo: admin@fitfood.test / demo</small><div className="registerPrompt"><span>New to HealthApp?</span><button type="button" className="linkBtn" onClick={()=>{setError('');setShowLogin(false);setShowOnboarding(true)}}>Register your outlet →</button></div></form></div></div>;
- if(!user)return <LandingPage onLogin={()=>{setError('');setShowLogin(true)}} onRegister={()=>{setError('');setShowOnboarding(true)}}/>;
+ if(!user)return <><LandingPage onLogin={()=>{setError('');setShowLogin(true)}} onRegister={()=>{setError('');setShowOnboarding(true)}} onDemo={()=>setDemoOpen(true)}/>{demoOpen&&<DemoRequestModal onClose={()=>setDemoOpen(false)}/>}</>;
 
  const navs=[['dashboard','⌂','Dashboard'],['kitchen','▦','Kitchen'],['recipes','◈','Recipes'],['menu','☷','Weekly Menu'],['customers','♙','Customers'],['packages','✚','Create Package'],['subscriptions','◫','Subscriptions'],['orders','▤','Orders'],['deliveries','⌁','Deliveries'],['routes','⇢','Delivery Routes'],['delivery-areas','⌖','Delivery Areas'],['pricing','₹','Delivery Pricing'],['discounts','%','Discounts'],['tax','▤','Tax & GST'],['billing','▣','Billing']];
  const title=navs.find(n=>n[0]===active)?.[2]||'Dashboard';
