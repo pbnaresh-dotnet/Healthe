@@ -317,7 +317,7 @@ IF COL_LENGTH('dbo.CustomerAddresses','ContactPhone') IS NOT NULL UPDATE dbo.Cus
 IF COL_LENGTH('dbo.Outlets','RestaurantGstRate') IS NOT NULL UPDATE dbo.Outlets SET RestaurantGstRate = COALESCE(RestaurantGstRate,5);
 IF COL_LENGTH('dbo.Outlets','RestaurantGstMode') IS NOT NULL UPDATE dbo.Outlets SET RestaurantGstMode = COALESCE(RestaurantGstMode,0);
 IF COL_LENGTH('dbo.Subscriptions','RestaurantGstMode') IS NOT NULL UPDATE dbo.Subscriptions SET RestaurantGstMode = COALESCE(RestaurantGstMode,0);
-IF COL_LENGTH('dbo.Subscriptions','RestaurantTaxableAmount') IS NOT NULL UPDATE dbo.Subscriptions SET RestaurantTaxableAmount = CASE WHEN RestaurantTaxableAmount=0 AND RestaurantGstAmount=0 THEN COALESCE(NetMealAmount,0) ELSE RestaurantTaxableAmount END;
+IF COL_LENGTH('dbo.Subscriptions','RestaurantTaxableAmount') IS NOT NULL UPDATE dbo.Subscriptions SET RestaurantTaxableAmount = CASE WHEN RestaurantTaxableAmount=0 THEN COALESCE(NetMealAmount,0) ELSE RestaurantTaxableAmount END;
 IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantGstRate') IS NOT NULL UPDATE dbo.OrderFinancialBreakdowns SET RestaurantGstRate = COALESCE(RestaurantGstRate,5);
 IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantGstMode') IS NOT NULL UPDATE dbo.OrderFinancialBreakdowns SET RestaurantGstMode = COALESCE(RestaurantGstMode,0);
 IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantTaxableAmount') IS NOT NULL UPDATE dbo.OrderFinancialBreakdowns SET RestaurantTaxableAmount = CASE WHEN RestaurantTaxableAmount=0 AND RestaurantGstAmount=0 THEN COALESCE(NetMealAmount,0) ELSE RestaurantTaxableAmount END;
