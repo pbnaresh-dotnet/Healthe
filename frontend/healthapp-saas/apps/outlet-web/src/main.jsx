@@ -6,6 +6,7 @@ import{MapContainer,TileLayer,CircleMarker,Popup,Polyline,useMap,useMapEvents}fr
 import'leaflet/dist/leaflet.css';
 import'./styles.css';
 import OutletOnboarding from'./OutletOnboarding.jsx';
+import OutletVerificationCenter from'./OutletVerificationCenter.jsx';
 
 const ORIGIN=API_URL.replace(/\/api\/?$/,'');
 const img=u=>u?(u.startsWith('http')?u:ORIGIN+u):'';
@@ -87,7 +88,7 @@ function LandingPage({onLogin,onRegister}){
 
 
 function App(){
- const[user,setUser]=useState(currentUser()),[login,setLogin]=useState({email:'admin@fitfood.test',password:'demo'}),[active,setActive]=useState('dashboard'),[dash,setDash]=useState(null),[showOnboarding,setShowOnboarding]=useState(false),[showLogin,setShowLogin]=useState(false);
+ const[user,setUser]=useState(currentUser()),[login,setLogin]=useState({email:'admin@fitfood.test',password:'demo'}),[active,setActive]=useState('dashboard'),[dash,setDash]=useState(null),[showOnboarding,setShowOnboarding]=useState(false),[showLogin,setShowLogin]=useState(false),[verificationApp,setVerificationApp]=useState(null),[verificationLoading,setVerificationLoading]=useState(false);
  const[recipes,setRecipes]=useState([]),[ingredients,setIngredients]=useState([]),[allergens,setAllergens]=useState([]),[pricing,setPricing]=useState([]),[areas,setAreas]=useState([]),[selectedAreas,setSelectedAreas]=useState([]),[tiers,setTiers]=useState([]);
  const[customers,setCustomers]=useState([]),[subs,setSubs]=useState([]),[orders,setOrders]=useState([]),[deliveries,setDeliveries]=useState([]),[menu,setMenu]=useState([]),[billing,setBilling]=useState(null),[selectedSub,setSelectedSub]=useState(null),[kitchen,setKitchen]=useState(null),[kitchenDate,setKitchenDate]=useState(new Date().toISOString().slice(0,10));
  const[customerEditorOpen,setCustomerEditorOpen]=useState(false),[customerEditorSaving,setCustomerEditorSaving]=useState(false),[customerEditorForm,setCustomerEditorForm]=useState({firstName:'',lastName:'',email:'',password:'',weightKg:'',heightCm:'',dateOfBirth:'',goal:'WeightLoss',activityLevel:'Moderate',diet:'',allergyIds:[]});
@@ -120,7 +121,7 @@ function App(){
   if(p==='packages'){const x=await Promise.all([outletAdmin.customers(),outletAdmin.recipes(),outletAdmin.menu(),outletAdmin.taxSettings()]);setPkgCustomers(x[0]||[]);setCustomers(x[0]||[]);setPkgRecipes(x[1]||[]);setPkgMenu(x[2]||[]);setTaxSettings(x[3]);if(x[3])setTaxForm({restaurantGstRate:x[3].restaurantGstRate,restaurantGstMode:x[3].restaurantGstMode});}
   if(p==='billing')setBilling(await outletAdmin.billing());
  }catch(e){fail(e)}finally{setBusy(false)}};
- useEffect(()=>{if(user)load(active)},[user,active]);
+ useEffect(()=>{if(!user)return;let cancelled=false;(async()=>{try{setVerificationLoading(true);const v=await outletOnboarding.me();if(cancelled)return;setVerificationApp(v);if(!v||v.status==='Approved')load(active)}catch(e){if(!cancelled)load(active)}finally{if(!cancelled)setVerificationLoading(false)}})();return()=>{cancelled=true}},[user,active]);
  useEffect(()=>{if(user&&active==='delivery-areas')load('delivery-areas')},[city]);
  const nav=p=>{setActive(p);setError('')};
  const emptyCustomerForm=()=>({firstName:'',lastName:'',email:'',password:'',weightKg:'',heightCm:'',dateOfBirth:'',goal:'WeightLoss',activityLevel:'Moderate',diet:'',allergyIds:[]});
@@ -134,7 +135,7 @@ function App(){
  const refreshRoutes=async(date,mealSlot=deliveryRouteMealSlot)=>{try{setBusy(true);const x=await Promise.all([outletAdmin.deliveryRoutes(date,mealSlot),outletAdmin.drivers()]);setRoutePlan(x[0]);setDrivers(x[1]);setSelectedDriverIds(ids=>ids.filter(id=>x[1].some(d=>d.id===id)));}catch(e){fail(e)}finally{setBusy(false)}};
  const planRoutes=async()=>{try{if(!selectedDriverIds.length)return fail({message:'Select at least one active in-house driver.'});setBusy(true);setRoutePlan(await outletAdmin.planDeliveryRoutes({date:deliveryRouteDate,mealSlot:deliveryRouteMealSlot,driverIds:selectedDriverIds}));notify('Delivery routes planned')}catch(e){fail(e)}finally{setBusy(false)}};
  const saveDriver=async e=>{e.preventDefault();try{const d=await outletAdmin.createDriver(driverForm);setDriverOpen(false);setDriverForm({firstName:'',lastName:'',email:'',password:''});setDrivers(x=>[...x,d]);setSelectedDriverIds(x=>[...x,d.id]);notify('Driver added')}catch(e){fail(e)}};
- const signIn=async e=>{e.preventDefault();try{const x=await auth.login(login);setUser(x.user)}catch(e){fail(e)}};
+ const signIn=async e=>{e.preventDefault();try{const x=await auth.login(login);setUser(x.user);setShowLogin(false);setError('')}catch(e){fail(e)}};
  const filtered=useMemo(()=>recipes.filter(r=>(category==='All'||r.category===category)&&(!search||r.name.toLowerCase().includes(search.toLowerCase()))),[recipes,category,search]);
 
  const openNew=()=>{setEditRecipe(null);setRecipeForm({...emptyRecipe,ingredients:[],allergenIds:[]});setRecipeOpen(true)};
@@ -164,7 +165,8 @@ function App(){
  const markPackagePaid=async()=>{try{if(!manualPaymentPackageId)return;const s=await outletAdmin.markPackagePaid(manualPaymentPackageId,{paymentMethod:manualPaymentMethod});setSubs(v=>v.map(x=>x.id===manualPaymentPackageId?s:x));setManualPaymentPackageId('');await load('subscriptions');notify('Payment recorded and package activated.')}catch(e){fail(e)}};
  const saveTax=async e=>{e.preventDefault();const rate=Number(taxForm.restaurantGstRate);if(!Number.isFinite(rate)||rate<0||rate>100)return fail({message:'Restaurant GST rate must be between 0% and 100%.'});try{const x=await outletAdmin.updateTaxSettings({restaurantGstRate:rate,restaurantGstMode:taxForm.restaurantGstMode});setTaxSettings(x);setTaxForm({restaurantGstRate:x?.restaurantGstRate??rate,restaurantGstMode:x?.restaurantGstMode||taxForm.restaurantGstMode});notify('Tax and GST settings saved')}catch(e){fail(e)}};
 
- if(!user&&showOnboarding)return <OutletOnboarding onBack={()=>setShowOnboarding(false)}/>;
+ if(!user&&showOnboarding)return <OutletOnboarding onBack={()=>setShowOnboarding(false)} onLogin={()=>{setShowOnboarding(false);setShowLogin(true)}}/>;
+ if(user&&!verificationLoading&&verificationApp&&verificationApp.status!=='Approved')return <OutletVerificationCenter user={user} onLogout={()=>{auth.logout();setUser(null);setVerificationApp(null)}}/>;
  if(!user&&showLogin)return <div className="loginPage"><div className="loginCard"><div className="brand"><span className="brandMark">H</span><div><b>HealthApp</b><small>Outlet management</small></div></div><button type="button" className="linkBtn landingBackHome" onClick={()=>{setError('');setShowLogin(false)}}>← Back to home</button><h1>Welcome back</h1><p>Run your meal business from one workspace.</p><form onSubmit={signIn}><Field label="Email"><input value={login.email} onChange={e=>setLogin({...login,email:e.target.value})}/></Field><Field label="Password"><input type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})}/></Field><button className="primary full">Sign in</button>{error&&<div className="error">{error}</div>}<small className="demo">Demo: admin@fitfood.test / demo</small><div className="registerPrompt"><span>New to HealthApp?</span><button type="button" className="linkBtn" onClick={()=>{setError('');setShowLogin(false);setShowOnboarding(true)}}>Register your outlet →</button></div></form></div></div>;
  if(!user)return <LandingPage onLogin={()=>{setError('');setShowLogin(true)}} onRegister={()=>{setError('');setShowOnboarding(true)}}/>;
 
