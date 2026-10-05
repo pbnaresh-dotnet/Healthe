@@ -58,11 +58,23 @@ public sealed class OutletDomainRepository(HealthAppDbContext db) : EfRepository
             .FirstOrDefaultAsync(x => x.Hostname == value && x.Status == OutletDomainStatus.Active);
     }
 
+    public Task<OutletDomain?> GetByHostnameAsync(string hostname)
+    {
+        var value = hostname.Trim().TrimEnd('.').ToLowerInvariant();
+        return db.OutletDomains.Include(x => x.Outlet).FirstOrDefaultAsync(x => x.Hostname == value);
+    }
+
     public async Task<IReadOnlyList<OutletDomain>> GetByOutletAsync(Guid outletId) =>
         await db.OutletDomains.AsNoTracking()
             .Where(x => x.OutletId == outletId)
             .OrderByDescending(x => x.IsPrimary)
             .ThenBy(x => x.Hostname)
+            .ToListAsync();
+
+    public async Task<IReadOnlyList<OutletDomain>> GetAllAsync() =>
+        await db.OutletDomains.AsNoTracking()
+            .Include(x => x.Outlet)
+            .OrderByDescending(x => x.CreatedAtUtc)
             .ToListAsync();
 
     public async Task AddAsync(OutletDomain domain) { db.OutletDomains.Add(domain); await SaveAsync(); }
