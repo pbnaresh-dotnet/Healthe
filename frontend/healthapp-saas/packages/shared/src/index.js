@@ -5,13 +5,39 @@ const API_BASE=(CONFIGURED_API_BASE||LOCAL_API_BASE).replace(/\/$/,'');
 export const API_URL=API_BASE;
 export const CUSTOMER_URL=import.meta.env.VITE_CUSTOMER_URL||'http://localhost:5173';
 export const TENANT_OUTLET_SLUG=String(import.meta.env.VITE_OUTLET_SLUG||'').trim().toLowerCase();
+
+let runtimeTenantSlug=TENANT_OUTLET_SLUG;
+let runtimeTenantHost=TENANT_OUTLET_SLUG?HOSTNAME:'';
+const storedTenantHost=()=>{try{return String(sessionStorage.getItem('ha_tenant_host')||'').trim().toLowerCase()}catch{return ''}};
+const storedTenantSlug=()=>{try{return String(sessionStorage.getItem('ha_tenant_slug')||'').trim().toLowerCase()}catch{return ''}};
+export const getTenantOutletSlug=()=>{
+  if(runtimeTenantSlug&&(!runtimeTenantHost||runtimeTenantHost===HOSTNAME))return runtimeTenantSlug;
+  if(storedTenantHost()===HOSTNAME&&storedTenantSlug())return storedTenantSlug();
+  return '';
+};
+export async function resolveTenantFromHost(){
+  if(TENANT_OUTLET_SLUG)return null;
+  if(!API_BASE||!HOSTNAME)return null;
+  if(storedTenantHost()===HOSTNAME&&storedTenantSlug())runtimeTenantSlug=storedTenantSlug(),runtimeTenantHost=HOSTNAME;
+  if(runtimeTenantSlug&&runtimeTenantHost===HOSTNAME)return null;
+  const res=await fetch(`${API_BASE}/tenant/resolve?host=${encodeURIComponent(HOSTNAME)}`);
+  if(res.status===404)return null;
+  if(!res.ok)throw new Error('Unable to resolve the outlet for this hostname.');
+  const outlet=await res.json();
+  const slug=String(outlet?.slug||'').trim().toLowerCase();
+  if(!slug)return null;
+  runtimeTenantSlug=slug;
+  runtimeTenantHost=HOSTNAME;
+  try{sessionStorage.setItem('ha_tenant_host',HOSTNAME);sessionStorage.setItem('ha_tenant_slug',slug)}catch{}
+  return outlet;
+}
 const readToken=()=>localStorage.getItem('ha_token');
 export const currentUser=()=>{try{return JSON.parse(localStorage.getItem('ha_current_user')||'null')}catch{return null}};
 const storeUser=u=>localStorage.setItem('ha_current_user',JSON.stringify(u));
 export const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
 export async function api(path,options={}){if(!API_BASE)throw new Error('API URL is not configured. Set VITE_API_BASE_URL in the Cloudflare build environment and redeploy.');const isFormData=typeof FormData!=='undefined'&&options.body instanceof FormData;
-const headers={...(isFormData?{}:{'Content-Type':'application/json'}),...(options.headers||{})};if(TENANT_OUTLET_SLUG&&!headers['X-Outlet-Slug'])headers['X-Outlet-Slug']=TENANT_OUTLET_SLUG;const t=readToken();if(t)headers.Authorization=`Bearer ${t}`;const res=await fetch(`${API_BASE}${path}`,{...options,headers});const raw=await res.text();let body=null;try{body=raw?JSON.parse(raw):null}catch{body=raw}if(res.status===401){localStorage.removeItem('ha_token');localStorage.removeItem('ha_current_user');const error=new Error(body?.message||body?.title||'Your session has expired. Please sign in again.');error.status=401;throw error}if(!res.ok){const error=new Error(body?.message||body?.title||body||`Request failed: ${res.status}`);error.status=res.status;throw error}return body;}
-export const auth={async login(data){const payload=TENANT_OUTLET_SLUG?{...data,outletSlug:TENANT_OUTLET_SLUG}:data;const x=await api('/auth/login',{method:'POST',body:JSON.stringify(payload)});localStorage.setItem('ha_token',x.accessToken);storeUser(x.user);return x;},async register(data){const payload=TENANT_OUTLET_SLUG?{...data,outletSlug:TENANT_OUTLET_SLUG}:data;const x=await api('/auth/register',{method:'POST',body:JSON.stringify(payload)});localStorage.setItem('ha_token',x.accessToken);storeUser(x.user);return x;},logout(){localStorage.removeItem('ha_token');localStorage.removeItem('ha_current_user')},me(){return currentUser()}};
+const headers={...(isFormData?{}:{'Content-Type':'application/json'}),...(options.headers||{})};const tenantSlug=getTenantOutletSlug();if(tenantSlug&&!headers['X-Outlet-Slug'])headers['X-Outlet-Slug']=tenantSlug;const t=readToken();if(t)headers.Authorization=`Bearer ${t}`;const res=await fetch(`${API_BASE}${path}`,{...options,headers});const raw=await res.text();let body=null;try{body=raw?JSON.parse(raw):null}catch{body=raw}if(res.status===401){localStorage.removeItem('ha_token');localStorage.removeItem('ha_current_user');const error=new Error(body?.message||body?.title||'Your session has expired. Please sign in again.');error.status=401;throw error}if(!res.ok){const error=new Error(body?.message||body?.title||body||`Request failed: ${res.status}`);error.status=res.status;throw error}return body;}
+export const auth={async login(data){const tenantSlug=getTenantOutletSlug();const payload=tenantSlug?{...data,outletSlug:tenantSlug}:data;const x=await api('/auth/login',{method:'POST',body:JSON.stringify(payload)});localStorage.setItem('ha_token',x.accessToken);storeUser(x.user);return x;},async register(data){const tenantSlug=getTenantOutletSlug();const payload=tenantSlug?{...data,outletSlug:tenantSlug}:data;const x=await api('/auth/register',{method:'POST',body:JSON.stringify(payload)});localStorage.setItem('ha_token',x.accessToken);storeUser(x.user);return x;},logout(){localStorage.removeItem('ha_token');localStorage.removeItem('ha_current_user')},me(){return currentUser()}};
 export const outlets={list:(city)=>api(`/marketplace/outlets${city?`?city=${encodeURIComponent(city)}`:''}`),get:slug=>api(`/marketplace/outlets/${encodeURIComponent(slug)}`),availability:(lat,lng,city)=>api(`/marketplace/availability?latitude=${lat}&longitude=${lng}${city?`&city=${encodeURIComponent(city)}`:''}`)};
 export const locations={cities:()=>api('/marketplace/cities'),areas:city=>api(`/marketplace/city-areas${city?`?city=${encodeURIComponent(city)}`:''}`),reverseGeocode:(latitude,longitude)=>api(`/marketplace/reverse-geocode?latitude=${latitude}&longitude=${longitude}`)};
 export const catalog={ingredients:()=>api('/catalog/ingredients'),allergens:()=>api('/catalog/allergens')};
