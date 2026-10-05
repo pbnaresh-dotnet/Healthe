@@ -13,6 +13,7 @@ public enum OrderStatus { Pending, Confirmed, Preparing, OutForDelivery, Deliver
 public enum DeliveryStatus { Scheduled, Preparing, OutForDelivery, Delivered, Failed, Skipped }
 public enum RouteStatus { Planned, InProgress, Completed, Cancelled }
 public enum BillingPlan { Starter, Growth, Scale }
+public enum GstMode { Exclusive = 0, Inclusive = 1 }
 public enum RecipeCategory { Veg, NonVeg, Vegan }
 
 public enum CustomerGoal { WeightLoss = 1, MuscleGain = 2, GLP1Support = 3, HighPerformance = 4 }
