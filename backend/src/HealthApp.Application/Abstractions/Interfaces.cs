@@ -32,7 +32,9 @@ public interface IOutletOnboardingService
     Task<OutletOnboardingDto?> SaveCurrentDetailsAsync(SaveOutletOnboardingDetailsRequest request);
     Task<OutletOnboardingDocumentDto?> UploadCurrentDocumentAsync(string documentType, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default);
     Task<OutletOnboardingDto?> SubmitCurrentAsync();
+    Task<ProtectedFileDownload?> GetCurrentDocumentAsync(string documentType);
     Task<OutletOnboardingDto?> GetAsync(Guid id, string accessKey);
+    Task<ProtectedFileDownload?> GetDocumentAsync(Guid id, string accessKey, string documentType);
     Task<OutletOnboardingDto?> SaveDetailsAsync(Guid id, string accessKey, SaveOutletOnboardingDetailsRequest request);
     Task<OutletOnboardingDocumentDto?> UploadDocumentAsync(Guid id, string accessKey, string documentType, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default);
     Task<OutletOnboardingDto?> SubmitAsync(Guid id, string accessKey);
@@ -42,6 +44,7 @@ public interface IOutletVerificationService
 {
     Task<IReadOnlyList<OutletVerificationSummaryDto>> GetPendingAsync();
     Task<OutletVerificationDetailDto?> GetAsync(Guid id);
+    Task<ProtectedFileDownload?> GetDocumentAsync(Guid id, string documentType);
     Task<OutletVerificationDetailDto?> DecideAsync(Guid id, DecideOutletVerificationRequest request);
 }
 
@@ -56,6 +59,7 @@ public interface IDeliveryRepository { Task<IReadOnlyList<Delivery>> GetByOutlet
 public interface ITokenService { AuthResponse CreateToken(User user); }
 public sealed record FileStorageResult(string Url, string Key, string ContentType);
 public sealed record FileStorageDownload(Stream Content, string ContentType);
+public sealed record ProtectedFileDownload(Stream Content, string ContentType, string FileName);
 public interface IFileStorage { Task<FileStorageResult> UploadAsync(Stream content, string fileName, string contentType, string folder, CancellationToken cancellationToken = default); Task<FileStorageResult> UploadPrivateAsync(Stream content, string fileName, string contentType, string folder, CancellationToken cancellationToken = default); Task<FileStorageDownload?> OpenReadAsync(string key, CancellationToken cancellationToken = default); }
 public interface IGeocodingService { Task<ReverseGeocodeDto?> ReverseAsync(double latitude, double longitude, CancellationToken cancellationToken = default); }
 public interface IPasswordService { string Hash(string password); bool Verify(string password, string hash); }
