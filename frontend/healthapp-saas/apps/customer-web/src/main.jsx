@@ -542,12 +542,13 @@ function App(){
  };
 
  const doAuth=async e=>{e.preventDefault();await run(async()=>{
-   const x=authMode==='login'
-     ?await auth.login({email:authForm.email,password:authForm.password})
-     :await auth.register({firstName:authForm.firstName,lastName:authForm.lastName,email:authForm.email,password:authForm.password,role:'Customer'});
-   setUser(x.user);
    const draftRaw=(()=>{try{return sessionStorage.getItem('healthapp.guestPackageDraft')||localStorage.getItem('healthapp.savedPackageDraft')}catch{return null}})();
    const draft=draftRaw?(()=>{try{return JSON.parse(draftRaw)}catch{return null}})():null;
+   const draftOutletSlug=draft?.outlet?.slug||draft?.outletSlug||null;
+   const x=authMode==='login'
+     ?await auth.login({email:authForm.email,password:authForm.password,outletSlug:draftOutletSlug||undefined})
+     :await auth.register({firstName:authForm.firstName,lastName:authForm.lastName,email:authForm.email,password:authForm.password,role:'Customer',outletSlug:draftOutletSlug||undefined});
+   setUser(x.user);
    if(draft&&(!draft.customerId||draft.customerId===x.user.id)){
      await restoreSavedPackage(draft);
      setGuestPackageRestored(true);
