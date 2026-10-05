@@ -22,13 +22,36 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Users_Email_Global' AN
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Users_OutletId_Email' AND object_id = OBJECT_ID('dbo.Users'))
     CREATE UNIQUE INDEX IX_Users_OutletId_Email ON dbo.Users(OutletId, Email) WHERE OutletId IS NOT NULL;
 IF NOT EXISTS (
-    SELECT 1 FROM sys.foreign_keys
-    WHERE parent_object_id = OBJECT_ID('dbo.Users')
-      AND referenced_object_id = OBJECT_ID('dbo.Outlets')
-      AND name = 'FK_Users_Outlets_OutletId'
+    SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Users') AND referenced_object_id = OBJECT_ID('dbo.Outlets')
 )
-    ALTER TABLE dbo.Users ADD CONSTRAINT FK_Users_Outlets_OutletId
-        FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+    ALTER TABLE dbo.Users ADD CONSTRAINT FK_Users_Outlets_OutletId FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.OutletSubscriptions') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.OutletSubscriptions ADD CONSTRAINT FK_OutletSubscriptions_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.PlatformTransactions') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.PlatformTransactions ADD CONSTRAINT FK_PlatformTransactions_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.MealPlans') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.MealPlans ADD CONSTRAINT FK_MealPlans_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Recipes') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.Recipes ADD CONSTRAINT FK_Recipes_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.OutletMenuItems') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.OutletMenuItems ADD CONSTRAINT FK_OutletMenuItems_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Subscriptions') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.Subscriptions ADD CONSTRAINT FK_Subscriptions_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Orders') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.Orders ADD CONSTRAINT FK_Orders_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Deliveries') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.DeliveryRoutes') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.DeliveryRoutes ADD CONSTRAINT FK_DeliveryRoutes_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.OutletDeliveryAreas') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.OutletDeliveryAreas ADD CONSTRAINT FK_OutletDeliveryAreas_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.DeliveryPricingRules') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.DeliveryPricingRules ADD CONSTRAINT FK_DeliveryPricingRules_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.SubscriptionDiscountTiers') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.SubscriptionDiscountTiers ADD CONSTRAINT FK_SubscriptionDiscountTiers_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.DiscountCodes') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.DiscountCodes ADD CONSTRAINT FK_DiscountCodes_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
 ", cancellationToken);
 
         await db.Database.ExecuteSqlRawAsync(@"
