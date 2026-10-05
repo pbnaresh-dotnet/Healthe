@@ -213,22 +213,25 @@ public sealed class OutletPackageService(
             IsActive = true
         };
 
-        await users.AddAsync(customer);
-
-        await profiles.AddOrUpdateAsync(new CustomerProfile
+        await unitOfWork.ExecuteAsync(async () =>
         {
-            Id = Guid.NewGuid(),
-            CustomerId = customer.Id,
-            WeightKg = request.WeightKg,
-            HeightCm = request.HeightCm,
-            Bmi = bmi,
-            DateOfBirth = request.DateOfBirth,
-            Goal = string.IsNullOrWhiteSpace(request.Goal) ? "WeightLoss" : request.Goal.Trim(),
-            ActivityLevel = string.IsNullOrWhiteSpace(request.ActivityLevel) ? "Moderate" : request.ActivityLevel.Trim(),
-            Diet = request.Diet?.Trim() ?? string.Empty,
-            UpdatedAtUtc = DateTime.UtcNow
+            await users.AddAsync(customer);
+
+            await profiles.AddOrUpdateAsync(new CustomerProfile
+            {
+                Id = Guid.NewGuid(),
+                CustomerId = customer.Id,
+                WeightKg = request.WeightKg,
+                HeightCm = request.HeightCm,
+                Bmi = bmi,
+                DateOfBirth = request.DateOfBirth,
+                Goal = string.IsNullOrWhiteSpace(request.Goal) ? "WeightLoss" : request.Goal.Trim(),
+                ActivityLevel = string.IsNullOrWhiteSpace(request.ActivityLevel) ? "Moderate" : request.ActivityLevel.Trim(),
+                Diet = request.Diet?.Trim() ?? string.Empty,
+                UpdatedAtUtc = DateTime.UtcNow
+            });
+            await customerAllergies.ReplaceAsync(customer.Id, requestedAllergies);
         });
-        await customerAllergies.ReplaceAsync(customer.Id, requestedAllergies);
 
         return MapUser(customer);
     }
