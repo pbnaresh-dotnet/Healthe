@@ -198,7 +198,7 @@ public sealed class OutletPackageService(
         if (request.WeightKg is <= 0 || request.HeightCm is <= 0)
             throw new ArgumentException("Weight and height must be positive when supplied.");
 
-        var bmi = request.WeightKg.HasValue && request.HeightCm.HasValue
+        decimal? bmi = request.WeightKg.HasValue && request.HeightCm.HasValue
             ? Math.Round(request.WeightKg.Value / ((request.HeightCm.Value / 100m) * (request.HeightCm.Value / 100m)), 2)
             : null;
 
