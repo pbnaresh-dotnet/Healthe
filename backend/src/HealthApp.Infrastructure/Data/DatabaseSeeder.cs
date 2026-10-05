@@ -516,7 +516,8 @@ public static class DatabaseSeeder
                     Latitude = spec.Latitude,
                     Longitude = spec.Longitude,
                     ServiceRadiusKm = 15,
-                    Status = OutletStatus.Active,
+                    Status = OutletStatus.Live,
+                    DeliveryDays = "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday",
                     BillingPlan = BillingPlan.Starter,
                     LogoUrl = spec.Hero,
                     HeroImageUrl = spec.Hero,
@@ -541,7 +542,8 @@ public static class DatabaseSeeder
                 outlet.Latitude = spec.Latitude;
                 outlet.Longitude = spec.Longitude;
                 outlet.ServiceRadiusKm = 15;
-                outlet.Status = OutletStatus.Active;
+                outlet.Status = OutletStatus.Live;
+                outlet.DeliveryDays = string.IsNullOrWhiteSpace(outlet.DeliveryDays) ? "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday" : outlet.DeliveryDays;
                 outlet.HeroImageUrl = spec.Hero;
                 outlet.HealthHighlights = spec.Highlights;
                 outlet.Rating = spec.Rating;
