@@ -22,7 +22,7 @@ function Test-CommandExists {
     }
 }
 
-function Invoke-Step {
+function Resolve-GitExecutable {\n    $git = Get-Command git.exe -ErrorAction SilentlyContinue\n    if ($git) { return $git.Source }\n\n    $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')\n    $candidates = @(\n        (Join-Path $env:ProgramFiles 'Git\\cmd\\git.exe'),\n        (Join-Path $programFilesX86 'Git\\cmd\\git.exe'),\n        (Join-Path $env:LOCALAPPDATA 'Programs\\Git\\cmd\\git.exe')\n    ) | Where-Object { $_ -and (Test-Path $_) }\n\n    if ($candidates.Count -gt 0) {\n        return $candidates[0]\n    }\n\n    throw "Git was not found. Install Git for Windows or add git.exe to PATH."\n}\n\nfunction Invoke-Step {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)][string]$WorkingDirectory,
@@ -72,7 +72,7 @@ Test-CommandExists 'dotnet'
 Test-CommandExists 'node'
 Test-CommandExists 'npm'
 
-Test-CommandExists 'git'
+$GitExecutable = Resolve-GitExecutable
 Test-CommandExists 'dotnet'
 Test-CommandExists 'node'
 Test-CommandExists 'npm'
@@ -81,7 +81,7 @@ Write-Host ''
 Write-Host '=== Pulling latest code from Git ===' -ForegroundColor Cyan
 Push-Location $RepoRoot
 try {
-    & git pull --ff-only
+    & $GitExecutable pull --ff-only
     if ($LASTEXITCODE -ne 0) {
         throw "Git pull failed with exit code $LASTEXITCODE. Resolve the repository state and run start-dev.ps1 again."
     }
