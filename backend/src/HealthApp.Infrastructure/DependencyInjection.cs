@@ -9,6 +9,7 @@ using HealthApp.Infrastructure.Data;
 using HealthApp.Infrastructure.Repositories;
 using HealthApp.Infrastructure.Storage;
 using HealthApp.Infrastructure.Geocoding;
+using HealthApp.Infrastructure.Email;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +34,7 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(config.GetSection("Jwt"));
         services.Configure<StorageOptions>(config.GetSection("Storage"));
         services.Configure<GeocodingOptions>(config.GetSection("Geocoding"));
+        services.Configure<SmtpEmailOptions>(config.GetSection("Email"));
 
         var storageProvider = (config["Storage:Provider"] ?? "Local").Trim().ToLowerInvariant();
         switch (storageProvider)
@@ -72,6 +74,7 @@ public static class DependencyInjection
         services.AddScoped<IOutletRepository, OutletRepository>();
         services.AddScoped<ISaaSPlanRepository, SaaSPlanRepository>();
         services.AddScoped<IOutletOnboardingRepository, OutletOnboardingRepository>();
+        services.AddScoped<IEmailService, SmtpEmailService>();
         services.AddScoped<IOutletSubscriptionRepository, OutletSubscriptionRepository>();
         services.AddScoped<IPlatformTransactionRepository, PlatformTransactionRepository>();
         services.AddScoped<IIngredientRepository, IngredientRepository>();
@@ -132,6 +135,7 @@ public static class DependencyInjection
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IOutletService, OutletService>();
         services.AddScoped<IOutletOnboardingService, OutletOnboardingService>();
+        services.AddScoped<IOutletDemoService, OutletDemoService>();
         services.AddScoped<IOutletVerificationService, OutletVerificationService>();
         services.AddScoped<IOutletPackageService, OutletPackageService>();
         services.AddScoped<IOutletPackageActivationService, OutletPackageActivationService>();
