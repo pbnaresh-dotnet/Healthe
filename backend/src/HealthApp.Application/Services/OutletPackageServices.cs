@@ -11,7 +11,6 @@ public sealed class OutletPackageActivationService(
     ISubscriptionRepository subscriptions,
     ISubscriptionMealSelectionRepository selections,
     IOrderRepository orders,
-    IOrderFinancialRepository orderFinancials,
     IDeliveryRepository deliveries,
     ICustomerAddressRepository addresses,
     IUserRepository users,
@@ -153,7 +152,6 @@ public sealed class OutletPackageService(
     ITaxStrategy taxStrategy,
     IMealPriceStrategy mealPrice,
     IAllergySafetyService allergySafety,
-    ISubscriptionDiscountTierRepository discountTiers,
     IOutletSubscriptionRepository outletSubscriptions,
     IOutletPackageActivationService activation,
     IUnitOfWork unitOfWork) : IOutletPackageService
@@ -722,7 +720,7 @@ public sealed class OutletPackageService(
         throw new UnauthorizedAccessException("Customer is not connected to this outlet.");
     }
 
-    private async Task<SubscriptionDto> MapSubscription(Subscription x, string paymentStatus)
+    private static SubscriptionDto MapSubscription(Subscription x, string paymentStatus)
     {
         return new SubscriptionDto(
             x.Id,
