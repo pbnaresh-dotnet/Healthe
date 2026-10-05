@@ -40,10 +40,30 @@ public sealed class User
         set;
     }
     = true;
+    public bool IsDemo {
+        get;
+        set;
+    }
+    public DateTime? DemoExpiresAtUtc {
+        get;
+        set;
+    }
     public CustomerProfile? CustomerProfile {
         get;
         set;
     }
+}
+
+public sealed class OutletDemoRequest
+{
+    public Guid Id { get; set; }
+    public string Email { get; set; } = "";
+    public string RequestedBusinessName { get; set; } = "";
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? FulfilledAtUtc { get; set; }
+    public Guid? UserId { get; set; }
+    public DateTime? DemoExpiresAtUtc { get; set; }
+    public string Status { get; set; } = "Requested";
 }
 
 public sealed class CustomerProfile
