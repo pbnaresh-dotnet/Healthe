@@ -143,6 +143,9 @@ public sealed class OutletPackageService(
     ISubscriptionMealSelectionRepository selections,
     ICustomerAddressRepository addresses,
     ICityAreaRepository areas,
+    ICustomerProfileRepository profiles,
+    IAllergenRepository allergens,
+    ICustomerAllergyRepository customerAllergies,
     IMealPlanRepository mealPlans,
     IOrderRepository orders,
     IOrderFinancialRepository orderFinancials,
@@ -200,7 +203,101 @@ public sealed class OutletPackageService(
         };
 
         await users.AddAsync(customer);
+
+        var requestedAllergies = (request.AllergyIds ?? []).Distinct().ToList();
+        var validAllergies = await allergens.GetByIdsAsync(requestedAllergies);
+        if (validAllergies.Count != requestedAllergies.Count)
+            throw new ArgumentException("One or more selected allergies are invalid.");
+
+        if (request.WeightKg is <= 0 || request.HeightCm is <= 0)
+            throw new ArgumentException("Weight and height must be positive when supplied.");
+
+        var bmi = request.WeightKg.HasValue && request.HeightCm.HasValue
+            ? Math.Round(request.WeightKg.Value / ((request.HeightCm.Value / 100m) * (request.HeightCm.Value / 100m)), 2)
+            : null;
+
+        await profiles.AddOrUpdateAsync(new CustomerProfile
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            WeightKg = request.WeightKg,
+            HeightCm = request.HeightCm,
+            Bmi = bmi,
+            DateOfBirth = request.DateOfBirth,
+            Goal = string.IsNullOrWhiteSpace(request.Goal) ? "WeightLoss" : request.Goal.Trim(),
+            ActivityLevel = string.IsNullOrWhiteSpace(request.ActivityLevel) ? "Moderate" : request.ActivityLevel.Trim(),
+            Diet = request.Diet?.Trim() ?? string.Empty,
+            UpdatedAtUtc = DateTime.UtcNow
+        });
+        await customerAllergies.ReplaceAsync(customer.Id, requestedAllergies);
+
         return MapUser(customer);
+    }
+
+    public async Task<OutletCustomerProfileDto?> GetCustomerProfileAsync(Guid customerId)
+    {
+        await EnsureCustomerAccessAsync(customerId);
+        var customer = await users.FindByIdAsync(customerId);
+        if (customer is null || customer.Role != UserRole.Customer)
+            return null;
+
+        var profile = await profiles.GetAsync(customerId);
+        var allergyRows = await customerAllergies.GetByCustomerAsync(customerId);
+        var profileDto = profile is null
+            ? null
+            : new CustomerProfileDto(
+                profile.Id,
+                profile.CustomerId,
+                profile.WeightKg,
+                profile.HeightCm,
+                profile.Bmi,
+                profile.Goal,
+                profile.ActivityLevel,
+                profile.Diet,
+                profile.UpdatedAtUtc,
+                allergyRows.Select(a => new AllergenDto(a.AllergenId, a.Allergen.Name)).OrderBy(a => a.Name).ToList());
+
+        return new OutletCustomerProfileDto(
+            MapUser(customer),
+            profileDto,
+            await GetCustomerAddressesAsync(customerId));
+    }
+
+    public async Task<OutletCustomerProfileDto?> UpdateCustomerProfileAsync(Guid customerId, SaveCustomerProfileRequest request)
+    {
+        await EnsureCustomerAccessAsync(customerId);
+        var customer = await users.FindByIdAsync(customerId);
+        if (customer is null || customer.Role != UserRole.Customer)
+            return null;
+
+        if (request.WeightKg is <= 0 || request.HeightCm is <= 0)
+            throw new ArgumentException("Weight and height must be positive when supplied.");
+
+        var requestedAllergies = (request.AllergyIds ?? []).Distinct().ToList();
+        var validAllergies = await allergens.GetByIdsAsync(requestedAllergies);
+        if (validAllergies.Count != requestedAllergies.Count)
+            throw new ArgumentException("One or more selected allergies are invalid.");
+
+        var profile = await profiles.GetAsync(customerId) ?? new CustomerProfile
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customerId
+        };
+        profile.WeightKg = request.WeightKg;
+        profile.HeightCm = request.HeightCm;
+        profile.Bmi = request.WeightKg.HasValue && request.HeightCm.HasValue
+            ? Math.Round(request.WeightKg.Value / ((request.HeightCm.Value / 100m) * (request.HeightCm.Value / 100m)), 2)
+            : null;
+        profile.DateOfBirth = request.DateOfBirth;
+        profile.Goal = string.IsNullOrWhiteSpace(request.Goal) ? "WeightLoss" : request.Goal.Trim();
+        profile.ActivityLevel = string.IsNullOrWhiteSpace(request.ActivityLevel) ? "Moderate" : request.ActivityLevel.Trim();
+        profile.Diet = request.Diet?.Trim() ?? string.Empty;
+        profile.UpdatedAtUtc = DateTime.UtcNow;
+
+        await profiles.AddOrUpdateAsync(profile);
+        await customerAllergies.ReplaceAsync(customerId, requestedAllergies);
+
+        return await GetCustomerProfileAsync(customerId);
     }
 
     public async Task<IReadOnlyList<CustomerAddressDto>> GetCustomerAddressesAsync(Guid customerId)
