@@ -872,7 +872,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             subscription.Frequency,
             subscription.MealsPerDay,
             subscription.MealsPerWeek,
-            subscription.NetMealAmount,
+            subscription.GrossMealAmount,
             subscription.SubscriptionDiscountAmount,
             subscription.RestaurantGstAmount,
             Math.Round(subscription.NetMealAmount+subscription.RestaurantGstAmount,2),
