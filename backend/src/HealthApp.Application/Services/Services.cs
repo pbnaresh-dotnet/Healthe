@@ -1276,6 +1276,9 @@ public sealed class AdminService(
                     ?? throw new InvalidOperationException("Cloudflare Pages has not attached this domain yet.");
 
                 if (!IsCloudflareActive(providerState))
+                    providerState = await cloudflarePages.RetryValidationAsync(domain.Hostname) ?? providerState;
+
+                if (!IsCloudflareActive(providerState))
                     throw new InvalidOperationException(
                         providerState.ValidationError ??
                         providerState.VerificationError ??
