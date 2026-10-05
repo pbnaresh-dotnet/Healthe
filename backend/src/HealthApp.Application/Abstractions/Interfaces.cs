@@ -19,6 +19,7 @@ public interface IOutletBrandingRepository
 }
 public interface IOutletDomainRepository
 {
+    Task<OutletDomain?> GetAsync(Guid id);
     Task<OutletDomain?> GetActiveByHostnameAsync(string hostname);
     Task<OutletDomain?> GetByHostnameAsync(string hostname);
     Task<IReadOnlyList<OutletDomain>> GetByOutletAsync(Guid outletId);
