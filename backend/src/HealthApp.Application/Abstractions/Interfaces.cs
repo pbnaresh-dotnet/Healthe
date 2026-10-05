@@ -104,6 +104,7 @@ public sealed record CloudflarePagesDomainState(
     string? VerificationError);
 public interface ICloudflarePagesService
 {
+    bool IsEnabled { get; }
     Task<CloudflarePagesDomainState> EnsureDomainAsync(string hostname, CancellationToken cancellationToken = default);
     Task<CloudflarePagesDomainState?> GetDomainAsync(string hostname, CancellationToken cancellationToken = default);
 }
