@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Mail;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using HealthApp.Application.Abstractions;
 
@@ -19,8 +18,7 @@ public sealed class SmtpEmailOptions
 }
 
 public sealed class SmtpEmailService(
-    IOptions<SmtpEmailOptions> options,
-    ILogger<SmtpEmailService> logger) : IEmailService
+    IOptions<SmtpEmailOptions> options) : IEmailService
 {
     public async Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
     {
