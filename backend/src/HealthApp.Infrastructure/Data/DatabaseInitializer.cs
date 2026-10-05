@@ -11,6 +11,12 @@ public static class DatabaseInitializer
         // The checked-in demo package is self-contained. A production deployment should
         // replace EnsureCreatedAsync with EF Core MigrateAsync after generating migrations.
         await db.Database.EnsureCreatedAsync(cancellationToken);
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Users','IsDemo') IS NULL
+    ALTER TABLE dbo.Users ADD IsDemo bit NOT NULL CONSTRAINT DF_Users_IsDemo DEFAULT 0;
+IF COL_LENGTH('dbo.Users','DemoExpiresAtUtc') IS NULL
+    ALTER TABLE dbo.Users ADD DemoExpiresAtUtc datetime2 NULL;
+", cancellationToken);
         // Development/demo compatibility: normalized catalog tables are created explicitly because
         // EnsureCreatedAsync does not evolve an already-existing database.
         await db.Database.ExecuteSqlRawAsync(@"
