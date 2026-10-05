@@ -6,9 +6,12 @@ using Microsoft.AspNetCore.Mvc;
 namespace HealthApp.Api.Controllers;
 
 [ApiController, Route("api/customer"), Authorize(Roles = "Customer")]
-public sealed class CustomerController(ICustomerService service) : ControllerBase
+public sealed class CustomerController(ICustomerService service, IOutletPackageService outletPackages) : ControllerBase
 {
     [HttpGet("profile")] public async Task<IActionResult> Profile() => Ok(await service.GetProfileAsync());
+    [HttpPost("packages/{subscriptionId:guid}/accept")]
+    public async Task<IActionResult> AcceptOutletPackage(Guid subscriptionId)
+        => Ok(await outletPackages.AcceptAsync(subscriptionId));
     [HttpGet("dashboard")] public async Task<IActionResult> Dashboard() => Ok(await service.GetDashboardAsync());
     [HttpGet("subscriptions")] public async Task<IActionResult> Subscriptions() => Ok(await service.GetSubscriptionsAsync());
     [HttpPost("subscriptions/quote")] public async Task<IActionResult> Quote(SubscriptionQuoteRequest request) => Ok(await service.QuoteAsync(request));
