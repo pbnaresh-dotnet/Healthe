@@ -479,6 +479,10 @@ public sealed class OrderFinancialBreakdown
         get;
         set;
     }
+    public decimal RestaurantGstRate {
+        get;
+        set;
+    }
     public decimal RestaurantTaxableAmount {
         get;
         set;
@@ -623,6 +627,14 @@ public sealed class Outlet
         set;
     }
     = true;
+    public decimal RestaurantGstRate {
+        get;
+        set;
+    } = 5m;
+    public GstMode RestaurantGstMode {
+        get;
+        set;
+    } = GstMode.Exclusive;
 }
 
 public sealed class SaaSPlan
