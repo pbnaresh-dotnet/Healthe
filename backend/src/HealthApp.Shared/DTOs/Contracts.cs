@@ -6,6 +6,35 @@ public record AuthResponse(string AccessToken, DateTime ExpiresAt, UserDto User)
 public record UserDto(Guid Id, string Email, string FirstName, string LastName, string Role, Guid? OutletId, bool IsDemo = false, DateTime? DemoExpiresAtUtc = null);
 public record OutletDto(Guid Id, string Name, string Slug, string Subdomain, string City, string State, string Pincode, string Status, string BillingPlan, string LogoUrl, string HeroImageUrl, IReadOnlyList<string> HealthHighlights, string PrimaryColor, bool IsAvailable, double DistanceKm, double Rating = 4.8, int ReviewCount = 0, string About = "Fresh, healthy meals prepared with quality ingredients.", double Latitude = 0, double Longitude = 0);
 public record SaaSPlanDto(Guid Id, string Name, decimal MonthlyFee, decimal AnnualFee, int IncludedActiveCustomers, decimal AdditionalCustomerFee, decimal CustomerTransactionFeePercent, string Description, bool IsActive);
+public record OutletSettingsDto(
+    Guid OutletId,
+    string OutletName,
+    string City,
+    string State,
+    string Pincode,
+    string DeliveryDays,
+    decimal RestaurantGstRate,
+    string RestaurantGstMode,
+    OutletReadinessDto Readiness);
+
+public record UpdateOutletSettingsRequest(string DeliveryDays);
+
+public record OutletReadinessItemDto(
+    string Key,
+    string Title,
+    string Description,
+    bool IsComplete,
+    int CurrentCount,
+    int RequiredCount,
+    string ConfigureSection);
+
+public record OutletReadinessDto(
+    string Status,
+    bool IsLive,
+    bool CanGoLive,
+    IReadOnlyList<OutletReadinessItemDto> Items,
+    string Message);
+
 public record OutletBillingDto(Guid OutletId, Guid SaaSPlanId, string PlanName, string BillingCycle, decimal SubscriptionFee, decimal SetupFee, decimal TransactionFeePercent, int ActiveCustomers, int IncludedActiveCustomers, decimal AdditionalCustomerFee, decimal EstimatedAdditionalCustomerFee, DateTime RenewalDate, string Status);
 public record OutletTaxSettingsDto(decimal RestaurantGstRate, string RestaurantGstMode);
 public record UpdateOutletTaxSettingsRequest(decimal RestaurantGstRate, string RestaurantGstMode);
