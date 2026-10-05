@@ -86,7 +86,7 @@ function App(){
  {active==='delivery-areas'&&<Areas city={city} setCity={setCity} areas={areas} selected={selectedAreas} setSelected={setSelectedAreas} save={saveAreas}/>}
  {active==='pricing'&&<Pricing pricing={pricing} add={()=>setPricingOpen(true)} remove={removePrice}/>}
  {active==='discounts'&&<Discounts tiers={tiers} add={()=>{setEditTier(null);setTierForm({minMeals:1,maxMeals:9,oneWeekPercent:0,twoWeeksPercent:0,oneMonthPercent:0});setTierOpen(true)}} edit={t=>{setEditTier(t);setTierForm({...t,maxMeals:t.maxMeals??''});setTierOpen(true)}} remove={removeTier}/>}
- {active==='billing'&&<Billing billing={billing}/>}
+ {active==='tax'&&<TaxSettingsPage settings={taxSettings} form={taxForm} setForm={setTaxForm} save={saveTax}/>}\n {active==='billing'&&<Billing billing={billing}/>}
  {busy&&<div className="loadingBar"><span/></div>}</main></section>
  {toast&&<div className={'statusToast '+toastType}><span>{toastType==='success'?'✓':toastType==='warning'?'⚠':toastType==='info'?'ℹ':'×'}</span><div><b>{toastType==='success'?'Success':toastType==='warning'?'Warning':toastType==='info'?'Info':'Error'}</b><small>{toast}</small></div><button onClick={()=>setToast('')}>×</button></div>}
  {recipeOpen&&<Modal title={editRecipe?'Edit recipe':'Create new recipe'} onClose={()=>setRecipeOpen(false)} wide><RecipeForm form={recipeForm} setForm={setRecipeForm} ingredients={ingredients} allergens={allergens} upload={upload} uploading={uploading} submit={saveRecipe} cancel={()=>setRecipeOpen(false)}/></Modal>}
