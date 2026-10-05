@@ -1328,7 +1328,7 @@ public sealed class AdminService(
             x.IsPrimary,
             x.CreatedAtUtc,
             x.VerifiedAtUtc,
-            "TXT",
+            providerState?.ValidationMethod ?? "TXT",
             x.VerificationRecordName,
             x.VerificationToken,
             "Cloudflare Pages",
