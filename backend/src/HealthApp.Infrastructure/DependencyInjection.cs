@@ -34,6 +34,7 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(config.GetSection("Jwt"));
         services.Configure<StorageOptions>(config.GetSection("Storage"));
         services.Configure<GeocodingOptions>(config.GetSection("Geocoding"));
+        services.Configure<TenantDomainSettings>(config.GetSection("TenantDomains"));
         services.Configure<SmtpEmailOptions>(config.GetSection("Email"));
 
         var storageProvider = (config["Storage:Provider"] ?? "Local").Trim().ToLowerInvariant();
@@ -73,6 +74,8 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IOutletRepository, OutletRepository>();
         services.AddScoped<IOutletBrandingRepository, OutletBrandingRepository>();
+        services.AddScoped<IOutletDomainRepository, OutletDomainRepository>();
+        services.AddScoped<ITenantHostResolver, TenantHostResolver>();
         services.AddScoped<ISaaSPlanRepository, SaaSPlanRepository>();
         services.AddScoped<IOutletOnboardingRepository, OutletOnboardingRepository>();
         services.AddScoped<IEmailService, SmtpEmailService>();
