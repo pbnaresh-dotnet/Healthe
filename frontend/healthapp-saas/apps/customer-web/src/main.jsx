@@ -424,6 +424,11 @@ function App(){
  useEffect(()=>{if(!user||!cityFilter)return;let disposed=false;outlets.list(cityFilter).then(outletsForCity=>{if(disposed)return;setGlobal(g=>({...g,outlets:outletsForCity}));setAvailableOutlets(outletsForCity)}).catch(()=>{});return()=>{disposed=true}},[cityFilter,user]);
  useEffect(()=>{if(!user)return;const city=cityFilter.toLowerCase();const cityAddresses=global.addresses.filter(a=>a.city?.toLowerCase()===city);setSelectedAddressId(prev=>{const current=global.addresses.find(x=>x.id===prev);if(current?.city?.toLowerCase()===city)return prev;return(cityAddresses.find(x=>x.isDefault)||cityAddresses[0])?.id||''})},[cityFilter,global.addresses,user]);
  useEffect(()=>{
+   if(active!=='builder'||!builder.startDate)return;
+   const expected=defaultWeekActiveDays(builder.startDate,builder.duration);
+   setBuilder(b=>JSON.stringify(b.weekActiveDays||{})===JSON.stringify(expected)?b:{...b,weekActiveDays:expected,quote:null});
+ },[active,builder.startDate,builder.duration]);
+ useEffect(()=>{
    if(!user||active!=='dashboard')return;
    let disposed=false;
    const refresh=()=>customer.dashboard().then(x=>{if(!disposed)setCustomerDashboard(x)}).catch(()=>{});
