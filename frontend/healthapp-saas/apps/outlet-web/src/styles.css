@@ -190,3 +190,17 @@
 @media(max-width:650px){.packageSlotGrid{grid-template-columns:1fr}.packageBuilderBadge{display:none}.packageQuotePanel{order:-1}.packageAddressMapFrame{height:220px}}
 
 .packageManualPaymentNote{display:flex;flex-direction:column;gap:3px;padding:12px;border:1px solid #dceadf;border-radius:10px;background:#f6fbf7}.packageManualPaymentNote b{font-size:11px;color:#176534}.packageManualPaymentNote span{font-size:10px;color:#6e7b73;line-height:1.45}
+
+/* Standard confirmation / warning / danger dialogs */
+.standardConfirmBackdrop{position:fixed;inset:0;z-index:900;background:rgba(7,24,13,.58);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:18px;animation:standardFadeIn .16s ease-out}
+.standardConfirmModal{width:min(430px,94vw);display:grid;grid-template-columns:52px 1fr;gap:14px;padding:18px;background:#fff;border:1px solid #dce7de;border-radius:18px;box-shadow:0 28px 80px rgba(7,35,18,.28);animation:standardPopIn .18s ease-out}
+.standardConfirmModal.danger{border-color:#efd4d4}
+.standardConfirmIcon{width:50px;height:50px;border-radius:15px;background:#fff0d9;color:#a1661e;display:grid;place-items:center;font-size:20px;font-weight:950}
+.standardConfirmIcon.danger{background:#ffeded;color:#ad3c3c}
+.standardConfirmContent{min-width:0}.standardConfirmEyebrow{display:block;font-size:7px;letter-spacing:1px;font-weight:950;color:#9a681f}.standardConfirmEyebrow.danger{color:#ae4141}
+.standardConfirmContent h3{margin:5px 0 7px;font-size:17px;line-height:1.2;color:#183a26}.standardConfirmContent p{margin:0;color:#68766e;font-size:9px;line-height:1.55}
+.standardConfirmActions{display:flex;justify-content:flex-end;gap:7px;margin-top:15px}.standardConfirmActions button{min-width:86px}
+.dangerAction{border:1px solid #e4bcbc;background:#fff;color:#ad3d3d;border-radius:9px;padding:10px 14px;font-weight:850;cursor:pointer}
+.dangerAction:hover{background:#fff3f3;border-color:#d99a9a}
+@keyframes standardFadeIn{from{opacity:0}to{opacity:1}}@keyframes standardPopIn{from{opacity:0;transform:translateY(5px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:560px){.standardConfirmModal{grid-template-columns:42px 1fr;gap:10px;padding:14px;border-radius:15px}.standardConfirmIcon{width:42px;height:42px;border-radius:12px;font-size:16px}.standardConfirmContent h3{font-size:14px}.standardConfirmContent p{font-size:8px}.standardConfirmActions{margin-top:12px}.standardConfirmActions button{font-size:8px;padding:8px 10px}}
