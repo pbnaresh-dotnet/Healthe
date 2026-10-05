@@ -119,7 +119,7 @@ public sealed class OutletSettingsService(
             LogoUrl = outlet.LogoUrl ?? string.Empty,
             HeroImageUrl = outlet.HeroImageUrl ?? string.Empty,
             PrimaryColor = string.IsNullOrWhiteSpace(outlet.PrimaryColor) ? "#14532d" : outlet.PrimaryColor,
-            SecondaryColor = string.IsNullOrWhiteSpace(outlet.PrimaryColor) ? "#166534" : outlet.PrimaryColor,
+            SecondaryColor = "#166534",
             HealthHighlights = outlet.HealthHighlights ?? string.Empty,
             About = outlet.About ?? string.Empty
         };
