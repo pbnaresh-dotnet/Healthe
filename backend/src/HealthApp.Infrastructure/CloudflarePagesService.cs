@@ -12,6 +12,8 @@ public sealed class CloudflarePagesService(
 {
     private readonly CloudflarePagesSettings settings = options.Value;
 
+    public bool IsEnabled => settings.Enabled;
+
     public async Task<CloudflarePagesDomainState> EnsureDomainAsync(string hostname, CancellationToken cancellationToken = default)
     {
         EnsureConfigured();
