@@ -12,7 +12,11 @@ public sealed class AuthService(IUserRepository users, IOutletRepository outlets
     public async Task<AuthResponse?> LoginAsync(LoginRequest r)
     {
         var user = await users.FindByEmailAsync(r.Email);
-        return user is null || !user.IsActive || !passwords.Verify(r.Password, user.PasswordHash) ? null : tokens.CreateToken(user);
+        if (user is null || !user.IsActive || !passwords.Verify(r.Password, user.PasswordHash))
+            return null;
+        if (user.IsDemo && user.DemoExpiresAtUtc.HasValue && user.DemoExpiresAtUtc.Value <= DateTime.UtcNow)
+            throw new UnauthorizedAccessException("Your 7-day demo has expired. Request a new demo account to continue exploring HealthApp.");
+        return tokens.CreateToken(user);
     }
     public async Task<AuthResponse> RegisterAsync(RegisterRequest r)
     {
