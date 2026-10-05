@@ -61,7 +61,6 @@ internal static class HealthAppModelBuilder
         b.Entity<SubscriptionDiscountTier>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
         b.Entity<DiscountCode>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
 
-        b.Entity<CustomerProfile>().HasOne<User>().WithOne().HasForeignKey<CustomerProfile>(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
         b.Entity<CustomerAddress>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
         b.Entity<CustomerCreditTransaction>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
         b.Entity<Subscription>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
