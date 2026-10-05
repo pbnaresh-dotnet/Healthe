@@ -7,11 +7,24 @@ using HealthApp.Domain.Enums;
 using HealthApp.Domain.Events;
 using HealthApp.Shared.DTOs;
 namespace HealthApp.Application.Services;
-public sealed class AuthService(IUserRepository users, ITokenService tokens, IPasswordService passwords) : IAuthService
+public sealed class AuthService(IUserRepository users, ITokenService tokens, IPasswordService passwords, IOutletRepository outlets) : IAuthService
 {
     public async Task<AuthResponse?> LoginAsync(LoginRequest r)
     {
-        var user = await users.FindByEmailAsync(r.Email);
+        Guid? outletId = null;
+        if (!string.IsNullOrWhiteSpace(r.OutletSlug))
+        {
+            var outlet = await outlets.GetBySlugAsync(r.OutletSlug.Trim().ToLowerInvariant());
+            if (outlet is null || outlet.Status != OutletStatus.Live)
+                return null;
+
+            outletId = outlet.Id;
+        }
+
+        var user = outletId.HasValue
+            ? await users.FindByEmailAsync(r.Email, outletId.Value)
+            : await users.FindByEmailAsync(r.Email);
+
         if (user is null || !user.IsActive || !passwords.Verify(r.Password, user.PasswordHash))
             return null;
         if (user.IsDemo && user.DemoExpiresAtUtc.HasValue && user.DemoExpiresAtUtc.Value <= DateTime.UtcNow)
@@ -26,7 +39,20 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
         if (role is UserRole.SuperAdmin or UserRole.Driver) throw new UnauthorizedAccessException("This role cannot be self-registered.");
         if (role == UserRole.OutletAdmin)
             throw new UnauthorizedAccessException("Outlet administrators must complete outlet onboarding and verification before an account is activated.");
+
         Guid? outletId = null;
+        if (role == UserRole.Customer)
+        {
+            if (string.IsNullOrWhiteSpace(r.OutletSlug))
+                throw new ArgumentException("OutletSlug is required for customer registration.");
+
+            var outlet = await outlets.GetBySlugAsync(r.OutletSlug.Trim().ToLowerInvariant());
+            if (outlet is null || outlet.Status != OutletStatus.Live)
+                throw new KeyNotFoundException("The selected outlet is not available for customer registration.");
+
+            outletId = outlet.Id;
+        }
+
         var user = new User {
             Id = Guid.NewGuid(),
             Email = r.Email.Trim().ToLowerInvariant(),
