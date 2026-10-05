@@ -1049,7 +1049,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
         return new OutletKitchenDayDto(
             date.Date,
             outlet.Name,
-            string.IsNullOrWhiteSpace(outlet.Branding?.LogoUrl) ? outlet.LogoUrl : outlet.Branding.LogoUrl,
+            outlet.LogoUrl,
             labels.Count,
             labels.Select(x=>x.CustomerName).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
             labels.Select(x=>x.SubscriptionId).Distinct().Count(),
@@ -1254,7 +1254,7 @@ public sealed class AdminService(
     }
 
     public async Task<IReadOnlyList<OutletDomainDto>> GetOutletDomainsAsync() =>
-        (await domains.GetAllAsync()).Select(MapDomain).ToList();
+        (await domains.GetAllAsync()).Select(x => MapDomain(x)).ToList();
 
     public async Task<OutletDomainDto> SetOutletDomainStatusAsync(Guid domainId, OutletDomainStatus status)
     {
