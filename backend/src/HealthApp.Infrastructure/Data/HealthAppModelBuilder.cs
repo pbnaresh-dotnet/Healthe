@@ -68,6 +68,8 @@ internal static class HealthAppModelBuilder
         b.Entity<PaymentTransaction>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
         b.Entity<PlatformTransaction>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
         b.Entity<Delivery>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<OutletOnboardingApplication>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<OutletOnboardingApplication>().HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
     }
     private static void ConfigureUser(EntityTypeBuilder<User> e)
     {
