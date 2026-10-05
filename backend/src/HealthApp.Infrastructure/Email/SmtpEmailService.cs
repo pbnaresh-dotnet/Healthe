@@ -26,11 +26,7 @@ public sealed class SmtpEmailService(
     {
         var o = options.Value;
         if (!o.Enabled || string.IsNullOrWhiteSpace(o.Host) || string.IsNullOrWhiteSpace(o.FromAddress))
-        {
-            // Local development fallback. Production should enable SMTP using secret-backed configuration.
-            logger.LogWarning("Email service is not configured. Demo email for {Recipient}: {Body}", to, body);
-            return;
-        }
+            throw new InvalidOperationException("Demo email delivery is not configured. Configure Email SMTP settings before requesting a demo.");
 
         using var message = new MailMessage
         {
