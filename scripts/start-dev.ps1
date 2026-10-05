@@ -22,7 +22,25 @@ function Test-CommandExists {
     }
 }
 
-function Resolve-GitExecutable {\n    $git = Get-Command git.exe -ErrorAction SilentlyContinue\n    if ($git) { return $git.Source }\n\n    $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')\n    $candidates = @(\n        (Join-Path $env:ProgramFiles 'Git\\cmd\\git.exe'),\n        (Join-Path $programFilesX86 'Git\\cmd\\git.exe'),\n        (Join-Path $env:LOCALAPPDATA 'Programs\\Git\\cmd\\git.exe')\n    ) | Where-Object { $_ -and (Test-Path $_) }\n\n    if ($candidates.Count -gt 0) {\n        return $candidates[0]\n    }\n\n    throw "Git was not found. Install Git for Windows or add git.exe to PATH."\n}\n\nfunction Invoke-Step {
+function Resolve-GitExecutable {
+    $git = Get-Command git.exe -ErrorAction SilentlyContinue
+    if ($git) { return $git.Source }
+
+    $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+    $candidates = @(
+        (Join-Path $env:ProgramFiles 'Git\cmd\git.exe'),
+        (Join-Path $programFilesX86 'Git\cmd\git.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\Git\cmd\git.exe')
+    ) | Where-Object { $_ -and (Test-Path $_) }
+
+    if ($candidates.Count -gt 0) {
+        return $candidates[0]
+    }
+
+    throw "Git was not found. Install Git for Windows or add git.exe to PATH."
+}
+
+function Invoke-Step {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)][string]$WorkingDirectory,
@@ -67,10 +85,6 @@ function Start-DevProcess {
 Write-Host 'HealthApp local development startup' -ForegroundColor Green
 Write-Host "Repository   : $RepoRoot"
 Write-Host "Configuration: $Configuration"
-
-Test-CommandExists 'dotnet'
-Test-CommandExists 'node'
-Test-CommandExists 'npm'
 
 $GitExecutable = Resolve-GitExecutable
 Test-CommandExists 'dotnet'
