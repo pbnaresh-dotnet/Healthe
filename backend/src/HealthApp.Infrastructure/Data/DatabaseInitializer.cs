@@ -11,6 +11,26 @@ public static class DatabaseInitializer
         // The checked-in demo package is self-contained. A production deployment should
         // replace EnsureCreatedAsync with EF Core MigrateAsync after generating migrations.
         await db.Database.EnsureCreatedAsync(cancellationToken);
+
+        // Existing databases may still have the pre-SaaS globally-unique email index.
+        // Replace it with a global-null index plus a tenant-scoped email index.
+        await db.Database.ExecuteSqlRawAsync(@" 
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Users_Email' AND object_id = OBJECT_ID('dbo.Users'))
+    DROP INDEX IX_Users_Email ON dbo.Users;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Users_Email_Global' AND object_id = OBJECT_ID('dbo.Users'))
+    CREATE UNIQUE INDEX IX_Users_Email_Global ON dbo.Users(Email) WHERE OutletId IS NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Users_OutletId_Email' AND object_id = OBJECT_ID('dbo.Users'))
+    CREATE UNIQUE INDEX IX_Users_OutletId_Email ON dbo.Users(OutletId, Email) WHERE OutletId IS NOT NULL;
+IF NOT EXISTS (
+    SELECT 1 FROM sys.foreign_keys
+    WHERE parent_object_id = OBJECT_ID('dbo.Users')
+      AND referenced_object_id = OBJECT_ID('dbo.Outlets')
+      AND name = 'FK_Users_Outlets_OutletId'
+)
+    ALTER TABLE dbo.Users ADD CONSTRAINT FK_Users_Outlets_OutletId
+        FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+", cancellationToken);
+
         await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.Outlets','DeliveryDays') IS NULL
     ALTER TABLE dbo.Outlets ADD DeliveryDays nvarchar(200) NULL;
