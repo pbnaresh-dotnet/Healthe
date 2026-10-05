@@ -2,18 +2,30 @@ import React,{useEffect,useState}from'react';
 import{money,outletAdmin}from'@healthapp/shared';
 
 const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-const SECTIONS=[['overview','⚡','Launch checklist'],['branding','✦','Branding'],['delivery','⌖','Delivery schedule'],['areas','◎','Service areas'],['pricing','₹','Delivery pricing'],['discounts','%','Subscription discounts'],['meal-plans','▣','Meal plans'],['tax','▤','Tax & GST'],['billing','▣','HealthApp billing']];
+const SECTIONS=[['overview','⚡','Launch checklist'],['branding','✦','Branding'],['domains','⌁','Domains'],['delivery','⌖','Delivery schedule'],['areas','◎','Service areas'],['pricing','₹','Delivery pricing'],['discounts','%','Subscription discounts'],['meal-plans','▣','Meal plans'],['tax','▤','Tax & GST'],['billing','▣','HealthApp billing']];
 
 export default function OutletSettings({onNavigate}){
  const[section,setSection]=useState('overview');
- const[data,setData]=useState(null),[readiness,setReadiness]=useState(null),[areas,setAreas]=useState([]),[selectedAreas,setSelectedAreas]=useState([]),[pricing,setPricing]=useState([]),[tiers,setTiers]=useState([]),[mealPlans,setMealPlans]=useState([]),[saasPlans,setSaasPlans]=useState([]),[billing,setBilling]=useState(null);
+ const[data,setData]=useState(null),[readiness,setReadiness]=useState(null),[domains,setDomains]=useState([]),[areas,setAreas]=useState([]),[selectedAreas,setSelectedAreas]=useState([]),[pricing,setPricing]=useState([]),[tiers,setTiers]=useState([]),[mealPlans,setMealPlans]=useState([]),[saasPlans,setSaasPlans]=useState([]),[billing,setBilling]=useState(null);
  const[deliveryDays,setDeliveryDays]=useState([]),[priceForm,setPriceForm]=useState({maxDistanceKm:'',fee:''}),[tierForm,setTierForm]=useState({minMeals:1,maxMeals:9,oneWeekPercent:0,twoWeeksPercent:0,oneMonthPercent:0}),[editTier,setEditTier]=useState(null),[mealPlanForm,setMealPlanForm]=useState({name:'',frequency:'Weekly',mealsPerDay:1,mealsPerWeek:7,price:0,currency:'INR',description:''});
- const[planChoice,setPlanChoice]=useState(''),[cycle,setCycle]=useState('Monthly'),[tax,setTax]=useState({restaurantGstRate:5,restaurantGstMode:'Exclusive'}),[branding,setBranding]=useState({brandName:'',tagline:'',logoUrl:'',heroImageUrl:'',faviconUrl:'',primaryColor:'#14532d',secondaryColor:'#166534',healthHighlights:'',about:'',footerText:''}),[brandingUploading,setBrandingUploading]=useState(''),[saving,setSaving]=useState(false),[error,setError]=useState(''),[toast,setToast]=useState(''),[confirmLive,setConfirmLive]=useState(false);
+ const[domainForm,setDomainForm]=useState({hostname:'',isPrimary:false}),[planChoice,setPlanChoice]=useState(''),[cycle,setCycle]=useState('Monthly'),[tax,setTax]=useState({restaurantGstRate:5,restaurantGstMode:'Exclusive'}),[branding,setBranding]=useState({brandName:'',tagline:'',logoUrl:'',heroImageUrl:'',faviconUrl:'',primaryColor:'#14532d',secondaryColor:'#166534',healthHighlights:'',about:'',footerText:''}),[brandingUploading,setBrandingUploading]=useState(''),[saving,setSaving]=useState(false),[error,setError]=useState(''),[toast,setToast]=useState(''),[confirmLive,setConfirmLive]=useState(false);
 
- const load=async()=>{try{setSaving(true);setError('');const[s,r,a,ar,p,t,b,mp,sp]=await Promise.all([outletAdmin.settings(),outletAdmin.readiness(),outletAdmin.availableDeliveryAreas(),outletAdmin.selectedDeliveryAreas(),outletAdmin.pricingRules(),outletAdmin.discountTiers(),outletAdmin.billing(),outletAdmin.mealPlans(),outletAdmin.subscriptionPlans()]);setData(s);setReadiness(r);setAreas(a||[]);setSelectedAreas((ar||[]).map(x=>x.cityAreaId));setPricing(p||[]);setTiers(t||[]);setBilling(b);setMealPlans(mp||[]);setSaasPlans(sp||[]);setPlanChoice(b?.saasPlanId||'');setCycle(b?.billingCycle||'Monthly');setDeliveryDays((s?.deliveryDays||'').split(',').map(x=>x.trim()).filter(Boolean));setTax({restaurantGstRate:s?.restaurantGstRate??5,restaurantGstMode:s?.restaurantGstMode||'Exclusive'});setBranding({brandName:s?.branding?.brandName||s?.outletName||'',tagline:s?.branding?.tagline||'',logoUrl:s?.branding?.logoUrl||'',heroImageUrl:s?.branding?.heroImageUrl||'',faviconUrl:s?.branding?.faviconUrl||'',primaryColor:s?.branding?.primaryColor||'#14532d',secondaryColor:s?.branding?.secondaryColor||'#166534',healthHighlights:(s?.branding?.healthHighlights||[]).join(', '),about:s?.branding?.about||'',footerText:s?.branding?.footerText||''})}catch(e){setError(e.message||'Unable to load outlet settings.')}finally{setSaving(false)}};
+ const load=async()=>{try{setSaving(true);setError('');const[s,r,ds,a,ar,p,t,b,mp,sp]=await Promise.all([outletAdmin.settings(),outletAdmin.readiness(),outletAdmin.domains(),outletAdmin.availableDeliveryAreas(),outletAdmin.selectedDeliveryAreas(),outletAdmin.pricingRules(),outletAdmin.discountTiers(),outletAdmin.billing(),outletAdmin.mealPlans(),outletAdmin.subscriptionPlans()]);setData(s);setReadiness(r);setDomains(ds||[]);setAreas(a||[]);setSelectedAreas((ar||[]).map(x=>x.cityAreaId));setPricing(p||[]);setTiers(t||[]);setBilling(b);setMealPlans(mp||[]);setSaasPlans(sp||[]);setPlanChoice(b?.saasPlanId||'');setCycle(b?.billingCycle||'Monthly');setDeliveryDays((s?.deliveryDays||'').split(',').map(x=>x.trim()).filter(Boolean));setTax({restaurantGstRate:s?.restaurantGstRate??5,restaurantGstMode:s?.restaurantGstMode||'Exclusive'});setBranding({brandName:s?.branding?.brandName||s?.outletName||'',tagline:s?.branding?.tagline||'',logoUrl:s?.branding?.logoUrl||'',heroImageUrl:s?.branding?.heroImageUrl||'',faviconUrl:s?.branding?.faviconUrl||'',primaryColor:s?.branding?.primaryColor||'#14532d',secondaryColor:s?.branding?.secondaryColor||'#166534',healthHighlights:(s?.branding?.healthHighlights||[]).join(', '),about:s?.branding?.about||'',footerText:s?.branding?.footerText||''})}catch(e){setError(e.message||'Unable to load outlet settings.')}finally{setSaving(false)}};
  useEffect(()=>{load()},[]);
 
  const saveBranding=async e=>{e.preventDefault();try{setSaving(true);const x=await outletAdmin.updateBranding(branding);setBranding({brandName:x?.brandName||'',tagline:x?.tagline||'',logoUrl:x?.logoUrl||'',heroImageUrl:x?.heroImageUrl||'',faviconUrl:x?.faviconUrl||'',primaryColor:x?.primaryColor||'#14532d',secondaryColor:x?.secondaryColor||'#166534',healthHighlights:(x?.healthHighlights||[]).join(', '),about:x?.about||'',footerText:x?.footerText||''});setData(d=>({...d,branding:x}));setToast('Branding saved')}catch(x){setError(x.message||'Unable to save branding')}finally{setSaving(false)}};
+ const requestDomain=async e=>{
+   e.preventDefault();
+   const hostname=domainForm.hostname.trim();
+   if(!hostname)return;
+   try{
+     setSaving(true);setError('');
+     const x=await outletAdmin.requestDomain(hostname,domainForm.isPrimary);
+     setDomains(d=>[x,...d.filter(v=>v.id!==x.id)]);
+     setDomainForm({hostname:'',isPrimary:false});
+     setToast(x?.status==='Active'?'Domain is already active':'Custom domain requested — waiting for Super Admin verification');
+   }catch(x){setError(x.message||'Unable to request custom domain')}finally{setSaving(false)}
+ };
  const uploadBranding=async(assetType,file)=>{if(!file)return;try{setBrandingUploading(assetType);const x=await outletAdmin.uploadBrandingAsset(assetType,file);setBranding(b=>({...b,logoUrl:x?.logoUrl||b.logoUrl,heroImageUrl:x?.heroImageUrl||b.heroImageUrl,faviconUrl:x?.faviconUrl||b.faviconUrl}));setData(d=>({...d,branding:x}));setToast((assetType==='hero'?'Hero image':assetType==='favicon'?'Favicon':'Logo')+' uploaded')}catch(x){setError(x.message||'Unable to upload branding asset')}finally{setBrandingUploading('')}};
  const saveDays=async()=>{try{setSaving(true);const x=await outletAdmin.updateDeliveryDays(deliveryDays.join(','));setData(x);setReadiness(x?.readiness);setToast('Delivery schedule saved')}catch(e){setError(e.message||'Unable to save delivery days')}finally{setSaving(false)}};
  const saveAreas=async()=>{try{setSaving(true);await outletAdmin.saveDeliveryAreas(selectedAreas);await load();setToast('Service areas saved')}catch(e){setError(e.message||'Unable to save service areas')}finally{setSaving(false)}};
@@ -51,6 +63,28 @@ export default function OutletSettings({onNavigate}){
       <div className="settingsDataRow"><div><b>Favicon</b><span>Browser tab icon for the customer portal.</span></div><div className="settingsRowActions">{branding.faviconUrl&&<img src={branding.faviconUrl} alt="" style={{width:32,height:32,objectFit:'cover',borderRadius:7,border:'1px solid #dfe8e1'}}/>}<label className="secondary">Upload<input type="file" accept=".png,.ico,.jpg,.jpeg,.webp" style={{display:'none'}} onChange={e=>uploadBranding('favicon',e.target.files?.[0])}/></label></div></div>
       {brandingUploading&&<div className="settingsToolbar">Uploading {brandingUploading}…</div>}
     </div>
+   </section>}
+
+   {section==='domains'&&<section className="settingsSection">
+    <div className="settingsSectionHead">
+      <div><span className="eyebrow">CUSTOMER PORTAL DOMAINS</span><h2>Connect your customer website</h2><p>Every outlet gets a HealthApp platform address automatically. You can also request your own domain such as <b>www.fitfood.com</b>.</p></div>
+    </div>
+    <div className="settingsDataList">
+      {domains.map(d=><div className="settingsDataRow" key={d.id||d.hostname}>
+        <div>
+          <b>{d.hostname}</b>
+          <span>{d.type} domain · {d.status}{d.isPrimary?' · Primary':''}</span>
+        </div>
+        <div className="settingsRowActions">{d.type==='Custom'&&d.status!=='Active'&&<span className="pill">{d.status}</span>}{d.type==='Platform'&&<span className="pill">Automatic</span>}</div>
+      </div>)}
+      {!domains.length&&<div className="settingsEmpty">No customer portal domains are configured yet.</div>}
+    </div>
+    <form className="settingsInlineForm" onSubmit={requestDomain}>
+      <label className="field span2"><span>Custom domain</span><input value={domainForm.hostname} onChange={e=>setDomainForm({...domainForm,hostname:e.target.value})} placeholder="www.fitfood.com" maxLength="253" required/></label>
+      <label className="check"><input type="checkbox" checked={domainForm.isPrimary} onChange={e=>setDomainForm({...domainForm,isPrimary:e.target.checked})}/> Mark as primary</label>
+      <button className="primary" disabled={saving||!domainForm.hostname.trim()}>Request domain</button>
+    </form>
+    <div className="settingsToolbar"><b>Verification</b><span>After requesting a custom domain, copy the TXT record shown by Super Admin and complete the DNS change with your domain provider. The domain becomes customer-facing only after Super Admin activates it.</span></div>
    </section>}
 
    {section==='delivery'&&<section className="settingsSection"><div className="settingsSectionHead"><div><span className="eyebrow">DELIVERY SCHEDULE</span><h2>Choose your delivery days</h2><p>These days drive the weekly menu launch check and customer delivery calendar.</p></div><button className="primary" onClick={saveDays} disabled={saving}>Save days</button></div><div className="dayPicker">{DAYS.map(day=><button type="button" key={day} className={deliveryDays.includes(day)?'dayOption selected':'dayOption'} onClick={()=>setDeliveryDays(x=>x.includes(day)?x.filter(v=>v!==day):[...x,day])}><span>{day.slice(0,3)}</span><b>{day}</b></button>)}</div></section>}
