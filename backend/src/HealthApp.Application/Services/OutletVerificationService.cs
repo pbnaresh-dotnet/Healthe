@@ -218,9 +218,9 @@ public sealed class OutletVerificationService(
             x.Id, x.Status, x.PaymentStatus, x.PlanName, x.BillingCycle, x.SubscriptionFee, x.SetupFee,
             x.BusinessType, x.OutletName, x.Description, x.City, x.State, x.Pincode,
             x.AddressLine1, x.AddressLine2, x.OwnerName, x.OwnerEmail, x.OwnerPhone,
-            x.AadhaarNumber, x.AadhaarCardKey is null ? "" : $"/api/admin/outlet-onboarding/{x.Id}/documents/AadhaarCard",
-            x.BusinessRegistrationKey is null ? "" : $"/api/admin/outlet-onboarding/{x.Id}/documents/BusinessRegistration",
-            x.BusinessPan, x.BusinessPanDocumentKey is null ? "" : $"/api/admin/outlet-onboarding/{x.Id}/documents/BusinessPan",
-            x.GstNumber, x.GstCertificateKey is null ? "" : $"/api/admin/outlet-onboarding/{x.Id}/documents/GstCertificate",
+            x.AadhaarNumber, !string.IsNullOrWhiteSpace(x.AadhaarCardKey) ? $"/api/admin/outlet-onboarding/{x.Id}/documents/AadhaarCard" : "",
+            !string.IsNullOrWhiteSpace(x.BusinessRegistrationKey) ? $"/api/admin/outlet-onboarding/{x.Id}/documents/BusinessRegistration" : "",
+            x.BusinessPan, !string.IsNullOrWhiteSpace(x.BusinessPanDocumentKey) ? $"/api/admin/outlet-onboarding/{x.Id}/documents/BusinessPan" : "",
+            x.GstNumber, !string.IsNullOrWhiteSpace(x.GstCertificateKey) ? $"/api/admin/outlet-onboarding/{x.Id}/documents/GstCertificate" : "",
             x.SubmittedAtUtc, x.VerificationNotes);
 }
