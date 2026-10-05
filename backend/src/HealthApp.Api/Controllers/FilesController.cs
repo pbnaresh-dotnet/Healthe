@@ -13,8 +13,7 @@ public sealed class FilesController(IFileStorage fileStorage, ICurrentUser curre
         {
             ["recipes"] = [".jpg", ".jpeg", ".png", ".webp"],
             ["outlets"] = [".jpg", ".jpeg", ".png", ".webp"],
-            ["avatars"] = [".jpg", ".jpeg", ".png", ".webp"],
-            ["documents"] = [".pdf", ".jpg", ".jpeg", ".png", ".webp", ".doc", ".docx", ".xls", ".xlsx"]
+            ["avatars"] = [".jpg", ".jpeg", ".png", ".webp"]
         };
 
     [HttpPost("{folder}")]
