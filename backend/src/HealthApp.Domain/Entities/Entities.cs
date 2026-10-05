@@ -1219,6 +1219,51 @@ public sealed class Subscription
         get;
         set;
     }
+    // Outlet-created package workflow snapshot.
+    public string PackageStatus {
+        get;
+        set;
+    } = "Active";
+    public bool IsOutletCreated {
+        get;
+        set;
+    }
+    public Guid? CreatedByOutletUserId {
+        get;
+        set;
+    }
+    public OutletPackageDiscountType OutletDiscountType {
+        get;
+        set;
+    } = OutletPackageDiscountType.None;
+    public decimal OutletDiscountValue {
+        get;
+        set;
+    }
+    public string OutletDiscountReason {
+        get;
+        set;
+    } = "";
+    public string PaymentMethod {
+        get;
+        set;
+    } = "Online";
+    public Guid? PaidByUserId {
+        get;
+        set;
+    }
+    public DateTime? PaidAtUtc {
+        get;
+        set;
+    }
+    public DateTime? AcceptedAtUtc {
+        get;
+        set;
+    }
+    public DateTime? SentAtUtc {
+        get;
+        set;
+    }
     public DateTime NextDeliveryDate {
         get;
         set;
