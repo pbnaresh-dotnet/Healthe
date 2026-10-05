@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState}from'react';
+import React,{useEffect,useMemo,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
 import{auth,outlets,locations,recipes,menu,customer,catalog,money,currentUser,API_URL}from'@healthapp/shared';
 import{MapContainer,TileLayer,CircleMarker,useMap,useMapEvents}from'react-leaflet';
@@ -47,6 +47,108 @@ const cityMapCenter=city=>{
 
 function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setError}){
  const[showAuth,setShowAuth]=useState(false);
+ const[showLocationExplorer,setShowLocationExplorer]=useState(false);
+ const[publicCities,setPublicCities]=useState([]);
+ const[publicCity,setPublicCity]=useState('');
+ const[publicPin,setPublicPin]=useState(null);
+ const[nearbyOutlets,setNearbyOutlets]=useState([]);
+ const[publicMapBusy,setPublicMapBusy]=useState(false);
+ const[publicMapError,setPublicMapError]=useState('');
+ const[trackingLocation,setTrackingLocation]=useState(false);
+ const[publicOutlet,setPublicOutlet]=useState(null);
+ const[publicOutletMenu,setPublicOutletMenu]=useState([]);
+ const[publicOutletRecipes,setPublicOutletRecipes]=useState([]);
+ const[publicOutletBusy,setPublicOutletBusy]=useState(false);
+ const[publicOutletError,setPublicOutletError]=useState('');
+ const[location,setLocation]=useState('');
+ const[locationHint,setLocationHint]=useState('');
+ const trackingRef=useRef(null);
+ const lastTrackedRef=useRef(null);
+
+ useEffect(()=>{
+   let disposed=false;
+   locations.cities().then(rows=>{
+     if(disposed)return;
+     const list=rows||[];
+     setPublicCities(list);
+     if(!publicCity)setPublicCity(list[0]?.city||'');
+   }).catch(()=>{});
+   return()=>{disposed=true};
+ },[]);
+
+ const loadNearbyOutlets=async(latitude,longitude,city)=>{
+   if(!Number.isFinite(latitude)||!Number.isFinite(longitude))return;
+   setPublicPin([latitude,longitude]);
+   setPublicMapBusy(true);
+   setPublicMapError('');
+   try{
+     const result=await outlets.availability(latitude,longitude,city||'');
+     setNearbyOutlets(result?.outlets||[]);
+   }catch(e){
+     setNearbyOutlets([]);
+     setPublicMapError(e.message||'Unable to find nearby outlets.');
+   }finally{setPublicMapBusy(false)}
+ };
+
+ const openLocationExplorer=()=>{
+   setShowLocationExplorer(true);
+   setPublicMapError('');
+ };
+ const closeLocationExplorer=()=>{
+   setShowLocationExplorer(false);
+   if(trackingRef.current&&navigator.geolocation)navigator.geolocation.clearWatch(trackingRef.current);
+   trackingRef.current=null;
+   setTrackingLocation(false);
+ };
+ const useCurrentLocation=()=>{
+   if(!navigator.geolocation){
+     setPublicMapError('Location services are not available in this browser.');
+     return;
+   }
+   setTrackingLocation(true);
+   setPublicMapError('');
+   const onSuccess=pos=>{
+     const{latitude,longitude}=pos.coords;
+     const last=lastTrackedRef.current;
+     if(last){
+       const distance=Math.sqrt(Math.pow((latitude-last[0])*111,2)+Math.pow((longitude-last[1])*111,2));
+       if(distance<0.08)return;
+     }
+     lastTrackedRef.current=[latitude,longitude];
+     loadNearbyOutlets(latitude,longitude,publicCity);
+   };
+   const onError=()=>{setTrackingLocation(false);setPublicMapError('Unable to access your current location. You can pin a location on the map instead.');};
+   try{trackingRef.current=navigator.geolocation.watchPosition(onSuccess,onError,{enableHighAccuracy:true,maximumAge:10000,timeout:15000});}catch{navigator.geolocation.getCurrentPosition(onSuccess,onError,{enableHighAccuracy:true,timeout:15000})}
+ };
+ const changePublicCity=city=>{
+   setPublicCity(city);
+   setNearbyOutlets([]);
+   setPublicPin(null);
+   lastTrackedRef.current=null;
+ };
+ const selectPublicPin=(latitude,longitude)=>loadNearbyOutlets(latitude,longitude,publicCity);
+ const startWithLocation=()=>{
+   const value=location.trim();
+   setLocationHint(value ? ("We'll use "+value+" to find outlets that can deliver to you.") : 'Pin your location to see nearby outlets and delivery coverage.');
+   openLocationExplorer();
+ };
+ const openPublicOutlet=async o=>{
+   setPublicOutlet(o);
+   setPublicOutletError('');
+   setPublicOutletBusy(true);
+   try{
+     const[m,rs]=await Promise.all([menu.outlet(o.id),recipes.list(o.id)]);
+     setPublicOutletMenu(m||[]);
+     setPublicOutletRecipes(rs||[]);
+   }catch(e){
+     setPublicOutletMenu([]);
+     setPublicOutletRecipes([]);
+     setPublicOutletError(e.message||'Unable to load this outlet menu.');
+   }finally{setPublicOutletBusy(false)}
+ };
+ const goTo=(id)=>document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'});
+ const plans=[
+ const[showAuth,setShowAuth]=useState(false);
  const[location,setLocation]=useState('');
  const[locationHint,setLocationHint]=useState('');
  const openAuth=mode=>{setAuthMode(mode);setShowAuth(true);setError('');window.scrollTo({top:0,behavior:'smooth'});};
@@ -80,6 +182,32 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    <div className="publicAuthIntro"><span className="eyebrow">CUSTOMER PORTAL</span><h1>{authMode==='login'?'Welcome back':'Start your healthy journey'}</h1><p>{authMode==='login'?'Sign in to manage your meals and deliveries.':'Create your account to explore healthy outlets, meal plans and subscriptions.'}</p>{locationHint&&<div className="publicLocationNote">📍 {locationHint}</div>}</div>
    <form className="authCard publicAuthCard" onSubmit={doAuth}><div className="eyebrow">{authMode==='login'?'SIGN IN':'CREATE YOUR ACCOUNT'}</div><h2>{authMode==='login'?'Welcome back':'Create your account'}</h2><p>{authMode==='login'?'Sign in to manage your meals and deliveries.':'Start with your health profile and build your first package.'}</p>{authMode==='register'&&<div className="twoCol"><label>First name<input value={authForm.firstName} onChange={e=>setAuthForm({...authForm,firstName:e.target.value})}/></label><label>Last name<input value={authForm.lastName} onChange={e=>setAuthForm({...authForm,lastName:e.target.value})}/></label></div>}<label>Email<input type="email" value={authForm.email} onChange={e=>setAuthForm({...authForm,email:e.target.value})}/></label><label>Password<input type="password" value={authForm.password} onChange={e=>setAuthForm({...authForm,password:e.target.value})}/></label><button className="primary big">{authMode==='login'?'Sign in':'Create account'}</button>{error&&<div className="error">{error}</div>}<div className="authSwitch">{authMode==='login'?'New to HealthApp?':'Already have an account?'} <button type="button" className="linkBtn" onClick={()=>setAuthMode(authMode==='login'?'register':'login')}>{authMode==='login'?'Create account':'Sign in'}</button></div>{authMode==='login'&&<small>Demo: customer@healthapp.test / demo</small>}</form>
  </div>;
+
+   {showLocationExplorer&&<div className="publicOverlayBackdrop" onMouseDown={e=>e.target===e.currentTarget&&closeLocationExplorer()}>
+     <div className="publicLocationExplorer">
+       <div className="publicExplorerHead">
+         <div><span className="publicEyebrow">LIVE OUTLET DISCOVERY</span><h2>Find healthy outlets near you</h2><p>Move the map or use your current location to see outlets that can deliver to you.</p></div>
+         <button className="publicExplorerClose" onClick={closeLocationExplorer}>×</button>
+       </div>
+       <div className="publicExplorerToolbar">
+         <label><span>Delivery city</span><select value={publicCity} onChange={e=>changePublicCity(e.target.value)}>{publicCities.map(x=><option key={x.city+'|'+x.state} value={x.city}>{x.city} · {x.state}</option>)}</select></label>
+         <button className="secondary smallBtn" onClick={useCurrentLocation}>{trackingLocation?'● Live location on':'⌖ Use my current location'}</button>
+         {publicPin&&<span className="publicPinStatus">● Pin updated · {nearbyOutlets.length} outlet{nearbyOutlets.length===1?'':'s'} nearby</span>}
+       </div>
+       {publicMapError&&<div className="publicExplorerError">{publicMapError}</div>}
+       <div className="publicExplorerGrid">
+         <div className="publicExplorerMap"><MapContainer center={publicPin||cityMapCenter(publicCity)} zoom={13} scrollWheelZoom className="publicLiveMap"><TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION}/><MapRecenter center={publicPin||cityMapCenter(publicCity)}/><MapClickHandler onPick={selectPublicPin}/>{nearbyOutlets.map(o=><CircleMarker key={o.id} center={[Number(o.latitude),Number(o.longitude)]} radius={publicPin&&Number.isFinite(Number(o.latitude))?9:7} pathOptions={{fillOpacity:.9}} eventHandlers={{click:()=>openPublicOutlet(o)}}/>)}{publicPin&&<CircleMarker center={publicPin} radius={10} pathOptions={{weight:3,fillOpacity:.2}}/>}</MapContainer>{publicMapBusy&&<div className="publicMapLoading">Finding outlets…</div>}<div className="publicMapHint">Click anywhere on the map to check outlet coverage at that location.</div></div>
+         <aside className="publicNearbyPanel"><div className="publicNearbyHead"><div><b>{nearbyOutlets.length?nearbyOutlets.length+' outlets nearby':'Nearby outlets'}</b><span>{publicCity||'Choose a city'}</span></div><span>LIVE</span></div>{nearbyOutlets.length?nearbyOutlets.map(o=><article className="publicNearbyOutlet" key={o.id} onClick={()=>openPublicOutlet(o)}><img src={o.logoUrl?getImg(o.logoUrl):IMAGE_FALLBACKS.logo} alt="" onError={e=>e.currentTarget.src=IMAGE_FALLBACKS.logo}/><div><b>{o.name}</b><small>★ {Number(o.rating||4.8).toFixed(1)} · {o.distanceKm?o.distanceKm+' km':'Nearby'}</small><span>{(o.healthHighlights||[]).slice(0,2).join(' · ')}</span></div><strong>→</strong></article>):<div className="publicNearbyEmpty"><div>⌖</div><b>Set a location to discover outlets</b><span>Use your current location or click a point on the map.</span></div>}</aside>
+       </div>
+       {locationHint&&<div className="publicLocationExplorerNote">📍 {locationHint}</div>}
+     </div>
+   </div>}
+   {publicOutlet&&<div className="publicOverlayBackdrop" onMouseDown={e=>e.target===e.currentTarget&&setPublicOutlet(null)}>
+     <div className="publicOutletPreview">
+       <div className="publicPreviewHero"><img src={publicOutlet.heroImageUrl?getImg(publicOutlet.heroImageUrl):IMAGE_FALLBACKS.hero} alt="" onError={e=>e.currentTarget.src=IMAGE_FALLBACKS.hero}/><div><span className="publicEyebrow">HEALTHY LOCAL OUTLET</span><h2>{publicOutlet.name}</h2><p>{publicOutlet.city}, {publicOutlet.state} · ★ {Number(publicOutlet.rating||4.8).toFixed(1)} ({publicOutlet.reviewCount||0})</p></div><button className="publicExplorerClose" onClick={()=>setPublicOutlet(null)}>×</button></div>
+       <div className="publicPreviewBody">{publicOutletBusy?<div className="publicNearbyEmpty">Loading outlet menu…</div>:publicOutletError?<div className="publicExplorerError">{publicOutletError}</div>:<>{<div className="publicPreviewIntro"><div><b>Explore the menu before creating an account</b><span>Browse meals and nutrition from this outlet as a guest.</span></div><button className="primary" onClick={()=>openAuth('register')}>Create account to build →</button></div>}<div className="publicPreviewMeals">{publicOutletMenu.slice(0,6).map(m=><article key={m.id}><img src={m.imageUrl?getImg(m.imageUrl):IMAGE_FALLBACKS.veg} alt="" onError={e=>e.currentTarget.src=IMAGE_FALLBACKS.veg}/><div><b>{m.recipeName}</b><span>{m.calories} kcal · {m.proteinGrams}g protein</span><small>{m.category} · {money(m.pricePerMeal)}</small></div></article>)}</div>{!publicOutletMenu.length&&<div className="publicNearbyEmpty"><b>No menu published yet</b><span>This outlet has not published meals for guest browsing.</span></div>}</>}</div>
+     </div>
+   </div>}
  return <div className="publicHome">
    <header className="publicNav">
      <button className="publicBrand" type="button" onClick={()=>goTo('public-top')}><span className="brandMark">H</span><span><b>HealthApp</b><small>Healthy meals, built around you</small></span></button>
@@ -90,7 +218,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    <main id="public-top">
     <section className="publicHero">
       <div className="publicHeroCopy"><span className="publicEyebrow">HEALTHY MEAL SUBSCRIPTION</span><h1>Healthy Meals.<br/>Happier You.</h1><p>Discover healthy meal subscriptions from trusted local outlets. Choose where you want delivery, explore plans and let your selected outlet do the rest.</p>
-       <div className="publicLocationBar"><span>⌖</span><input value={location} onChange={e=>setLocation(e.target.value)} placeholder="Enter your delivery location"/><button className="primary" onClick={startWithLocation}>Find Meals</button></div>
+       <div className="publicLocationBar"><span>⌖</span><input value={location} onChange={e=>setLocation(e.target.value)} placeholder="Enter your delivery location"/><button className="primary" onClick={startWithLocation}>Find Meals →</button></div>
        <div className="publicHeroBadges"><span>✓ Healthy & balanced</span><span>✓ Trusted local outlets</span><span>✓ Flexible subscriptions</span><span>✓ Freshly prepared & delivered</span></div>
       </div>
       <div className="publicHeroImage"><img src={IMAGE_FALLBACKS.hero} alt="Healthy meal bowl"/><div className="publicHeroCallout"><b>Good food.<br/>Better days.</b><span>Nutritious meals from local outlets</span></div></div>
@@ -98,7 +226,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
 
     <section className="publicSection publicHow" id="how-it-works">
       <div className="publicSectionHead"><span className="publicEyebrow">SIMPLE FROM START TO FINISH</span><h2>How it works</h2><p>Five simple steps from choosing your location to receiving your meals.</p></div>
-      <div className="publicSteps">{steps.map(([n,icon,title,copy],idx)=><div className="publicStep" key={n}><div className="publicStepTop"><span>{n}</span>{idx<steps.length-1&&<i>→</i>}</div><div className="publicStepIcon">{icon}</div><h3>{title}</h3><p>{copy}</p></div>)}</div>
+      <div className="publicSteps">{steps.map(([n,icon,title,copy],idx)=><div className={"publicStep "+(n==='1'?'publicStepLive':'')} key={n}><button className="publicStepInteractive" type="button" onClick={()=>n==='1'&&openLocationExplorer()}><div className="publicStepTop"><span>{n}</span>{idx<steps.length-1&&<i>→</i>}</div><div className="publicStepIcon">{icon}</div><h3>{title}</h3><p>{copy}</p></button>{n==='1'&&<small className="publicStepLiveHint">Live outlet availability</small>}</div>)}</div>
     </section>
 
     <section className="publicBenefits" id="why-healthapp">
