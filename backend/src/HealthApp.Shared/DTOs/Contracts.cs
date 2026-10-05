@@ -1,6 +1,6 @@
 namespace HealthApp.Shared.DTOs;
 
-public record LoginRequest(string Email, string Password);
+public record LoginRequest(string Email, string Password, string? OutletSlug = null);
 public record RegisterRequest(string FirstName, string LastName, string Email, string Password, string Role = "Customer", string? OutletSlug = null);
 public record AuthResponse(string AccessToken, DateTime ExpiresAt, UserDto User);
 public record UserDto(Guid Id, string Email, string FirstName, string LastName, string Role, Guid? OutletId, bool IsDemo = false, DateTime? DemoExpiresAtUtc = null);
