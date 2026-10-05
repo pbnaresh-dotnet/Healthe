@@ -37,11 +37,16 @@ In each Pages project go to Settings -> Environment variables and add:
 
 ### Standalone outlet deployment
 
-For a standalone outlet customer portal, set the following build environment variable for that deployment:
+For a standalone outlet customer portal, `VITE_OUTLET_SLUG` is optional. It remains useful for local development or a fixed per-outlet Pages build, but production standalone sites can resolve the outlet from their runtime hostname.
 
-`VITE_OUTLET_SLUG=<outlet-slug>`
+Examples:
 
-The customer web app sends `X-Outlet-Slug` on API requests. The API resolves that slug to the outlet tenant and rejects authenticated requests when the slug does not match the account's `outlet_id`.
+- `fitfood.healthapp.com` -> the outlet whose `Subdomain` is `fitfood`
+- `www.fitfood.com` -> the outlet with an active `OutletDomains.Hostname` mapping
+
+When a custom domain is requested, Outlet Admin receives a verification token/instructions and Super Admin must verify the DNS change and activate the mapping. Only active mappings are used for tenant resolution.
+
+The customer web app uses the resolved outlet slug for subsequent API requests. The API also checks hostname/header consistency and authenticated `outlet_id` consistency.
 
 Each standalone outlet can therefore use its own Cloudflare Pages deployment and custom domain while all outlets continue using the same API and SQL Server database.
 
