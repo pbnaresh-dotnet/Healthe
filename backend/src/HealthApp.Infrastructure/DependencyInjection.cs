@@ -115,6 +115,8 @@ public static class DependencyInjection
         services.AddScoped<IMultiDriverRoutePlanningService, OrToolsMultiDriverRoutePlanningService>();
 
         services.AddScoped<ICurrentUser, CurrentUser>();
+        services.AddScoped<TenantContext>();
+        services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
         services.AddScoped<IDomainEventHandler<MealSkippedEvent>, LateSkipFeeRevenueHandler>();
