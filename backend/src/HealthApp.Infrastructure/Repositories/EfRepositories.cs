@@ -91,6 +91,7 @@ public sealed class RecipeRepository(HealthAppDbContext db) : EfRepository(db), 
         return await q.OrderBy(x => x.Name).ToListAsync();
     }
     public async Task<IReadOnlyList<Recipe>> GetByIdsAsync(IEnumerable<Guid> ids) => await Details(db.Recipes.AsNoTracking().Where(x => ids.Contains(x.Id))).ToListAsync();
+    public async Task<IReadOnlyList<Recipe>> GetByIdsForOutletAsync(IEnumerable<Guid> ids, Guid outletId) => await Details(db.Recipes.AsNoTracking().Where(x => ids.Contains(x.Id) && x.OutletId == outletId)).ToListAsync();
     public Task<Recipe?> GetAsync(Guid id) => Details(db.Recipes.Where(x => x.Id == id)).FirstOrDefaultAsync();
     public Task<Recipe?> GetForOutletAsync(Guid id, Guid outletId) => Details(db.Recipes.Where(x => x.Id == id && x.OutletId == outletId)).FirstOrDefaultAsync();
     public async Task AddAsync(Recipe recipe) {
