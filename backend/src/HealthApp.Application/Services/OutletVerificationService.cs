@@ -114,7 +114,7 @@ public sealed class OutletVerificationService(
         var chars = value.Trim().ToLowerInvariant().Select(c => char.IsLetterOrDigit(c) ? c : '-').ToArray();
         var slug = new string(chars).Trim('-');
         while (slug.Contains("--", StringComparison.Ordinal)) slug = slug.Replace("--", "-");
-        return string.IsNullOrWhiteSpace(slug) ? $"outlet-{Guid.NewGuid():N[..8]}" : slug[..Math.Min(slug.Length, 90)];
+        return string.IsNullOrWhiteSpace(slug) ? $"outlet-{Guid.NewGuid().ToString("N")[..8]}" : slug[..Math.Min(slug.Length, 90)];
     }
 
     private static OutletVerificationDetailDto ToDetail(OutletOnboardingApplication x) =>
