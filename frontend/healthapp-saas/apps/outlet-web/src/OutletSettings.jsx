@@ -13,6 +13,14 @@ export default function OutletSettings({onNavigate}){
  const load=async()=>{try{setSaving(true);setError('');const[s,r,ds,a,ar,p,t,b,mp,sp]=await Promise.all([outletAdmin.settings(),outletAdmin.readiness(),outletAdmin.domains(),outletAdmin.availableDeliveryAreas(),outletAdmin.selectedDeliveryAreas(),outletAdmin.pricingRules(),outletAdmin.discountTiers(),outletAdmin.billing(),outletAdmin.mealPlans(),outletAdmin.subscriptionPlans()]);setData(s);setReadiness(r);setDomains(ds||[]);setAreas(a||[]);setSelectedAreas((ar||[]).map(x=>x.cityAreaId));setPricing(p||[]);setTiers(t||[]);setBilling(b);setMealPlans(mp||[]);setSaasPlans(sp||[]);setPlanChoice(b?.saasPlanId||'');setCycle(b?.billingCycle||'Monthly');setDeliveryDays((s?.deliveryDays||'').split(',').map(x=>x.trim()).filter(Boolean));setTax({restaurantGstRate:s?.restaurantGstRate??5,restaurantGstMode:s?.restaurantGstMode||'Exclusive'});setBranding({brandName:s?.branding?.brandName||s?.outletName||'',tagline:s?.branding?.tagline||'',logoUrl:s?.branding?.logoUrl||'',heroImageUrl:s?.branding?.heroImageUrl||'',faviconUrl:s?.branding?.faviconUrl||'',primaryColor:s?.branding?.primaryColor||'#14532d',secondaryColor:s?.branding?.secondaryColor||'#166534',healthHighlights:(s?.branding?.healthHighlights||[]).join(', '),about:s?.branding?.about||'',footerText:s?.branding?.footerText||''})}catch(e){setError(e.message||'Unable to load outlet settings.')}finally{setSaving(false)}};
  useEffect(()=>{load()},[]);
 
+ const verifyDomain=async id=>{
+   try{
+     setSaving(true);setError('');
+     const x=await outletAdmin.verifyDomain(id,false);
+     setDomains(d=>d.map(v=>v.id===x.id?x:v));
+     setToast(x?.status==='Verified'||x?.status==='Active'?'DNS verification confirmed — awaiting/complete platform activation':'DNS verification is not complete yet');
+   }catch(e){setError(e.message||'Unable to check domain verification')}finally{setSaving(false)}
+ };
  const saveBranding=async e=>{e.preventDefault();try{setSaving(true);const x=await outletAdmin.updateBranding(branding);setBranding({brandName:x?.brandName||'',tagline:x?.tagline||'',logoUrl:x?.logoUrl||'',heroImageUrl:x?.heroImageUrl||'',faviconUrl:x?.faviconUrl||'',primaryColor:x?.primaryColor||'#14532d',secondaryColor:x?.secondaryColor||'#166534',healthHighlights:(x?.healthHighlights||[]).join(', '),about:x?.about||'',footerText:x?.footerText||''});setData(d=>({...d,branding:x}));setToast('Branding saved')}catch(x){setError(x.message||'Unable to save branding')}finally{setSaving(false)}};
  const requestDomain=async e=>{
    e.preventDefault();
@@ -74,8 +82,12 @@ export default function OutletSettings({onNavigate}){
         <div>
           <b>{d.hostname}</b>
           <span>{d.type} domain · {d.status}{d.isPrimary?' · Primary':''}</span>
+          {d.type==='Custom'&&<small>Cloudflare: {d.providerStatus||'not checked'} · DNS: {d.providerValidationStatus||'not checked'}{d.providerError?' · '+d.providerError:''}</small>}
         </div>
-        <div className="settingsRowActions">{d.type==='Custom'&&d.status!=='Active'&&<span className="pill">{d.status}</span>}{d.type==='Platform'&&<span className="pill">Automatic</span>}</div>
+        <div className="settingsRowActions">
+          {d.type==='Custom'&&<><span className="pill">{d.status}</span>{d.status!=='Active'&&<button type="button" className="secondary" onClick={()=>verifyDomain(d.id)} disabled={saving}>Check DNS</button>}</>}
+          {d.type==='Platform'&&<span className="pill">Automatic</span>}
+        </div>
       </div>)}
       {!domains.length&&<div className="settingsEmpty">No customer portal domains are configured yet.</div>}
     </div>
@@ -84,7 +96,7 @@ export default function OutletSettings({onNavigate}){
       <label className="check"><input type="checkbox" checked={domainForm.isPrimary} onChange={e=>setDomainForm({...domainForm,isPrimary:e.target.checked})}/> Mark as primary</label>
       <button className="primary" disabled={saving||!domainForm.hostname.trim()}>Request domain</button>
     </form>
-    <div className="settingsToolbar"><b>Verification</b><span>After requesting a custom domain, copy the TXT record shown by Super Admin and complete the DNS change with your domain provider. The domain becomes customer-facing only after Super Admin activates it.</span></div>
+    <div className="settingsToolbar"><b>Verification</b><span>Cloudflare Pages checks the domain attachment and DNS validation. After adding the TXT record at your domain provider, use <b>Check DNS</b>. Super Admin activation is still required before the hostname becomes an active HealthApp tenant.</span></div>
    </section>}
 
    {section==='delivery'&&<section className="settingsSection"><div className="settingsSectionHead"><div><span className="eyebrow">DELIVERY SCHEDULE</span><h2>Choose your delivery days</h2><p>These days drive the weekly menu launch check and customer delivery calendar.</p></div><button className="primary" onClick={saveDays} disabled={saving}>Save days</button></div><div className="dayPicker">{DAYS.map(day=><button type="button" key={day} className={deliveryDays.includes(day)?'dayOption selected':'dayOption'} onClick={()=>setDeliveryDays(x=>x.includes(day)?x.filter(v=>v!==day):[...x,day])}><span>{day.slice(0,3)}</span><b>{day}</b></button>)}</div></section>}
