@@ -9,17 +9,18 @@ namespace HealthApp.Infrastructure.Storage;
 public sealed class AzureBlobFileStorage(IOptions<StorageOptions> options) : IFileStorage
 {
     private readonly StorageOptions _options = options.Value;
-    private readonly BlobContainerClient _container = CreateContainer(options.Value);
+    private readonly BlobContainerClient _container = CreateContainer(options.Value, options.Value.Container);
+    private readonly BlobContainerClient _privateContainer = CreateContainer(options.Value, options.Value.PrivateContainer);
 
-    private static BlobContainerClient CreateContainer(StorageOptions options)
+    private static BlobContainerClient CreateContainer(StorageOptions options, string containerName)
     {
         if (!string.IsNullOrWhiteSpace(options.ConnectionString))
-            return new BlobContainerClient(options.ConnectionString, options.Container);
+            return new BlobContainerClient(options.ConnectionString, containerName);
 
         if (!string.IsNullOrWhiteSpace(options.AccountUrl))
         {
             var service = new BlobServiceClient(new Uri(options.AccountUrl), new DefaultAzureCredential());
-            return service.GetBlobContainerClient(options.Container);
+            return service.GetBlobContainerClient(containerName);
         }
 
         throw new InvalidOperationException("Storage:ConnectionString or Storage:AccountUrl is required when Storage:Provider is AzureBlob.");
@@ -49,7 +50,8 @@ public sealed class AzureBlobFileStorage(IOptions<StorageOptions> options) : IFi
     }
     public async Task<FileStorageResult> UploadPrivateAsync(Stream content, string fileName, string contentType, string folder, CancellationToken cancellationToken = default)
     {
-        await _container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+        await _privateContainer.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+        await _privateContainer.SetAccessPolicyAsync(Azure.Storage.Blobs.Models.PublicAccessType.None, cancellationToken: cancellationToken);
 
         var segments = (folder ?? "private")
             .Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -57,7 +59,7 @@ public sealed class AzureBlobFileStorage(IOptions<StorageOptions> options) : IFi
         var safeFolder = string.Join("/", segments);
         var extension = Path.GetExtension(fileName);
         var key = $"{safeFolder}/{Guid.NewGuid():N}{extension.ToLowerInvariant()}".Replace("\\", "/");
-        var blob = _container.GetBlobClient(key);
+        var blob = _privateContainer.GetBlobClient(key);
         var resolvedContentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType;
 
         await blob.UploadAsync(
@@ -74,7 +76,7 @@ public sealed class AzureBlobFileStorage(IOptions<StorageOptions> options) : IFi
         if (string.IsNullOrWhiteSpace(key))
             return null;
 
-        var blob = _container.GetBlobClient(key);
+        var blob = _privateContainer.GetBlobClient(key);
         if (!await blob.ExistsAsync(cancellationToken))
             return null;
 
