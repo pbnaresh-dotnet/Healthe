@@ -82,6 +82,7 @@ public interface IOutletSettingsService
     Task<OutletSettingsDto?> GetAsync();
     Task<OutletSettingsDto?> UpdateDeliveryDaysAsync(UpdateOutletSettingsRequest request);
     Task<OutletBrandingDto?> UpdateBrandingAsync(UpdateOutletBrandingRequest request);
+    Task<OutletBrandingDto?> UpdateBrandingAssetAsync(string assetType, string url);
 
     Task<OutletReadinessDto?> GetReadinessAsync();
     Task<OutletReadinessDto?> GoLiveAsync();
