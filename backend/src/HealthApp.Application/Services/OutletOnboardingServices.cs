@@ -309,6 +309,20 @@ public sealed class OutletOnboardingService(
         x.BusinessType.Equals("RegisteredBusiness", StringComparison.OrdinalIgnoreCase) ||
         x.BusinessType.Equals("Registered Business", StringComparison.OrdinalIgnoreCase);
 
+    private static string? NormalizeDocumentType(string? value) =>
+        value?.Trim().Replace(" ", "", StringComparison.Ordinal)
+            .Replace("-", "", StringComparison.Ordinal)
+            .Replace("_", "", StringComparison.Ordinal)
+            .ToLowerInvariant() switch
+        {
+            "aadhaar" or "aadhaarcard" => "AadhaarCard",
+            "businessregistration" or "registration" => "BusinessRegistration",
+            "businesspan" or "pan" => "BusinessPan",
+            "gstcertificate" or "gst" => "GstCertificate",
+            _ => null
+        };
+
+
     private static string NormalizeEmail(string? value) => (value ?? "").Trim().ToLowerInvariant();
 
     private static void ValidateEmail(string email)
@@ -379,7 +393,7 @@ public sealed class OutletOnboardingService(
         var documents = new List<OutletOnboardingDocumentDto>();
         if (!string.IsNullOrWhiteSpace(x.AadhaarCardUrl)) documents.Add(new("AadhaarCard", x.AadhaarCardUrl, x.AadhaarCardFileName, x.CreatedAtUtc));
         if (!string.IsNullOrWhiteSpace(x.BusinessRegistrationUrl)) documents.Add(new("BusinessRegistration", x.BusinessRegistrationUrl, x.BusinessRegistrationFileName, x.CreatedAtUtc));
-        if (!string.IsNullOrWhiteSpace(x.BusinessPanDocumentUrl)) documents.Add(new("BusinessPan", x.BusinessPanDocumentUrl, x.BusinessPanFileNameOrEmpty(), x.CreatedAtUtc));
+        if (!string.IsNullOrWhiteSpace(x.BusinessPanDocumentUrl)) documents.Add(new("BusinessPan", x.BusinessPanDocumentUrl, x.BusinessPanDocumentFileName, x.CreatedAtUtc));
         if (!string.IsNullOrWhiteSpace(x.GstCertificateUrl)) documents.Add(new("GstCertificate", x.GstCertificateUrl, x.GstCertificateFileName, x.CreatedAtUtc));
 
         return new(
