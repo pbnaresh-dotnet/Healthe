@@ -726,6 +726,53 @@ public sealed class OutletSubscription
     = "Active";
 }
 
+
+public sealed class OutletOnboardingApplication
+{
+    public Guid Id { get; set; }
+    public string AccessKeyHash { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string PasswordHash { get; set; } = "";
+    public string AccountFirstName { get; set; } = "";
+    public string AccountLastName { get; set; } = "";
+    public Guid SaaSPlanId { get; set; }
+    public string PlanName { get; set; } = "";
+    public string BillingCycle { get; set; } = "Monthly";
+    public decimal SubscriptionFee { get; set; }
+    public decimal SetupFee { get; set; }
+    public string PaymentStatus { get; set; } = "Paid";
+    public string PaymentReference { get; set; } = "";
+    public string Status { get; set; } = "Onboarding";
+    public string BusinessType { get; set; } = "Individual";
+    public string OutletName { get; set; } = "";
+    public string Description { get; set; } = "";
+    public string City { get; set; } = "";
+    public string State { get; set; } = "";
+    public string Pincode { get; set; } = "";
+    public string AddressLine1 { get; set; } = "";
+    public string AddressLine2 { get; set; } = "";
+    public string OwnerName { get; set; } = "";
+    public string OwnerEmail { get; set; } = "";
+    public string OwnerPhone { get; set; } = "";
+    public string AadhaarNumber { get; set; } = "";
+    public string AadhaarCardUrl { get; set; } = "";
+    public string AadhaarCardFileName { get; set; } = "";
+    public string BusinessRegistrationUrl { get; set; } = "";
+    public string BusinessRegistrationFileName { get; set; } = "";
+    public string BusinessPan { get; set; } = "";
+    public string BusinessPanDocumentUrl { get; set; } = "";
+    public string BusinessPanDocumentFileName { get; set; } = "";
+    public string GstNumber { get; set; } = "";
+    public string GstCertificateUrl { get; set; } = "";
+    public string GstCertificateFileName { get; set; } = "";
+    public string VerificationNotes { get; set; } = "";
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? SubmittedAtUtc { get; set; }
+    public DateTime? VerifiedAtUtc { get; set; }
+    public Guid? OutletId { get; set; }
+    public Guid? UserId { get; set; }
+}
+
 public sealed class MealPlan
 {
     public Guid Id {
