@@ -74,6 +74,9 @@ public sealed class OutletSettingsService(
         if (current.OutletId is not Guid outletId) throw new UnauthorizedAccessException("The current user is not associated with an outlet.");
         var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
 
+        if (!cloudflarePages.IsEnabled)
+            throw new InvalidOperationException("Custom domains require the Cloudflare Pages integration to be enabled.");
+
         var hostname = NormalizeHostname(request.Hostname);
         var baseDomain = NormalizeHostname(domainSettings.Value.PlatformBaseDomain);
         ValidateCustomHostname(hostname, baseDomain);
