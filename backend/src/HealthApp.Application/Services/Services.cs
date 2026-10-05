@@ -296,6 +296,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var duration = Parse<SubscriptionDuration>(r.Duration, "duration");
         var outlet = await outlets.GetByIdAsync(r.OutletId) ?? throw new KeyNotFoundException("Outlet not found.");
         if (outlet.Status != OutletStatus.Live) throw new InvalidOperationException("Outlet is not live yet.");
+        EnsureCustomerOutletAccess(outlet.Id);
         var deliveryCity = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var menuItems = await menu.GetByOutletAsync(outlet.Id);
@@ -333,6 +334,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if (r.Selections is null || r.Selections.Count == 0) throw new ArgumentException("Add at least one meal to your package.");
         var outlet = await outlets.GetByIdAsync(r.OutletId) ?? throw new KeyNotFoundException("Outlet not found or unavailable.");
         if (outlet.Status != OutletStatus.Live) throw new KeyNotFoundException("Outlet not found or unavailable.");
+        EnsureCustomerOutletAccess(outlet.Id);
         var deliveryCity = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var mealEntities = BuildSelections(r.Selections, outlet.Id, await menu.GetByOutletAsync(outlet.Id), rs);
@@ -602,6 +604,12 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 throw new ArgumentException($"The package is for {deliveryCity}, but address {address.Label} is in {address.City}. Add or select an address in {deliveryCity}.");
         }
     }
+    private void EnsureCustomerOutletAccess(Guid outletId)
+    {
+        if (current.OutletId is Guid customerOutletId && customerOutletId != outletId)
+            throw new UnauthorizedAccessException("The current customer is not associated with the selected outlet.");
+    }
+
     private async Task<Subscription> GetOwnedSubscription(Guid id) {
         var s=await subs.GetAsync(id)??throw new KeyNotFoundException("Subscription not found.");
         if(current.UserId is not Guid uid||s.CustomerId!=uid)throw new UnauthorizedAccessException("Subscription does not belong to the current customer.");
