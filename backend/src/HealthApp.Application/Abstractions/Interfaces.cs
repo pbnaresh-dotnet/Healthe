@@ -94,6 +94,8 @@ public interface IOutletSettingsService
     Task<OutletSettingsDto?> GetAsync();
     Task<IReadOnlyList<OutletDomainDto>> GetDomainsAsync();
     Task<OutletDomainDto> RequestDomainAsync(RequestOutletDomainRequest request);
+    Task<IReadOnlyList<OutletDomainDto>> GetDomainsAsync();
+    Task<OutletDomainDto> RequestDomainAsync(RequestOutletDomainRequest request);
     Task<OutletSettingsDto?> UpdateDeliveryDaysAsync(UpdateOutletSettingsRequest request);
     Task<OutletBrandingDto?> UpdateBrandingAsync(UpdateOutletBrandingRequest request);
     Task<OutletBrandingDto?> UpdateBrandingAssetAsync(string assetType, string url);
