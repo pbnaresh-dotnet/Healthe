@@ -26,10 +26,10 @@ public sealed class UserRepository(HealthAppDbContext db) : EfRepository(db), IU
 
 public sealed class OutletRepository(HealthAppDbContext db) : EfRepository(db), IOutletRepository
 {
-    public async Task<IReadOnlyList<Outlet>> GetAllAsync() => await db.Outlets.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-    public Task<Outlet?> GetByIdAsync(Guid id) => db.Outlets.FirstOrDefaultAsync(x => x.Id == id);
-    public Task<Outlet?> GetBySlugAsync(string slug) => db.Outlets.FirstOrDefaultAsync(x => x.Slug == slug.Trim().ToLower());
-    public Task<Outlet?> GetBySubdomainAsync(string subdomain) => db.Outlets.FirstOrDefaultAsync(x => x.Subdomain == subdomain.Trim().ToLower());
+    public async Task<IReadOnlyList<Outlet>> GetAllAsync() => await db.Outlets.AsNoTracking().Include(x => x.Branding).OrderBy(x => x.Name).ToListAsync();
+    public Task<Outlet?> GetByIdAsync(Guid id) => db.Outlets.Include(x => x.Branding).FirstOrDefaultAsync(x => x.Id == id);
+    public Task<Outlet?> GetBySlugAsync(string slug) => db.Outlets.Include(x => x.Branding).FirstOrDefaultAsync(x => x.Slug == slug.Trim().ToLower());
+    public Task<Outlet?> GetBySubdomainAsync(string subdomain) => db.Outlets.Include(x => x.Branding).FirstOrDefaultAsync(x => x.Subdomain == subdomain.Trim().ToLower());
     public async Task AddAsync(Outlet outlet) {
         db.Outlets.Add(outlet);
         await SaveAsync();
