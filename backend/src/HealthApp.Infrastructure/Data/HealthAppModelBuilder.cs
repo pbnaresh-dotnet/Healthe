@@ -42,6 +42,24 @@ internal static class HealthAppModelBuilder
         ConfigurePayment(b.Entity<PaymentTransaction>());
         ConfigureDiscountCode(b.Entity<DiscountCode>());
         ConfigureOrderFinancial(b.Entity<OrderFinancialBreakdown>());
+        ConfigureOutletForeignKeys(b);
+    }
+
+    private static void ConfigureOutletForeignKeys(ModelBuilder b)
+    {
+        b.Entity<OutletSubscription>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<PlatformTransaction>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<MealPlan>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Recipe>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<OutletMenuItem>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Subscription>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Order>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Delivery>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<DeliveryRoute>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<OutletDeliveryArea>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<DeliveryPricingRule>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<SubscriptionDiscountTier>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<DiscountCode>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
     }
     private static void ConfigureUser(EntityTypeBuilder<User> e)
     {
