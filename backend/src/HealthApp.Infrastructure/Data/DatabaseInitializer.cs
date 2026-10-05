@@ -14,6 +14,10 @@ public static class DatabaseInitializer
         await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.Outlets','DeliveryDays') IS NULL
     ALTER TABLE dbo.Outlets ADD DeliveryDays nvarchar(200) NULL;
+IF EXISTS (SELECT 1 FROM dbo.Outlets WHERE Slug='fitfood')
+    UPDATE dbo.Outlets SET Status=3, DeliveryDays=CASE WHEN ISNULL(DeliveryDays,'')='' THEN 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday' ELSE DeliveryDays END WHERE Slug='fitfood';
+IF EXISTS (SELECT 1 FROM dbo.Outlets WHERE Slug='abc')
+    UPDATE dbo.Outlets SET Status=3, DeliveryDays=CASE WHEN ISNULL(DeliveryDays,'')='' THEN 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday' ELSE DeliveryDays END WHERE Slug='abc';
 ", cancellationToken);
         await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.Users','IsDemo') IS NULL
