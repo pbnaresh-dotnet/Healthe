@@ -55,7 +55,8 @@ public interface IOrderRepository { Task<IReadOnlyList<Order>> GetByCustomerAsyn
 public interface IDeliveryRepository { Task<IReadOnlyList<Delivery>> GetByOutletAsync(Guid outletId); Task AddAsync(Delivery delivery); Task<Delivery?> GetAsync(Guid id); Task UpdateAsync(Delivery delivery); Task<IReadOnlyList<Delivery>> GetBySubscriptionAsync(Guid subscriptionId); }
 public interface ITokenService { AuthResponse CreateToken(User user); }
 public sealed record FileStorageResult(string Url, string Key, string ContentType);
-public interface IFileStorage { Task<FileStorageResult> UploadAsync(Stream content, string fileName, string contentType, string folder, CancellationToken cancellationToken = default); }
+public sealed record FileStorageDownload(Stream Content, string ContentType);
+public interface IFileStorage { Task<FileStorageResult> UploadAsync(Stream content, string fileName, string contentType, string folder, CancellationToken cancellationToken = default); Task<FileStorageResult> UploadPrivateAsync(Stream content, string fileName, string contentType, string folder, CancellationToken cancellationToken = default); Task<FileStorageDownload?> OpenReadAsync(string key, CancellationToken cancellationToken = default); }
 public interface IGeocodingService { Task<ReverseGeocodeDto?> ReverseAsync(double latitude, double longitude, CancellationToken cancellationToken = default); }
 public interface IPasswordService { string Hash(string password); bool Verify(string password, string hash); }
 public interface ICurrentUser { Guid? UserId { get; } Guid? OutletId { get; } string? Role { get; } bool IsAuthenticated { get; } }
