@@ -35,7 +35,7 @@ public sealed class OutletActivationMiddleware(RequestDelegate next)
                     .Select(x => x.Status)
                     .FirstOrDefaultAsync(context.RequestAborted);
 
-                if (outletStatus != OutletStatus.Active)
+                if (outletStatus is not (OutletStatus.Active or OutletStatus.Live))
                 {
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
                     context.Response.ContentType = "application/json";
