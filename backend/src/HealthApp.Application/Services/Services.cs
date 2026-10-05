@@ -34,7 +34,6 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
     public async Task<AuthResponse> RegisterAsync(RegisterRequest r)
     {
         if (string.IsNullOrWhiteSpace(r.Password) || r.Password.Length < 6) throw new ArgumentException("Password must be at least 6 characters.");
-        if (await users.FindByEmailAsync(r.Email) is not null) throw new InvalidOperationException("Email is already registered.");
         var role = Enum.TryParse<UserRole>(r.Role, true, out var parsed) ? parsed : UserRole.Customer;
         if (role is UserRole.SuperAdmin or UserRole.Driver) throw new UnauthorizedAccessException("This role cannot be self-registered.");
         if (role == UserRole.OutletAdmin)
@@ -51,6 +50,16 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
                 throw new KeyNotFoundException("The selected outlet is not available for customer registration.");
 
             outletId = outlet.Id;
+        }
+
+        if (outletId.HasValue)
+        {
+            if (await users.FindByEmailAsync(r.Email, outletId.Value) is not null)
+                throw new InvalidOperationException("Email is already registered for this outlet.");
+        }
+        else if (await users.FindByEmailAsync(r.Email) is not null)
+        {
+            throw new InvalidOperationException("Email is already registered.");
         }
 
         var user = new User {
