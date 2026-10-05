@@ -302,6 +302,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var meals = BuildSelections(r.Selections, outlet.Id, menuItems, rs);
         ValidateDeliveryMode(deliveryMode, meals);
         ValidateSelectionWindow(duration, meals);
+        ValidateConfiguredDeliveryDays(outlet.DeliveryDays, meals);
         var selectedRecipes = meals.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
         var allergyWarnings = await allergySafety.GetWarningsAsync(customerId, selectedRecipes);
         await ValidateDeliveryAddressesAsync(customerId, deliveryCity, meals);
@@ -337,6 +338,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var mealEntities = BuildSelections(r.Selections, outlet.Id, await menu.GetByOutletAsync(outlet.Id), rs);
         ValidateDeliveryMode(deliveryMode, mealEntities);
         ValidateSelectionWindow(duration, mealEntities);
+        ValidateConfiguredDeliveryDays(outlet.DeliveryDays, mealEntities);
         var selectedRecipes = mealEntities.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
         await allergySafety.EnsureConfirmedAsync(customerId, selectedRecipes, r.ConfirmedAllergyRecipeIds);
         await ValidateDeliveryAddressesAsync(customerId, deliveryCity, mealEntities);
@@ -650,6 +652,23 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if(meals.Any(x=>x.MealDate.Date<start||x.MealDate.Date>end))throw new ArgumentException("Selected meals are outside the package duration.");
         foreach(var g in meals.GroupBy(x=>(x.MealDate.Date-start).Days/7))if(g.Select(x=>x.MealDate.Date).Distinct().Count()>7)throw new ArgumentException("A package can contain at most seven active days in a week.");
     }
+    private static void ValidateConfiguredDeliveryDays(string configuredDays, IReadOnlyList<SubscriptionMealSelection> meals)
+    {
+        var days = (configuredDays ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(x => Enum.TryParse<DayOfWeek>(x, true, out var day) ? (DayOfWeek?)day : null)
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .ToHashSet();
+
+        if (days.Count == 0)
+            throw new InvalidOperationException("This outlet has not configured its delivery days.");
+
+        var invalid = meals.Select(x => x.MealDate.DayOfWeek).Distinct().Where(day => !days.Contains(day)).ToList();
+        if (invalid.Count > 0)
+            throw new InvalidOperationException("One or more selected delivery dates are outside this outlet's configured delivery days.");
+    }
+
     private static void ValidateDeliveryMode(SubscriptionDeliveryMode mode,IReadOnlyList<SubscriptionMealSelection> meals) {
         if(mode!=SubscriptionDeliveryMode.OneDeliveryPerDay)return;
         foreach(var g in meals.GroupBy(x=>x.MealDate.Date)) {
