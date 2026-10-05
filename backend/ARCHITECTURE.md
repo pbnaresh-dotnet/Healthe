@@ -4,6 +4,27 @@
 
 `CustomerService` -> repository abstractions -> EF repositories -> `HealthAppDbContext` -> SQL Server.
 
+## Multi-tenant SaaS
+
+The platform uses a shared SQL Server database with outlet-level tenancy. Tenant-owned business records carry an `OutletId`; customer identities also carry `OutletId`.
+
+Examples:
+
+`Outlet 1 -> Customer A/B/C`
+`Outlet 2 -> Customer D/E/F`
+
+Tenant isolation is enforced in layers:
+
+- authenticated customer/outlet tokens carry `outlet_id`;
+- `TenantContextMiddleware` resolves the optional `X-Outlet-Slug` request tenant and rejects mismatches;
+- outlet application services validate `CurrentUser.OutletId`;
+- tenant-sensitive repositories expose outlet-scoped operations where an ID-only operation could cross a tenant boundary;
+- SQL Server foreign keys connect tenant-owned tables to `Outlets`;
+- customer email uniqueness is scoped to outlet for tenant accounts.
+
+Marketplace APIs remain multi-outlet when no tenant is supplied. Standalone customer deployments set `VITE_OUTLET_SLUG`, which scopes their public discovery and authenticated requests to one outlet.
+
+
 Transactions use EF Core execution strategies and explicit SQL transactions.
 
 ## Patterns
