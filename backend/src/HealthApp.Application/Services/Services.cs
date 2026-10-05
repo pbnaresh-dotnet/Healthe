@@ -941,7 +941,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
 
         foreach(var row in rows)
         {
-            var recipe=await recipes.GetAsync(row.RecipeId);
+            var recipe=await recipes.GetForOutletAsync(row.RecipeId, subscription.OutletId);
             var address=row.AddressId.HasValue
                 ? await addresses.GetAsync(subscription.CustomerId,row.AddressId.Value)
                 : null;
@@ -1178,8 +1178,12 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     }
     public async Task<IReadOnlyList<UserDto>> GetCustomersAsync() {
         if(current.OutletId is not Guid id)return[];
-        var customerIds=(await subscriptions.GetByOutletAsync(id)).Select(x=>x.CustomerId).ToHashSet();
-        return(await users.GetAllAsync()).Where(x=>customerIds.Contains(x.Id)).Select(x=>new UserDto(x.Id,x.Email,x.FirstName,x.LastName,x.Role.ToString(),x.OutletId)).ToList();
+        return(await users.GetAllAsync())
+            .Where(x=>x.Role==UserRole.Customer && x.OutletId==id)
+            .OrderBy(x=>x.FirstName)
+            .ThenBy(x=>x.LastName)
+            .Select(x=>new UserDto(x.Id,x.Email,x.FirstName,x.LastName,x.Role.ToString(),x.OutletId))
+            .ToList();
     }
     public async Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync()=>current.OutletId is not Guid id?[]:(await subscriptions.GetByOutletAsync(id)).Select(x=>new SubscriptionDto(x.Id,x.CustomerId,x.OutletId,x.MealPlanId,x.PlanName,x.DeliveryMode.ToString(),x.Price,x.DeliveryFee,x.CustomerTransactionFeePercent,x.TransactionFee,x.TotalCharged,x.OutletAmount,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Status.ToString(),x.NextDeliveryDate,0,GetPaymentStatus(x),x.DeliveryCity,x.GrossMealAmount,x.SubscriptionDiscountAmount,x.RestaurantTaxableAmount,x.RestaurantGstAmount,x.RestaurantGstRate,x.RestaurantGstMode.ToString(),x.PlatformServiceFee,x.PlatformServiceGst,x.PackageStatus,x.IsOutletCreated,x.OutletDiscountType.ToString(),x.OutletDiscountValue,x.OutletDiscountReason)).ToList();
     private static string GetPaymentStatus(Subscription x)=>x.IsOutletCreated&&x.PackageStatus=="Active"?"Paid":"Pending";
