@@ -20,12 +20,9 @@ public sealed class AuthService(IUserRepository users, IOutletRepository outlets
         if (await users.FindByEmailAsync(r.Email) is not null) throw new InvalidOperationException("Email is already registered.");
         var role = Enum.TryParse<UserRole>(r.Role, true, out var parsed) ? parsed : UserRole.Customer;
         if (role is UserRole.SuperAdmin or UserRole.Driver) throw new UnauthorizedAccessException("This role cannot be self-registered.");
-        Guid? outletId = null;
         if (role == UserRole.OutletAdmin)
-        {
-            if (string.IsNullOrWhiteSpace(r.OutletSlug)) throw new ArgumentException("OutletSlug is required for an outlet admin.");
-            outletId = (await outlets.GetBySlugAsync(r.OutletSlug))?.Id ?? throw new KeyNotFoundException("Outlet not found.");
-        }
+            throw new UnauthorizedAccessException("Outlet administrators must complete outlet onboarding and verification before an account is activated.");
+        Guid? outletId = null;
         var user = new User {
             Id = Guid.NewGuid(),
             Email = r.Email.Trim().ToLowerInvariant(),
