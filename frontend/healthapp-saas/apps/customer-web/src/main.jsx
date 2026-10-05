@@ -44,6 +44,87 @@ const cityMapCenter=city=>{
   return match?CITY_MAP_CENTERS[match]:INDIA_MAP_CENTER;
 };
 
+
+function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setError}){
+ const[showAuth,setShowAuth]=useState(false);
+ const[location,setLocation]=useState('');
+ const[locationHint,setLocationHint]=useState('');
+ const openAuth=mode=>{setAuthMode(mode);setShowAuth(true);setError('');window.scrollTo({top:0,behavior:'smooth'});};
+ const startWithLocation=()=>{
+   const value=location.trim();
+   setLocationHint(value ? ("We'll use "+value+" to find outlets that can deliver to you.") : 'Start by entering your delivery city or area.');
+   openAuth('register');
+ };
+ const goTo=(id)=>document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'});
+ const plans=[
+  {title:'Healthy Weekly',copy:'Balanced meals for the week with flexible meal choices.',badge:'Balanced nutrition',image:IMAGE_FALLBACKS.veg},
+  {title:'Performance',copy:'Higher-protein meals designed for strength and active routines.',badge:'High protein',image:IMAGE_FALLBACKS.nonveg},
+  {title:'Monthly Wellness',copy:'Wholesome everyday meals with convenient scheduled delivery.',badge:'Everyday wellness',image:IMAGE_FALLBACKS.hero},
+  {title:'Plant Powered',copy:'Fresh vegetarian and vegan-friendly meals packed with variety.',badge:'Plant forward',image:IMAGE_FALLBACKS.vegan}
+ ];
+ const outlets=[
+  {name:'FitFood Kitchen',city:'Bengaluru',copy:'Healthy · Fresh · Tasty',image:IMAGE_FALLBACKS.veg},
+  {name:'Andhra Ruchulu',city:'Chennai',copy:'Regional · Fresh · Balanced',image:IMAGE_FALLBACKS.hero},
+  {name:'Hyderabad Zaika',city:'Hyderabad',copy:'Deccan · Slow cooked · Fresh',image:IMAGE_FALLBACKS.nonveg},
+  {name:'Deccan Wok',city:'Hyderabad',copy:'Wok tossed · Fast · Fresh',image:IMAGE_FALLBACKS.vegan}
+ ];
+ const steps=[
+  ['1','📍','Set your location','Tell us where you want your meals delivered.'],
+  ['2','🏪','Select an outlet','Choose a healthy meal outlet that serves your location.'],
+  ['3','🍱','Explore meal plans','Browse meals, nutrition, ingredients and available plans.'],
+  ['4','📅','Select & subscribe','Choose your schedule, meals, portions and subscribe.'],
+  ['5','🚚','Outlet delivers','Your selected outlet prepares and delivers your meals.']
+ ];
+ if(showAuth) return <div className="publicAuthShell">
+   <button className="publicBackBtn" type="button" onClick={()=>setShowAuth(false)}>← Back to HealthApp</button>
+   <div className="publicAuthIntro"><span className="eyebrow">CUSTOMER PORTAL</span><h1>{authMode==='login'?'Welcome back':'Start your healthy journey'}</h1><p>{authMode==='login'?'Sign in to manage your meals and deliveries.':'Create your account to explore healthy outlets, meal plans and subscriptions.'}</p>{locationHint&&<div className="publicLocationNote">📍 {locationHint}</div>}</div>
+   <form className="authCard publicAuthCard" onSubmit={doAuth}><div className="eyebrow">{authMode==='login'?'SIGN IN':'CREATE YOUR ACCOUNT'}</div><h2>{authMode==='login'?'Welcome back':'Create your account'}</h2><p>{authMode==='login'?'Sign in to manage your meals and deliveries.':'Start with your health profile and build your first package.'}</p>{authMode==='register'&&<div className="twoCol"><label>First name<input value={authForm.firstName} onChange={e=>setAuthForm({...authForm,firstName:e.target.value})}/></label><label>Last name<input value={authForm.lastName} onChange={e=>setAuthForm({...authForm,lastName:e.target.value})}/></label></div>}<label>Email<input type="email" value={authForm.email} onChange={e=>setAuthForm({...authForm,email:e.target.value})}/></label><label>Password<input type="password" value={authForm.password} onChange={e=>setAuthForm({...authForm,password:e.target.value})}/></label><button className="primary big">{authMode==='login'?'Sign in':'Create account'}</button>{error&&<div className="error">{error}</div>}<div className="authSwitch">{authMode==='login'?'New to HealthApp?':'Already have an account?'} <button type="button" className="linkBtn" onClick={()=>setAuthMode(authMode==='login'?'register':'login')}>{authMode==='login'?'Create account':'Sign in'}</button></div>{authMode==='login'&&<small>Demo: customer@healthapp.test / demo</small>}</form>
+ </div>;
+ return <div className="publicHome">
+   <header className="publicNav">
+     <button className="publicBrand" type="button" onClick={()=>goTo('public-top')}><span className="brandMark">H</span><span><b>HealthApp</b><small>Healthy meals, built around you</small></span></button>
+     <nav className="publicNavLinks"><button onClick={()=>goTo('how-it-works')}>How it works</button><button onClick={()=>goTo('plans')}>Meal Plans</button><button onClick={()=>goTo('outlets')}>Our Outlets</button><button onClick={()=>goTo('why-healthapp')}>Why HealthApp</button></nav>
+     <div className="publicNavActions"><button className="secondary smallBtn" onClick={()=>openAuth('login')}>Sign in</button><button className="primary smallBtn" onClick={()=>openAuth('register')}>Create account</button></div>
+   </header>
+
+   <main id="public-top">
+    <section className="publicHero">
+      <div className="publicHeroCopy"><span className="publicEyebrow">HEALTHY MEAL SUBSCRIPTION</span><h1>Healthy Meals.<br/>Happier You.</h1><p>Discover healthy meal subscriptions from trusted local outlets. Choose where you want delivery, explore plans and let your selected outlet do the rest.</p>
+       <div className="publicLocationBar"><span>⌖</span><input value={location} onChange={e=>setLocation(e.target.value)} placeholder="Enter your delivery location"/><button className="primary" onClick={startWithLocation}>Find Meals</button></div>
+       <div className="publicHeroBadges"><span>✓ Healthy & balanced</span><span>✓ Trusted local outlets</span><span>✓ Flexible subscriptions</span><span>✓ Freshly prepared & delivered</span></div>
+      </div>
+      <div className="publicHeroImage"><img src={IMAGE_FALLBACKS.hero} alt="Healthy meal bowl"/><div className="publicHeroCallout"><b>Good food.<br/>Better days.</b><span>Nutritious meals from local outlets</span></div></div>
+    </section>
+
+    <section className="publicSection publicHow" id="how-it-works">
+      <div className="publicSectionHead"><span className="publicEyebrow">SIMPLE FROM START TO FINISH</span><h2>How it works</h2><p>Five simple steps from choosing your location to receiving your meals.</p></div>
+      <div className="publicSteps">{steps.map(([n,icon,title,copy],idx)=><div className="publicStep" key={n}><div className="publicStepTop"><span>{n}</span>{idx<steps.length-1&&<i>→</i>}</div><div className="publicStepIcon">{icon}</div><h3>{title}</h3><p>{copy}</p></div>)}</div>
+    </section>
+
+    <section className="publicBenefits" id="why-healthapp">
+      <div><b>♥</b><strong>Healthy & Nutritious</strong><span>Meals built around better everyday choices.</span></div>
+      <div><b>◉</b><strong>Local Trusted Outlets</strong><span>Choose outlets serving healthy options near you.</span></div>
+      <div><b>↔</b><strong>Flexible Plans</strong><span>Daily, weekly or monthly subscription options.</span></div>
+      <div><b>⌖</b><strong>Convenient Delivery</strong><span>Meals delivered to home or office on schedule.</span></div>
+    </section>
+
+    <section className="publicSection" id="plans">
+      <div className="publicSectionHead inline"><div><span className="publicEyebrow">POPULAR OPTIONS</span><h2>Explore meal plans</h2><p>Choose a subscription style that fits your goals and routine.</p></div><button className="linkBtn" onClick={()=>openAuth('register')}>View all plans →</button></div>
+      <div className="publicPlanGrid">{plans.map(p=><article className="publicPlanCard" key={p.title}><img src={p.image} alt=""/><div><span className="publicPlanBadge">✓ {p.badge}</span><h3>{p.title}</h3><p>{p.copy}</p><button className="secondary smallBtn" onClick={()=>openAuth('register')}>Explore plan →</button></div></article>)}</div>
+    </section>
+
+    <section className="publicSection publicOutletsSection" id="outlets">
+      <div className="publicSectionHead inline"><div><span className="publicEyebrow">LOCAL PARTNERS</span><h2>Our featured outlets</h2><p>Healthy meal options from outlets serving supported cities.</p></div><button className="linkBtn" onClick={()=>openAuth('register')}>View all outlets →</button></div>
+      <div className="publicOutletGrid">{outlets.map(o=><article className="publicOutletCard" key={o.name}><img src={o.image} alt=""/><div><b>{o.name}</b><span>{o.city}</span><small>{o.copy}</small></div></article>)}</div>
+    </section>
+
+    <section className="publicStory"><div className="publicStoryImage"><img src={IMAGE_FALLBACKS.nonveg} alt="Prepared healthy meal"/></div><div><span className="publicEyebrow">BUILT FOR EVERYDAY LIFE</span><h2>One place to discover, subscribe and manage healthy meals.</h2><p>Set your delivery location, choose an outlet, build a package around your preferred meals and manage addresses, meal calendars, skips and credits from one customer account.</p><button className="primary" onClick={()=>openAuth('register')}>Create account →</button></div></section>
+
+    <section className="publicCta"><div><span className="publicEyebrow">READY TO GET STARTED?</span><h2>Find healthy meals that fit your life.</h2><p>Create an account and start exploring outlets and meal subscriptions in your supported city.</p></div><button className="primary big" onClick={()=>openAuth('register')}>Create account</button></section>
+   </main>
+ </div>;
+}
+
 function App(){
  const[user,setUser]=useState(currentUser());
  const[active,setActive]=useState('dashboard');
@@ -181,7 +262,7 @@ function App(){
  const sideTabs=tabs.filter(x=>x[0]!=='builder');
  const pageTitle=tabs.find(x=>x[0]===active)?.[2]||'Dashboard';
 
- if(!user)return <div className="authShell"><div className="authHero"><div className="brandLarge"><span>H</span><div><b>HealthApp</b><small>Healthy meals, built around you</small></div></div><h1>Personalised meal subscriptions for everyday life.</h1><p>Choose your outlet, build every meal, manage deliveries and stay on track with your goals.</p><div className="authFeatures"><span>✓ Personalised nutrition profile</span><span>✓ Flexible meal calendar</span><span>✓ Multiple delivery addresses</span></div></div><form className="authCard" onSubmit={doAuth}><div className="eyebrow">{authMode==='login'?'CUSTOMER PORTAL':'CREATE YOUR ACCOUNT'}</div><h2>{authMode==='login'?'Welcome back':'Create your account'}</h2><p>{authMode==='login'?'Sign in to manage your meals and deliveries.':'Start with your health profile and build your first package.'}</p>{authMode==='register'&&<div className="twoCol"><label>First name<input value={authForm.firstName} onChange={e=>setAuthForm({...authForm,firstName:e.target.value})}/></label><label>Last name<input value={authForm.lastName} onChange={e=>setAuthForm({...authForm,lastName:e.target.value})}/></label></div>}<label>Email<input type="email" value={authForm.email} onChange={e=>setAuthForm({...authForm,email:e.target.value})}/></label><label>Password<input type="password" value={authForm.password} onChange={e=>setAuthForm({...authForm,password:e.target.value})}/></label><button className="primary big">{authMode==='login'?'Sign in':'Create account'}</button>{error&&<div className="error">{error}</div>}<div className="authSwitch">{authMode==='login'?'New to HealthApp?':'Already have an account?'} <button type="button" className="linkBtn" onClick={()=>setAuthMode(authMode==='login'?'register':'login')}>{authMode==='login'?'Create account':'Sign in'}</button></div>{authMode==='login'&&<small>Demo: customer@healthapp.test / demo</small>}</form></div>;
+ if(!user)return <PublicHome authMode={authMode} setAuthMode={setAuthMode} authForm={authForm} setAuthForm={setAuthForm} doAuth={doAuth} error={error} setError={setError}/>;
 
  return <div className="customerShell">{loading&&<div className="loadbar"/>}<aside className="sidebar"><div className="sideBrand"><div className="brandMark">H</div><div><b>HealthApp</b><small>Customer portal</small></div></div><div className="customerMini"><div className="avatar">{(user.firstName||'C')[0]}</div><div><b>{user.firstName} {user.lastName}</b><span>Customer</span></div></div><div className="sideSection">Your journey</div>{sideTabs.slice(0,4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="sideSection">Manage</div>{sideTabs.slice(4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="sideBottom"><div className="miniCredit">Wallet <b>{money(global.credit.balance)}</b></div><button className="logoutBtn" onClick={logout}>Log out</button></div></aside><section className="mainPanel"><header className="topbar"><div className="mobileTopLeft"><button className="mobileMenuBtn" onClick={()=>setMobileMenuOpen(true)} aria-label="Open menu">☰</button><div><h1>{pageTitle}</h1><span>{global.profile?.goal?GOALS.find(x=>x[0]===global.profile.goal)?.[1]:'Build your personalised meal plan'}</span></div></div><div className="topbarDesktopTitle"><h1>{pageTitle}</h1><span>{global.profile?.goal?GOALS.find(x=>x[0]===global.profile.goal)?.[1]:'Build your personalised meal plan'}</span></div><div className="headerActions"><button className="iconBtn" onClick={()=>reload()} title="Refresh">↻</button><button className="profilePill" onClick={()=>go('profile')}><div className="avatar sm">{(user.firstName||'C')[0]}</div><div><b>{user.firstName}</b><small>{global.profile?.diet||'Set profile'}</small></div></button></div></header><main className={active==='discover'?'content discoverContent':'content'}>{error&&<div className="statusBanner error"><span><b>⚠ Something needs attention</b>{error}</span><button onClick={()=>setError('')}>×</button></div>}{toast&&<div className={'statusToast '+toastType}><span>{toastType==='success'?'✓':toastType==='warning'?'⚠':toastType==='info'?'ℹ':'×'}</span><div><b>{toastType==='success'?'Success':toastType==='warning'?'Warning':toastType==='info'?'Info':'Error'}</b><small>{toast}</small></div><button onClick={()=>setToast('')}>×</button></div>}{active==='dashboard'&&<Dashboard user={user} global={global} dashboard={customerDashboard} dashboardMeals={dashboardMeals} upcoming={upcoming} setActive={setActive}/>} {active==='discover'&&<Discover likedMeals={global.likedMeals} onToggleLikedMeal={toggleLikedMeal} outlets={availableOutlets===null?global.outlets:availableOutlets} cities={global.cities} customerAllergies={global.profile?.allergies||[]} addresses={global.addresses} selectedAddressId={selectedAddressId} setSelectedAddressId={setSelectedAddressId} selectedOutlet={selectedOutlet} setSelectedOutlet={setSelectedOutlet} menu={outletMenu} recipes={outletRecipes} category={outletCategory} setCategory={setOutletCategory} openOutlet={openOutlet} recipeView={recipeView} setRecipeView={setRecipeView} startBuilder={startBuilder} cityFilter={cityFilter} setCityFilter={changeDiscoveryCity} openAddressForCity={openAddressForCity}/>} {active==='builder'&&<Builder likedMeals={global.likedMeals} builder={builder} setBuilder={setBuilder} days={builderDays} menuMap={menuMap} recipes={outletRecipes} customerAllergies={global.profile?.allergies||[]} addresses={global.addresses} selectedCount={selectedCount} selectionPayload={selectionPayload} missingAddresses={builderMissingAddresses} quote={builder.quote} picker={picker} setPicker={setPicker} setSelection={setSelection} toggleDay={toggleDay} copyWeek={copyWeek} setDayAddress={setDayAddress} setMealAddress={setMealAddress} setBuilderDuration={setBuilderDuration} quoteBuilder={quoteBuilder} subscribeBuilder={subscribeBuilder} setActive={setActive}/>} {active==='subscriptions'&&<Subscriptions subs={subs} selectSub={selectSub} paySubscription={paySubscription}/>} {active==='calendar'&&<Calendar subs={subs} selectedSubId={selectedSubId} setSelectedSubId={selectSub} rows={mealSelections} week={calendarWeek} moveWeek={moveWeek} skipMeal={skipMeal} skipDay={skipDay} openReschedule={setReschedule}/>} {active==='payment'&&<PaymentPage subscription={subs.find(x=>x.id===paymentSubId)} onBack={()=>setActive('subscriptions')} onPay={completeSandboxPayment}/>} {active==='orders'&&<Orders orders={global.orders}/>} {active==='addresses'&&<Addresses addresses={global.addresses} cities={global.cities} city={cityFilter} setCity={setCityFilter} areas={global.areas} openNew={openNewAddress} edit={editAddress} remove={deleteAddress}/>} {active==='profile'&&<Profile form={profileForm} setForm={setProfileForm} save={saveProfile} profile={global.profile} allergens={global.allergens}/>} {active==='wallet'&&<Wallet credit={global.credit} transactions={global.transactions}/>}</main></section><div className={mobileMenuOpen?'mobileDrawerBackdrop open':'mobileDrawerBackdrop'} onClick={()=>setMobileMenuOpen(false)}><aside className="mobileDrawer" onClick={e=>e.stopPropagation()}><div className="mobileDrawerHead"><div className="sideBrand"><div className="brandMark">H</div><div><b>HealthApp</b><small>Customer portal</small></div></div><button className="iconBtn" onClick={()=>setMobileMenuOpen(false)}>×</button></div><div className="mobileCustomer"><div className="avatar">{(user.firstName||'C')[0]}</div><div><b>{user.firstName} {user.lastName}</b><span>{user.email}</span></div></div><div className="sideSection">Your journey</div>{sideTabs.slice(0,4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="sideSection">Manage</div>{sideTabs.slice(4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="mobileDrawerBottom"><div className="miniCredit">Wallet <b>{money(global.credit.balance)}</b></div><button className="logoutBtn" onClick={logout}>Log out</button></div></aside></div><nav className="mobileBottomNav">{[['dashboard','⌂','Home'],['subscriptions','▣','Plans'],['calendar','◷','Calendar'],['orders','🧾','Orders']].map(t=><button key={t[0]} className={active===t[0]?'mobileBottomItem active':'mobileBottomItem'} onClick={()=>go(t[0])}><span>{t[1]}</span><small>{t[2]}</small></button>)}<button className="mobileBottomItem" onClick={()=>setMobileMenuOpen(true)}><span>☰</span><small>More</small></button></nav>{addressModal&&<AddressModal form={addressForm} setForm={setAddressForm} mode={addressModal} areas={global.areas} cities={global.cities} city={cityFilter} setCity={setCityFilter} mapBusy={mapBusy} onMapPick={pickAddressLocation} onSave={saveAddress} onClose={()=>setAddressModal(null)}/>} {reschedule&&<RescheduleModal row={reschedule} addresses={global.addresses} onClose={()=>setReschedule(null)} onChange={setReschedule} onSave={rescheduleMeal}/>}</div>;
 }
