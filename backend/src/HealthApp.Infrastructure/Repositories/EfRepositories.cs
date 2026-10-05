@@ -32,6 +32,10 @@ public sealed class OutletRepository(HealthAppDbContext db) : EfRepository(db), 
         db.Outlets.Add(outlet);
         await SaveAsync();
     }
+    public async Task UpdateAsync(Outlet outlet) {
+        db.Outlets.Update(outlet);
+        await SaveAsync();
+    }
 }
 
 public sealed class SaaSPlanRepository(HealthAppDbContext db) : EfRepository(db), ISaaSPlanRepository
