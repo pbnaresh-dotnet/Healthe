@@ -35,6 +35,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
     { ValidateIssuer=true, ValidIssuer=jwt.Issuer, ValidateAudience=true, ValidAudience=jwt.Audience, ValidateIssuerSigningKey=true, IssuerSigningKey=key, ValidateLifetime=true, ClockSkew=TimeSpan.FromSeconds(30) };
 });
 builder.Services.AddAuthorization();
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("auth", limiter =>
+    {
+        limiter.PermitLimit = 10;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+    });
+});
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options => options.AddPolicy("WebApps", policy =>
 {
@@ -48,9 +57,23 @@ builder.Services.AddCors(options => options.AddPolicy("WebApps", policy =>
 
 var app = builder.Build();
 await DatabaseInitializer.InitializeAsync(app.Services);
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "geolocation=(self), camera=(), microphone=()";
+    await next();
+});
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseStaticFiles();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
-app.UseCors("WebApps"); app.UseAuthentication(); app.UseMiddleware<TenantContextMiddleware>(); app.UseMiddleware<OutletActivationMiddleware>(); app.UseAuthorization(); app.MapControllers();
+app.UseCors("WebApps"); app.UseRateLimiter(); app.UseAuthentication(); app.UseMiddleware<TenantContextMiddleware>(); app.UseMiddleware<OutletActivationMiddleware>(); app.UseAuthorization(); app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status="ok", service="HealthApp.Api", framework=".NET 10", database="SQL Server / EF Core 10.0.12", time=DateTime.UtcNow }));
 app.Run();
