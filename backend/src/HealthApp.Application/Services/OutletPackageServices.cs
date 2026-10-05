@@ -164,12 +164,8 @@ public sealed class OutletPackageService(
         if (current.OutletId is not Guid outletId)
             return [];
 
-        var outletSubscriptionCustomerIds = (await subscriptions.GetByOutletAsync(outletId))
-            .Select(x => x.CustomerId)
-            .ToHashSet();
-
         return (await users.GetAllAsync())
-            .Where(x => x.Role == UserRole.Customer && (x.OutletId == outletId || outletSubscriptionCustomerIds.Contains(x.Id)))
+            .Where(x => x.Role == UserRole.Customer && x.OutletId == outletId)
             .OrderBy(x => x.FirstName)
             .ThenBy(x => x.LastName)
             .Select(MapUser)
