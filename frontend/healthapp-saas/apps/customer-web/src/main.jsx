@@ -286,35 +286,19 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    </div>}
 
 
-   {guestBuilderOpen&&<div className="publicOverlayBackdrop" onMouseDown={e=>e.target===e.currentTarget&&setGuestBuilderOpen(false)}>
-     <div className="publicGuestBuilder">
-       <div className="publicExplorerHead">
-         <div><span className="publicEyebrow">GUEST PACKAGE BUILDER</span><h2>Build your package</h2><p>Choose your meals first. We'll ask you to create an account when you're ready to continue.</p></div>
-         <button className="publicExplorerClose" onClick={()=>setGuestBuilderOpen(false)}>×</button>
-       </div>
-       <div className="publicGuestBuilderToolbar">
-         <label><span>Package duration</span><select value={guestDuration} onChange={e=>{setGuestDuration(e.target.value);setGuestSelections({})}}>{DURATIONS.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}</select></label>
-         <label><span>Start date</span><input type="date" min={todayISO()} value={guestStartDate} onChange={e=>{setGuestStartDate(e.target.value);setGuestSelections({})}}/></label>
-         <div className="publicGuestCount"><b>{guestSelectedCount}</b><span>meals selected</span></div>
-         <div className="publicGuestOutlet"><span>OUTLET</span><b>{guestBuilderOutlet?.name}</b><small>{guestBuilderOutlet?.city}</small></div>
-       </div>
-       <div className="publicGuestWeeks">
-         {publicBuilderDays().map(d=><section className="publicGuestDay" key={d.date}>
-           <div className="publicGuestDayHead"><div><b>{dayName(dayId(d.date))}</b><span>{shortDate(d.date)}</span></div><small>{SLOT.filter(s=>publicMenuFor(d.date,s.id).length).length} meal slots available</small></div>
-           <div className="publicGuestSlots">
-             {SLOT.map(s=>{
-               const opts=publicMenuFor(d.date,s.id);
-               if(!opts.length)return null;
-               const selected=guestSelections[key(d.date,s.id)]||'';
-               return <label key={s.id}><span>{s.icon} {s.label}</span><select value={selected} onChange={e=>setGuestSelections(g=>({...g,[key(d.date,s.id)]:e.target.value}))}><option value="">Choose a meal</option>{opts.map(m=><option key={m.recipeId} value={m.recipeId}>{m.recipeName} · {money(m.pricePerMeal)}</option>)}</select></label>;
-             })}
-           </div>
-           {!SLOT.some(s=>publicMenuFor(d.date,s.id).length)&&<div className="publicGuestNoMenu">No menu is published for this day.</div>}
-         </section>)}
-       </div>
-       <div className="publicGuestFooter"><div><b>{guestSelectedCount} meals selected</b><span>After creating your account, we'll ask for your exact delivery address and allergy preferences before payment.</span></div><button className="primary big" disabled={!guestSelectedCount} onClick={saveGuestDraftAndCreateAccount}>Create account to continue →</button></div>
-     </div>
-   </div>}
+   {guestBuilderOpen&&<GuestPackageModal
+     outlet={guestBuilderOutlet}
+     menu={publicOutletMenu}
+     duration={guestDuration}
+     setDuration={value=>{setGuestDuration(value);setGuestSelections({})}}
+     startDate={guestStartDate}
+     setStartDate={value=>{setGuestStartDate(value);setGuestSelections({})}}
+     selections={guestSelections}
+     setSelections={setGuestSelections}
+     selectedCount={guestSelectedCount}
+     onClose={()=>setGuestBuilderOpen(false)}
+     onContinue={saveGuestDraftAndCreateAccount}
+   />
 
    {publicOutlet&&<div className="publicOverlayBackdrop" onMouseDown={e=>e.target===e.currentTarget&&setPublicOutlet(null)}>
      <div className="publicOutletPreview">
@@ -324,6 +308,47 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    </div>}
  </div>;
 }
+function GuestPackageModal({outlet,menu,duration,setDuration,startDate,setStartDate,selections,setSelections,selectedCount,onClose,onContinue}){
+ const days=useMemo(()=>{
+   const d=DURATIONS.find(x=>x.id===duration)||DURATIONS[2];
+   const start=startDate||todayISO();
+   return Array.from({length:d.days},(_,i)=>({date:addDays(start,i),index:i}));
+ },[duration,startDate]);
+ const menuFor=(date,slot)=>(menu||[]).filter(x=>Number(x.dayOfWeek)===Number(dayId(date))&&Number(x.mealSlotValue)===Number(slot));
+ return <div className="publicOverlayBackdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}>
+   <div className="publicGuestBuilder">
+     <div className="publicExplorerHead">
+       <div><span className="publicEyebrow">GUEST PACKAGE BUILDER</span><h2>Build your package</h2><p>Choose your meals first. We'll ask you to create an account when you're ready to continue.</p></div>
+       <button className="publicExplorerClose" onClick={onClose}>×</button>
+     </div>
+     <div className="publicGuestBuilderToolbar">
+       <label><span>Package duration</span><select value={duration} onChange={e=>setDuration(e.target.value)}>{DURATIONS.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}</select></label>
+       <label><span>Start date</span><input type="date" min={todayISO()} value={startDate} onChange={e=>setStartDate(e.target.value)}/></label>
+       <div className="publicGuestCount"><b>{selectedCount}</b><span>meals selected</span></div>
+       <div className="publicGuestOutlet"><span>OUTLET</span><b>{outlet?.name}</b><small>{outlet?.city}</small></div>
+     </div>
+     <div className="publicGuestWeeks">
+       {days.map(d=><section className="publicGuestDay" key={d.date}>
+         <div className="publicGuestDayHead"><div><b>{dayName(dayId(d.date))}</b><span>{shortDate(d.date)}</span></div><small>{SLOT.filter(s=>menuFor(d.date,s.id).length).length} meal slots available</small></div>
+         <div className="publicGuestSlots">
+           {SLOT.map(s=>{
+             const opts=menuFor(d.date,s.id);
+             if(!opts.length)return null;
+             const selected=selections[key(d.date,s.id)]||'';
+             return <label key={s.id}><span>{s.icon} {s.label}</span><select value={selected} onChange={e=>setSelections(g=>({...g,[key(d.date,s.id)]:e.target.value}))}><option value="">Choose a meal</option>{opts.map(m=><option key={m.recipeId} value={m.recipeId}>{m.recipeName} · {money(m.pricePerMeal)}</option>)}</select></label>;
+           })}
+         </div>
+         {!SLOT.some(s=>menuFor(d.date,s.id).length)&&<div className="publicGuestNoMenu">No menu is published for this day.</div>}
+       </section>)}
+     </div>
+     <div className="publicGuestFooter">
+       <div><b>{selectedCount} meals selected</b><span>After creating your account, we'll ask for your exact delivery address and allergy preferences before payment.</span></div>
+       <button className="primary big" disabled={!selectedCount} onClick={onContinue}>Create account to continue →</button>
+     </div>
+   </div>
+ </div>;
+}
+
 
 function App(){
  const[user,setUser]=useState(currentUser());
