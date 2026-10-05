@@ -8,7 +8,6 @@ function App(){
  const[login,setLogin]=useState({email:'admin@healthapp.test',password:'demo'});
  const[data,setData]=useState({});
  const[domains,setDomains]=useState([]);
- const[domains,setDomains]=useState([]);
  const[cities,setCities]=useState([]);
  const[form,setForm]=useState({city:'Hyderabad',state:'Telangana',country:'India',latitude:17.385,longitude:78.4867,isEnabled:true});
  const[error,setError]=useState('');
