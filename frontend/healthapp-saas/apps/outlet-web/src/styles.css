@@ -188,3 +188,5 @@
 
 @media(max-width:1000px){.packageCustomerGrid,.packageBottomGrid{grid-template-columns:1fr}.packageSlotGrid{grid-template-columns:repeat(2,1fr)}.packageDayHead{grid-template-columns:1fr}.packageListCard{grid-template-columns:1fr}.packageListMeta{flex-wrap:wrap}}
 @media(max-width:650px){.packageSlotGrid{grid-template-columns:1fr}.packageBuilderBadge{display:none}.packageQuotePanel{order:-1}.packageAddressMapFrame{height:220px}}
+
+.packageManualPaymentNote{display:flex;flex-direction:column;gap:3px;padding:12px;border:1px solid #dceadf;border-radius:10px;background:#f6fbf7}.packageManualPaymentNote b{font-size:11px;color:#176534}.packageManualPaymentNote span{font-size:10px;color:#6e7b73;line-height:1.45}
