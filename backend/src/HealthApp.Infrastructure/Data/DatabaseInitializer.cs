@@ -365,6 +365,36 @@ IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRout
 IF COL_LENGTH('dbo.Subscriptions','DeliveryCity') IS NULL
     ALTER TABLE dbo.Subscriptions ADD DeliveryCity nvarchar(100) NULL;
 
+IF OBJECT_ID('dbo.OutletDomains', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OutletDomains
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_OutletDomains PRIMARY KEY,
+        OutletId uniqueidentifier NOT NULL,
+        Hostname nvarchar(253) NOT NULL,
+        Status int NOT NULL CONSTRAINT DF_OutletDomains_Status DEFAULT 0,
+        IsPrimary bit NOT NULL CONSTRAINT DF_OutletDomains_IsPrimary DEFAULT 0,
+        CreatedAtUtc datetime2 NOT NULL CONSTRAINT DF_OutletDomains_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
+        VerifiedAtUtc datetime2 NULL
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletDomains_Hostname' AND object_id=OBJECT_ID('dbo.OutletDomains'))
+    CREATE UNIQUE INDEX IX_OutletDomains_Hostname ON dbo.OutletDomains(Hostname);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletDomains_OutletId_Status' AND object_id=OBJECT_ID('dbo.OutletDomains'))
+    CREATE INDEX IX_OutletDomains_OutletId_Status ON dbo.OutletDomains(OutletId, Status);
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name='FK_OutletDomains_Outlets'
+      AND parent_object_id=OBJECT_ID('dbo.OutletDomains')
+)
+    ALTER TABLE dbo.OutletDomains
+        ADD CONSTRAINT FK_OutletDomains_Outlets
+        FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+
 IF COL_LENGTH('dbo.Outlets','HeroImageUrl') IS NULL
     ALTER TABLE dbo.Outlets ADD HeroImageUrl nvarchar(1000) NULL;
 IF COL_LENGTH('dbo.Outlets','HealthHighlights') IS NULL
