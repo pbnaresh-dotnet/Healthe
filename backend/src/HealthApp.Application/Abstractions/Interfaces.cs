@@ -96,6 +96,8 @@ public interface IOutletPackageService
 {
     Task<IReadOnlyList<UserDto>> GetCustomersAsync();
     Task<UserDto?> CreateCustomerAsync(CreateOutletCustomerRequest request);
+    Task<OutletCustomerProfileDto?> GetCustomerProfileAsync(Guid customerId);
+    Task<OutletCustomerProfileDto?> UpdateCustomerProfileAsync(Guid customerId, SaveCustomerProfileRequest request);
     Task<IReadOnlyList<CustomerAddressDto>> GetCustomerAddressesAsync(Guid customerId);
     Task<CustomerAddressDto?> CreateCustomerAddressAsync(Guid customerId, OutletPackageAddressRequest request);
     Task<OutletPackageQuoteDto?> QuoteAsync(OutletPackageQuoteRequest request);
