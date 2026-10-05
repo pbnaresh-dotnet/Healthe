@@ -50,6 +50,20 @@ The customer web app uses the resolved outlet slug for subsequent API requests. 
 
 Each standalone outlet can therefore use its own Cloudflare Pages deployment and custom domain while all outlets continue using the same API and SQL Server database.
 
+### Cloudflare Pages API integration
+
+The API can attach requested custom domains to the shared `healthapp-customer` Pages project and read Cloudflare's live validation state. Cloudflare's Pages API exposes the domain status plus `validation_data` including the validation method and TXT name/value when TXT validation is used.
+
+Configure these server-side settings through deployment secrets/environment variables:
+
+- `CloudflarePages:Enabled=true`
+- `CloudflarePages:AccountId=<Cloudflare account ID>`
+- `CloudflarePages:ProjectName=healthapp-customer`
+- `CloudflarePages:ApiToken=<secret API token>`
+
+The API token should have the minimum Pages permissions required for the configured operation. Cloudflare documents `Pages Write` for adding a Pages custom domain and `Pages Read` for reading custom-domain status.
+
+The outlet must still control its DNS. For an apex domain such as `fitfood.com`, Cloudflare's current Pages documentation requires the site to be a Cloudflare zone with its nameservers configured for Cloudflare.
 
 Set it for Production and Preview as appropriate.
 
