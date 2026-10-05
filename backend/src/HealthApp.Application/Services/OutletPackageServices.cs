@@ -609,8 +609,8 @@ public sealed class OutletPackageService(
             throw new ArgumentException("Select at least one meal.");
 
         var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
-        if (outlet.Status != OutletStatus.Active)
-            throw new InvalidOperationException("Outlet is not active.");
+        if (outlet.Status != OutletStatus.Live)
+            throw new InvalidOperationException("Outlet is not live yet. Complete outlet setup before creating customer packages.");
         if (request.OutletId != outletId)
             throw new UnauthorizedAccessException("The package outlet does not match the current outlet.");
 
