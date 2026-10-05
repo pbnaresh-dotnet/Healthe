@@ -593,6 +593,7 @@ public sealed class Outlet
         get;
         set;
     }
+    public string DeliveryDays { get; set; } = "";
     public BillingPlan BillingPlan {
         get;
         set;
