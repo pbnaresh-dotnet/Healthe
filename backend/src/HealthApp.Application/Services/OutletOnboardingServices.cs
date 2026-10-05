@@ -4,6 +4,7 @@ using HealthApp.Application.Abstractions;
 using HealthApp.Domain.Entities;
 using HealthApp.Domain.Enums;
 using HealthApp.Shared.DTOs;
+using HealthApp.Application.Orchestration;
 
 namespace HealthApp.Application.Services;
 
@@ -15,7 +16,8 @@ public sealed class OutletOnboardingService(
     IUserRepository users,
     ICurrentUser current,
     IFileStorage storage,
-    IPasswordService passwords) : IOutletOnboardingService
+    IPasswordService passwords,
+    IUnitOfWork unitOfWork) : IOutletOnboardingService
 {
     private const decimal SetupFee = 5000m;
 
@@ -117,10 +119,13 @@ public sealed class OutletOnboardingService(
             Status = "Pending"
         };
 
-        await outlets.AddAsync(outlet);
-        await users.AddAsync(user);
-        await outletSubscriptions.AddAsync(subscription);
-        await applications.AddAsync(application);
+        await unitOfWork.ExecuteAsync(async () =>
+        {
+            await outlets.AddAsync(outlet);
+            await users.AddAsync(user);
+            await outletSubscriptions.AddAsync(subscription);
+            await applications.AddAsync(application);
+        });
 
         return ToSession(application, accessKey);
     }
