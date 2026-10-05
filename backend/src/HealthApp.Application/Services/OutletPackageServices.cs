@@ -540,6 +540,8 @@ public sealed class OutletPackageService(
             ?? throw new KeyNotFoundException("Package not found.");
         if (!subscription.IsOutletCreated || subscription.CustomerId != customerId)
             throw new UnauthorizedAccessException("This package is not available to the current customer.");
+        if (current.OutletId is not Guid customerOutletId || subscription.OutletId != customerOutletId)
+            throw new UnauthorizedAccessException("This package belongs to a different outlet.");
         if (subscription.PackageStatus == "Active")
             return MapSubscription(subscription, (await payments.GetLatestBySubscriptionAsync(subscription.Id))?.Status ?? "Paid");
         if (subscription.PackageStatus != "SentToCustomer")
