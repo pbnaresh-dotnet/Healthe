@@ -296,8 +296,11 @@ public sealed class OutletPackageService(
         profile.Diet = request.Diet?.Trim() ?? string.Empty;
         profile.UpdatedAtUtc = DateTime.UtcNow;
 
-        await profiles.AddOrUpdateAsync(profile);
-        await customerAllergies.ReplaceAsync(customerId, requestedAllergies);
+        await unitOfWork.ExecuteAsync(async () =>
+        {
+            await profiles.AddOrUpdateAsync(profile);
+            await customerAllergies.ReplaceAsync(customerId, requestedAllergies);
+        });
 
         return await GetCustomerProfileAsync(customerId);
     }
