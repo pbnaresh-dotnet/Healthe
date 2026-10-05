@@ -85,6 +85,28 @@ public interface ICurrentUser { Guid? UserId { get; } Guid? OutletId { get; } st
 public interface ITenantContext { Guid? OutletId { get; } string? OutletSlug { get; } bool IsResolved { get; } void Set(Guid outletId, string outletSlug); }
 public interface ITenantHostResolver { Task<Outlet?> ResolveAsync(string? hostname); }
 public sealed class TenantDomainSettings { public string PlatformBaseDomain { get; set; } = "healthapp.com"; }
+public sealed class CloudflarePagesSettings
+{
+    public bool Enabled { get; set; }
+    public string AccountId { get; set; } = "";
+    public string ProjectName { get; set; } = "healthapp-customer";
+    public string ApiToken { get; set; } = "";
+}
+public sealed record CloudflarePagesDomainState(
+    string Name,
+    string Status,
+    string ValidationMethod,
+    string ValidationStatus,
+    string? ValidationError,
+    string? TxtName,
+    string? TxtValue,
+    string VerificationStatus,
+    string? VerificationError);
+public interface ICloudflarePagesService
+{
+    Task<CloudflarePagesDomainState> EnsureDomainAsync(string hostname, CancellationToken cancellationToken = default);
+    Task<CloudflarePagesDomainState?> GetDomainAsync(string hostname, CancellationToken cancellationToken = default);
+}
 public interface IAuthService { Task<AuthResponse?> LoginAsync(LoginRequest request); Task<AuthResponse> RegisterAsync(RegisterRequest request); }
 public interface IEmailService { Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default); }
 public interface IOutletDemoService { Task<OutletDemoRequestDto> RequestAsync(RequestOutletDemoRequest request, CancellationToken cancellationToken = default); }
@@ -95,6 +117,7 @@ public interface IOutletSettingsService
     Task<OutletSettingsDto?> GetAsync();
     Task<IReadOnlyList<OutletDomainDto>> GetDomainsAsync();
     Task<OutletDomainDto> RequestDomainAsync(RequestOutletDomainRequest request);
+    Task<OutletDomainDto> VerifyDomainAsync(Guid domainId, bool activateIfReady = true);
     Task<OutletSettingsDto?> UpdateDeliveryDaysAsync(UpdateOutletSettingsRequest request);
     Task<OutletBrandingDto?> UpdateBrandingAsync(UpdateOutletBrandingRequest request);
     Task<OutletBrandingDto?> UpdateBrandingAssetAsync(string assetType, string url);
