@@ -298,7 +298,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
      selectedCount={guestSelectedCount}
      onClose={()=>setGuestBuilderOpen(false)}
      onContinue={saveGuestDraftAndCreateAccount}
-   />
+   />}
 
    {publicOutlet&&<div className="publicOverlayBackdrop" onMouseDown={e=>e.target===e.currentTarget&&setPublicOutlet(null)}>
      <div className="publicOutletPreview">
