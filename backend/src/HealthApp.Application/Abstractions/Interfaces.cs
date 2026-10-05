@@ -15,6 +15,31 @@ public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); 
 public interface ISaaSPlanRepository { Task<IReadOnlyList<SaaSPlan>> GetActiveAsync(); Task<SaaSPlan?> GetAsync(Guid id); }
 public interface IOutletSubscriptionRepository { Task<OutletSubscription?> GetByOutletAsync(Guid outletId); Task AddAsync(OutletSubscription subscription); Task UpdateAsync(OutletSubscription subscription); }
 public interface IPlatformTransactionRepository { Task AddAsync(PlatformTransaction transaction); Task<IReadOnlyList<PlatformTransaction>> GetAllAsync(); Task<bool> ExistsByReferenceAsync(string referenceId); }
+public interface IOutletOnboardingRepository
+{
+    Task<OutletOnboardingApplication?> GetAsync(Guid id);
+    Task<IReadOnlyList<OutletOnboardingApplication>> GetByStatusAsync(string status);
+    Task AddAsync(OutletOnboardingApplication application);
+    Task UpdateAsync(OutletOnboardingApplication application);
+}
+
+public interface IOutletOnboardingService
+{
+    Task<IReadOnlyList<SaaSPlanDto>> GetPlansAsync();
+    Task<OutletOnboardingSessionDto> StartPaymentAsync(OutletOnboardingPaymentRequest request);
+    Task<OutletOnboardingDto?> GetAsync(Guid id, string accessKey);
+    Task<OutletOnboardingDto?> SaveDetailsAsync(Guid id, string accessKey, SaveOutletOnboardingDetailsRequest request);
+    Task<OutletOnboardingDocumentDto?> UploadDocumentAsync(Guid id, string accessKey, string documentType, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default);
+    Task<OutletOnboardingDto?> SubmitAsync(Guid id, string accessKey);
+}
+
+public interface IOutletVerificationService
+{
+    Task<IReadOnlyList<OutletVerificationSummaryDto>> GetPendingAsync();
+    Task<OutletVerificationDetailDto?> GetAsync(Guid id);
+    Task<OutletVerificationDetailDto?> DecideAsync(Guid id, DecideOutletVerificationRequest request);
+}
+
 public interface IMealPlanRepository { Task<IReadOnlyList<MealPlan>> GetByOutletAsync(Guid outletId); Task<MealPlan?> GetAsync(Guid id); Task AddAsync(MealPlan plan); }
 public interface IRecipeRepository { Task<IReadOnlyList<Recipe>> GetByOutletAsync(Guid outletId); Task<IReadOnlyList<Recipe>> GetByOutletAndCategoryAsync(Guid outletId, string? category); Task<IReadOnlyList<Recipe>> GetByIdsAsync(IEnumerable<Guid> ids); Task<Recipe?> GetAsync(Guid id); Task AddAsync(Recipe recipe); Task UpdateAsync(Recipe recipe); Task DeleteAsync(Guid id); }
 public interface IOutletMenuRepository { Task<IReadOnlyList<OutletMenuItem>> GetByOutletAsync(Guid outletId); Task<IReadOnlyList<OutletMenuItem>> GetByOutletDayAsync(Guid outletId, DayOfWeek day); Task AddAsync(OutletMenuItem item); Task DeleteAsync(Guid id); Task ReplaceAsync(Guid outletId, IEnumerable<OutletMenuItem> items); }
