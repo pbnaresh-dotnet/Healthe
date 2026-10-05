@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.Configure<StorageOptions>(config.GetSection("Storage"));
         services.Configure<GeocodingOptions>(config.GetSection("Geocoding"));
         services.Configure<TenantDomainSettings>(config.GetSection("TenantDomains"));
+        services.Configure<CloudflarePagesSettings>(config.GetSection("CloudflarePages"));
         services.Configure<SmtpEmailOptions>(config.GetSection("Email"));
 
         var storageProvider = (config["Storage:Provider"] ?? "Local").Trim().ToLowerInvariant();
@@ -75,6 +76,14 @@ public static class DependencyInjection
         services.AddScoped<IOutletRepository, OutletRepository>();
         services.AddScoped<IOutletBrandingRepository, OutletBrandingRepository>();
         services.AddScoped<IOutletDomainRepository, OutletDomainRepository>();
+        services.AddHttpClient<ICloudflarePagesService, CloudflarePagesService>((sp, client) =>
+        {
+            var options = sp.GetRequiredService<IOptions<CloudflarePagesSettings>>().Value;
+            client.BaseAddress = new Uri("https://api.cloudflare.com/client/v4");
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiToken);
+        });
         services.AddScoped<ITenantHostResolver, TenantHostResolver>();
         services.AddScoped<ISaaSPlanRepository, SaaSPlanRepository>();
         services.AddScoped<IOutletOnboardingRepository, OutletOnboardingRepository>();
