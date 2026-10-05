@@ -116,8 +116,8 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    let disposed=false;
    const loadTenant=async()=>{
      try{
-       const outlet=standaloneMode
-         ?await outlets.get(standaloneMode)
+       const outlet=TENANT_OUTLET_SLUG
+         ?await outlets.get(TENANT_OUTLET_SLUG)
          :await resolveTenantFromHost();
        if(disposed)return;
        if(outlet){
@@ -303,7 +303,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
 
  if(publicOutlet&&!guestBuilderOpen) return <PublicOutletHome outlet={publicOutlet} menu={publicOutletMenu} busy={publicOutletBusy} error={publicOutletError} onBack={()=>setPublicOutlet(null)} onBuild={openGuestBuilder}/>;
 
- return <><LoadingIndicator active={publicMapBusy||publicOutletBusy} label={publicOutletBusy?'Loading outlet menu':'Finding outlets'}/><div className="publicHome" data-public-tenant-root={standaloneMode||undefined} style={standaloneMode?{'--brand-primary':tenantOutlet?.primaryColor||'#14532d','--brand-secondary':tenantOutlet?.secondaryColor||'#166534'}:undefined}>
+ return <><LoadingIndicator active={publicMapBusy||publicOutletBusy} label={publicOutletBusy?'Loading outlet menu':'Finding outlets'}/><div className="publicHome" data-public-tenant-root={standaloneMode?'1':undefined} style={standaloneMode?{'--brand-primary':tenantOutlet?.primaryColor||'#14532d','--brand-secondary':tenantOutlet?.secondaryColor||'#166534'}:undefined}>
    <header className="publicNav">
      <button className="publicBrand" type="button" onClick={()=>goTo('public-top')}><span className="brandMark">{tenantOutlet?.logoUrl?<img src={getImg(tenantOutlet.logoUrl)} alt="" style={{width:30,height:30,objectFit:'cover',borderRadius:7}}/>:(tenantOutlet?.name||'HealthApp').slice(0,1).toUpperCase()}</span><span><b>{tenantOutlet?.name||'HealthApp'}</b><small>{tenantOutlet?'Healthy meals, prepared fresh for you':'Healthy meals, built around you'}</small></span></button>
      <nav className="publicNavLinks"><button onClick={()=>goTo('how-it-works')}>How it works</button>{!standaloneMode&&<><button onClick={()=>goTo('plans')}>Meal Plans</button><button onClick={()=>goTo('outlets')}>Our Outlets</button></>}<button onClick={()=>goTo('why-healthapp')}>{standaloneMode?'Why us':'Why HealthApp'}</button></nav>
