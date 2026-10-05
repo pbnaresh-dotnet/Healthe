@@ -40,6 +40,13 @@ public sealed class OutletRepository(HealthAppDbContext db) : EfRepository(db), 
     }
 }
 
+public sealed class OutletBrandingRepository(HealthAppDbContext db) : EfRepository(db), IOutletBrandingRepository
+{
+    public Task<OutletBranding?> GetByOutletAsync(Guid outletId) => db.OutletBrandings.FirstOrDefaultAsync(x => x.OutletId == outletId);
+    public async Task AddAsync(OutletBranding branding) { db.OutletBrandings.Add(branding); await SaveAsync(); }
+    public async Task UpdateAsync(OutletBranding branding) { db.OutletBrandings.Update(branding); await SaveAsync(); }
+}
+
 public sealed class SaaSPlanRepository(HealthAppDbContext db) : EfRepository(db), ISaaSPlanRepository
 {
     public async Task<IReadOnlyList<SaaSPlan>> GetActiveAsync() => await db.SaaSPlans.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.MonthlyFee).ToListAsync();
