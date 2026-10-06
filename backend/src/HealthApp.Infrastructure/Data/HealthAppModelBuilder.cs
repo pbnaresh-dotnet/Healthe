@@ -372,6 +372,12 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.OutletDiscountType).HasConversion<int>();
         e.Property(x => x.OutletDiscountValue).HasPrecision(18,2);
         e.Property(x => x.OutletDiscountReason).HasMaxLength(500);
+        // Explicit SQL Server precision for subscription financial snapshot fields.
+        e.Property(x => x.DiscountCodeAmount).HasPrecision(18,2);
+        e.Property(x => x.OutletCommissionAmount).HasPrecision(18,2);
+        e.Property(x => x.OutletCommissionPercent).HasPrecision(9,4);
+        e.Property(x => x.PlatformServiceFeePercent).HasPrecision(9,4);
+        e.Property(x => x.PlatformServiceGstRate).HasPrecision(9,4);
         e.Property(x => x.PaymentMethod).HasMaxLength(40);
         e.HasIndex(x => new {
             x.CustomerId, x.Status
