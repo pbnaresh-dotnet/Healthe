@@ -34,10 +34,10 @@ jobs:
         run: dotnet restore ${{ env.SOLUTION_PATH }} -r win-x64
 
       - name: Build
-        run: dotnet build ${{ env.SOLUTION_PATH }} -c Release --no-restore
+        run: dotnet build ${{ env.SOLUTION_PATH }} -c Release --no-restore -r win-x64
 
       - name: Publish API
-        run: dotnet publish ${{ env.API_PROJECT }} -c Release --no-build --no-self-contained -r win-x64 -p:DebugType=None -p:DebugSymbols=false -p:PublishReadyToRun=false -o ${{ github.workspace }}/publish
+        run: dotnet publish ${{ env.API_PROJECT }} -c Release --no-restore --no-self-contained -r win-x64 -p:DebugType=None -p:DebugSymbols=false -p:PublishReadyToRun=false -o ${{ github.workspace }}/publish
 
       - name: Create deployment package
         shell: pwsh
