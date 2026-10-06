@@ -89,6 +89,22 @@
 @media (max-width:1000px){.manualAssignmentGrid{grid-template-columns:1fr}.manualDriverColumns{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){.manualDriverColumns{grid-template-columns:1fr}.manualAssignmentFooter{flex-direction:column;align-items:stretch}.manualStopCard{cursor:default}}
 
+/* Outlet team and role management */
+.teamPanel{padding:18px}
+.teamRoleGuide{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:18px}
+.teamRoleGuide>div{padding:14px;border:1px solid #e2e8f0;border-radius:13px;background:#f8fafc;display:flex;flex-direction:column;gap:5px}
+.teamRoleGuide b{font-size:13px;color:#0f172a}
+.teamRoleGuide span{font-size:11px;line-height:1.45;color:#64748b}
+.teamList{display:flex;flex-direction:column;gap:9px}
+.teamMember{display:grid;grid-template-columns:38px minmax(180px,1fr) auto auto auto;gap:12px;align-items:center;padding:12px 13px;border:1px solid #e2e8f0;border-radius:13px;background:#fff}
+.teamAvatar{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#e8f4eb;color:#166534;font-weight:800}
+.teamMemberMain{display:flex;flex-direction:column;gap:3px;min-width:0}
+.teamMemberMain b{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.teamMemberMain span{font-size:10px;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.teamActive,.teamInactive{font-size:10px;font-weight:800;padding:5px 8px;border-radius:999px}
+.teamActive{background:#e7f6eb;color:#17733a}.teamInactive{background:#f1f5f9;color:#64748b}
+@media (max-width:900px){.teamRoleGuide{grid-template-columns:1fr}.teamMember{grid-template-columns:38px minmax(0,1fr);}.teamMember>.pill,.teamMember>.teamActive,.teamMember>.teamInactive,.teamMember>.smallBtn{justify-self:start}}
+
 /* Kitchen production and concise label printing */
 .slotSummary{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:2px 0 15px;padding:10px 12px;background:#eef5ef;border:1px solid #dbe8de;border-radius:11px;font-size:10px;color:#66766d}
 .slotSummary>span{font-weight:700;color:#4d6255;margin-right:3px}
