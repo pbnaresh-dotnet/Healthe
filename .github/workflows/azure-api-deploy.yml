@@ -11,6 +11,7 @@ on:
 
 env:
   AZURE_WEBAPP_NAME: brocollyapi
+  AZURE_RESOURCE_GROUP: broccoly
   DOTNET_VERSION: '10.x'
   SOLUTION_PATH: backend/HealthApp.sln
   API_PROJECT: backend/src/HealthApp.Api/HealthApp.Api.csproj
@@ -71,12 +72,12 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F4A33EE2D67E47B78A75A4AD4EC20D0E }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_2BBF547FAC7C4F8A916FD2F7CE4CCDA4 }}
 
-      - name: Resolve Azure resource group
+      - name: Verify Azure Web App
         shell: pwsh
         run: |
-          $rg = az webapp list --query "[?name=='$($env:AZURE_WEBAPP_NAME)'].resourceGroup | [0]" -o tsv
-          if ([string]::IsNullOrWhiteSpace($rg)) { throw 'Azure Web App resource group could not be resolved.' }
-          "AZURE_RESOURCE_GROUP=$rg" >> $env:GITHUB_ENV
+          $app = az webapp show --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --query "{name:name,state:state,resourceGroup:resourceGroup}" -o json
+          if ([string]::IsNullOrWhiteSpace($app)) { throw "Azure Web App '$env:AZURE_WEBAPP_NAME' was not found in resource group '$env:AZURE_RESOURCE_GROUP'." }
+          Write-Host $app
 
       - name: Enable run-from-package
         shell: pwsh
