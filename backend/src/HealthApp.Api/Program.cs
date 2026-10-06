@@ -46,14 +46,32 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+var tenantDomainSettings = builder.Configuration.GetSection("TenantDomains").Get<TenantDomainSettings>() ?? new TenantDomainSettings();
+var platformBaseDomain = tenantDomainSettings.PlatformBaseDomain.Trim().TrimEnd('.').ToLowerInvariant();
+
 builder.Services.AddCors(options => options.AddPolicy("WebApps", policy =>
 {
-    if (allowedOrigins.Length > 0)
-        policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
-    else if (builder.Environment.IsDevelopment())
+    if (builder.Environment.IsDevelopment() && allowedOrigins.Length == 0)
+    {
         policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
-    else
-        policy.SetIsOriginAllowed(_ => false);
+        return;
+    }
+
+    policy
+        .SetIsOriginAllowed(origin =>
+        {
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri) ||
+                !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+                return true;
+
+            return !string.IsNullOrWhiteSpace(platformBaseDomain) &&
+                   uri.Host.EndsWith("." + platformBaseDomain, StringComparison.OrdinalIgnoreCase);
+        })
+        .AllowAnyHeader()
+        .AllowAnyMethod();
 }));
 
 var app = builder.Build();
