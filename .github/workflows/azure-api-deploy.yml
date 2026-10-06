@@ -74,7 +74,7 @@ jobs:
       - name: Resolve Azure resource group
         shell: pwsh
         run: |
-          $rg = az webapp show --name $env:AZURE_WEBAPP_NAME --query resourceGroup -o tsv
+          $rg = az webapp list --query "[?name=='$($env:AZURE_WEBAPP_NAME)'].resourceGroup | [0]" -o tsv
           if ([string]::IsNullOrWhiteSpace($rg)) { throw 'Azure Web App resource group could not be resolved.' }
           "AZURE_RESOURCE_GROUP=$rg" >> $env:GITHUB_ENV
 
