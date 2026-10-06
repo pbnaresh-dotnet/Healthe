@@ -59,7 +59,7 @@ When a custom domain is requested, Outlet Admin receives a verification token/in
 
 The customer web app uses the resolved outlet slug for subsequent API requests. The API also checks hostname/header consistency and authenticated `outlet_id` consistency.
 
-Each standalone outlet can therefore use the same shared customer Pages project with its own `*.broccoly.in` hostname, while all outlets continue using the same API and SQL Server database.
+Cloudflare Pages does not support a wildcard custom domain such as `*.broccoly.in`. Each standalone outlet hostname (for example `fitfood.broccoly.in`) must therefore be added individually to the shared `healthapp-customer` Pages project. We can automate those per-outlet custom-domain registrations later through the Cloudflare Pages API, while all outlets continue using the same customer Pages deployment, API and SQL Server database.
 
 ### Cloudflare Pages API integration
 
