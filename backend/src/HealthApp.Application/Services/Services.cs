@@ -46,7 +46,7 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
     {
         if (string.IsNullOrWhiteSpace(r.Password) || r.Password.Length < 6) throw new ArgumentException("Password must be at least 6 characters.");
         var role = Enum.TryParse<UserRole>(r.Role, true, out var parsed) ? parsed : UserRole.Customer;
-        if (role is UserRole.SuperAdmin or UserRole.Driver) throw new UnauthorizedAccessException("This role cannot be self-registered.");
+        if (role is UserRole.SuperAdmin or UserRole.Driver or UserRole.OutletManager or UserRole.KitchenStaff) throw new UnauthorizedAccessException("This role cannot be self-registered.");
         if (role == UserRole.OutletAdmin)
             throw new UnauthorizedAccessException("Outlet administrators must complete outlet onboarding and verification before an account is activated.");
 
