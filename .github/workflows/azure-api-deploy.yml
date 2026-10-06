@@ -10,7 +10,7 @@ on:
       - '.github/workflows/azure-api-deploy.yml'
 
 env:
-  AZURE_WEBAPP_NAME: brocollyapi
+  AZURE_WEBAPP_NAME: broccolyapi
   AZURE_RESOURCE_GROUP: broccoly
   DOTNET_VERSION: '10.x'
   SOLUTION_PATH: backend/HealthApp.sln
