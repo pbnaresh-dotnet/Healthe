@@ -630,6 +630,19 @@ IF COL_LENGTH('dbo.ServiceCities','Country') IS NOT NULL
     UPDATE dbo.ServiceCities SET Country = COALESCE(Country,'India');
 ", cancellationToken);
 
+        // CityAreas are also queried by the seeder using non-nullable C# strings. Legacy
+        // databases can contain NULLs here, which EF materializes with GetString() and fails.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.CityAreas','City') IS NOT NULL
+    UPDATE dbo.CityAreas SET City = COALESCE(City,'');
+IF COL_LENGTH('dbo.CityAreas','State') IS NOT NULL
+    UPDATE dbo.CityAreas SET State = COALESCE(State,'');
+IF COL_LENGTH('dbo.CityAreas','Name') IS NOT NULL
+    UPDATE dbo.CityAreas SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.CityAreas','Pincode') IS NOT NULL
+    UPDATE dbo.CityAreas SET Pincode = COALESCE(Pincode,'');
+", cancellationToken);
+
         // Keep the old text columns harmless for older databases; normalized values are now authoritative.
         await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(), cancellationToken);
 
