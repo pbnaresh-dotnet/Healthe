@@ -10,7 +10,7 @@ public interface ICustomerAllergyRepository { Task<IReadOnlyList<CustomerAllergy
 public interface ICatalogService { Task<IReadOnlyList<IngredientDto>> GetIngredientsAsync(); Task<IReadOnlyList<AllergenDto>> GetAllergensAsync(); }
 public interface IAllergySafetyService { Task<IReadOnlyList<AllergyWarningDto>> GetWarningsAsync(Guid customerId, IReadOnlyCollection<Recipe> recipes); Task EnsureConfirmedAsync(Guid customerId, IReadOnlyCollection<Recipe> recipes, IReadOnlyCollection<Guid>? confirmedRecipeIds); }
 
-public interface IUserRepository { Task<User?> FindByEmailAsync(string email); Task<User?> FindByEmailAsync(string email, Guid outletId); Task<IReadOnlyList<User>> FindTenantUsersByEmailAsync(string email); Task<User?> FindByIdAsync(Guid id); Task AddAsync(User user); Task<IReadOnlyList<User>> GetAllAsync(); }
+public interface IUserRepository { Task<User?> FindByEmailAsync(string email); Task<User?> FindByEmailAsync(string email, Guid outletId); Task<IReadOnlyList<User>> FindTenantUsersByEmailAsync(string email); Task<User?> FindByIdAsync(Guid id); Task AddAsync(User user); Task UpdateAsync(User user); Task<IReadOnlyList<User>> GetAllAsync(); }
 public interface IOutletBrandingRepository
 {
     Task<OutletBranding?> GetByOutletAsync(Guid outletId);
@@ -126,6 +126,17 @@ public interface IOutletSettingsService
 
     Task<OutletReadinessDto?> GetReadinessAsync();
     Task<OutletReadinessDto?> GoLiveAsync();
+}
+
+public record CreateOutletStaffRequest(string FirstName, string LastName, string Email, string Password, string Role);
+public record UpdateOutletStaffRequest(string Role, bool IsActive);
+public record OutletStaffDto(Guid Id, string Name, string Email, string Role, bool IsActive);
+
+public interface IOutletStaffService
+{
+    Task<IReadOnlyList<OutletStaffDto>> GetAsync();
+    Task<OutletStaffDto?> CreateAsync(CreateOutletStaffRequest request);
+    Task<OutletStaffDto?> UpdateAsync(Guid id, UpdateOutletStaffRequest request);
 }
 
 public interface IOutletService { Task<OutletTaxSettingsDto?> GetTaxSettingsAsync(); Task<OutletTaxSettingsDto?> UpdateTaxSettingsAsync(UpdateOutletTaxSettingsRequest request); Task<OutletDashboardDto> GetDashboardAsync(); Task<OutletSubscriptionDetailDto?> GetSubscriptionDetailAsync(Guid subscriptionId); Task<OutletKitchenDayDto> GetKitchenDayAsync(DateTime date); Task<OutletBillingDto?> GetBillingAsync(); Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync(); Task<OutletBillingDto?> ChangeSubscriptionAsync(ChangeOutletSubscriptionRequest request); Task<OutletDto?> GetCurrentAsync(); Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(); Task<MealPlanDto?> CreatePlanAsync(CreateMealPlanRequest request); Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(string? category); Task<RecipeDto?> CreateRecipeAsync(CreateRecipeRequest request); Task<RecipeDto?> UpdateRecipeAsync(Guid recipeId, UpdateRecipeRequest request); Task<bool> DeleteRecipeAsync(Guid recipeId); Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(); Task<IReadOnlyList<MenuItemDto>> SaveMenuAsync(BulkMenuRequest request); Task<IReadOnlyList<UserDto>> GetCustomersAsync(); Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync(); Task<IReadOnlyList<OrderDto>> GetOrdersAsync(); Task<IReadOnlyList<DeliveryDto>> GetDeliveriesAsync(); }
