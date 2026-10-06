@@ -107,8 +107,12 @@ jobs:
             $response = Invoke-WebRequest -Uri "https://$hostName/health" -UseBasicParsing -MaximumRedirection 0 -SkipHttpErrorCheck -TimeoutSec 30
             Write-Host "Health status: $($response.StatusCode)"
             Write-Host "Health body: $($response.Content)"
+            if ($response.StatusCode -ne 200) {
+              throw "Health check failed. Expected HTTP 200 but received HTTP $($response.StatusCode)."
+            }
           } catch {
-            Write-Warning "Health request failed: $($_.Exception.Message)"
+            Write-Error "Health check failed: $($_.Exception.Message)"
+            exit 1
           }
 
       - name: Show application URL
