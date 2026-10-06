@@ -85,11 +85,27 @@ jobs:
 
       - name: Enable run-from-package
         shell: pwsh
-        run: az webapp config appsettings set --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --settings WEBSITE_RUN_FROM_PACKAGE=1
+        run: az webapp config appsettings set --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --settings WEBSITE_RUN_FROM_PACKAGE=1 WEBSITE_ADD_SITENAME_BINDINGS_IN_APPHOST_CONFIG=1
 
       - name: Deploy ZIP package
         shell: pwsh
         run: az webapp deploy --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --src-path (Get-ChildItem './package/*.zip' | Select-Object -First 1).FullName --type zip --clean true
+
+      - name: Smoke test application host
+        shell: pwsh
+        run: |
+          $hostName = az webapp show --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --query defaultHostName -o tsv
+          Write-Host "Application host: https://$hostName"
+          $site = az webapp show --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --query "{state:state,hostNames:hostNames,hostNamesDisabled:hostNamesDisabled,use32BitWorkerProcess:siteConfig.use32BitWorkerProcess}" -o json
+          Write-Host $site
+          Start-Sleep -Seconds 15
+          try {
+            $response = Invoke-WebRequest -Uri "https://$hostName/health" -UseBasicParsing -MaximumRedirection 0 -SkipHttpErrorCheck -TimeoutSec 30
+            Write-Host "Health status: $($response.StatusCode)"
+            Write-Host "Health body: $($response.Content)"
+          } catch {
+            Write-Warning "Health request failed: $($_.Exception.Message)"
+          }
 
       - name: Show application URL
         shell: pwsh
