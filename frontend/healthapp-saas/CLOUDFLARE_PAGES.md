@@ -12,20 +12,27 @@ Cloudflare supports multiple Pages projects from one Git repository with differe
 | healthapp-outlet | frontend/healthapp-saas | npm run build:outlet | apps/outlet-web/dist |
 | healthapp-admin | frontend/healthapp-saas | npm run build:admin | apps/admin-web/dist |
 
-Production branch: `main`
+Standalone test branch: `feature/standalone-saas`
 
-## Cloudflare dashboard setup
+## Cloudflare dashboard setup for standalone testing
 
-In Cloudflare:
+Use the existing three Cloudflare projects for the standalone test because marketplace deployments are paused. Do not create a second set of projects.
 
-1. Workers & Pages -> Create application -> Pages -> Import an existing Git repository.
-2. Select `pbnaresh-dotnet/Healthe`.
-3. Set the production branch to `main`.
-4. Set the project Root directory to `frontend/healthapp-saas`.
-5. Use the matching build command and output directory from the table.
-6. Deploy.
+Configure each existing project as follows:
 
-Repeat for all three projects. Cloudflare will give each site a `*.pages.dev` address and can rebuild automatically after commits to the connected repository.
+| Project | Source branch | Custom domain | Build command | Output |
+|---|---|---|---|---|
+| `healthapp-customer` | `feature/standalone-saas` | `fitfood.broccoly.in` | `npm run build:customer` | `apps/customer-web/dist` |
+| `healthapp-outlet` | `feature/standalone-saas` | `outlet.broccoly.in` | `npm run build:outlet` | `apps/outlet-web/dist` |
+| `healthapp-admin` | `feature/standalone-saas` | `admin.broccoly.in` | `npm run build:admin` | `apps/admin-web/dist` |
+
+For each project, open Settings -> Builds/Builds & deployments -> Branch control, set the production branch to `feature/standalone-saas`, turn off automatic production branch deployments, and set Preview branch to None. This prevents ordinary feature commits from consuming Cloudflare builds. Cloudflare's documented branch controls support both disabling automatic production deployments and disabling preview deployments. Use the manual GitHub Actions workflow `.github/workflows/cloudflare-standalone-deploy.yml` to deploy a selected app or all three when a cloud test is needed.
+
+In each project's Production environment variables, set:
+
+`VITE_API_BASE_URL=https://api.broccoly.in/api`
+
+Keep the existing custom domains attached to their respective projects.
 
 ## API environment variable
 
