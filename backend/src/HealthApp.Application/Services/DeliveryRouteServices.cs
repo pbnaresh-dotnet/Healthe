@@ -267,6 +267,33 @@ public sealed class DeliveryRouteService(
         return await GetPlanAsync(date, request.MealSlot);
     }
 
+    public async Task<DeliveryRoutePlanDto> DispatchRouteAsync(Guid routeId)
+    {
+        if (current.OutletId is not Guid outletId)
+            throw new UnauthorizedAccessException("Outlet context is required.");
+
+        var route = await routes.GetAsync(routeId)
+            ?? throw new KeyNotFoundException("Delivery route not found.");
+
+        if (route.OutletId != outletId)
+            throw new UnauthorizedAccessException("Delivery route does not belong to this outlet.");
+
+        if (route.Status != RouteStatus.Planned)
+            throw new InvalidOperationException($"Only planned routes can be dispatched. Current status: {route.Status}.");
+
+        if (route.DriverId == Guid.Empty)
+            throw new InvalidOperationException("A driver must be assigned before dispatching the route.");
+
+        if (route.Stops.Count == 0)
+            throw new InvalidOperationException("A route must contain at least one delivery stop before dispatching.");
+
+        route.Status = RouteStatus.Dispatched;
+        route.UpdatedAtUtc = DateTime.UtcNow;
+        await routes.SaveAsync();
+
+        return await GetPlanAsync(route.DeliveryDate.Date, (int)route.MealSlot);
+    }
+
     private async Task<List<Delivery>> GetEligibleDeliveriesAsync(Guid outletId, DateTime date, MealSlot mealSlot)
     {
         var rows = await deliveries.GetByOutletAsync(outletId);
