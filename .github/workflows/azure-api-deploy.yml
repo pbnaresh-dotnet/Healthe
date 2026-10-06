@@ -20,7 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production-test
-      url: https://broccoly.azurewebsites.net
 
     steps:
       - name: Checkout
