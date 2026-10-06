@@ -92,9 +92,20 @@ app.Use(async (context, next) =>
     context.Response.Headers["Permissions-Policy"] = "geolocation=(self), camera=(), microphone=()";
     await next();
 });
-app.UseMiddleware<ExceptionMiddleware>();
 app.UseStaticFiles();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
-app.UseRouting(); app.UseCors("WebApps"); app.UseRateLimiter(); app.UseAuthentication(); app.UseMiddleware<TenantContextMiddleware>(); app.UseMiddleware<OutletActivationMiddleware>(); app.UseAuthorization(); app.MapControllers();
+app.UseRouting();
+
+// CORS must wrap exception handling so 4xx/5xx API responses still include
+// Access-Control-Allow-Origin. Otherwise browser clients can report a real
+// server error as a misleading CORS error.
+app.UseCors("WebApps");
+app.UseMiddleware<ExceptionMiddleware>();
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseMiddleware<TenantContextMiddleware>();
+app.UseMiddleware<OutletActivationMiddleware>();
+app.UseAuthorization();
+app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status="ok", service="HealthApp.Api", framework=".NET 10", database="SQL Server / EF Core 10.0.12", time=DateTime.UtcNow }));
 app.Run();
