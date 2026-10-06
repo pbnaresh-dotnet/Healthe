@@ -57,6 +57,38 @@
 @media (max-width:1000px){.mapRouteGrid{grid-template-columns:1fr}.routeListPanel{max-height:none}.driverPicker{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){.driverPicker{grid-template-columns:1fr}.deliveryMap{height:460px}.routeMetrics{flex-wrap:wrap}}
 
+/* Manual driver assignment and route dispatch */
+.manualAssignmentPanel{margin:18px 0}
+.manualAssignmentGrid{display:grid;grid-template-columns:minmax(260px,.85fr) minmax(0,2.15fr);gap:14px;align-items:start}
+.manualPool,.manualDriverColumn{border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;min-height:260px}
+.manualPool{padding:12px}
+.manualDriverColumns{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.manualDriverColumn{overflow:hidden}
+.manualDriverColumn .manualColumnHead{background:#fff}
+.manualColumnHead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 13px;border-bottom:1px solid #e2e8f0}
+.manualColumnHead>div{display:flex;flex-direction:column;gap:2px}
+.manualColumnHead b{font-size:13px;color:#0f172a}
+.manualColumnHead small{font-size:11px;color:#64748b}
+.manualColumnHead>span{display:inline-flex;min-width:28px;height:28px;padding:0 8px;align-items:center;justify-content:center;border-radius:999px;background:#eef2f7;color:#334155;font-size:12px;font-weight:800}
+.manualColumnBody{padding:10px;min-height:210px}
+.manualStopCard{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:9px;align-items:center;padding:10px 11px;margin-bottom:8px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.04);cursor:grab}
+.manualStopCard:active{cursor:grabbing}
+.manualStopCard:last-child{margin-bottom:0}
+.manualStopCard.assigned{border-color:#cfe3d4;background:#fbfffc}
+.manualStopNumber{width:26px;height:26px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#f1f5f9;color:#475569;font-size:12px;font-weight:800}
+.manualStopCard.assigned .manualStopNumber{background:#e3f3e7;color:#16733a}
+.manualStopCard>div:nth-child(2){display:flex;flex-direction:column;gap:3px;min-width:0}
+.manualStopCard b{font-size:12px;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.manualStopCard span{font-size:10px;color:#64748b;line-height:1.35;overflow-wrap:anywhere}
+.manualDropHint,.manualEmpty{min-height:120px;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;color:#64748b;font-size:11px;border:1px dashed #cbd5e1;border-radius:10px}
+.manualAssignmentFooter{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid #e2e8f0;color:#64748b;font-size:11px}
+.manualAssignmentFooter span{line-height:1.45}
+.manualAssignmentFooter b{color:#334155}
+.routeCardActions{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding-top:10px;margin-top:10px;border-top:1px solid #eef2f5}
+.routeDispatchedNote{font-size:11px;font-weight:800;color:#17733a;background:#e8f6ec;border-radius:999px;padding:7px 10px}
+@media (max-width:1000px){.manualAssignmentGrid{grid-template-columns:1fr}.manualDriverColumns{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.manualDriverColumns{grid-template-columns:1fr}.manualAssignmentFooter{flex-direction:column;align-items:stretch}.manualStopCard{cursor:default}}
+
 /* Kitchen production and concise label printing */
 .slotSummary{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:2px 0 15px;padding:10px 12px;background:#eef5ef;border:1px solid #dbe8de;border-radius:11px;font-size:10px;color:#66766d}
 .slotSummary>span{font-weight:700;color:#4d6255;margin-right:3px}
