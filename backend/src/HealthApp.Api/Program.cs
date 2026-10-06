@@ -1,5 +1,6 @@
 using System.Text;
 using HealthApp.Api.Middleware;
+using HealthApp.Application.Abstractions;
 using HealthApp.Infrastructure;
 using HealthApp.Infrastructure.Authentication;
 using HealthApp.Infrastructure.Data;
@@ -64,11 +65,12 @@ builder.Services.AddCors(options => options.AddPolicy("WebApps", policy =>
                 !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            if (allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+            if (allowedOrigins.Any(x => string.Equals(x, origin, StringComparison.OrdinalIgnoreCase)))
                 return true;
 
+            var originHost = uri.Host.TrimEnd('.').ToLowerInvariant();
             return !string.IsNullOrWhiteSpace(platformBaseDomain) &&
-                   uri.Host.EndsWith("." + platformBaseDomain, StringComparison.OrdinalIgnoreCase);
+                   originHost.EndsWith("." + platformBaseDomain);
         })
         .AllowAnyHeader()
         .AllowAnyMethod();
