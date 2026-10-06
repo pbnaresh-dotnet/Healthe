@@ -36,13 +36,17 @@ jobs:
         run: dotnet build ${{ env.SOLUTION_PATH }} -c Release --no-restore
 
       - name: Publish API
-        run: dotnet publish ${{ env.API_PROJECT }} -c Release --no-build -o ${{ github.workspace }}/publish
+        run: dotnet publish ${{ env.API_PROJECT }} -c Release --no-build --no-self-contained -p:DebugType=None -p:DebugSymbols=false -o ${{ github.workspace }}/publish
 
-      - name: Upload API artifact
+      - name: Create deployment package
+        shell: pwsh
+        run: Compress-Archive -Path '${{ github.workspace }}/publish/*' -DestinationPath '${{ github.workspace }}/healthapp-api-${{ github.sha }}.zip' -CompressionLevel Optimal
+
+      - name: Upload API package
         uses: actions/upload-artifact@v4
         with:
-          name: healthapp-api
-          path: ${{ github.workspace }}/publish
+          name: healthapp-api-package
+          path: ${{ github.workspace }}/healthapp-api-${{ github.sha }}.zip
 
   deploy:
     runs-on: windows-latest
@@ -51,11 +55,14 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Download API artifact
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download API package
         uses: actions/download-artifact@v4
         with:
-          name: healthapp-api
-          path: ./publish
+          name: healthapp-api-package
+          path: ./package
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -64,9 +71,22 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F4A33EE2D67E47B78A75A4AD4EC20D0E }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_2BBF547FAC7C4F8A916FD2F7CE4CCDA4 }}
 
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          slot-name: Production
-          package: ./publish
+      - name: Resolve Azure resource group
+        shell: pwsh
+        run: |
+          $rg = az webapp show --name $env:AZURE_WEBAPP_NAME --query resourceGroup -o tsv
+          if ([string]::IsNullOrWhiteSpace($rg)) { throw 'Azure Web App resource group could not be resolved.' }
+          "AZURE_RESOURCE_GROUP=$rg" >> $env:GITHUB_ENV
+
+      - name: Enable run-from-package
+        shell: pwsh
+        run: az webapp config appsettings set --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --settings WEBSITE_RUN_FROM_PACKAGE=1
+
+      - name: Deploy ZIP package
+        shell: pwsh
+        run: az webapp deploy --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --src-path (Get-ChildItem './package/*.zip' | Select-Object -First 1).FullName --type zip --clean true
+
+      - name: Show application URL
+        shell: pwsh
+        run: |
+          az webapp show --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --query defaultHostName -o tsv
