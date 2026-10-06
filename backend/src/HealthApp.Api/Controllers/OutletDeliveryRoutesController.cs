@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HealthApp.Api.Controllers;
 
-[ApiController, Route("api/outlets/me/delivery-routes"), Authorize(Roles = "OutletAdmin")]
+[ApiController, Route("api/outlets/me/delivery-routes"), Authorize(Roles = "OutletAdmin,OutletManager")]
 public sealed class OutletDeliveryRoutesController(IDeliveryRouteService service) : ControllerBase
 {
     [HttpGet("drivers")]
