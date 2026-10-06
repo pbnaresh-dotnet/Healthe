@@ -1,0 +1,129 @@
+name: Deploy HealthApp API to Azure
+
+on:
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: broccolyapi
+  AZURE_RESOURCE_GROUP: broccoly
+  DOTNET_VERSION: '10.x'
+  SOLUTION_PATH: backend/HealthApp.sln
+  API_PROJECT: backend/src/HealthApp.Api/HealthApp.Api.csproj
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION_PATH }} -r win-x86
+
+      - name: Build
+        run: dotnet build ${{ env.SOLUTION_PATH }} -c Release --no-restore
+
+      - name: Publish API
+        run: dotnet publish ${{ env.API_PROJECT }} -c Release --no-restore --no-self-contained -r win-x86 -p:DebugType=None -p:DebugSymbols=false -p:PublishReadyToRun=false -o ${{ github.workspace }}/publish
+
+      - name: Create deployment package
+        shell: pwsh
+        run: Compress-Archive -Path '${{ github.workspace }}/publish/*' -DestinationPath '${{ github.workspace }}/healthapp-api-${{ github.sha }}.zip' -CompressionLevel Optimal
+
+      - name: Upload API package
+        uses: actions/upload-artifact@v4
+        with:
+          name: healthapp-api-package
+          path: ${{ github.workspace }}/healthapp-api-${{ github.sha }}.zip
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download API package
+        uses: actions/download-artifact@v4
+        with:
+          name: healthapp-api-package
+          path: ./package
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_B53C494011DC40BD817CE92066370D8C }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F4A33EE2D67E47B78A75A4AD4EC20D0E }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_2BBF547FAC7C4F8A916FD2F7CE4CCDA4 }}
+
+      - name: Verify Azure Web App
+        shell: pwsh
+        run: |
+          $app = az webapp show --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --query "{name:name,state:state,resourceGroup:resourceGroup}" -o json
+          if ([string]::IsNullOrWhiteSpace($app)) { throw "Azure Web App '$env:AZURE_WEBAPP_NAME' was not found in resource group '$env:AZURE_RESOURCE_GROUP'." }
+          Write-Host $app
+
+      - name: Remove problematic hostname binding setting
+        shell: pwsh
+        run: |
+          az webapp config appsettings delete --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --setting-names WEBSITE_ADD_SITENAME_BINDINGS_IN_APPHOST_CONFIG
+          $remaining = az webapp config appsettings list --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --query "[?name=='WEBSITE_ADD_SITENAME_BINDINGS_IN_APPHOST_CONFIG'].name" -o tsv
+          if (-not [string]::IsNullOrWhiteSpace($remaining)) {
+            throw "WEBSITE_ADD_SITENAME_BINDINGS_IN_APPHOST_CONFIG is still present on the App Service."
+          }
+          Write-Host "Problematic hostname binding setting is absent."
+
+      - name: Configure 32-bit worker process
+        shell: pwsh
+        run: az webapp config set --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --use-32bit-worker-process true
+
+      - name: Enable run-from-package
+        shell: pwsh
+        run: az webapp config appsettings set --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --settings WEBSITE_RUN_FROM_PACKAGE=1
+
+      - name: Deploy ZIP package
+        shell: pwsh
+        run: az webapp deploy --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --src-path (Get-ChildItem './package/*.zip' | Select-Object -First 1).FullName --type zip --clean true
+
+      - name: Smoke test application host
+        shell: pwsh
+        run: |
+          $hostName = az webapp show --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --query defaultHostName -o tsv
+          Write-Host "Application host: https://$hostName"
+          $site = az webapp show --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --query "{state:state,hostNames:hostNames,hostNamesDisabled:hostNamesDisabled,use32BitWorkerProcess:siteConfig.use32BitWorkerProcess}" -o json
+          Write-Host $site
+          $healthy = $false
+          for ($attempt = 1; $attempt -le 6; $attempt++) {
+            Write-Host "Health check attempt $attempt of 6..."
+            Start-Sleep -Seconds 10
+            try {
+              $response = Invoke-WebRequest -Uri "https://$hostName/health" -UseBasicParsing -MaximumRedirection 0 -SkipHttpErrorCheck -TimeoutSec 20
+              Write-Host "Health status: $($response.StatusCode)"
+              Write-Host "Health body: $($response.Content)"
+              if ($response.StatusCode -eq 200) {
+                $healthy = $true
+                break
+              }
+              Write-Warning "Expected HTTP 200 but received HTTP $($response.StatusCode)."
+            } catch {
+              Write-Warning "Health request attempt $attempt failed: $($_.Exception.Message)"
+            }
+          }
+          if (-not $healthy) {
+            throw "Health check failed after 6 attempts. The deployed application did not return HTTP 200."
+          }
+
+      - name: Show application URL
+        shell: pwsh
+        run: |
+          az webapp show --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --query defaultHostName -o tsv
