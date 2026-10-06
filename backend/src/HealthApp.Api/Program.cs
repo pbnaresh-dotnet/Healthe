@@ -52,7 +52,10 @@ var platformBaseDomain = tenantDomainSettings.PlatformBaseDomain.Trim().TrimEnd(
 
 builder.Services.AddCors(options => options.AddPolicy("WebApps", policy =>
 {
-    if (builder.Environment.IsDevelopment() && allowedOrigins.Length == 0)
+    // Local development can use different Vite ports/hostnames. Keep CORS
+    // intentionally permissive only in Development. Production continues to use
+    // the explicit tenant-domain allow-list below.
+    if (builder.Environment.IsDevelopment())
     {
         policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
         return;
