@@ -153,24 +153,60 @@ public sealed class DeliveryRouteService(
         matrixPoints.AddRange(pointGroups.Select(x =>
             new RouteOptimizationStop(x.Address.Id, x.Address.Latitude, x.Address.Longitude)));
 
+        var byAddressId = pointGroups.ToDictionary(x => x.Address.Id);
+
         MultiDriverRoutePlan multiPlan;
         var globalRoutingSource = "OR-Tools + OSRM matrix";
 
-        try
+        if (request.ManualAssignments is { Count: > 0 })
         {
-            var matrixResult = await matrix.BuildAsync(matrixPoints);
-            multiPlan = await planner.OptimizeAsync(
-                selectedDrivers.Select(x => x.Id).ToList(),
-                matrixPoints,
-                matrixResult);
-        }
-        catch
-        {
-            multiPlan = BuildFallbackMultiDriverPlan(outlet, pointGroups, selectedDrivers);
-            globalRoutingSource = "Geographic fallback";
-        }
+            var selectedDriverSet = selectedDrivers.Select(x => x.Id).ToHashSet();
+            var seenAddressIds = new HashSet<Guid>();
+            var manualRoutes = new List<DriverRouteAssignment>();
 
-        var byAddressId = pointGroups.ToDictionary(x => x.Address.Id);
+            foreach (var assignment in request.ManualAssignments)
+            {
+                if (!selectedDriverSet.Contains(assignment.DriverId))
+                    throw new ArgumentException("Every manual route assignment must use a selected active driver.");
+
+                var addressIds = (assignment.AddressIds ?? [])
+                    .Distinct()
+                    .Where(byAddressId.ContainsKey)
+                    .ToList();
+
+                foreach (var addressId in addressIds)
+                {
+                    if (!seenAddressIds.Add(addressId))
+                        throw new ArgumentException("A delivery stop cannot be assigned to more than one driver.");
+                }
+
+                if (addressIds.Count > 0)
+                    manualRoutes.Add(new DriverRouteAssignment(assignment.DriverId, addressIds));
+            }
+
+            var missing = byAddressId.Keys.Where(id => !seenAddressIds.Contains(id)).ToList();
+            if (missing.Count > 0)
+                throw new ArgumentException($"Assign all delivery stops before saving manual routes. {missing.Count} stop(s) remain unassigned.");
+
+            multiPlan = new MultiDriverRoutePlan(manualRoutes);
+            globalRoutingSource = "Manual driver assignment";
+        }
+        else
+        {
+            try
+            {
+                var matrixResult = await matrix.BuildAsync(matrixPoints);
+                multiPlan = await planner.OptimizeAsync(
+                    selectedDrivers.Select(x => x.Id).ToList(),
+                    matrixPoints,
+                    matrixResult);
+            }
+            catch
+            {
+                multiPlan = BuildFallbackMultiDriverPlan(outlet, pointGroups, selectedDrivers);
+                globalRoutingSource = "Geographic fallback";
+            }
+        }
 
         foreach (var assignment in multiPlan.Routes)
         {
