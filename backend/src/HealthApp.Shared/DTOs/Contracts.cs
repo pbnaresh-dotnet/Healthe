@@ -80,7 +80,8 @@ public record OrderDto(Guid Id, Guid CustomerId, Guid OutletId, decimal Total, s
 public record DeliveryDto(Guid Id, Guid OrderId, Guid OutletId, string CustomerName, string Address, DateTime ScheduledDate, string MealSlot, decimal DeliveryFee, string Status);
 public record DriverDto(Guid Id, string Name, string Email, bool IsActive);
 public record CreateDriverRequest(string FirstName, string LastName, string Email, string Password);
-public record PlanDeliveryRoutesRequest(DateTime Date, IReadOnlyList<Guid> DriverIds, int MealSlot = 2);
+public record ManualDriverRouteAssignment(Guid DriverId, IReadOnlyList<Guid> AddressIds);
+public record PlanDeliveryRoutesRequest(DateTime Date, IReadOnlyList<Guid> DriverIds, int MealSlot = 2, IReadOnlyList<ManualDriverRouteAssignment>? ManualAssignments = null);
 public record DeliveryMapPointDto(Guid DeliveryId, Guid CustomerId, string CustomerName, Guid AddressId, string Address, double Latitude, double Longitude, int DeliveryCount, string MealSlot, string Status, Guid? RouteId, int? StopSequence);
 public record DeliveryRouteStopDto(Guid Id, int StopSequence, string MealSlot, Guid AddressId, Guid CustomerId, string CustomerName, string Address, double Latitude, double Longitude, int DeliveryCount, string Status, IReadOnlyList<Guid> DeliveryIds);
 public record DeliveryRouteDto(Guid Id, Guid DriverId, string DriverName, DateTime DeliveryDate, string MealSlot, string DeliveryWindow, string Status, double TotalDistanceKm, double TotalDurationMinutes, string RoutingSource, IReadOnlyList<DeliveryRouteStopDto> Stops, IReadOnlyList<IReadOnlyList<double>> Geometry);
