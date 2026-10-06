@@ -99,13 +99,33 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID
     ALTER TABLE dbo.OutletOnboardingApplications ADD CONSTRAINT FK_OutletOnboardingApplications_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
 ", cancellationToken);
 
+        // Add the column in its own SQL batch. SQL Server may compile the whole batch
+        // before executing the ALTER TABLE, which makes a same-batch UPDATE reference
+        // to the newly-added column fail with "Invalid column name".
         await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.Outlets','DeliveryDays') IS NULL
     ALTER TABLE dbo.Outlets ADD DeliveryDays nvarchar(200) NULL;
+", cancellationToken);
+
+        // Run updates only after the ALTER TABLE batch has completed.
+        await db.Database.ExecuteSqlRawAsync(@"
 IF EXISTS (SELECT 1 FROM dbo.Outlets WHERE Slug='fitfood')
-    UPDATE dbo.Outlets SET Status=3, DeliveryDays=CASE WHEN ISNULL(DeliveryDays,'')='' THEN 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday' ELSE DeliveryDays END WHERE Slug='fitfood';
+    UPDATE dbo.Outlets
+    SET Status=3,
+        DeliveryDays=CASE
+            WHEN ISNULL(DeliveryDays,'')='' THEN 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday'
+            ELSE DeliveryDays
+        END
+    WHERE Slug='fitfood';
+
 IF EXISTS (SELECT 1 FROM dbo.Outlets WHERE Slug='abc')
-    UPDATE dbo.Outlets SET Status=3, DeliveryDays=CASE WHEN ISNULL(DeliveryDays,'')='' THEN 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday' ELSE DeliveryDays END WHERE Slug='abc';
+    UPDATE dbo.Outlets
+    SET Status=3,
+        DeliveryDays=CASE
+            WHEN ISNULL(DeliveryDays,'')='' THEN 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday'
+            ELSE DeliveryDays
+        END
+    WHERE Slug='abc';
 ", cancellationToken);
         await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.Users','IsDemo') IS NULL
