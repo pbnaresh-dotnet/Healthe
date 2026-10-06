@@ -1080,7 +1080,7 @@ public static class DatabaseSeeder
             ("Chili Sauce","g")
         };
         var ingredients=await db.Ingredients.ToListAsync(ct);
-        foreach(var item in ingredientNames)
+        foreach(var item in ingredientNames.GroupBy(x=>x.Item1,StringComparer.OrdinalIgnoreCase).Select(g=>g.First()))
         if(!ingredients.Any(x=>x.Name.Equals(item.Item1,StringComparison.OrdinalIgnoreCase)))
         db.Ingredients.Add(new Ingredient {
             Id=Guid.NewGuid(),Name=item.Item1,DefaultUnit=item.Item2
