@@ -195,7 +195,7 @@ function App(){
  const navs=[['dashboard','⌂','Dashboard'],['kitchen','▦','Kitchen'],['recipes','◈','Recipes'],['menu','☷','Weekly Menu'],['customers','♙','Customers'],['team','♟','Team'],['packages','✚','Create Package'],['subscriptions','◫','Subscriptions'],['orders','▤','Orders'],['deliveries','⌁','Deliveries'],['routes','⇢','Delivery Routes'],['settings','⚙','Settings']];
  const outletRole=String(user?.role||'OutletAdmin');
  const allowedNavs=OUTLET_ROLE_NAVS[outletRole]||OUTLET_ROLE_NAVS.OutletAdmin;
- const visibleNavs=navs.filter(n=>allowedNavs.includes(n[0])||n[0]==='team');
+ const visibleNavs=navs.filter(n=>allowedNavs.includes(n[0]));
  const defaultPage=allowedNavs[0]||'dashboard';
 
  const title=navs.find(n=>n[0]===active)?.[2]||'Dashboard';
