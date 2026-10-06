@@ -1191,7 +1191,7 @@ textarea{resize:vertical}
 
 /* Public outlet home */
 .publicOutletHome{min-height:100vh;background:#f7faf7;color:#17321f}
-.publicOutletTopbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:14px 32px;background:rgba(255,255,255,.96);border-bottom:1px solid #dfe9e1;backdrop-filter:blur(10px)}
+.customerOutletTopbar .customerOutletTitle{display:flex;flex-direction:column;gap:3px}.customerOutletTopbar .customerOutletTitle>b{font-size:14px;color:#17321f}.customerOutletTopbar .customerOutletTitle>small{font-size:9px;color:#6b776f}.customerOutletTopbar .customerOutletTitle .publicEyebrow{margin:0}.customerOutletHome .publicOutletBody{padding-bottom:46px}.publicOutletTopbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:14px 32px;background:rgba(255,255,255,.96);border-bottom:1px solid #dfe9e1;backdrop-filter:blur(10px)}
 .publicOutletTopActions{display:flex;gap:10px;align-items:center}
 .publicOutletHero{position:relative;min-height:390px;overflow:hidden;background:#17321f}
 .publicOutletHero>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
