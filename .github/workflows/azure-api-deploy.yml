@@ -79,6 +79,10 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($app)) { throw "Azure Web App '$env:AZURE_WEBAPP_NAME' was not found in resource group '$env:AZURE_RESOURCE_GROUP'." }
           Write-Host $app
 
+      - name: Remove problematic hostname binding setting
+        shell: pwsh
+        run: az webapp config appsettings delete --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --setting-names WEBSITE_ADD_SITENAME_BINDINGS_IN_APPHOST_CONFIG
+
       - name: Configure 32-bit worker process
         shell: pwsh
         run: az webapp config set --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --use-32bit-worker-process true
