@@ -6,7 +6,8 @@ namespace HealthApp.Application.Services;
 
 public sealed class OutletStaffService(
     ICurrentUser current,
-    IUserRepository users) : IOutletStaffService
+    IUserRepository users,
+    IPasswordService passwords) : IOutletStaffService
 {
     private static readonly HashSet<UserRole> ManagedRoles =
     [
@@ -53,10 +54,17 @@ public sealed class OutletStaffService(
         {
             Id = Guid.NewGuid(),
             Email = email,
-            PasswordHash = throw new InvalidOperationException("Password service was not supplied.")
+            PasswordHash = passwords.Hash(request.Password),
+            FirstName = request.FirstName.Trim(),
+            LastName = request.LastName.Trim(),
+            Role = role,
+            OutletId = outletId,
+            IsActive = true
         };
 
+        await users.AddAsync(user);
         return Map(user);
+
     }
 
     public async Task<OutletStaffDto?> UpdateAsync(Guid id, UpdateOutletStaffRequest request)
