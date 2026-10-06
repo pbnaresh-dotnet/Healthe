@@ -360,7 +360,7 @@ public static class DatabaseSeeder
             var a=alg[name];
             if(!await db.CustomerAllergies.AnyAsync(x=>x.CustomerId==demoCustomerId&&x.AllergenId==a.Id,ct))
             db.CustomerAllergies.Add(new CustomerAllergy {
-                Id=Guid.NewGuid(),CustomerId=demoCustomer.Id,AllergenId=a.Id
+                Id=Guid.NewGuid(),CustomerId=demoCustomerId,AllergenId=a.Id
             });
         }
         await db.SaveChangesAsync(ct);
