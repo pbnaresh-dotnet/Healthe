@@ -289,7 +289,7 @@ public sealed class DeliveryRouteService(
 
         route.Status = RouteStatus.Dispatched;
         route.UpdatedAtUtc = DateTime.UtcNow;
-        await routes.SaveAsync();
+        await routes.UpdateAsync(route);
 
         return await GetPlanAsync(route.DeliveryDate.Date, (int)route.MealSlot);
     }
