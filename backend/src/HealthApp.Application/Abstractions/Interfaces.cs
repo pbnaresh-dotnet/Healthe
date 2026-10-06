@@ -167,6 +167,7 @@ public interface IDeliveryRouteRepository
     Task<IReadOnlyList<DeliveryRoute>> GetByOutletAndDateAsync(Guid outletId, DateTime date, MealSlot mealSlot);
     Task<IReadOnlyList<DeliveryRoute>> GetByIdsAsync(IEnumerable<Guid> ids);
     Task<DeliveryRoute?> GetAsync(Guid id);
+    Task UpdateAsync(DeliveryRoute route);
     Task DeleteByOutletAndDateAsync(Guid outletId, DateTime date, MealSlot mealSlot);
     Task AddAsync(DeliveryRoute route);
 }
