@@ -567,7 +567,7 @@ IF COL_LENGTH('dbo.Recipes','Name') IS NOT NULL UPDATE dbo.Recipes SET Name = CO
 IF COL_LENGTH('dbo.Recipes','Description') IS NOT NULL UPDATE dbo.Recipes SET Description = COALESCE(Description,'');
 IF COL_LENGTH('dbo.Recipes','ImageUrl') IS NOT NULL UPDATE dbo.Recipes SET ImageUrl = COALESCE(ImageUrl,'');
 IF COL_LENGTH('dbo.Recipes','Tags') IS NOT NULL UPDATE dbo.Recipes SET Tags = COALESCE(Tags,'');
-IF COL_LENGTH('dbo.Recipes','Allergens') IS NOT NULL UPDATE dbo.Recipes SET Allergens = COALESCE(Allergens,'');
+-- Recipe allergens are normalized in RecipeAllergens; the legacy Recipes.Allergens column is optional and is not updated.
 
 IF COL_LENGTH('dbo.Ingredients','Name') IS NOT NULL UPDATE dbo.Ingredients SET Name = COALESCE(Name,'');
 IF COL_LENGTH('dbo.Ingredients','DefaultUnit') IS NOT NULL UPDATE dbo.Ingredients SET DefaultUnit = COALESCE(DefaultUnit,'g');
