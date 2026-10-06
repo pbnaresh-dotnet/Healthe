@@ -1,0 +1,72 @@
+name: Deploy HealthApp API to Azure
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/standalone-saas
+    paths:
+      - 'backend/**'
+      - '.github/workflows/azure-api-deploy.yml'
+
+env:
+  AZURE_WEBAPP_NAME: broccoly
+  DOTNET_VERSION: '10.x'
+  SOLUTION_PATH: backend/HealthApp.sln
+  API_PROJECT: backend/src/HealthApp.Api/HealthApp.Api.csproj
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: Build
+        run: dotnet build ${{ env.SOLUTION_PATH }} -c Release --no-restore
+
+      - name: Publish API
+        run: dotnet publish ${{ env.API_PROJECT }} -c Release --no-build -o ${{ github.workspace }}/publish
+
+      - name: Upload API artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: healthapp-api
+          path: ${{ github.workspace }}/publish
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download API artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: healthapp-api
+          path: ./publish
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_B53C494011DC40BD817CE92066370D8C }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F4A33EE2D67E47B78A75A4AD4EC20D0E }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_2BBF547FAC7C4F8A916FD2F7CE4CCDA4 }}
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          slot-name: Production
+          package: ./publish
