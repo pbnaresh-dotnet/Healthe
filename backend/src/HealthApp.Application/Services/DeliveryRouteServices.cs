@@ -136,6 +136,10 @@ public sealed class DeliveryRouteService(
             throw new ArgumentException("One or more selected drivers are invalid for this outlet.");
 
         var date = request.Date.Date;
+        var existingRoutes = await routes.GetByOutletAndDateAsync(outletId, date, mealSlot);
+        if (existingRoutes.Any(x => x.Status is RouteStatus.Dispatched or RouteStatus.InProgress or RouteStatus.Completed))
+            throw new InvalidOperationException("This delivery window already has a dispatched or active route. Cancel/complete it before replanning.");
+
         var eligible = await GetEligibleDeliveriesAsync(outletId, date, mealSlot);
 
         await routes.DeleteByOutletAndDateAsync(outletId, date, mealSlot);
