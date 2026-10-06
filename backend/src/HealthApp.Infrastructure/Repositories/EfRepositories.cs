@@ -365,6 +365,12 @@ public sealed class DeliveryRouteRepository(HealthAppDbContext db) : EfRepositor
         db.DeliveryRoutes.Add(route);
         await SaveAsync();
     }
+
+    public async Task UpdateAsync(DeliveryRoute route)
+    {
+        db.DeliveryRoutes.Update(route);
+        await SaveAsync();
+    }
 }
 
 public sealed class CustomerProfileRepository(HealthAppDbContext db) : EfRepository(db), ICustomerProfileRepository
