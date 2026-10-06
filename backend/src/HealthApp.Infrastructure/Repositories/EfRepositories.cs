@@ -21,6 +21,10 @@ public sealed class UserRepository(HealthAppDbContext db) : EfRepository(db), IU
         db.Users.Add(user);
         await SaveAsync();
     }
+    public async Task UpdateAsync(User user) {
+        db.Users.Update(user);
+        await SaveAsync();
+    }
     public async Task<IReadOnlyList<User>> GetAllAsync() => await db.Users.AsNoTracking().OrderBy(x => x.Email).ToListAsync();
 }
 
