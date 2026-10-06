@@ -2,12 +2,6 @@ name: Deploy HealthApp API to Azure
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feature/standalone-saas
-    paths:
-      - 'backend/**'
-      - '.github/workflows/azure-api-deploy.yml'
 
 env:
   AZURE_WEBAPP_NAME: broccolyapi
