@@ -619,6 +619,17 @@ IF COL_LENGTH('dbo.PaymentTransactions','Status') IS NOT NULL UPDATE dbo.Payment
 IF COL_LENGTH('dbo.DiscountCodes','Code') IS NOT NULL UPDATE dbo.DiscountCodes SET Code = COALESCE(Code,'');
 ", cancellationToken);
 
+        // ServiceCities can pre-date the current non-nullable C# string model. Normalize
+        // legacy NULL text values before DatabaseSeeder queries ServiceCities.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.ServiceCities','City') IS NOT NULL
+    UPDATE dbo.ServiceCities SET City = COALESCE(City,'');
+IF COL_LENGTH('dbo.ServiceCities','State') IS NOT NULL
+    UPDATE dbo.ServiceCities SET State = COALESCE(State,'');
+IF COL_LENGTH('dbo.ServiceCities','Country') IS NOT NULL
+    UPDATE dbo.ServiceCities SET Country = COALESCE(Country,'India');
+", cancellationToken);
+
         // Keep the old text columns harmless for older databases; normalized values are now authoritative.
         await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(), cancellationToken);
 
