@@ -37,18 +37,29 @@ In each Pages project go to Settings -> Environment variables and add:
 
 ### Standalone outlet deployment
 
-For a standalone outlet customer portal, `VITE_OUTLET_SLUG` is optional. It remains useful for local development or a fixed per-outlet Pages build, but production standalone sites can resolve the outlet from their runtime hostname.
+### Production-style Broccoly domains
+
+Use the platform domain `broccoly.in` for the test environment. The customer site is tenant-aware at runtime, so one shared customer Pages project can serve multiple outlet subdomains without rebuilding the SPA per outlet.
+
+- `fitfood.broccoly.in` -> customer Pages project -> resolves the `fitfood` outlet at runtime
+- `outlet.broccoly.in` -> outlet management Pages project
+- `admin.broccoly.in` -> Super Admin Pages project
+- `api.broccoly.in` -> Azure App Service API
+
+For the first production-style test, do not configure a customer-owned domain. A customer can later attach `www.fitfood.com` as an optional custom domain.
+
+For the standalone customer portal, `VITE_OUTLET_SLUG` is intentionally optional. Production standalone sites resolve the outlet from the browser hostname.
 
 Examples:
 
-- `fitfood.healthapp.com` -> the outlet whose `Subdomain` is `fitfood`
-- `www.fitfood.com` -> the outlet with an active `OutletDomains.Hostname` mapping
+- `fitfood.broccoly.in` -> the outlet whose `Subdomain` is `fitfood`
+- `www.fitfood.com` -> an optional outlet custom-domain mapping
 
 When a custom domain is requested, Outlet Admin receives a verification token/instructions and Super Admin must verify the DNS change and activate the mapping. Only active mappings are used for tenant resolution.
 
 The customer web app uses the resolved outlet slug for subsequent API requests. The API also checks hostname/header consistency and authenticated `outlet_id` consistency.
 
-Each standalone outlet can therefore use its own Cloudflare Pages deployment and custom domain while all outlets continue using the same API and SQL Server database.
+Each standalone outlet can therefore use the same shared customer Pages project with its own `*.broccoly.in` hostname, while all outlets continue using the same API and SQL Server database.
 
 ### Cloudflare Pages API integration
 
