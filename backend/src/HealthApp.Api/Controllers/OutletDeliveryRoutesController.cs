@@ -22,4 +22,8 @@ public sealed class OutletDeliveryRoutesController(IDeliveryRouteService service
     [HttpPost("plan")]
     public async Task<IActionResult> PlanRoutes(PlanDeliveryRoutesRequest request)
         => Ok(await service.PlanRoutesAsync(request));
+
+    [HttpPost("{routeId:guid}/dispatch")]
+    public async Task<IActionResult> Dispatch(Guid routeId)
+        => Ok(await service.DispatchRouteAsync(routeId));
 }
