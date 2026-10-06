@@ -165,6 +165,7 @@ public static class DependencyInjection
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IDeliveryLabelService, DeliveryLabelService>();
         services.AddScoped<IDeliveryRouteService, DeliveryRouteService>();
+        services.AddScoped<IOutletStaffService, OutletStaffService>();
         services.AddScoped<IOutletDiscountCodeService, OutletDiscountCodeService>();
         return services;
     }
