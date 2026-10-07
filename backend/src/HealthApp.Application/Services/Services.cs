@@ -290,7 +290,7 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
         var primary = string.IsNullOrWhiteSpace(b?.PrimaryColor) ? x.PrimaryColor : b.PrimaryColor;
         var secondary = b?.SecondaryColor ?? string.Empty;
         var about = string.IsNullOrWhiteSpace(b?.About) ? x.About : b.About;
-        return new(x.Id, brandName, x.Slug, x.Subdomain, x.City, x.State, x.Pincode, x.Status.ToString(), x.BillingPlan.ToString(), logo, hero, highlights, primary, x.Status == OutletStatus.Live, Math.Round(distance, 1), x.Rating, x.ReviewCount, about, x.Latitude, x.Longitude, b?.Tagline ?? string.Empty, secondary, b?.FaviconUrl ?? string.Empty, x.DeliveryCoverageMode.ToString(), x.ServiceRadiusKm, b?.FontFamily ?? "Inter", b?.ThemeStyle ?? "Fresh", b?.ButtonStyle ?? "Rounded", b?.CardStyle ?? "Soft");
+        return new(x.Id, brandName, x.Slug, x.Subdomain, x.City, x.State, x.Pincode, x.Status.ToString(), x.BillingPlan.ToString(), logo, hero, highlights, primary, x.Status == OutletStatus.Live, Math.Round(distance, 1), x.Rating, x.ReviewCount, about, x.Latitude, x.Longitude, b?.Tagline ?? string.Empty, secondary, b?.FaviconUrl ?? string.Empty, x.DeliveryCoverageMode.ToString(), x.ServiceRadiusKm, b?.FontFamily ?? "Inter", b?.ThemeStyle ?? "Fresh", b?.ButtonStyle ?? "Rounded", b?.CardStyle ?? "Soft", x.CustomPackagePricingMode, x.ShowPackagePriceToCustomer, x.ShowDeliveryFeeToCustomer);
     }
     private static double Distance(double lat1,double lon1,double lat2,double lon2) {
         const double R=6371d;
