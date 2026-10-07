@@ -793,7 +793,7 @@ public sealed class OutletOnboardingApplication
     public string BillingCycle { get; set; } = "Monthly";
     public decimal SubscriptionFee { get; set; }
     public decimal SetupFee { get; set; }
-    public string PaymentStatus { get; set; } = "Paid";
+    public string PaymentStatus { get; set; } = "Pending";
     public string PaymentReference { get; set; } = "";
     public string Status { get; set; } = "Onboarding";
     public string BusinessType { get; set; } = "Individual";
