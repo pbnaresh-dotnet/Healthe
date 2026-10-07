@@ -286,7 +286,8 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
     }
     private static SaaSPlanDto Map(SaaSPlan x) => new(x.Id, x.Name, x.MonthlyFee, x.AnnualFee, x.IncludedActiveCustomers, x.AdditionalCustomerFee, x.CustomerTransactionFeePercent, x.Description, x.IsActive);
     private static MealPlanDto Map(MealPlan x) => new(x.Id, x.OutletId, x.Name, x.Frequency, x.MealsPerDay, x.MealsPerWeek, x.Price, x.Currency, x.Description, x.IsActive, x.IsPreplanned, x.AvailableCity, x.DurationDays);
-    private static RecipeDto Map(Recipe x) => new(x.Id,x.OutletId,x.Name,x.Calories,x.ProteinGrams,x.CarbsGrams,x.FatGrams,x.Category.ToString(),x.PricePerMeal,x.LargePricePerMeal,x.Description,x.ImageUrl,x.Tags,x.IsActive,
+    private static RecipeDto Map(Recipe x) => MapRecipeForCustomer(x, true);
+    private static RecipeDto MapRecipeForCustomer(Recipe x, bool showMealPrice) => new(x.Id,x.OutletId,x.Name,x.Calories,x.ProteinGrams,x.CarbsGrams,x.FatGrams,x.Category.ToString(),showMealPrice?x.PricePerMeal:0m,showMealPrice?x.LargePricePerMeal:0m,x.Description,x.ImageUrl,x.Tags,x.IsActive,
     x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId,i.Ingredient.Name,i.Quantity,i.Unit,i.Ingredient.Allergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).OrderBy(a=>a.Name).ToList())).ToList(),
     x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams, string.IsNullOrWhiteSpace(x.MealType)?"Meal":x.MealType);
     private static OutletDto ToDto(Outlet x, double distance)
