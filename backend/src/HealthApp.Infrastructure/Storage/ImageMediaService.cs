@@ -25,6 +25,7 @@ public sealed class ImageMediaService(
 
         var input = await CopyWithLimitAsync(content, _options.MaxImageUploadBytes, cancellationToken);
         using var image = Image.Load(input);
+        image.Mutate(x => x.AutoOrient());
 
         if (image.Width <= 0 || image.Height <= 0)
             throw new ArgumentException("The uploaded image has invalid dimensions.");
@@ -67,8 +68,8 @@ public sealed class ImageMediaService(
                 stored.Key,
                 stored.ContentType,
                 output.Length,
-                variant.Width,
-                variant.Height);
+                variantImage.Width,
+                variantImage.Height);
         }
 
         var preferred = definition.PreferredName;
@@ -127,7 +128,8 @@ public sealed class ImageMediaService(
     private static string SanitizeFolder(string? folder)
     {
         var segments = (folder ?? "images")
-            .Split(new[] { '/', '\' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Replace('\\', '/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(x => x != "." && x != "..")
             .Select(x => string.Concat(x.Where(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.')));
 
