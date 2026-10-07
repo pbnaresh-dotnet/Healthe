@@ -117,8 +117,8 @@ internal static class EmailTemplateRenderer
 
             EmailTemplateId.PackagePaymentConfirmed => Build(
                 $"Payment confirmed for {V("PackageName")}",
-                $"Hello {V("FirstName")},\n\nYour payment for {V("PackageName")} at {V("OutletName")} has been confirmed.\n\nAmount: {V("Total")}\nPayment method: {V("PaymentMethod")}\nStart date: {V("StartDate")}\n\nYour meals are now scheduled for delivery.\n\n{footerText}",
-                $"<h1>Payment confirmed ✓</h1><p>Hello {H("FirstName")}, your payment for <b>{H("PackageName")}</b> at <b>{H("OutletName")}</b> has been confirmed.</p><table><tr><td><b>Amount</b></td><td>{H("Total")}</td></tr><tr><td><b>Payment method</b></td><td>{H("PaymentMethod")}</td></tr><tr><td><b>Start date</b></td><td>{H("StartDate")}</td></tr></table><p>Your meals are now scheduled for delivery.</p>{footerHtml}",
+                $"Hello {V("FirstName")},\n\nYour payment for {V("PackageName")} at {V("OutletName")} has been confirmed.\n\nAmount: {V("Total")}\nPayment method: {V("PaymentMethod")}\nStart date: {V("StartDate")}\n\nYour meals are now scheduled for delivery.\nOpen your storefront: {V("StorefrontUrl")}\n\n{footerText}",
+                $"<h1>Payment confirmed ✓</h1><p>Hello {H("FirstName")}, your payment for <b>{H("PackageName")}</b> at <b>{H("OutletName")}</b> has been confirmed.</p><table><tr><td><b>Amount</b></td><td>{H("Total")}</td></tr><tr><td><b>Payment method</b></td><td>{H("PaymentMethod")}</td></tr><tr><td><b>Start date</b></td><td>{H("StartDate")}</td></tr></table><p>Your meals are now scheduled for delivery.</p><p><a href=\"{H("StorefrontUrl")}\" style=\"display:inline-block;background:#1d6b3a;color:#fff;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:700\">Open your storefront →</a></p>{footerHtml}",
                 options.ReplyToAddress),
 
             EmailTemplateId.SubscriptionCreated => Build(
