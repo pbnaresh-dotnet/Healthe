@@ -154,6 +154,9 @@ $processes += Start-DevProcess @service
 $service = @{ Title = 'HealthApp Admin Web'; WorkingDirectory = $FrontendRoot; Command = 'npm run dev:admin' }
 $processes += Start-DevProcess @service
 
+$service = @{ Title = 'Broccoly Web'; WorkingDirectory = $FrontendRoot; Command = 'npm run dev:broccoly' }
+$processes += Start-DevProcess @service
+
 Write-Host ''
 Write-Host 'HealthApp development environment started.' -ForegroundColor Green
 Write-Host ''
@@ -162,6 +165,7 @@ Write-Host 'API HTTP : http://localhost:50448/api'
 Write-Host 'Customer : http://localhost:5173'
 Write-Host 'Outlet   : http://localhost:5174'
 Write-Host 'Admin    : http://localhost:5175'
+Write-Host 'Broccoly : http://localhost:5176'
 Write-Host ''
 Write-Host "Child process IDs: $($processes.Id -join ', ')" -ForegroundColor DarkGray
 Write-Host 'Close the individual PowerShell windows to stop the services.' -ForegroundColor Yellow
