@@ -97,7 +97,7 @@ public record UpdateOutletLegalPoliciesRequest(
 
 
 public record UpdateOutletSettingsRequest(string DeliveryDays, string DeliveryCoverageMode = "Radius", double? ServiceRadiusKm = null);
-public record UpdateOutletPackageSettingsRequest(string CustomPackagePricingMode = "Calculated", bool ShowPackagePriceToCustomer = true, bool ShowDeliveryFeeToCustomer = true);
+public record UpdateOutletPackageSettingsRequest(string CustomPackagePricingMode = "Calculated", bool ShowPackagePriceToCustomer = true, bool ShowDeliveryFeeToCustomer = true, bool ShowMealPriceToCustomer = true);
 
 public record OutletReadinessItemDto(
     string Key,
