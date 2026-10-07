@@ -121,7 +121,43 @@ public interface ICloudflarePagesService
 }
 public sealed record LegalAcceptanceContext(string? IpAddress, string? UserAgent);
 public interface IAuthService { Task<AuthResponse?> LoginAsync(LoginRequest request); Task<AuthResponse> RegisterAsync(RegisterRequest request, LegalAcceptanceContext? acceptanceContext = null); }
-public interface IEmailService { Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default); }
+public sealed record EmailMessage(string To, string Subject, string TextBody, string HtmlBody, string? ReplyTo = null);
+public enum EmailTemplateId
+{
+    SmtpTest,
+    OutletDemoAccess,
+    CustomerWelcome,
+    OutletOnboardingPaymentConfirmed,
+    OutletVerificationSubmitted,
+    OutletVerificationApproved,
+    OutletVerificationRejected,
+    PackageCreated,
+    PackageAccepted,
+    PackagePaymentConfirmed,
+    SubscriptionCreated,
+    MealSkipped,
+    MealRescheduled,
+    PasswordReset,
+    EmailVerification,
+    DeliveryReminder,
+    PaymentFailed,
+    RefundProcessed,
+    SaaSRenewalReminder
+}
+public interface IEmailService
+{
+    Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default);
+    Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default);
+}
+public interface ITransactionalEmailService
+{
+    Task SendAsync(EmailTemplateId template, string to, IReadOnlyDictionary<string, string?> data, CancellationToken cancellationToken = default);
+    Task<bool> TrySendAsync(EmailTemplateId template, string to, IReadOnlyDictionary<string, string?> data, CancellationToken cancellationToken = default);
+}
+public interface IOutletUrlService
+{
+    Task<string> GetStorefrontUrlAsync(Guid outletId, CancellationToken cancellationToken = default);
+}
 public interface IOutletDemoService { Task<OutletDemoRequestDto> RequestAsync(RequestOutletDemoRequest request, CancellationToken cancellationToken = default); }
 public interface IMarketplaceService { Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync(); Task<AvailabilityResponse> GetAvailabilityAsync(double latitude, double longitude, string? city = null); Task<IReadOnlyList<CityDto>> GetCitiesAsync(); Task<IReadOnlyList<OutletDto>> GetAllOutletsAsync(string? city = null); Task<OutletDto?> GetOutletAsync(string slug); Task<OutletLegalPoliciesDto?> GetOutletLegalAsync(string slug); Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(Guid outletId, string? city = null); Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(Guid outletId, string? category); Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(Guid outletId); }
 public interface ICustomerService { Task<UserDto?> GetProfileAsync(); Task<UserDto?> UpdateMarketingPreferenceAsync(UpdateMarketingPreferenceRequest request); Task<CustomerLegalStatusDto?> GetLegalStatusAsync(); Task<CustomerLegalStatusDto?> AcceptLegalAsync(AcceptCustomerLegalRequest request, LegalAcceptanceContext? acceptanceContext = null); Task<CustomerDashboardDto?> GetDashboardAsync(); Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync(); Task<IReadOnlyList<OrderDto>> GetOrdersAsync(); Task<SubscriptionDto?> SubscribeAsync(CreateSubscriptionRequest request, LegalAcceptanceContext? acceptanceContext = null); Task<SubscriptionQuoteDto?> QuoteAsync(SubscriptionQuoteRequest request); Task<IReadOnlyList<RecipeDto>> GetSubscriptionRecipesAsync(Guid subscriptionId, string? category); Task<IReadOnlyList<MenuItemDto>> GetSubscriptionMenuAsync(Guid subscriptionId); Task<IReadOnlyList<MealSelectionDto>> GetMealSelectionsAsync(Guid subscriptionId, DateTime? weekStart); Task<IReadOnlyList<MealSelectionDto>> SaveMealSelectionsAsync(Guid subscriptionId, SaveMealSelectionsRequest request); Task<MealSelectionDto?> SkipMealAsync(Guid subscriptionId, Guid selectionId, SkipMealRequest request); Task<IReadOnlyList<MealSelectionDto>> SkipDayAsync(Guid subscriptionId, DateTime date, SkipDayRequest request); Task<MealSelectionDto?> RescheduleMealAsync(Guid subscriptionId, Guid selectionId, RescheduleMealRequest request); Task<CreditBalanceDto> GetCreditBalanceAsync(); Task<IReadOnlyList<CreditTransactionDto>> GetCreditTransactionsAsync(); }
