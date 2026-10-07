@@ -36,7 +36,7 @@ The manual GitHub Actions deployment workflow `.github/workflows/cloudflare-stan
 
 ```text
 VITE_API_BASE_URL=https://api.broccoly.in/api
-VITE_OUTLET_APP_URL=https://app.broccoly.in   # Broccoly build only
+VITE_OUTLET_APP_URL=https://outlet.broccoly.in   # Broccoly build only
 ```
 
 The workflow then runs the app build and Wrangler deployment. No per-project runtime variable is required for these Vite settings.
@@ -110,7 +110,7 @@ For direct-upload deployments after logging in with Wrangler, inject the API URL
 npx wrangler login
 $env:VITE_API_BASE_URL='https://api.broccoly.in/api'
 $env:VITE_BROCCOLY_URL='https://broccoly.in'
-$env:VITE_OUTLET_APP_URL='https://app.broccoly.in'
+$env:VITE_OUTLET_APP_URL='https://outlet.broccoly.in'
 
 npm run build:admin
 npx wrangler@4 deploy --config apps/admin-web/wrangler.jsonc
