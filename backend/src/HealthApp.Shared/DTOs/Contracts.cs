@@ -52,6 +52,32 @@ public record OutletSettingsDto(
     double Longitude = 0,
     string OutletSlug = "");
 
+public record OutletLegalPoliciesDto(
+    Guid OutletId,
+    string OutletName,
+    string CustomerTermsAndConditions,
+    string CustomerPrivacyPolicy,
+    string CancellationRefundPolicy,
+    string MealSkipReschedulePolicy,
+    string DeliveryPolicy,
+    string AllergenDietaryDisclaimer,
+    string PaymentPricingPromotionalTerms,
+    string LegalVersion,
+    DateTime? LegalEffectiveDateUtc,
+    bool LegalPoliciesPublished);
+
+public record UpdateOutletLegalPoliciesRequest(
+    string CustomerTermsAndConditions,
+    string CustomerPrivacyPolicy,
+    string CancellationRefundPolicy,
+    string MealSkipReschedulePolicy,
+    string DeliveryPolicy,
+    string AllergenDietaryDisclaimer,
+    string PaymentPricingPromotionalTerms,
+    string LegalVersion = "1.0",
+    DateTime? LegalEffectiveDateUtc = null,
+    bool LegalPoliciesPublished = false);
+
 public record UpdateOutletSettingsRequest(string DeliveryDays, string DeliveryCoverageMode = "Radius", double? ServiceRadiusKm = null);
 
 public record OutletReadinessItemDto(
