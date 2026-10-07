@@ -324,6 +324,7 @@ public sealed class CityAreaAdminService(ICityAreaRepository areas) : ICityAreaA
 public sealed class PaymentService(
     ICurrentUser current,
     IUserRepository users,
+    ICustomerAddressRepository addresses,
     IOutletOnboardingRepository onboardingApplications,
     IPaymentTransactionRepository payments,
     ISubscriptionRepository subscriptions,
@@ -371,6 +372,14 @@ public sealed class PaymentService(
 
         var customer = await users.FindByIdAsync(customerId)
             ?? throw new UnauthorizedAccessException("Customer account not found.");
+        var defaultAddress = (await addresses.GetByCustomerAsync(customerId))
+            .OrderByDescending(x => x.IsDefault)
+            .FirstOrDefault();
+        var customerPhone = NormalizePhone(customer.MobileNumber);
+        if (customerPhone.Length < 10)
+            customerPhone = NormalizePhone(defaultAddress?.ContactPhone);
+        if (customerPhone.Length < 10)
+            throw new InvalidOperationException("A valid customer mobile number is required before payment.");
 
         var payment = new PaymentTransaction
         {
@@ -400,7 +409,7 @@ public sealed class PaymentService(
                     customer.Id.ToString("N"),
                     $"{customer.FirstName} {customer.LastName}".Trim(),
                     customer.Email,
-                    NormalizePhone(customer.MobileNumber),
+                    customerPhone,
                     gateway.CustomerReturnUrl,
                     gateway.WebhookUrl,
                     $"Broccoly meal subscription {subscription.PlanName}"),
