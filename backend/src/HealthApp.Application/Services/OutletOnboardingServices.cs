@@ -73,7 +73,7 @@ public sealed class OutletOnboardingService(
             Role = UserRole.OutletAdmin,
             OutletId = outlet.Id,
             PasswordHash = passwords.Hash(request.Password),
-            IsActive = true
+            IsActive = false
         };
 
         var application = new OutletOnboardingApplication
