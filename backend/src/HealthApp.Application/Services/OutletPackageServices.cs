@@ -856,7 +856,7 @@ public sealed class OutletPackageService(
     }
 
     private static UserDto MapUser(User x)
-        => new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId);
+        => new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId, false, null, x.MobileNumber);
 
     private static T Parse<T>(string value, string label) where T : struct, Enum
         => Enum.TryParse<T>(value, true, out var result)
