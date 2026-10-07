@@ -183,6 +183,8 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
             return null;
         if (await outletSubscriptions.GetByOutletAsync(x.Id) is null)
             return null;
+        if (!x.LegalPoliciesPublished || string.IsNullOrWhiteSpace(x.CustomerTermsAndConditions) || string.IsNullOrWhiteSpace(x.CustomerPrivacyPolicy))
+            return null;
         return new(
             x.Id,
             x.Name,
