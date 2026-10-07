@@ -1669,3 +1669,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media(max-width:820px){.legalPage{padding:20px 14px 40px}.legalHeader{align-items:flex-start}.legalHeader h1{font-size:24px}.legalHeader p{font-size:11px}.legalLayout{grid-template-columns:1fr}.legalIndex{position:static;display:flex;overflow:auto;padding-bottom:2px}.legalIndex button{min-width:170px}.legalBody{padding:18px}.legalBody h2{font-size:14px}.legalBody p{font-size:10px}.legalMeta{font-size:9px}}
 
 .legalPublishedNotice{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border-radius:10px;background:#edf8f0;border:1px solid #cae3d0;color:#587062;margin-bottom:20px;font-size:10px;line-height:1.5}.legalPublishedNotice b{color:#21683a;white-space:nowrap}.legalPublishedNotice span{color:#5f7466}
+
+
+/* Versioned legal acceptance controls */
+.reviewLegalCheck{display:flex!important;gap:10px;align-items:flex-start;margin-top:12px;padding:12px 13px;border:1px solid #d7e5da;border-radius:11px;background:#f8fbf8}
+.reviewLegalCheck input{margin-top:3px;flex:0 0 auto}
+.reviewLegalCheck span{display:grid;gap:4px;min-width:0}
+.reviewLegalCheck b{font-size:10px;color:#1b4c2b}
+.reviewLegalCheck small{font-size:8px;line-height:1.5;color:#6b796f}
+.reviewLegalCheck a{color:#21683a;font-weight:800}
+.reviewLegalCheck input:disabled+span{opacity:.62}
+.reviewLegalMissing{margin-top:8px;padding:9px 11px;border-radius:9px;background:#fff8e8;border:1px solid #ead39c;color:#8a6d2e;font-size:8px;line-height:1.45}
