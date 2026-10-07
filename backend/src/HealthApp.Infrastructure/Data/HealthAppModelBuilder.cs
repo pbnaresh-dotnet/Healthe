@@ -128,6 +128,9 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.LegalEffectiveDateUtc);
         e.Property(x => x.LegalPoliciesPublished);
         e.Property(x => x.DeliveryCoverageMode).HasConversion<int>();
+        e.Property(x => x.CustomPackagePricingMode).HasMaxLength(30).IsRequired();
+        e.Property(x => x.ShowPackagePriceToCustomer).IsRequired();
+        e.Property(x => x.ShowDeliveryFeeToCustomer).IsRequired();
         e.Property(x => x.Status).HasConversion<int>();
         e.Property(x => x.BillingPlan).HasConversion<int>();
         e.Property(x => x.LogoUrl).HasMaxLength(1000);
@@ -314,7 +317,11 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.Price).HasPrecision(18,2);
         e.Property(x => x.Currency).HasMaxLength(3);
         e.Property(x => x.Description).HasMaxLength(1000);
-        e.HasIndex(x => x.OutletId);
+        e.Property(x => x.AvailableCity).HasMaxLength(100);
+        e.Property(x => x.DurationDays).IsRequired();
+        e.Property(x => x.IsPreplanned).IsRequired();
+        e.HasIndex(x => new { x.OutletId, x.IsActive, x.IsPreplanned });
+        e.HasIndex(x => new { x.OutletId, x.AvailableCity });
     }
     private static void ConfigureRecipe(EntityTypeBuilder<Recipe> e)
     {
@@ -401,6 +408,9 @@ internal static class HealthAppModelBuilder
         e.HasKey(x => x.Id);
         e.Property(x => x.DayOfWeek).HasConversion<int>();
         e.Property(x => x.MealSlot).HasConversion<int>();
+        e.Property(x => x.OptionGroup).HasMaxLength(50).IsRequired();
+        e.Property(x => x.IsRequired).IsRequired();
+        e.Property(x => x.MaxSelections).IsRequired();
         e.HasIndex(x => new {
             x.OutletId, x.DayOfWeek, x.MealSlot, x.RecipeId
         });
@@ -434,6 +444,10 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.Frequency).HasMaxLength(30);
         e.Property(x => x.Status).HasConversion<int>();
         e.Property(x => x.PackageStatus).HasMaxLength(40);
+        e.Property(x => x.PricingMode).HasMaxLength(30);
+        e.Property(x => x.IsPreplanned).IsRequired();
+        e.Property(x => x.PriceVisibleToCustomer).IsRequired();
+        e.Property(x => x.DeliveryFeeVisibleToCustomer).IsRequired();
         e.Property(x => x.OutletDiscountType).HasConversion<int>();
         e.Property(x => x.OutletDiscountValue).HasPrecision(18,2);
         e.Property(x => x.OutletDiscountReason).HasMaxLength(500);
