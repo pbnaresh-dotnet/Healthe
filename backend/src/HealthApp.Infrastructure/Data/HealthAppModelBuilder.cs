@@ -136,6 +136,10 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.HealthHighlights).HasMaxLength(2000);
         e.Property(x => x.About).HasMaxLength(4000);
         e.Property(x => x.FooterText).HasMaxLength(1000);
+        e.Property(x => x.FontFamily).HasMaxLength(40);
+        e.Property(x => x.ThemeStyle).HasMaxLength(40);
+        e.Property(x => x.ButtonStyle).HasMaxLength(40);
+        e.Property(x => x.CardStyle).HasMaxLength(40);
         e.HasIndex(x => x.OutletId).IsUnique();
         e.HasOne<Outlet>().WithOne(x => x.Branding).HasForeignKey<OutletBranding>(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
     }
