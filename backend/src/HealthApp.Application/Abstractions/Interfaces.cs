@@ -206,6 +206,9 @@ public sealed record PaymentGatewayTransactionStatus(
 public interface IPaymentGateway
 {
     string Provider { get; }
+    string CustomerReturnUrl { get; }
+    string OutletReturnUrl { get; }
+    string WebhookUrl { get; }
     Task<PaymentGatewayCheckoutSession> CreateOrderAsync(PaymentGatewayCreateOrderRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PaymentGatewayTransactionStatus>> GetPaymentsAsync(string providerOrderId, CancellationToken cancellationToken = default);
     bool VerifyWebhookSignature(string signature, string timestamp, string rawBody);
