@@ -40,7 +40,8 @@ public sealed class OutletSettingsService(
             outlet.Id, outlet.Name, outlet.City, outlet.State, outlet.Pincode,
             outlet.DeliveryDays, outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString(),
             await BuildReadinessAsync(outlet), MapBranding(branding),
-            outlet.DeliveryCoverageMode.ToString(), outlet.ServiceRadiusKm, outlet.Latitude, outlet.Longitude, outlet.Slug);
+            outlet.DeliveryCoverageMode.ToString(), outlet.ServiceRadiusKm, outlet.Latitude, outlet.Longitude, outlet.Slug,
+            outlet.CustomPackagePricingMode, outlet.ShowPackagePriceToCustomer, outlet.ShowDeliveryFeeToCustomer);
     }
 
     public async Task<IReadOnlyList<OutletDomainDto>> GetDomainsAsync()
@@ -390,6 +391,20 @@ public sealed class OutletSettingsService(
         if (System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9a-fA-F]{6}$"))
             return color;
         throw new ArgumentException("Brand colours must be six-digit hexadecimal values such as #14532d.");
+    }
+
+    public async Task<OutletSettingsDto?> UpdatePackageSettingsAsync(UpdateOutletPackageSettingsRequest request)
+    {
+        if (current.OutletId is not Guid outletId) return null;
+        var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
+        var mode = (request.CustomPackagePricingMode ?? "Calculated").Trim();
+        if (!mode.Equals("Calculated", StringComparison.OrdinalIgnoreCase) && !mode.Equals("ReviewRequired", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Custom package pricing mode must be Calculated or ReviewRequired.");
+        outlet.CustomPackagePricingMode = mode.Equals("ReviewRequired", StringComparison.OrdinalIgnoreCase) ? "ReviewRequired" : "Calculated";
+        outlet.ShowPackagePriceToCustomer = request.ShowPackagePriceToCustomer;
+        outlet.ShowDeliveryFeeToCustomer = request.ShowDeliveryFeeToCustomer;
+        await outlets.UpdateAsync(outlet);
+        return await GetAsync();
     }
 
     public async Task<OutletSettingsDto?> UpdateDeliveryDaysAsync(UpdateOutletSettingsRequest request)
