@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HealthApp.Api.Controllers;
 
 [ApiController, Route("api/files"), Authorize]
-public sealed class FilesController(IFileStorage fileStorage, ICurrentUser current) : ControllerBase
+public sealed class FilesController(IFileStorage fileStorage, IMediaService mediaService, ICurrentUser current) : ControllerBase
 {
     private static readonly IReadOnlyDictionary<string, string[]> AllowedExtensions =
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
@@ -17,7 +17,7 @@ public sealed class FilesController(IFileStorage fileStorage, ICurrentUser curre
         };
 
     [HttpPost("{folder}")]
-    [RequestSizeLimit(20_000_000)]
+    [RequestSizeLimit(10_000_000)]
     public async Task<IActionResult> Upload(string folder, IFormFile file)
     {
         if (!AllowedExtensions.TryGetValue(folder, out var allowed))
@@ -40,8 +40,8 @@ public sealed class FilesController(IFileStorage fileStorage, ICurrentUser curre
         if (file is null || file.Length == 0)
             return BadRequest(new { message = "Please select a file." });
 
-        if (file.Length > 20_000_000)
-            return BadRequest(new { message = "File must be 20 MB or smaller." });
+        if (file.Length > 10_000_000)
+            return BadRequest(new { message = "Image must be 10 MB or smaller. It will be resized and compressed automatically." });
 
         var extension = Path.GetExtension(file.FileName);
         if (!allowed.Contains(extension, StringComparer.OrdinalIgnoreCase))
@@ -51,23 +51,37 @@ public sealed class FilesController(IFileStorage fileStorage, ICurrentUser curre
                 allowedExtensions = allowed
             });
 
-        await using var stream = file.OpenReadStream();
         var tenantFolder = current.OutletId is Guid outletId
             ? $"outlets/{outletId:N}/{folder}"
             : $"platform/{folder}";
 
-        var stored = await fileStorage.UploadAsync(
+        await using var stream = file.OpenReadStream();
+        var profile = folder.Equals("recipes", StringComparison.OrdinalIgnoreCase)
+            ? MediaImageProfile.Recipe
+            : folder.Equals("avatars", StringComparison.OrdinalIgnoreCase)
+                ? MediaImageProfile.Avatar
+                : MediaImageProfile.OutletHero;
+
+        var optimized = await mediaService.UploadImageAsync(
             stream,
             file.FileName,
             file.ContentType,
             tenantFolder,
+            profile,
             HttpContext.RequestAborted);
 
         return Ok(new
         {
-            url = stored.Url,
-            key = stored.Key,
-            contentType = stored.ContentType
+            url = optimized.Url,
+            key = optimized.Key,
+            contentType = optimized.ContentType,
+            thumbnailUrl = optimized.Thumbnail?.Url,
+            smallUrl = optimized.Small?.Url,
+            mediumUrl = optimized.Medium?.Url,
+            largeUrl = optimized.Large?.Url,
+            originalSizeBytes = optimized.OriginalSizeBytes,
+            originalWidth = optimized.OriginalWidth,
+            originalHeight = optimized.OriginalHeight
         });
     }
 }
