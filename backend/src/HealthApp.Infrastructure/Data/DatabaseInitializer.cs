@@ -167,6 +167,67 @@ IF COL_LENGTH('dbo.Outlets','LegalPoliciesPublished') IS NULL
     ALTER TABLE dbo.Outlets ADD LegalPoliciesPublished bit NOT NULL CONSTRAINT DF_Outlets_LegalPoliciesPublished DEFAULT 0 WITH VALUES;
 ", cancellationToken);
 
+        // Existing databases also need the new immutable legal-history and customer-acceptance tables.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.OutletLegalPolicyVersions','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OutletLegalPolicyVersions
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_OutletLegalPolicyVersions PRIMARY KEY,
+        OutletId uniqueidentifier NOT NULL,
+        Version nvarchar(40) NOT NULL,
+        CustomerTermsAndConditions nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Terms DEFAULT '',
+        CustomerPrivacyPolicy nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Privacy DEFAULT '',
+        CancellationRefundPolicy nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Cancellation DEFAULT '',
+        MealSkipReschedulePolicy nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Skip DEFAULT '',
+        DeliveryPolicy nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Delivery DEFAULT '',
+        AllergenDietaryDisclaimer nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Allergen DEFAULT '',
+        PaymentPricingPromotionalTerms nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Payment DEFAULT '',
+        ContentHash nvarchar(64) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Hash DEFAULT '',
+        EffectiveDateUtc datetime2 NOT NULL,
+        CreatedAtUtc datetime2 NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Created DEFAULT SYSUTCDATETIME(),
+        PublishedAtUtc datetime2 NULL,
+        CreatedByUserId uniqueidentifier NULL,
+        IsPublished bit NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Published DEFAULT 0
+    );
+END;
+IF OBJECT_ID('dbo.CustomerLegalAcceptances','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.CustomerLegalAcceptances
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_CustomerLegalAcceptances PRIMARY KEY,
+        CustomerId uniqueidentifier NOT NULL,
+        OutletId uniqueidentifier NOT NULL,
+        LegalPolicyVersionId uniqueidentifier NOT NULL,
+        TermsAccepted bit NOT NULL,
+        PrivacyAccepted bit NOT NULL,
+        CommercialPoliciesAccepted bit NOT NULL,
+        AcceptedAtUtc datetime2 NOT NULL CONSTRAINT DF_CustomerLegalAcceptances_Accepted DEFAULT SYSUTCDATETIME(),
+        IpAddress nvarchar(64) NULL,
+        UserAgent nvarchar(1000) NULL
+    );
+END;
+", cancellationToken);
+
+        await db.Database.ExecuteSqlRawAsync(@"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_OutletLegalPolicyVersions_Outlet_Version' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
+    CREATE UNIQUE INDEX UX_OutletLegalPolicyVersions_Outlet_Version ON dbo.OutletLegalPolicyVersions(OutletId, Version);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletLegalPolicyVersions_Outlet_Published' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
+    CREATE INDEX IX_OutletLegalPolicyVersions_Outlet_Published ON dbo.OutletLegalPolicyVersions(OutletId, IsPublished);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_CustomerLegalAcceptances_Customer_Outlet_Version' AND object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
+    CREATE UNIQUE INDEX UX_CustomerLegalAcceptances_Customer_Outlet_Version ON dbo.CustomerLegalAcceptances(CustomerId, OutletId, LegalPolicyVersionId);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_CustomerLegalAcceptances_Customer_Outlet_Date' AND object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
+    CREATE INDEX IX_CustomerLegalAcceptances_Customer_Outlet_Date ON dbo.CustomerLegalAcceptances(CustomerId, OutletId, AcceptedAtUtc);
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_OutletLegalPolicyVersions_Outlets' AND parent_object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
+    ALTER TABLE dbo.OutletLegalPolicyVersions ADD CONSTRAINT FK_OutletLegalPolicyVersions_Outlets FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_CustomerLegalAcceptances_Users' AND parent_object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
+    ALTER TABLE dbo.CustomerLegalAcceptances ADD CONSTRAINT FK_CustomerLegalAcceptances_Users FOREIGN KEY(CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_CustomerLegalAcceptances_Outlets' AND parent_object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
+    ALTER TABLE dbo.CustomerLegalAcceptances ADD CONSTRAINT FK_CustomerLegalAcceptances_Outlets FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_CustomerLegalAcceptances_Versions' AND parent_object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
+    ALTER TABLE dbo.CustomerLegalAcceptances ADD CONSTRAINT FK_CustomerLegalAcceptances_Versions FOREIGN KEY(LegalPolicyVersionId) REFERENCES dbo.OutletLegalPolicyVersions(Id) ON DELETE NO ACTION;
+", cancellationToken);
+
         // Existing databases may receive nullable columns first. Populate safe defaults
         // before EF reads them as required string properties.
         await db.Database.ExecuteSqlRawAsync(@"
