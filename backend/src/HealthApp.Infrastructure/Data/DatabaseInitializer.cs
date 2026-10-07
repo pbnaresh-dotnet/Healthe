@@ -12,6 +12,16 @@ public static class DatabaseInitializer
         // replace EnsureCreatedAsync with EF Core MigrateAsync after generating migrations.
         await db.Database.EnsureCreatedAsync(cancellationToken);
         await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Users','MobileNumber') IS NULL
+    ALTER TABLE dbo.Users ADD MobileNumber nvarchar(20) NULL;
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name='IX_Users_MobileNumber' AND object_id=OBJECT_ID('dbo.Users')
+)
+    CREATE UNIQUE INDEX IX_Users_MobileNumber ON dbo.Users(MobileNumber)
+        WHERE MobileNumber IS NOT NULL AND MobileNumber <> '';
+");
+        await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.Outlets','DeliveryDays') IS NULL
     ALTER TABLE dbo.Outlets ADD DeliveryDays nvarchar(200) NULL;
 IF EXISTS (SELECT 1 FROM dbo.Outlets WHERE Slug='fitfood')
