@@ -419,6 +419,67 @@ public sealed class OutletSettingsService(
         return await GetAsync();
     }
 
+    public async Task<OutletLegalPoliciesDto?> GetLegalPoliciesAsync()
+    {
+        if (current.OutletId is not Guid outletId) return null;
+        var outlet = await outlets.GetByIdAsync(outletId);
+        return outlet is null ? null : MapLegalPolicies(outlet);
+    }
+
+    public async Task<OutletLegalPoliciesDto?> UpdateLegalPoliciesAsync(UpdateOutletLegalPoliciesRequest request)
+    {
+        if (current.OutletId is not Guid outletId) return null;
+        var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
+
+        outlet.CustomerTermsAndConditions = NormalizePolicy(request.CustomerTermsAndConditions, "Customer Terms & Conditions");
+        outlet.CustomerPrivacyPolicy = NormalizePolicy(request.CustomerPrivacyPolicy, "Customer Privacy Policy");
+        outlet.CancellationRefundPolicy = NormalizePolicy(request.CancellationRefundPolicy, "Cancellation & Refund Policy");
+        outlet.MealSkipReschedulePolicy = NormalizePolicy(request.MealSkipReschedulePolicy, "Meal Skip & Rescheduling Policy");
+        outlet.DeliveryPolicy = NormalizePolicy(request.DeliveryPolicy, "Delivery Policy");
+        outlet.AllergenDietaryDisclaimer = NormalizePolicy(request.AllergenDietaryDisclaimer, "Allergen & Dietary Disclaimer");
+        outlet.PaymentPricingPromotionalTerms = NormalizePolicy(request.PaymentPricingPromotionalTerms, "Payment, Pricing & Promotional Terms");
+        outlet.LegalVersion = string.IsNullOrWhiteSpace(request.LegalVersion) ? "1.0" : request.LegalVersion.Trim();
+
+        if (request.LegalPoliciesPublished)
+        {
+            if (string.IsNullOrWhiteSpace(outlet.CustomerTermsAndConditions) ||
+                string.IsNullOrWhiteSpace(outlet.CustomerPrivacyPolicy))
+                throw new ArgumentException("Customer Terms & Conditions and Customer Privacy Policy are required before publishing.");
+
+            outlet.LegalEffectiveDateUtc = request.LegalEffectiveDateUtc ?? DateTime.UtcNow;
+        }
+        else
+        {
+            outlet.LegalEffectiveDateUtc = request.LegalEffectiveDateUtc;
+        }
+
+        outlet.LegalPoliciesPublished = request.LegalPoliciesPublished;
+        await outlets.UpdateAsync(outlet);
+        return MapLegalPolicies(outlet);
+    }
+
+    private static string NormalizePolicy(string? value, string name)
+    {
+        var text = (value ?? string.Empty).Trim();
+        if (text.Length > 100000)
+            throw new ArgumentException($"{name} is too long. Keep each policy under 100,000 characters.");
+        return text;
+    }
+
+    private static OutletLegalPoliciesDto MapLegalPolicies(Outlet outlet) => new(
+        outlet.Id,
+        outlet.Name,
+        outlet.CustomerTermsAndConditions ?? string.Empty,
+        outlet.CustomerPrivacyPolicy ?? string.Empty,
+        outlet.CancellationRefundPolicy ?? string.Empty,
+        outlet.MealSkipReschedulePolicy ?? string.Empty,
+        outlet.DeliveryPolicy ?? string.Empty,
+        outlet.AllergenDietaryDisclaimer ?? string.Empty,
+        outlet.PaymentPricingPromotionalTerms ?? string.Empty,
+        outlet.LegalVersion ?? "1.0",
+        outlet.LegalEffectiveDateUtc,
+        outlet.LegalPoliciesPublished);
+
     public async Task<OutletReadinessDto?> GetReadinessAsync()
     {
         if (current.OutletId is not Guid outletId) return null;
