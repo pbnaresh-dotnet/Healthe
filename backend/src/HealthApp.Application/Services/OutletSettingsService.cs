@@ -20,7 +20,8 @@ public sealed class OutletSettingsService(
     IOutletDomainRepository domains,
     IOptions<TenantDomainSettings> domainSettings,
     ICloudflarePagesService cloudflarePages,
-    IOutletLegalPolicyRepository legalPolicies) : IOutletSettingsService
+    IOutletLegalPolicyRepository legalPolicies,
+    IUnitOfWork unitOfWork) : IOutletSettingsService
 {
     private static readonly DayOfWeek[] Weekdays =
     [
@@ -459,7 +460,6 @@ public sealed class OutletSettingsService(
             if (!request.LegalEffectiveDateUtc.HasValue)
                 throw new ArgumentException("An effective date is required before publishing.");
 
-            var contentHash = ComputePolicyHash(outlet);
             if (published is not null && published.Version == version)
             {
                 if (!string.Equals(published.ContentHash, contentHash, StringComparison.OrdinalIgnoreCase))
@@ -471,26 +471,7 @@ public sealed class OutletSettingsService(
                 if (existingVersion is not null)
                     throw new InvalidOperationException($"Legal version {version} already exists. Use a new version number.");
 
-                var actor = current.UserId;
-                await legalPolicies.PublishVersionAsync(new OutletLegalPolicyVersion
-                {
-                    Id = Guid.NewGuid(),
-                    OutletId = outletId,
-                    Version = version,
-                    CustomerTermsAndConditions = outlet.CustomerTermsAndConditions,
-                    CustomerPrivacyPolicy = outlet.CustomerPrivacyPolicy,
-                    CancellationRefundPolicy = outlet.CancellationRefundPolicy,
-                    MealSkipReschedulePolicy = outlet.MealSkipReschedulePolicy,
-                    DeliveryPolicy = outlet.DeliveryPolicy,
-                    AllergenDietaryDisclaimer = outlet.AllergenDietaryDisclaimer,
-                    PaymentPricingPromotionalTerms = outlet.PaymentPricingPromotionalTerms,
-                    ContentHash = contentHash,
-                    EffectiveDateUtc = request.LegalEffectiveDateUtc.Value,
-                    CreatedAtUtc = DateTime.UtcNow,
-                    PublishedAtUtc = DateTime.UtcNow,
-                    CreatedByUserId = actor,
-                    IsPublished = true
-                });
+                // Version creation is performed atomically with the outlet update below.
             }
 
             outlet.LegalEffectiveDateUtc = request.LegalEffectiveDateUtc.Value;
@@ -504,7 +485,33 @@ public sealed class OutletSettingsService(
             outlet.LegalPoliciesPublished = published is not null;
         }
 
-        await outlets.UpdateAsync(outlet);
+        await unitOfWork.ExecuteAsync(async () =>
+        {
+            if (request.LegalPoliciesPublished && (published is null || published.Version != version))
+            {
+                var contentHash = ComputePolicyHash(outlet);
+                await legalPolicies.PublishVersionAsync(new OutletLegalPolicyVersion
+                {
+                    Id = Guid.NewGuid(),
+                    OutletId = outletId,
+                    Version = version,
+                    CustomerTermsAndConditions = outlet.CustomerTermsAndConditions,
+                    CustomerPrivacyPolicy = outlet.CustomerPrivacyPolicy,
+                    CancellationRefundPolicy = outlet.CancellationRefundPolicy,
+                    MealSkipReschedulePolicy = outlet.MealSkipReschedulePolicy,
+                    DeliveryPolicy = outlet.DeliveryPolicy,
+                    AllergenDietaryDisclaimer = outlet.AllergenDietaryDisclaimer,
+                    PaymentPricingPromotionalTerms = outlet.PaymentPricingPromotionalTerms,
+                    ContentHash = contentHash,
+                    EffectiveDateUtc = request.LegalEffectiveDateUtc!.Value,
+                    CreatedAtUtc = DateTime.UtcNow,
+                    PublishedAtUtc = DateTime.UtcNow,
+                    CreatedByUserId = current.UserId,
+                    IsPublished = true
+                });
+            }
+            await outlets.UpdateAsync(outlet);
+        });
         var latestPublished = await legalPolicies.GetPublishedAsync(outletId);
         var history = await legalPolicies.GetHistoryAsync(outletId);
         return MapLegalPolicies(outlet, latestPublished, history);
