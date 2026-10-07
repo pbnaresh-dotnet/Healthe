@@ -356,6 +356,30 @@ public sealed class OutletSettingsService(
             branding.ButtonStyle,
             branding.CardStyle);
 
+    private static string NormalizeFontFamily(string? value)
+    {
+        var v = (value ?? "Inter").Trim();
+        return v is "Inter" or "Poppins" or "DM Sans" or "Nunito" or "Manrope" ? v : "Inter";
+    }
+
+    private static string NormalizeThemeStyle(string? value)
+    {
+        var v = (value ?? "Fresh").Trim();
+        return v is "Fresh" or "Modern" or "Premium" or "Minimal" ? v : "Fresh";
+    }
+
+    private static string NormalizeButtonStyle(string? value)
+    {
+        var v = (value ?? "Rounded").Trim();
+        return v is "Rounded" or "Pill" or "Square" ? v : "Rounded";
+    }
+
+    private static string NormalizeCardStyle(string? value)
+    {
+        var v = (value ?? "Soft").Trim();
+        return v is "Soft" or "Elevated" or "Flat" ? v : "Soft";
+    }
+
     private static string NormalizeColor(string? value, string fallback)
     {
         var color = (value ?? string.Empty).Trim();
