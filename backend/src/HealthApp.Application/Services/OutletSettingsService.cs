@@ -263,6 +263,10 @@ public sealed class OutletSettingsService(
         branding.HealthHighlights = (request.HealthHighlights ?? string.Empty).Trim();
         branding.About = (request.About ?? string.Empty).Trim();
         branding.FooterText = (request.FooterText ?? string.Empty).Trim();
+        branding.FontFamily = NormalizeFontFamily(request.FontFamily);
+        branding.ThemeStyle = NormalizeThemeStyle(request.ThemeStyle);
+        branding.ButtonStyle = NormalizeButtonStyle(request.ButtonStyle);
+        branding.CardStyle = NormalizeCardStyle(request.CardStyle);
         branding.UpdatedAtUtc = DateTime.UtcNow;
 
         // Keep legacy Outlet columns synchronized for older labels/reports while the
@@ -323,7 +327,11 @@ public sealed class OutletSettingsService(
             PrimaryColor = string.IsNullOrWhiteSpace(outlet.PrimaryColor) ? "#14532d" : outlet.PrimaryColor,
             SecondaryColor = "#166534",
             HealthHighlights = outlet.HealthHighlights ?? string.Empty,
-            About = outlet.About ?? string.Empty
+            About = outlet.About ?? string.Empty,
+            FontFamily = "Inter",
+            ThemeStyle = "Fresh",
+            ButtonStyle = "Rounded",
+            CardStyle = "Soft"
         };
         await brandingRepository.AddAsync(branding);
         return branding;
@@ -342,7 +350,11 @@ public sealed class OutletSettingsService(
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToList(),
             branding.About,
-            branding.FooterText);
+            branding.FooterText,
+            branding.FontFamily,
+            branding.ThemeStyle,
+            branding.ButtonStyle,
+            branding.CardStyle);
 
     private static string NormalizeColor(string? value, string fallback)
     {
