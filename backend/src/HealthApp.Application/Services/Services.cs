@@ -26,6 +26,9 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
         if (mobileDigits.StartsWith("91") && mobileDigits.Length == 12) mobileDigits = mobileDigits[2..];
         if (!System.Text.RegularExpressions.Regex.IsMatch(mobileDigits, "^[6-9]\\d{9}$"))
             throw new ArgumentException("Enter a valid 10-digit Indian mobile number.");
+        var normalizedMobile = "+91" + mobileDigits;
+        if (await users.FindByMobileAsync(normalizedMobile) is not null)
+            throw new InvalidOperationException("Mobile number is already registered.");
         var role = Enum.TryParse<UserRole>(r.Role, true, out var parsed) ? parsed : UserRole.Customer;
         if (role is UserRole.SuperAdmin or UserRole.Driver) throw new UnauthorizedAccessException("This role cannot be self-registered.");
         if (role == UserRole.OutletAdmin)
@@ -36,7 +39,7 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
             Email = r.Email.Trim().ToLowerInvariant(),
             FirstName = r.FirstName.Trim(),
             LastName = r.LastName.Trim(),
-            MobileNumber = "+91" + mobileDigits,
+            MobileNumber = normalizedMobile,
             Role = role,
             OutletId = outletId,
             PasswordHash = passwords.Hash(r.Password)
