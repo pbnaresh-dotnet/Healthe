@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Microsoft.Extensions.Options;
 using HealthApp.Application.Abstractions;
 using HealthApp.Application.Orchestration;
 using HealthApp.Domain.Entities;
@@ -330,6 +332,9 @@ public sealed class PaymentService(
     ISubscriptionRepository subscriptions,
     IOrderRepository orders,
     IOutletPackageActivationService outletPackageActivation,
+    IOutletRepository outlets,
+    IOutletDomainRepository outletDomains,
+    IOptions<TenantDomainSettings> tenantDomainSettings,
     IPaymentGateway gateway) : IPaymentService
 {
     public async Task<PaymentCheckoutDto?> CreateAsync(
@@ -410,7 +415,7 @@ public sealed class PaymentService(
                     $"{customer.FirstName} {customer.LastName}".Trim(),
                     customer.Email,
                     customerPhone,
-                    gateway.CustomerReturnUrl,
+                    await GetCustomerReturnUrlAsync(subscription.OutletId),
                     gateway.WebhookUrl,
                     $"Broccoly meal subscription {subscription.PlanName}"),
                 cancellationToken);
@@ -553,6 +558,36 @@ public sealed class PaymentService(
         }
 
         await payments.UpdateAsync(payment);
+    }
+
+    private async Task<string> GetCustomerReturnUrlAsync(Guid outletId)
+    {
+        var customDomain = (await outletDomains.GetByOutletAsync(outletId))
+            .Where(x => x.Status == OutletDomainStatus.Active &&
+                        x.IsPrimary &&
+                        !string.IsNullOrWhiteSpace(x.Hostname))
+            .OrderByDescending(x => x.VerifiedAtUtc ?? x.CreatedAtUtc)
+            .FirstOrDefault();
+
+        var hostname = customDomain?.Hostname?.Trim().TrimEnd('.');
+        if (string.IsNullOrWhiteSpace(hostname))
+        {
+            var outlet = await outlets.GetByIdAsync(outletId)
+                ?? throw new KeyNotFoundException("Outlet not found.");
+            var subdomain = outlet.Subdomain.Trim().Trim('.');
+            var baseDomain = tenantDomainSettings.Value.PlatformBaseDomain.Trim().Trim('.');
+            if (string.IsNullOrWhiteSpace(subdomain) || string.IsNullOrWhiteSpace(baseDomain))
+                throw new InvalidOperationException("Customer storefront domain is not configured for this outlet.");
+
+            hostname = $"{subdomain}.{baseDomain}";
+        }
+
+        if (!Uri.TryCreate($"https://{hostname}/payment", UriKind.Absolute, out var uri) ||
+            !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(uri.Host))
+            throw new InvalidOperationException("Customer storefront domain is invalid.");
+
+        return uri.AbsoluteUri.TrimEnd('/');
     }
 
     private async Task CompleteOutletOnboardingPaymentAsync(PaymentTransaction payment)
