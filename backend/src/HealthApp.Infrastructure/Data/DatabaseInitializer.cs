@@ -1,5 +1,8 @@
+using HealthApp.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Security.Cryptography;
+using System.Text;
 namespace HealthApp.Infrastructure.Data;
 
 public static class DatabaseInitializer
@@ -1022,6 +1025,12 @@ IF COL_LENGTH('dbo.CityAreas','Pincode') IS NOT NULL
         // Keep the old text columns harmless for older databases; normalized values are now authoritative.
         await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(), cancellationToken);
 
+        // Populate a complete customer-facing legal template for newly seeded/legacy outlets
+        // that do not yet have policies. A completely empty policy set is safe to replace with
+        // the maintained template; partially edited drafts are completed only where fields are blank
+        // and remain unpublished so the outlet owner can review them before publishing.
+        await SeedDefaultLegalPoliciesAsync(db, cancellationToken);
+
         await db.Database.ExecuteSqlRawAsync(@"
 INSERT INTO dbo.OutletBrandings
 (
@@ -1037,5 +1046,109 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.OutletBrandings b WHERE b.OutletId=o.Id);
 ", cancellationToken);
 
 
+    private static async Task SeedDefaultLegalPoliciesAsync(
+        HealthAppDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var outlets = await db.Outlets.ToListAsync(cancellationToken);
+
+        foreach (var outlet in outlets)
+        {
+            var published = await db.OutletLegalPolicyVersions
+                .AsNoTracking()
+                .AnyAsync(x => x.OutletId == outlet.Id && x.IsPublished, cancellationToken);
+
+            if (published)
+                continue;
+
+            var allEmpty =
+                string.IsNullOrWhiteSpace(outlet.CustomerTermsAndConditions) &&
+                string.IsNullOrWhiteSpace(outlet.CustomerPrivacyPolicy) &&
+                string.IsNullOrWhiteSpace(outlet.CancellationRefundPolicy) &&
+                string.IsNullOrWhiteSpace(outlet.MealSkipReschedulePolicy) &&
+                string.IsNullOrWhiteSpace(outlet.DeliveryPolicy) &&
+                string.IsNullOrWhiteSpace(outlet.AllergenDietaryDisclaimer) &&
+                string.IsNullOrWhiteSpace(outlet.PaymentPricingPromotionalTerms);
+
+            var name = string.IsNullOrWhiteSpace(outlet.Name) ? "Your Outlet" : outlet.Name.Trim();
+
+            outlet.CustomerTermsAndConditions = string.IsNullOrWhiteSpace(outlet.CustomerTermsAndConditions)
+                ? DefaultLegalPolicyTemplates.Terms(name)
+                : outlet.CustomerTermsAndConditions;
+            outlet.CustomerPrivacyPolicy = string.IsNullOrWhiteSpace(outlet.CustomerPrivacyPolicy)
+                ? DefaultLegalPolicyTemplates.Privacy(name)
+                : outlet.CustomerPrivacyPolicy;
+            outlet.CancellationRefundPolicy = string.IsNullOrWhiteSpace(outlet.CancellationRefundPolicy)
+                ? DefaultLegalPolicyTemplates.CancellationRefund(name)
+                : outlet.CancellationRefundPolicy;
+            outlet.MealSkipReschedulePolicy = string.IsNullOrWhiteSpace(outlet.MealSkipReschedulePolicy)
+                ? DefaultLegalPolicyTemplates.SkipReschedule(name)
+                : outlet.MealSkipReschedulePolicy;
+            outlet.DeliveryPolicy = string.IsNullOrWhiteSpace(outlet.DeliveryPolicy)
+                ? DefaultLegalPolicyTemplates.Delivery(name)
+                : outlet.DeliveryPolicy;
+            outlet.AllergenDietaryDisclaimer = string.IsNullOrWhiteSpace(outlet.AllergenDietaryDisclaimer)
+                ? DefaultLegalPolicyTemplates.AllergenDietary(name)
+                : outlet.AllergenDietaryDisclaimer;
+            outlet.PaymentPricingPromotionalTerms = string.IsNullOrWhiteSpace(outlet.PaymentPricingPromotionalTerms)
+                ? DefaultLegalPolicyTemplates.PaymentPricingPromotional(name)
+                : outlet.PaymentPricingPromotionalTerms;
+
+            outlet.LegalVersion = string.IsNullOrWhiteSpace(outlet.LegalVersion)
+                ? "1.0"
+                : outlet.LegalVersion.Trim();
+
+            if (!allEmpty)
+            {
+                // Existing partial content is a real draft. Keep it editable and let the
+                // outlet publish explicitly from Settings after reviewing the completed template.
+                outlet.LegalPoliciesPublished = false;
+                continue;
+            }
+
+            // A brand-new/empty outlet receives a ready-to-publish version 1.0 so customer
+            // registration and checkout are not blocked by empty legal placeholders.
+            var effectiveDate = DateTime.UtcNow;
+            outlet.LegalEffectiveDateUtc = effectiveDate;
+            outlet.LegalPoliciesPublished = true;
+
+            var canonical = string.Join("\n---\n",
+            [
+                outlet.CustomerTermsAndConditions,
+                outlet.CustomerPrivacyPolicy,
+                outlet.CancellationRefundPolicy,
+                outlet.MealSkipReschedulePolicy,
+                outlet.DeliveryPolicy,
+                outlet.AllergenDietaryDisclaimer,
+                outlet.PaymentPricingPromotionalTerms
+            ]);
+
+            var hash = Convert.ToHexString(
+                SHA256.HashData(Encoding.UTF8.GetBytes(canonical)))
+                .ToLowerInvariant();
+
+            db.OutletLegalPolicyVersions.Add(new OutletLegalPolicyVersion
+            {
+                Id = Guid.NewGuid(),
+                OutletId = outlet.Id,
+                Version = outlet.LegalVersion,
+                CustomerTermsAndConditions = outlet.CustomerTermsAndConditions,
+                CustomerPrivacyPolicy = outlet.CustomerPrivacyPolicy,
+                CancellationRefundPolicy = outlet.CancellationRefundPolicy,
+                MealSkipReschedulePolicy = outlet.MealSkipReschedulePolicy,
+                DeliveryPolicy = outlet.DeliveryPolicy,
+                AllergenDietaryDisclaimer = outlet.AllergenDietaryDisclaimer,
+                PaymentPricingPromotionalTerms = outlet.PaymentPricingPromotionalTerms,
+                ContentHash = hash,
+                EffectiveDateUtc = effectiveDate,
+                CreatedAtUtc = effectiveDate,
+                PublishedAtUtc = effectiveDate,
+                CreatedByUserId = null,
+                IsPublished = true
+            });
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
     }
+
 }
