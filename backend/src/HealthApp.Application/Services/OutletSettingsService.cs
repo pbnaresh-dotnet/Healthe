@@ -472,7 +472,7 @@ public sealed class OutletSettingsService(
                     throw new InvalidOperationException($"Legal version {version} already exists. Use a new version number.");
 
                 var actor = current.UserId;
-                await legalPolicies.AddVersionAsync(new OutletLegalPolicyVersion
+                await legalPolicies.PublishVersionAsync(new OutletLegalPolicyVersion
                 {
                     Id = Guid.NewGuid(),
                     OutletId = outletId,
@@ -491,9 +491,6 @@ public sealed class OutletSettingsService(
                     CreatedByUserId = actor,
                     IsPublished = true
                 });
-                // Make the immutable published version the only current published version.
-                // Existing versions are retained for audit/history.
-                await legalPolicies.UnpublishOthersAsync(outletId, version);
             }
 
             outlet.LegalEffectiveDateUtc = request.LegalEffectiveDateUtc.Value;
