@@ -215,22 +215,24 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
         if (!x.LegalPoliciesPublished || string.IsNullOrWhiteSpace(x.CustomerTermsAndConditions) || string.IsNullOrWhiteSpace(x.CustomerPrivacyPolicy))
             return null;
         var publishedLegal = await legalPolicyRepository.GetPublishedAsync(x.Id);
+        if (publishedLegal is null)
+            return null;
         return new(
             x.Id,
             x.Name,
-            x.CustomerTermsAndConditions ?? string.Empty,
-            x.CustomerPrivacyPolicy ?? string.Empty,
-            x.CancellationRefundPolicy ?? string.Empty,
-            x.MealSkipReschedulePolicy ?? string.Empty,
-            x.DeliveryPolicy ?? string.Empty,
-            x.AllergenDietaryDisclaimer ?? string.Empty,
-            x.PaymentPricingPromotionalTerms ?? string.Empty,
-            publishedLegal?.Version ?? x.LegalVersion ?? "1.0",
-            publishedLegal?.EffectiveDateUtc ?? x.LegalEffectiveDateUtc,
-            publishedLegal is not null,
-            publishedLegal?.Id,
-            publishedLegal?.Version ?? string.Empty,
-            publishedLegal?.EffectiveDateUtc);
+            publishedLegal.CustomerTermsAndConditions,
+            publishedLegal.CustomerPrivacyPolicy,
+            publishedLegal.CancellationRefundPolicy,
+            publishedLegal.MealSkipReschedulePolicy,
+            publishedLegal.DeliveryPolicy,
+            publishedLegal.AllergenDietaryDisclaimer,
+            publishedLegal.PaymentPricingPromotionalTerms,
+            publishedLegal.Version,
+            publishedLegal.EffectiveDateUtc,
+            true,
+            publishedLegal.Id,
+            publishedLegal.Version,
+            publishedLegal.EffectiveDateUtc);
     }
 
     public async Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(Guid outletId) {
