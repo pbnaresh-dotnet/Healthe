@@ -2,6 +2,12 @@ name: Deploy HealthApp API to Azure
 
 on:
   workflow_dispatch:
+    inputs:
+      diagnose_only:
+        description: "Only collect current Azure startup logs; do not build or deploy"
+        required: false
+        type: boolean
+        default: false
 
 env:
   AZURE_WEBAPP_NAME: broccolyapi
@@ -11,7 +17,72 @@ env:
   API_PROJECT: backend/src/HealthApp.Api/HealthApp.Api.csproj
 
 jobs:
+  diagnose:
+    if: inputs.diagnose_only == true
+    runs-on: windows-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_B53C494011DC40BD817CE92066370D8C }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F4A33EE2D67E47B78A75A4AD4EC20D0E }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_2BBF547FAC7C4F8A916FD2F7CE4CCDA4 }}
+
+      - name: Enable App Service diagnostics
+        shell: pwsh
+        run: az webapp log config --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --application-logging filesystem --level verbose
+
+      - name: Probe app and download logs
+        shell: pwsh
+        run: |
+          $hostName = az webapp show --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --query defaultHostName -o tsv
+          Write-Host "Probing https://$hostName/health..."
+          try {
+            Invoke-WebRequest -Uri "https://$hostName/health" -UseBasicParsing -SkipHttpErrorCheck -TimeoutSec 30 | Out-Null
+          } catch {
+            Write-Warning "Health probe failed: $($_.Exception.Message)"
+          }
+
+          $logRoot = Join-Path $env:GITHUB_WORKSPACE "azure-logs"
+          New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
+          $zipPath = Join-Path $logRoot "broccolyapi-logs.zip"
+
+          az webapp log download --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --log-file $zipPath
+
+          $expanded = Join-Path $logRoot "expanded"
+          Expand-Archive -Path $zipPath -DestinationPath $expanded -Force
+
+          Write-Host "Downloaded Azure logs:"
+          Get-ChildItem $expanded -Recurse -File |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 50 FullName,Length,LastWriteTime |
+            Format-Table -AutoSize
+
+          $patterns = @("Exception","SqlException","Invalid column","500.30","fail","error","critical","System.")
+          foreach ($file in Get-ChildItem $expanded -Recurse -File) {
+            try {
+              $matches = Select-String -Path $file.FullName -Pattern $patterns -CaseSensitive:$false -ErrorAction SilentlyContinue
+              if ($matches) {
+                Write-Host "===== $($file.FullName) ====="
+                $matches | Select-Object -Last 150 | ForEach-Object { Write-Host $_.Line }
+              }
+            } catch {
+              Write-Warning "Could not inspect $($file.FullName): $($_.Exception.Message)"
+            }
+          }
+
+      - name: Upload Azure startup diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: broccolyapi-startup-diagnostics
+          path: ${{ github.workspace }}/azure-logs
+          if-no-files-found: warn
+
   build:
+    if: inputs.diagnose_only != true
     runs-on: windows-latest
     permissions:
       contents: read
