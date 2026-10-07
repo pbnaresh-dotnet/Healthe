@@ -27,6 +27,10 @@ public sealed class User
         set;
     }
     = "";
+    public string? MobileNumber {
+        get;
+        set;
+    }
     public UserRole Role {
         get;
         set;
