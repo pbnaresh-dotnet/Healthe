@@ -541,7 +541,7 @@ public sealed class OutletPackageService(
         return MapSubscription(subscription, "Pending");
     }
 
-    public async Task<SubscriptionDto?> AcceptAsync(Guid subscriptionId, LegalAcceptanceContext? acceptanceContext = null)
+    public async Task<SubscriptionDto?> AcceptAsync(Guid subscriptionId, AcceptOutletPackageRequest request, LegalAcceptanceContext? acceptanceContext = null)
     {
         if (current.UserId is not Guid customerId)
             return null;
@@ -559,12 +559,10 @@ public sealed class OutletPackageService(
 
         var publishedLegal = await legalPolicies.GetPublishedAsync(subscription.OutletId)
             ?? throw new InvalidOperationException("This outlet is not ready for customer acceptance because its customer legal policies are not published.");
-        // Outlet-created packages must also be tied to the exact current legal version.
-        // The UI supplies acceptance through the same customer legal checkbox used for checkout.
+        if (!request.LegalAccepted || request.LegalPolicyVersionId != publishedLegal.Id)
+            throw new InvalidOperationException("Please review and accept the latest outlet Terms & Privacy Policy before accepting this package.");
         if (!await legalPolicies.HasAcceptedVersionAsync(customerId, subscription.OutletId, publishedLegal.Id))
         {
-            // Context is only persisted here; the explicit confirmation is enforced by the endpoint contract.
-            // A fresh acceptance is created for this version before moving the package to payment.
             await legalPolicies.AddAcceptanceAsync(new CustomerLegalAcceptance
             {
                 Id = Guid.NewGuid(),
