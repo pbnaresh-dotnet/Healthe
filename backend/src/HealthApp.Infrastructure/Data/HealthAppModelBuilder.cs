@@ -110,6 +110,7 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.State).HasMaxLength(100).IsRequired();
         e.Property(x => x.Pincode).HasMaxLength(20).IsRequired();
         e.Property(x => x.DeliveryDays).HasMaxLength(200);
+        e.Property(x => x.DeliveryCoverageMode).HasConversion<int>();
         e.Property(x => x.Status).HasConversion<int>();
         e.Property(x => x.BillingPlan).HasConversion<int>();
         e.Property(x => x.LogoUrl).HasMaxLength(1000);
