@@ -382,7 +382,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
 }
 
 function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild,standalone=false,onSignIn,onRegister}){
- const[slot,setSlot]=useState(1);
+ const[slot,setSlot]=useState(1),[mobileMenuOpen,setMobileMenuOpen]=useState(false);
  const[filter,setFilter]=useState('All');
  const healthy=(outlet?.healthHighlights||[]).filter(Boolean);
  const primary=outlet?.primaryColor||'#14532d';
@@ -430,8 +430,10 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild,standalone=fals
        <button onClick={()=>scrollTo('outlet-delivery')}>Delivery</button>
      </nav>
      <div className="outletLandingActions">
+       <button type="button" className="outletLandingMobileMenu" onClick={()=>setMobileMenuOpen(v=>!v)} aria-label="Open menu">☰</button>
        {standalone?<><button type="button" className="secondary smallBtn" onClick={onSignIn}>Sign in</button><button type="button" className="primary smallBtn" onClick={onRegister}>Create account</button></>:<button type="button" className="secondary smallBtn" onClick={onBack}>← Back</button>}
      </div>
+     {mobileMenuOpen&&<div className="outletLandingMobileMenuPanel" onClick={()=>setMobileMenuOpen(false)}><div onClick={e=>e.stopPropagation()}><button onClick={()=>{scrollTo('outlet-menu');setMobileMenuOpen(false)}}>Menu</button><button onClick={()=>{scrollTo('outlet-how');setMobileMenuOpen(false)}}>How it works</button><button onClick={()=>{scrollTo('outlet-about');setMobileMenuOpen(false)}}>About</button><button onClick={()=>{scrollTo('outlet-delivery');setMobileMenuOpen(false)}}>Delivery</button>{standalone&&<><button onClick={onSignIn}>Sign in</button><button onClick={onRegister}>Create account</button></>}</div></div>}
    </header>
 
    <main id="outlet-top">
