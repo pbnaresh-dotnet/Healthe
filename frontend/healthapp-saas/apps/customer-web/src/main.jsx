@@ -383,68 +383,112 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
 
 function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild,standalone=false,onSignIn,onRegister}){
  const[slot,setSlot]=useState(1);
- useEffect(()=>{
-   if(!outlet)return;
-   const previousTitle=document.title;
-   let link=document.querySelector('link[data-healthapp-favicon]');
-   const previousFavicon=link?.getAttribute('href')||'';
-   let created=false;
-   if(outlet.faviconUrl){
-     if(!link){link=document.createElement('link');link.rel='icon';link.dataset.healthappFavicon='true';document.head.appendChild(link);created=true;}
-     link.href=getImg(outlet.faviconUrl);
-   }
-   document.title=outlet.tagline?outlet.name+' · '+outlet.tagline:outlet.name;
-   return()=>{
-     document.title=previousTitle;
-     if(link){
-       if(previousFavicon)link.href=previousFavicon;
-       else if(created)link.remove();
-     }
-   };
- },[outlet]);
  const[filter,setFilter]=useState('All');
- const healthy=outlet?.healthHighlights||[];
- const filtered=(menu||[]).filter(x=>Number(x.mealSlotValue)===slot).filter(x=>{
-   if(filter==='All')return true;
-   const category=String(x.category||'').toLowerCase();
-   if(filter==='High Protein')return Number(x.proteinGrams||0)>=25;
-   if(filter==='Low Carb')return Number(x.carbsGrams||0)<=30;
-   if(filter==='Vegan')return category==='vegan';
-   if(filter==='Vegetarian')return category==='veg'||category==='vegetarian';
-   if(filter==='Gluten Free')return String(x.tags||'').toLowerCase().includes('gluten');
-   return true;
- });
- return <><LoadingIndicator active={busy} label="Loading outlet menu"/><div className="publicOutletHome" style={{'--brand-primary':outlet?.primaryColor||'#14532d','--brand-secondary':outlet?.secondaryColor||'#166534'}}>
-   <header className="publicOutletTopbar">
-     <button className="publicBrand" type="button" onClick={onBack}><span className="brandMark">{outlet?.logoUrl?<img src={getImg(outlet.logoUrl)} alt="" style={{width:28,height:28,objectFit:'cover',borderRadius:7}}/>:(outlet?.name||'H').slice(0,1).toUpperCase()}</span><span><b>{outlet?.name||'HealthApp'}</b><small>{outlet?.tagline||'Healthy meals, built around you'}</small></span></button>
-     <div className="publicOutletTopActions">{standalone?<><button className="secondary" onClick={onSignIn}>Sign in</button><button className="primary" onClick={onRegister}>Create account</button></>:<button className="secondary" onClick={onBack}>← Find outlets</button>}<button className="primary" onClick={onBuild}>Build Package →</button></div>
+ const healthy=(outlet?.healthHighlights||[]).filter(Boolean);
+ const primary=outlet?.primaryColor||'#14532d';
+ const secondary=outlet?.secondaryColor||primary;
+ const outletName=outlet?.name||'Healthy Meals';
+ const city=outlet?.city||'your city';
+ const menuItems=menu||[];
+ useEffect(()=>{
+   const available=[1,2,3,4].find(id=>menuItems.some(x=>Number(x.mealSlotValue)===id));
+   if(available&&!menuItems.some(x=>Number(x.mealSlotValue)===slot))setSlot(available);
+ },[menuItems,slot]);
+ const filtered=useMemo(()=>{
+   return menuItems
+     .filter(x=>Number(x.mealSlotValue)===slot)
+     .filter(x=>{
+       if(filter==='All')return true;
+       const category=String(x.category||'').toLowerCase();
+       if(filter==='High Protein')return Number(x.proteinGrams||0)>=25;
+       if(filter==='Low Carb')return Number(x.carbsGrams||0)<=30;
+       if(filter==='Vegan')return category==='vegan';
+       if(filter==='Vegetarian')return category==='veg'||category==='vegetarian';
+       if(filter==='Gluten Free')return String(x.tags||'').toLowerCase().includes('gluten');
+       return true;
+     });
+ },[menuItems,slot,filter]);
+ const slotInfo=[[1,'☀','Morning','7 AM – 10 AM'],[2,'🥗','Afternoon','12 PM – 2 PM'],[3,'🍲','Evening','6 PM – 8 PM'],[4,'🌙','Night','8 PM – 10 PM']];
+ const scrollTo=id=>document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'});
+ const highlights=healthy.slice(0,4);
+ const steps=[
+   ['1','⌖','Check your area','See whether this outlet delivers to your location.'],
+   ['2','🍱','Choose your meals','Explore the menu and pick meals for your routine.'],
+   ['3','📅','Build your plan','Select days, portions and delivery preferences.'],
+   ['4','🚚','We deliver','Your meals arrive fresh according to your schedule.']
+ ];
+ return <><LoadingIndicator active={busy} label={'Loading '+outletName+' menu'}/><div className="outletLanding" data-standalone={standalone?'true':'false'} style={{'--brand-primary':primary,'--brand-secondary':secondary}}>
+   <header className="outletLandingNav">
+     <button type="button" className="outletLandingBrand" onClick={()=>scrollTo('outlet-top')}>
+       <span className="outletLandingLogo">{outlet?.logoUrl?<img src={getImg(outlet.logoUrl)} alt={outletName+' logo'}/>:<b>{outletName.slice(0,1).toUpperCase()}</b>}</span>
+       <span><strong>{outletName}</strong><small>{outlet?.tagline||'Fresh meals, made for your routine'}</small></span>
+     </button>
+     <nav className="outletLandingLinks">
+       <button onClick={()=>scrollTo('outlet-menu')}>Menu</button>
+       <button onClick={()=>scrollTo('outlet-how')}>How it works</button>
+       <button onClick={()=>scrollTo('outlet-about')}>About</button>
+       <button onClick={()=>scrollTo('outlet-delivery')}>Delivery</button>
+     </nav>
+     <div className="outletLandingActions">
+       {standalone?<><button type="button" className="secondary smallBtn" onClick={onSignIn}>Sign in</button><button type="button" className="primary smallBtn" onClick={onRegister}>Create account</button></>:<button type="button" className="secondary smallBtn" onClick={onBack}>← Back</button>}
+     </div>
    </header>
-   <main>
-     <section className="publicOutletHero">
-       <img src={outlet?.heroImageUrl?getImg(outlet.heroImageUrl):IMAGE_FALLBACKS.hero} alt="" onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/>
-       <div className="publicOutletHeroOverlay">
-         <span className="publicEyebrow">HEALTHY LOCAL OUTLET</span>
-         <h1>{outlet?.name}</h1>
-         {outlet?.tagline&&<div className="publicOutletTagline">{outlet.tagline}</div>}
-         <p>{outlet?.city}, {outlet?.state}{outlet?.distanceKm?' · '+outlet.distanceKm+' km away':''}</p>
-         <div className="publicOutletMeta"><span>★ <b>{Number(outlet?.rating||4.8).toFixed(1)}</b> ({outlet?.reviewCount||0} reviews)</span>{healthy.slice(0,4).map((h,i)=><span key={i}>✓ {h}</span>)}</div>
+
+   <main id="outlet-top">
+     <section className="outletLandingHero">
+       <div className="outletLandingHeroCopy">
+         <span className="outletLandingKicker">FRESH · LOCAL · MADE FOR {city.toUpperCase()}</span>
+         <h1>Healthy meals<br/>made for {city}.</h1>
+         <p>{outlet?.tagline||outlet?.about||'Freshly prepared meals, balanced portions and flexible delivery from your local meal team.'}</p>
+         <div className="outletLandingHeroActions">
+           <button className="primary outletLandingCta" onClick={onBuild}>Build your meal plan →</button>
+           <button className="secondary outletLandingMenuBtn" onClick={()=>scrollTo('outlet-menu')}>Explore menu</button>
+         </div>
+         <div className="outletLandingTrustRow">
+           {highlights.length?highlights.map((h,i)=><span key={i}><b>✓</b>{h}</span>):<><span><b>✓</b>Fresh ingredients</span><span><b>✓</b>Balanced meals</span><span><b>✓</b>Flexible delivery</span></>}
+         </div>
        </div>
-       {!standalone&&<button className="publicOutletBackFloating" onClick={onBack}>← Back to outlets</button>}
-       <button className="primary publicOutletHeroBuild" onClick={onBuild}>Build Package →</button>
+       <div className="outletLandingHeroVisual">
+         <div className="outletLandingHeroImage"><img src={outlet?.heroImageUrl?getImg(outlet.heroImageUrl):IMAGE_FALLBACKS.hero} alt={outletName+' meals'} onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.hero}}/></div>
+         <div className="outletLandingHeroBadge"><span>DELIVERY AREA</span><b>{outlet?.deliveryCoverageMode==='Areas'?'Selected local areas':(outlet?.serviceRadiusKm?outlet.serviceRadiusKm+' km radius':'Configured coverage')}</b><small>{city}, {outlet?.state||''}</small></div>
+       </div>
      </section>
-     <section className="publicOutletBody">
-       <div className="publicOutletIntro"><div><span className="publicEyebrow">EXPLORE THE MENU</span><h2>Meals prepared for your routine</h2><p>Browse this outlet's menu, nutrition and meal choices before creating an account.</p></div><div className="publicOutletIntroBadges">{healthy.slice(0,4).map((h,i)=><span key={i}>✓ {h}</span>)}</div></div>
-       <div className="publicOutletSlots">{[[1,'☀','Morning','7 AM – 10 AM'],[2,'☀','Afternoon','12 PM – 2 PM'],[3,'☾','Evening','6 PM – 8 PM'],[4,'☾','Night','8 PM – 10 PM']].map(([id,icon,label,time])=><button key={id} className={slot===id?'active':''} onClick={()=>setSlot(id)}><span>{icon}</span><b>{label}</b><small>{time}</small></button>)}</div>
-       <div className="publicOutletFilterRow"><div>{['All','High Protein','Low Carb','Vegan','Vegetarian','Gluten Free'].map(x=><button key={x} className={filter===x?'chip active':'chip'} onClick={()=>setFilter(x)}>{x}</button>)}</div><button className="linkBtn" onClick={onBuild}>Build with these meals →</button></div>
-       {busy?<div className="publicOutletMessage">Loading menu…</div>:error?<div className="publicExplorerError">{error}</div>:<div className="publicOutletMealGrid">{filtered.map(x=><article className="publicOutletMealCard" key={x.id}><div className="publicOutletMealImage"><img src={x.imageUrl?getImg(x.imageUrl):fallbackImg(x.category)} alt="" onError={e=>{e.currentTarget.src=fallbackImg(x.category)}}/></div><div className="publicOutletMealBody"><span className="publicPlanBadge">{x.category||'Meal'}</span><h3>{x.recipeName}</h3><div className="publicOutletNutrition"><span>{x.calories??0} kcal</span><span>{x.proteinGrams??0}g protein</span><span>{x.carbsGrams??0}g carbs</span><span>{x.fiberGrams??0}g fibre</span></div><p>{x.description||'Wholesome meal prepared with fresh ingredients.'}</p><strong>{money(x.pricePerMeal)}</strong></div></article>)}</div>}
-       {!busy&&!error&&!filtered.length&&<div className="publicOutletMessage"><b>No meals published for this slot.</b><span>Try another meal time.</span></div>}
-       <section className="publicOutletAbout"><div><span className="publicEyebrow">ABOUT THIS OUTLET</span><h2>{outlet?.name}</h2><p>{outlet?.about||'Fresh, healthy meals prepared with quality ingredients and balanced portions for your everyday routine.'}</p></div><div className="publicOutletAboutCard"><b>Delivery coverage</b><span>{outlet?.city}, {outlet?.state}</span><small>This outlet delivers within its configured service radius.</small></div></section>
+
+     <section className="outletLandingMenu" id="outlet-menu">
+       <div className="outletLandingSectionHead">
+         <div><span className="outletLandingKicker">OUR MENU</span><h2>Meals from {outletName}</h2><p>Browse what is published today. Nutrition and pricing come directly from the outlet.</p></div>
+         <button className="linkBtn" onClick={onBuild}>Build with these meals →</button>
+       </div>
+       <div className="outletLandingSlotGrid">{slotInfo.map(([id,icon,label,time])=><button key={id} className={slot===id?'active':''} onClick={()=>setSlot(id)}><span>{icon}</span><b>{label}</b><small>{time}</small></button>)}</div>
+       <div className="outletLandingFilterRow">{['All','High Protein','Low Carb','Vegan','Vegetarian','Gluten Free'].map(x=><button key={x} className={filter===x?'chip active':'chip'} onClick={()=>setFilter(x)}>{x}</button>)}</div>
+       {error?<div className="outletLandingMessage error">{error}</div>:filtered.length?<div className="outletLandingMealGrid">{filtered.slice(0,8).map(x=><article className="outletLandingMealCard" key={String(x.id||x.recipeId)}><div className="outletLandingMealImage"><img src={x.imageUrl?getImg(x.imageUrl):fallbackImg(x.category)} alt={x.recipeName||'Meal'} onError={e=>{e.currentTarget.src=fallbackImg(x.category)}}/><span>{x.category||'Meal'}</span></div><div className="outletLandingMealBody"><h3>{x.recipeName}</h3><div className="outletLandingMacros"><span>{x.calories??0} kcal</span><span>{x.proteinGrams??0}g protein</span><span>{x.carbsGrams??0}g carbs</span></div><p>{x.description||'Prepared fresh by '+outletName+'.'}</p><strong>{money(x.pricePerMeal)}</strong></div></article>)}</div>:<div className="outletLandingMessage"><b>No meals published for this time.</b><span>Choose another meal slot or check back later.</span></div>}
+       {filtered.length>8&&<div className="outletLandingMore"><button className="secondary" onClick={onBuild}>See menu in the meal planner →</button></div>}
+     </section>
+
+     <section className="outletLandingHow" id="outlet-how">
+       <div className="outletLandingSectionHead centered"><div><span className="outletLandingKicker">SIMPLE FROM START TO FINISH</span><h2>How it works</h2><p>Everything stays focused on {outletName} — no marketplace hopping.</p></div></div>
+       <div className="outletLandingSteps">{steps.map(([n,icon,title,copy])=><article className="outletLandingStep" key={n}><div className="outletLandingStepNumber">{n}</div><div className="outletLandingStepIcon">{icon}</div><h3>{title}</h3><p>{copy}</p></article>)}</div>
+     </section>
+
+     <section className="outletLandingAbout" id="outlet-about">
+       <div className="outletLandingAboutImage"><img src={outlet?.heroImageUrl?getImg(outlet.heroImageUrl):IMAGE_FALLBACKS.veg} alt={outletName} onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.veg}}/></div>
+       <div className="outletLandingAboutCopy"><span className="outletLandingKicker">ABOUT {outletName.toUpperCase()}</span><h2>{outlet?.about||'Good food, prepared locally for your everyday routine.'}</h2><p>{outlet?.tagline||'Choose meals that suit your goals, set your schedule and let our kitchen handle the rest.'}</p><div className="outletLandingHighlightList">{highlights.map((h,i)=><div key={i}><span>✓</span><b>{h}</b></div>)}</div></div>
+     </section>
+
+     <section className="outletLandingDelivery" id="outlet-delivery">
+       <div><span className="outletLandingKicker">DELIVERY FROM {outletName.toUpperCase()}</span><h2>Fresh meals, delivered your way.</h2><p>Choose your delivery preferences during package setup. Coverage is controlled by this outlet's service settings.</p></div>
+       <div className="outletLandingDeliveryCard"><div><span>📍</span><b>{city}</b><small>{outlet?.deliveryCoverageMode==='Areas'?'Selected service areas':outlet?.serviceRadiusKm?outlet.serviceRadiusKm+' km service radius':'Outlet-configured coverage'}</small></div><div><span>⏱</span><b>Flexible slots</b><small>Morning, afternoon, evening and night when published.</small></div><div><span>🥗</span><b>Published menu</b><small>Only meals configured by {outletName} appear here.</small></div></div>
+     </section>
+
+     <section className="outletLandingCta">
+       <div><span className="outletLandingKicker">READY WHEN YOU ARE</span><h2>Build your week with {outletName}.</h2><p>Pick your meals, schedule your deliveries and manage everything from your customer account.</p></div>
+       <button className="primary outletLandingCtaButton" onClick={onBuild}>Build my meal plan →</button>
      </section>
    </main>
+
+   <footer className="outletLandingFooter"><div><span className="outletLandingLogo footer">{outlet?.logoUrl?<img src={getImg(outlet.logoUrl)} alt=""/>:<b>{outletName.slice(0,1).toUpperCase()}</b>}</span><div><strong>{outletName}</strong><small>{outlet?.tagline||'Fresh meals, prepared locally.'}</small></div></div><span>{city}, {outlet?.state||''} · {outlet?.pincode||''}</span></footer>
  </div></>;
 }
-
-
 function CustomerOutletHome({outlet,menu,busy,error,onBuild,onViewPlan}){
  const[slot,setSlot]=useState(1);
  const[filter,setFilter]=useState('All');
