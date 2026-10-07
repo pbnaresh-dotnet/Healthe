@@ -1700,3 +1700,139 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .legalReconsentBanner>.primary{white-space:nowrap}
 @media(max-width:760px){.legalReconsentBanner{grid-template-columns:auto minmax(0,1fr)}.legalReconsentBanner>.primary{grid-column:1/-1;width:100%}}
 @media(max-width:500px){.legalReconsentBanner{padding:11px;gap:9px}.legalReconsentIcon{width:28px;height:28px;font-size:14px}.legalReconsentCopy h3{font-size:11px}.legalReconsentCopy p{font-size:8px}}
+
+
+/* Standalone package builder — mobile-first */
+.packageBuilderPage{max-width:1400px;margin:0 auto;padding:12px 0 110px}
+.recommendedPackagePanel,.packageFixedPriceNotice,.packageSettingsCard,.outletPackageNote{border:1px solid #dce9df;border-radius:18px;background:#fff}
+.recommendedPackagePanel{padding:16px;margin-bottom:14px}
+.recommendedPackageIntro{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.recommendedPackageIntro h3{margin:4px 0 4px}
+.recommendedPackageIntro p{margin:0;color:#5f6f65;font-size:.9rem}
+.recommendedPill{white-space:nowrap;border-radius:999px;padding:7px 10px;background:#edf8ef;font-weight:800;font-size:.78rem}
+.recommendedPackageControls{margin-top:14px}
+.recommendedPackageControls label{display:block}
+.recommendedPackageControls label>span{display:block;font-size:.78rem;font-weight:800;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.recommendedPackageControls select{width:100%;min-height:48px;border:1px solid #cfe0d3;border-radius:12px;padding:0 12px;background:#fff}
+.recommendedPackageSummary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;padding:12px;border-radius:14px;background:#f6faf7}
+.recommendedPackageSummary div{display:flex;flex-direction:column;gap:2px}
+.recommendedPackageSummary span{font-size:.72rem;color:#6f7b74}
+.recommendedPackageSummary b{font-size:.92rem}
+.recommendedPackageSummary .linkBtn{grid-column:1/-1;justify-self:start}
+.packageFixedPriceNotice{display:flex;gap:10px;align-items:flex-start;padding:12px;margin:12px 0;background:#f8fbf8}
+.packageFixedPriceNotice>span{font-size:1.1rem}
+.packageFixedPriceNotice b,.packageFixedPriceNotice small{display:block}
+.packageFixedPriceNotice small{margin-top:3px;color:#68756e}
+.mobileMealDayList{display:flex;flex-direction:column;gap:12px}
+.mobileMealDay{border:1px solid #dfeae2;border-radius:16px;overflow:hidden;background:#fff}
+.mobileMealDay.inactive{opacity:.68}
+.mobileMealDay>header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#f7faf8;border-bottom:1px solid #e4ece7}
+.mobileMealDay>header div{display:flex;flex-direction:column;gap:2px}
+.mobileMealDay>header b{font-size:.95rem}
+.mobileMealDay>header span{font-size:.76rem;color:#718078}
+.mobileMealDay>header strong{font-size:.78rem}
+.mobileDayAddress{display:flex;gap:8px;padding:10px 12px 0;align-items:flex-end}
+.mobileDayAddress label{flex:1;font-size:.74rem;font-weight:800}
+.mobileDayAddress select{display:block;width:100%;margin-top:5px;min-height:44px;border:1px solid #cfe0d3;border-radius:10px;padding:0 10px;background:#fff}
+.mobileDayAddress select.missing{border-color:#d65b61}
+.mobileDayAddress .addressAddLink{white-space:nowrap;margin-bottom:9px}
+.mobileSlotList{padding:10px 12px 12px;display:flex;flex-direction:column;gap:9px}
+.builderSlotCard{border:1px solid #e0e9e3;border-radius:14px;padding:11px;background:#fbfdfb}
+.builderSlotCard.hasSelection{border-color:#bed9c4;background:#f7fbf8}
+.builderSlotLabel{display:flex;align-items:center;gap:9px}
+.builderSlotLabel>span{font-size:1.15rem}
+.builderSlotLabel>div{display:flex;flex-direction:column;gap:2px}
+.builderSlotLabel b{font-size:.88rem}
+.builderSlotLabel small{font-size:.72rem;color:#738077}
+.builderSlotSelections{display:flex;flex-wrap:wrap;gap:5px;margin:9px 0}
+.builderSlotSelections span{border:1px solid #cde1d1;border-radius:999px;padding:5px 8px;font-size:.72rem;background:#fff}
+.builderSlotGroups{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
+.builderSlotGroups span{font-size:.68rem;font-weight:800;color:#43604c;background:#eaf5ec;border-radius:999px;padding:4px 7px}
+.builderSlotEmpty{color:#8a948e;font-size:.78rem;padding:8px 0}
+.builderChooseSlotBtn{width:100%;min-height:42px;border-radius:10px;border:1px dashed #9fb8a6;background:#fff;font-weight:800}
+.groupedPickerIntro{margin-bottom:12px}
+.groupedPickerIntro p{margin:4px 0 0;color:#6b786f;font-size:.82rem}
+.mealOptionGroup{border:1px solid #dde8e0;border-radius:14px;padding:10px;margin-top:10px;background:#fbfdfb}
+.mealOptionGroup>header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mealOptionGroup>header h3{margin:0;font-size:.95rem}
+.mealOptionGroup>header span{font-size:.7rem;color:#6f7c74}
+.mealOptionGroup>header>b{font-size:.75rem;border-radius:999px;padding:5px 8px;background:#eef6ef}
+.groupMealOptionList{display:flex;flex-direction:column;gap:8px;margin-top:9px}
+.groupMealOption{border:1px solid #dfe8e2;border-radius:12px;overflow:hidden;background:#fff}
+.groupMealOption.selected{border-color:#b8d5be}
+.groupMealMain{width:100%;display:flex;align-items:center;gap:9px;padding:8px;text-align:left;background:transparent;border:0}
+.groupMealImage{width:56px;height:56px;flex:0 0 56px;border-radius:10px;overflow:hidden;background:#eef3ef;display:grid;place-items:center}
+.groupMealImage img{width:100%;height:100%;object-fit:cover}
+.groupMealMain>div:not(.groupMealImage){flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.groupMealMain b{font-size:.83rem}
+.groupMealMain span,.groupMealMain small{font-size:.7rem;color:#6e7b73}
+.groupMealMain>strong{font-size:1rem}
+.groupMealPortion{display:flex;gap:6px;padding:0 8px 8px;align-items:center}
+.groupMealPortion span{font-size:.68rem;font-weight:800;margin-right:auto}
+.groupMealPortion button{border:1px solid #d4e0d7;background:#fff;border-radius:9px;padding:6px 8px;font-size:.68rem}
+.groupMealPortion button.active{font-weight:800;border-color:#8eb69a;background:#eef8f0}
+.groupedPickerActions{position:sticky;bottom:0;background:rgba(255,255,255,.96);padding-top:10px}
+.reviewPricePending{display:flex;gap:10px;padding:12px;margin:10px 0;border-radius:12px;background:#f5f8f5;border:1px solid #dce6df}
+.reviewPricePending b,.reviewPricePending small{display:block}
+.reviewPricePending small{margin-top:3px;color:#6d7971}
+.packagePricingMode{width:100%;padding:12px;border:1px solid #dbe7de;border-radius:12px;background:#fff;text-align:left}
+.packagePricingMode.selected{border-color:#99c1a2;background:#f5fbf6}
+.packageDisplayOptions{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.packageDisplayOptions label,.packagePreplannedCheck{display:flex;gap:9px;align-items:flex-start}
+.packageDisplayOptions small,.packagePreplannedCheck small{display:block;color:#707c74;margin-top:2px}
+.menuOptionConfig{margin-bottom:16px}
+.menuOptionConfigTitle{margin-bottom:10px}
+.menuOptionConfigTitle h3{margin:0 0 4px}
+.menuRequiredToggle{display:flex;gap:8px;align-items:flex-start}
+.menuRequiredToggle small{display:block;color:#718078;margin-top:2px}
+.menuItemMain{min-width:0;flex:1}
+.menuInlineSettings{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.menuInlineSettings input{min-width:90px}
+.menuInlineSettings label{display:flex;align-items:center;gap:4px;font-size:.72rem}
+.menuItemActions{display:flex;align-items:center;gap:6px}
+
+@media (min-width:900px){
+ .packageBuilderPage{padding:20px 0 140px}
+ .recommendedPackagePanel{padding:20px}
+ .recommendedPackageControls{display:grid;grid-template-columns:minmax(280px,1fr) 2fr;gap:14px;align-items:end}
+ .recommendedPackageSummary{margin-top:0;grid-template-columns:repeat(3,1fr);align-items:center}
+ .recommendedPackageSummary .linkBtn{grid-column:auto}
+ .mobileMealDayList{gap:16px}
+ .mobileMealDay{border-radius:18px}
+ .mobileSlotList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .builderSlotCard{min-height:150px}
+ .builderLayout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px}
+ .builderSummaryCard{position:sticky;top:16px;align-self:start}
+ .packageDisplayOptions{flex-direction:row}
+ .packageDisplayOptions label{flex:1}
+ .packagePricingMode{min-height:108px}
+}
+
+@media (max-width:899px){
+ .builderTop.wireBuilderTop{padding:14px 2px}
+ .builderControls{grid-template-columns:1fr}
+ .builderControls label{min-width:0}
+ .builderInfo{grid-template-columns:1fr 1fr}
+ .builderInfo>button{grid-column:1/-1}
+ .builderLayout{display:block}
+ .builderSummaryCard{margin-top:12px}
+ .builderFooter{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);border-top:1px solid #dce7df;box-shadow:0 -8px 25px rgba(20,50,30,.08)}
+ .builderFooter>div{min-width:0}
+ .builderFooter small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58vw}
+ .builderFooter .builderReviewCta{min-height:46px}
+ .reviewConfirmModal{width:100vw;max-height:100vh;border-radius:16px 16px 0 0}
+ .reviewConfirmBody{display:block}
+ .reviewOrderSummary{position:sticky;bottom:0}
+ .menuControls{grid-template-columns:1fr}
+ .menuInlineSettings{flex-direction:column;align-items:stretch}
+ .menuInlineSettings input{width:100%}
+ .menuItem{align-items:flex-start}
+}
+
+@media (max-width:420px){
+ .recommendedPackageSummary{grid-template-columns:1fr 1fr}
+ .mobileMealDay>header{padding:10px}
+ .mobileSlotList{padding:8px}
+ .builderSlotCard{padding:9px}
+ .groupMealImage{width:50px;height:50px;flex-basis:50px}
+}
