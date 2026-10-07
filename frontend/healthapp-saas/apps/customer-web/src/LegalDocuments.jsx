@@ -1,4 +1,5 @@
-import React,{useMemo}from'react';
+import React,{useEffect,useMemo,useState}from'react';
+import{outlets}from'@healthapp/shared';
 
 const CUSTOMER_DOCUMENTS=[
  {id:'terms',title:'Customer Terms & Conditions',eyebrow:'CUSTOMER TERMS',intro:'These draft terms govern the purchase of meals and subscription services from the outlet shown on this customer portal.',sections:[
@@ -69,8 +70,15 @@ const CUSTOMER_DOCUMENTS=[
  ]},
 ];
 
-export default function LegalDocuments({documentId='terms',outletName='Your outlet',onBack}){
+export default function LegalDocuments({documentId='terms',outletName='Your outlet',outletSlug='',onBack}){
  const doc=useMemo(()=>CUSTOMER_DOCUMENTS.find(x=>x.id===documentId)||CUSTOMER_DOCUMENTS[0],[documentId]);
+ const [published,setPublished]=useState(null);
+ const [policyLoading,setPolicyLoading]=useState(Boolean(outletSlug));
+ useEffect(()=>{let cancelled=false;(async()=>{if(!outletSlug){setPolicyLoading(false);return}try{const x=await outlets.legal(outletSlug);if(!cancelled)setPublished(x)}catch{if(!cancelled)setPublished(null)}finally{if(!cancelled)setPolicyLoading(false)}})();return()=>{cancelled=true}},[outletSlug]);
+ const policyMap={terms:'customerTermsAndConditions',privacy:'customerPrivacyPolicy',cancellation:'cancellationRefundPolicy','skip-reschedule':'mealSkipReschedulePolicy',delivery:'deliveryPolicy',allergen:'allergenDietaryDisclaimer','payment-discounts':'paymentPricingPromotionalTerms'};
+ const publishedText=published?.legalPoliciesPublished?String(published?.[policyMap[doc.id]]||'').trim():'';
+ const renderedSections=publishedText?[['Published outlet policy',publishedText]]:doc.sections;
+
  return <div className="legalPage">
   <header className="legalHeader">
    <div><span className="eyebrow">{doc.eyebrow}</span><h1>{doc.title}</h1><p>{doc.intro}</p></div>
@@ -79,7 +87,7 @@ export default function LegalDocuments({documentId='terms',outletName='Your outl
   <div className="legalMeta"><span><b>Draft</b> · For legal review before publication</span><span>Applies to: <b>{outletName}</b></span></div>
   <div className="legalLayout">
    <aside className="legalIndex">{CUSTOMER_DOCUMENTS.map(x=><button key={x.id} className={x.id===doc.id?'active':''} onClick={()=>{window.history.pushState({},'',\`?legal=\${x.id}\`);window.dispatchEvent(new PopStateEvent('popstate'))}}>{x.title}</button>)}</aside>
-   <article className="legalBody"><div className="legalDraftNotice"><b>Draft template</b><span>Replace business/contact placeholders and configure outlet-specific commercial rules before making this document effective.</span></div>{doc.sections.map(([heading,body])=><section key={heading}><h2>{heading}</h2><p>{body}</p></section>)}<section><h2>Document control</h2><p><b>Version:</b> Draft 0.1<br/><b>Effective date:</b> To be set by the outlet<br/><b>Last updated:</b> 7 October 2026<br/><b>Contact:</b> Publish the outlet’s legal/business contact details here.</p></section></article>
+   <article className="legalBody">{policyLoading?<div className="legalDraftNotice"><b>Loading…</b><span>Loading the outlet's current customer policy.</span></div>:publishedText?<div className="legalPublishedNotice"><b>Published policy</b><span>Version {published?.legalVersion||'1.0'}{published?.legalEffectiveDateUtc?' · Effective '+new Date(published.legalEffectiveDateUtc).toLocaleDateString():''}</span></div>:<div className="legalDraftNotice"><b>Draft template</b><span>No published outlet version is available yet. This is the implementation template.</span></div>}{renderedSections.map(([heading,body])=><section key={heading}><h2>{heading}</h2>{publishedText?body.split(/\n\s*\n/).map((p,i)=><p key={i}>{p}</p>):<p>{body}</p>}</section>)}<section><h2>Document control</h2><p><b>Version:</b> {published?.legalPoliciesPublished?(published.legalVersion||'1.0'):'Draft 0.1'}<br/><b>Effective date:</b> {published?.legalEffectiveDateUtc?new Date(published.legalEffectiveDateUtc).toLocaleDateString():'To be set by the outlet'}<br/><b>Last updated:</b> 7 October 2026<br/><b>Contact:</b> Publish the outlet’s legal/business contact details here.</p></section></article>
   </div>
  </div>;
 }
