@@ -281,11 +281,8 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
     private static string NormalizeMealType(string? value)
     {
         var normalized = (value ?? "").Trim();
-        return normalized switch
-        {
-            "Meal" or "Starter" or "Juice" or "Snack" or "Side" or "Add-on" or "Soup" or "Salad" or "Dessert" or "Drink" or "Other" => normalized,
-            _ => "Meal"
-        };
+        var allowed = new[] { "Meal", "Starter", "Side", "Add-on", "Juice", "Snack", "Soup", "Salad", "Dessert", "Drink", "Other" };
+        return allowed.FirstOrDefault(x => x.Equals(normalized, StringComparison.OrdinalIgnoreCase)) ?? "Meal";
     }
 
     private static OutletDto ToDto(Outlet x, double distance)
