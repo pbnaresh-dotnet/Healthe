@@ -142,6 +142,31 @@ BEGIN
 END
 ", cancellationToken);
 
+        // Customer legal policies live on the outlet because each standalone outlet owns
+        // its customer-facing commercial terms and privacy notice.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Outlets','CustomerTermsAndConditions') IS NULL
+    ALTER TABLE dbo.Outlets ADD CustomerTermsAndConditions nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','CustomerPrivacyPolicy') IS NULL
+    ALTER TABLE dbo.Outlets ADD CustomerPrivacyPolicy nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','CancellationRefundPolicy') IS NULL
+    ALTER TABLE dbo.Outlets ADD CancellationRefundPolicy nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','MealSkipReschedulePolicy') IS NULL
+    ALTER TABLE dbo.Outlets ADD MealSkipReschedulePolicy nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','DeliveryPolicy') IS NULL
+    ALTER TABLE dbo.Outlets ADD DeliveryPolicy nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','AllergenDietaryDisclaimer') IS NULL
+    ALTER TABLE dbo.Outlets ADD AllergenDietaryDisclaimer nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','PaymentPricingPromotionalTerms') IS NULL
+    ALTER TABLE dbo.Outlets ADD PaymentPricingPromotionalTerms nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','LegalVersion') IS NULL
+    ALTER TABLE dbo.Outlets ADD LegalVersion nvarchar(40) NULL;
+IF COL_LENGTH('dbo.Outlets','LegalEffectiveDateUtc') IS NULL
+    ALTER TABLE dbo.Outlets ADD LegalEffectiveDateUtc datetime2 NULL;
+IF COL_LENGTH('dbo.Outlets','LegalPoliciesPublished') IS NULL
+    ALTER TABLE dbo.Outlets ADD LegalPoliciesPublished bit NOT NULL CONSTRAINT DF_Outlets_LegalPoliciesPublished DEFAULT 0 WITH VALUES;
+", cancellationToken);
+
         // Run updates only after the ALTER TABLE batch has completed.
         await db.Database.ExecuteSqlRawAsync(@"
 IF EXISTS (SELECT 1 FROM dbo.Outlets WHERE Slug='fitfood')
