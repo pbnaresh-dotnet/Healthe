@@ -36,9 +36,7 @@ public interface IOutletLegalPolicyRepository
     Task<OutletLegalPolicyVersion?> GetByIdAsync(Guid id, Guid outletId);
     Task<OutletLegalPolicyVersion?> GetByVersionAsync(Guid outletId, string version);
     Task<IReadOnlyList<OutletLegalPolicyVersion>> GetHistoryAsync(Guid outletId);
-    Task AddVersionAsync(OutletLegalPolicyVersion version);
     Task PublishVersionAsync(OutletLegalPolicyVersion version);
-    Task UnpublishOthersAsync(Guid outletId, string publishedVersion);
     Task<bool> HasAcceptedVersionAsync(Guid customerId, Guid outletId, Guid versionId);
     Task AddAcceptanceAsync(CustomerLegalAcceptance acceptance);
 }
