@@ -52,6 +52,8 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.PasswordHash).HasMaxLength(500).IsRequired();
         e.Property(x => x.FirstName).HasMaxLength(100);
         e.Property(x => x.LastName).HasMaxLength(100);
+        e.Property(x => x.MobileNumber).HasMaxLength(20);
+        e.HasIndex(x => x.MobileNumber).IsUnique().HasFilter("[MobileNumber] IS NOT NULL AND [MobileNumber] <> ''");
         e.Property(x => x.Role).HasConversion<int>();
         e.HasIndex(x => x.OutletId);
         e.HasIndex(x => x.IsDemo);
