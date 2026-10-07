@@ -534,3 +534,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .menuFieldWide,.menuSelectedType,.menuRequiredCard,.menuAddButton{grid-column:1}
  .menuWeek{grid-template-columns:repeat(7,minmax(285px,1fr));min-width:2025px}
 }
+
+/* Dashboard pending-action affordances */
+.clickableStatus{border:0;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}.clickableStatus:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 12px rgba(23,101,52,.12)}.clickableStatus:focus-visible{outline:2px solid #176534;outline-offset:2px}.clickableStatus:disabled{cursor:default;opacity:1}
+.opsMetricAction{width:100%;border:0;background:transparent;font:inherit;text-align:left;cursor:pointer}.opsMetricAction:hover:not(:disabled){background:#fafcfb;border-radius:9px}.opsMetricAction:focus-visible{outline:2px solid #176534;outline-offset:2px}.opsMetricAction:disabled{cursor:default}
+.deliveryPageContent{display:grid;gap:12px}.deliveryFilterBar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #dfe8e1;background:#f4f8f5;border-radius:10px}.deliveryFilterBar b,.deliveryFilterBar small{display:block}.deliveryFilterBar b{font-size:10px;color:#21402b}.deliveryFilterBar small{font-size:8px;color:#77847c;margin-top:2px}
