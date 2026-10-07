@@ -13,6 +13,20 @@ public static class DatabaseInitializer
         await db.Database.EnsureCreatedAsync(cancellationToken);
 
         await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Users','MobileNumber') IS NULL
+    ALTER TABLE dbo.Users ADD MobileNumber nvarchar(20) NULL;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name='IX_Users_MobileNumber' AND object_id=OBJECT_ID('dbo.Users')
+)
+    CREATE UNIQUE INDEX IX_Users_MobileNumber
+    ON dbo.Users(MobileNumber, OutletId)
+    WHERE MobileNumber IS NOT NULL AND MobileNumber <> '';
+", cancellationToken);
+
+
+        await db.Database.ExecuteSqlRawAsync(@"
 IF OBJECT_ID('dbo.OutletBrandings','U') IS NULL
 BEGIN
     CREATE TABLE dbo.OutletBrandings
