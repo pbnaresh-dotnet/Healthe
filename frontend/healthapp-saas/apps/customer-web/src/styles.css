@@ -1667,3 +1667,5 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .legalBody h2{margin:0 0 7px;font-size:16px;color:#194b2b}
 .legalBody p{margin:0;color:#596960;font-size:11px;line-height:1.72}
 @media(max-width:820px){.legalPage{padding:20px 14px 40px}.legalHeader{align-items:flex-start}.legalHeader h1{font-size:24px}.legalHeader p{font-size:11px}.legalLayout{grid-template-columns:1fr}.legalIndex{position:static;display:flex;overflow:auto;padding-bottom:2px}.legalIndex button{min-width:170px}.legalBody{padding:18px}.legalBody h2{font-size:14px}.legalBody p{font-size:10px}.legalMeta{font-size:9px}}
+
+.legalPublishedNotice{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border-radius:10px;background:#edf8f0;border:1px solid #cae3d0;color:#587062;margin-bottom:20px;font-size:10px;line-height:1.5}.legalPublishedNotice b{color:#21683a;white-space:nowrap}.legalPublishedNotice span{color:#5f7466}
