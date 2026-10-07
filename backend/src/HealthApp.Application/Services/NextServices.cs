@@ -631,6 +631,7 @@ public sealed class PaymentService(
             p.Currency,
             p.Status,
             p.PaymentMethod,
+            p.FailureReason,
             p.CreatedAtUtc,
             p.PaidAtUtc);
 }
