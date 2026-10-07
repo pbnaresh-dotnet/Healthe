@@ -689,6 +689,11 @@ public sealed class Outlet
     public DateTime? LegalEffectiveDateUtc { get; set; }
     public bool LegalPoliciesPublished { get; set; }
 
+    // Customer package experience configuration. Values are snapshotted onto subscriptions when created.
+    public string CustomPackagePricingMode { get; set; } = "Calculated";
+    public bool ShowPackagePriceToCustomer { get; set; } = true;
+    public bool ShowDeliveryFeeToCustomer { get; set; } = true;
+
     public decimal RestaurantGstRate {
         get;
         set;
@@ -901,6 +906,10 @@ public sealed class MealPlan
         set;
     }
     = true;
+    // A preplanned package is an outlet-defined recommended package with a fixed base price.
+    public bool IsPreplanned { get; set; }
+    public string AvailableCity { get; set; } = "";
+    public int DurationDays { get; set; } = 7;
 }
 
 public sealed class Recipe
@@ -1187,6 +1196,10 @@ public sealed class OutletMenuItem
         get;
         set;
     }
+    // Outlet-configured option grouping for the customer meal picker.
+    public string OptionGroup { get; set; } = "Main";
+    public bool IsRequired { get; set; } = true;
+    public int MaxSelections { get; set; } = 1;
 }
 
 public sealed class Subscription
@@ -1352,6 +1365,10 @@ public sealed class Subscription
         get;
         set;
     } = "Active";
+    public bool IsPreplanned { get; set; }
+    public string PricingMode { get; set; } = "Calculated";
+    public bool PriceVisibleToCustomer { get; set; } = true;
+    public bool DeliveryFeeVisibleToCustomer { get; set; } = true;
     public bool IsOutletCreated {
         get;
         set;
