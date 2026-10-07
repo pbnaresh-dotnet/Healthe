@@ -1,6 +1,6 @@
 # HealthApp Cloudflare Pages
 
-The customer, outlet and admin React apps are ready to deploy as three separate Cloudflare Pages projects from this monorepo.
+The customer, outlet, admin and Broccoly React apps are ready to deploy as separate Cloudflare Pages projects from this monorepo.
 
 Cloudflare supports multiple Pages projects from one Git repository with different build commands/output directories. Keep the repository root for the workspace install and use the app-specific build commands below.
 
@@ -11,6 +11,7 @@ Cloudflare supports multiple Pages projects from one Git repository with differe
 | healthapp-customer | frontend/healthapp-saas | npm run build:customer | apps/customer-web/dist |
 | healthapp-outlet | frontend/healthapp-saas | npm run build:outlet | apps/outlet-web/dist |
 | healthapp-admin | frontend/healthapp-saas | npm run build:admin | apps/admin-web/dist |
+| broccoly | frontend/healthapp-saas | npm run build:broccoly | apps/broccoly-web/dist |
 
 Standalone test branch: `feature/standalone-saas`
 
@@ -25,22 +26,26 @@ Configure each existing project as follows:
 | `healthapp-customer` | `feature/standalone-saas` | `fitfood.broccoly.in` | `npm run build:customer` | `apps/customer-web/dist` |
 | `healthapp-outlet` | `feature/standalone-saas` | `outlet.broccoly.in` | `npm run build:outlet` | `apps/outlet-web/dist` |
 | `healthapp-admin` | `feature/standalone-saas` | `admin.broccoly.in` | `npm run build:admin` | `apps/admin-web/dist` |
+| `broccoly` | `feature/standalone-saas` | `broccoly.in` | `npm run build:broccoly` | `apps/broccoly-web/dist` |
 
 For each project, open Settings -> Builds/Builds & deployments -> Branch control, set the production branch to `feature/standalone-saas`, turn off automatic production branch deployments, and set Preview branch to None. This prevents ordinary feature commits from consuming Cloudflare builds. Cloudflare's documented branch controls support both disabling automatic production deployments and disabling preview deployments. Use the manual GitHub Actions workflow `.github/workflows/cloudflare-standalone-deploy.yml` to deploy a selected app or all three when a cloud test is needed.
 
-In each project's Production environment variables, set:
+Do not add `VITE_API_BASE_URL` as a Cloudflare runtime variable for these static-asset-only Workers/Pages projects. Vite needs this value during `npm run build`.
 
-`VITE_API_BASE_URL=https://api.broccoly.in/api`
+The manual GitHub Actions deployment workflow `.github/workflows/cloudflare-standalone-deploy.yml` injects the build-time values automatically:
+
+```text
+VITE_API_BASE_URL=https://api.broccoly.in/api
+VITE_OUTLET_APP_URL=https://app.broccoly.in   # Broccoly build only
+```
+
+The workflow then runs the app build and Wrangler deployment. No per-project runtime variable is required for these Vite settings.
 
 Keep the existing custom domains attached to their respective projects.
 
 ## API environment variable
 
-The frontend must not use the local `http://localhost:50448/api` value after deployment.
-
-In each Pages project go to Settings -> Environment variables and add:
-
-`VITE_API_BASE_URL=https://YOUR-PUBLIC-API-HOST/api`
+The frontend must not use the local `http://localhost:50448/api` value after deployment. The build-time value above is embedded into the Vite bundle during the deployment build.
 
 ### Standalone outlet deployment
 
@@ -99,23 +104,26 @@ npm run build:outlet
 npm run build:admin
 ```
 
-For direct-upload deployments after logging in with Wrangler:
+For direct-upload deployments after logging in with Wrangler, inject the API URL before the Vite build. On PowerShell:
 
 ```powershell
 npx wrangler login
+$env:VITE_API_BASE_URL='https://api.broccoly.in/api'
+$env:VITE_BROCCOLY_URL='https://broccoly.in'
+$env:VITE_OUTLET_APP_URL='https://app.broccoly.in'
 
-npm run cf:deploy:customer
-npm run cf:deploy:outlet
-npm run cf:deploy:admin
-# or
-npm run cf:deploy:all
+npm run build:admin
+npx wrangler@4 deploy --config apps/admin-web/wrangler.jsonc
 ```
+
+For the other apps, use the same pattern and run the corresponding build/deploy commands. The GitHub Actions workflow already does this injection automatically and is the preferred repeatable deployment path.
 
 Wrangler project configs are included in each app directory:
 
 - `apps/customer-web/wrangler.jsonc`
 - `apps/outlet-web/wrangler.jsonc`
 - `apps/admin-web/wrangler.jsonc`
+- `apps/broccoly-web/wrangler.jsonc`
 
 Use the dashboard Git integration for automatic deployments, or Wrangler for manual/direct uploads; do not mix configuration ownership casually.
 
@@ -242,40 +250,20 @@ Then the customer API is:
 https://random-name.trycloudflare.com/api/...
 ```
 
-### 5. Connect the Customer Worker
+### 5. Deploy the frontends with the temporary API URL
 
-In Cloudflare:
+Set the build-time variable in the deployment command, then build and deploy the selected app. On PowerShell:
 
-```text
-Workers & Pages
-  -> healthapp-customer
-  -> Settings
-  -> Variables and Secrets
+```powershell
+$env:VITE_API_BASE_URL='https://random-name.trycloudflare.com/api'
+
+npm run build:customer
+npx wrangler@4 deploy --config apps/customer-web/wrangler.jsonc
 ```
 
-Create/update:
+Repeat for Outlet and Admin as required. Do not put this in the runtime Variables/Secrets section of a static-asset-only project.
 
-```text
-VITE_API_BASE_URL=https://random-name.trycloudflare.com/api
-```
-
-Set it for the Production environment.
-
-Because Vite embeds `VITE_*` values during the frontend build, changing this variable requires a new deployment of the Customer Worker.
-
-### 6. Connect Outlet and Admin
-
-Repeat the same variable for:
-
-```text
-healthapp-outlet
-VITE_API_BASE_URL=https://random-name.trycloudflare.com/api
-
-healthapp-admin
-VITE_API_BASE_URL=https://random-name.trycloudflare.com/api
-```
-
-Then trigger a new deployment for each Worker.
+Because Vite embeds `VITE_*` values during the frontend build, a changed API URL requires a new frontend build/deployment.
 
 ### Important
 
