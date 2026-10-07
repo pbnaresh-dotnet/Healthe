@@ -1105,6 +1105,15 @@ IF COL_LENGTH('dbo.CityAreas','Pincode') IS NOT NULL
     UPDATE dbo.CityAreas SET Pincode = COALESCE(Pincode,'');
 ", cancellationToken);
 
+        // Customer marketing preferences were added after the initial standalone schema.
+        // Reconcile these columns before the seeder reads Users through the current EF model.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Users','MarketingOptIn') IS NULL
+    ALTER TABLE dbo.Users ADD MarketingOptIn bit NOT NULL CONSTRAINT DF_Users_MarketingOptIn DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Users','MarketingOptInAtUtc') IS NULL
+    ALTER TABLE dbo.Users ADD MarketingOptInAtUtc datetime2 NULL;
+", cancellationToken);
+
         // Keep the old text columns harmless for older databases; normalized values are now authoritative.
         await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(), cancellationToken);
 
