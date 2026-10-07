@@ -212,8 +212,25 @@ END;
         await db.Database.ExecuteSqlRawAsync(@"
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_OutletLegalPolicyVersions_Outlet_Version' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
     CREATE UNIQUE INDEX UX_OutletLegalPolicyVersions_Outlet_Version ON dbo.OutletLegalPolicyVersions(OutletId, Version);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletLegalPolicyVersions_Outlet_Published' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
-    CREATE INDEX IX_OutletLegalPolicyVersions_Outlet_Published ON dbo.OutletLegalPolicyVersions(OutletId, IsPublished);
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletLegalPolicyVersions_Outlet_Published' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
+    DROP INDEX IX_OutletLegalPolicyVersions_Outlet_Published ON dbo.OutletLegalPolicyVersions;
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_OutletLegalPolicyVersions_Current' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
+    DROP INDEX UX_OutletLegalPolicyVersions_Current ON dbo.OutletLegalPolicyVersions;
+IF EXISTS (SELECT 1 FROM dbo.OutletLegalPolicyVersions)
+BEGIN
+    WITH ranked AS
+    (
+        SELECT Id, ROW_NUMBER() OVER (PARTITION BY OutletId ORDER BY ISNULL(PublishedAtUtc, CreatedAtUtc) DESC, CreatedAtUtc DESC, Id DESC) rn
+        FROM dbo.OutletLegalPolicyVersions
+        WHERE IsPublished = 1
+    )
+    UPDATE v SET IsPublished = 0
+    FROM dbo.OutletLegalPolicyVersions v
+    INNER JOIN ranked r ON r.Id = v.Id
+    WHERE r.rn > 1;
+END;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_OutletLegalPolicyVersions_Current' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
+    CREATE UNIQUE INDEX UX_OutletLegalPolicyVersions_Current ON dbo.OutletLegalPolicyVersions(OutletId) WHERE IsPublished = 1;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_CustomerLegalAcceptances_Customer_Outlet_Version' AND object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
     CREATE UNIQUE INDEX UX_CustomerLegalAcceptances_Customer_Outlet_Version ON dbo.CustomerLegalAcceptances(CustomerId, OutletId, LegalPolicyVersionId);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_CustomerLegalAcceptances_Customer_Outlet_Date' AND object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
