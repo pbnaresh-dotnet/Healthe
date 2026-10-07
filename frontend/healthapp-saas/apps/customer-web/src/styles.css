@@ -1688,3 +1688,5 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .profileConsentToggle input{margin:0}.profileConsentToggle span{display:grid;gap:2px}.profileConsentToggle span b{font-size:9px;color:#21683a}.profileConsentToggle small{font-size:7px;color:#718078}
 @media(max-width:700px){.profileCommunicationCard{align-items:flex-start;flex-direction:column}.profileConsentToggle{width:100%;justify-content:flex-start}}
 
+
+.legalUnavailableNotice{padding:16px;border-radius:10px;background:#fff8e8;border:1px solid #ead39c;color:#7a6839}.legalUnavailableNotice b{display:block;color:#9a7016;font-size:11px;margin-bottom:4px}.legalUnavailableNotice span{display:block;font-size:9px;line-height:1.55}
