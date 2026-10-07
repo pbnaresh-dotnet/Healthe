@@ -105,6 +105,8 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID
         await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.Outlets','DeliveryDays') IS NULL
     ALTER TABLE dbo.Outlets ADD DeliveryDays nvarchar(200) NULL;
+IF COL_LENGTH('dbo.Outlets','DeliveryCoverageMode') IS NULL
+    ALTER TABLE dbo.Outlets ADD DeliveryCoverageMode int NOT NULL CONSTRAINT DF_Outlets_DeliveryCoverageMode DEFAULT 1;
 ", cancellationToken);
 
         // Run updates only after the ALTER TABLE batch has completed.
