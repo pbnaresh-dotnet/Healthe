@@ -73,12 +73,13 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
             if (await users.FindByEmailAsync(r.Email, outletId.Value) is not null)
                 throw new InvalidOperationException("Email is already registered for this outlet.");
         }
-        if (await users.FindByMobileAsync(normalizedMobile, outletId) is not null)
-            throw new InvalidOperationException("Mobile number is already registered for this outlet.");
         else if (await users.FindByEmailAsync(r.Email) is not null)
         {
             throw new InvalidOperationException("Email is already registered.");
         }
+
+        if (await users.FindByMobileAsync(normalizedMobile, outletId) is not null)
+            throw new InvalidOperationException("Mobile number is already registered for this outlet.");
 
         var user = new User {
             Id = Guid.NewGuid(),
