@@ -167,6 +167,19 @@ IF COL_LENGTH('dbo.Outlets','LegalPoliciesPublished') IS NULL
     ALTER TABLE dbo.Outlets ADD LegalPoliciesPublished bit NOT NULL CONSTRAINT DF_Outlets_LegalPoliciesPublished DEFAULT 0 WITH VALUES;
 ", cancellationToken);
 
+        // Existing databases may receive nullable columns first. Populate safe defaults
+        // before EF reads them as required string properties.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Outlets','CustomerTermsAndConditions') IS NOT NULL UPDATE dbo.Outlets SET CustomerTermsAndConditions=ISNULL(CustomerTermsAndConditions,'');
+IF COL_LENGTH('dbo.Outlets','CustomerPrivacyPolicy') IS NOT NULL UPDATE dbo.Outlets SET CustomerPrivacyPolicy=ISNULL(CustomerPrivacyPolicy,'');
+IF COL_LENGTH('dbo.Outlets','CancellationRefundPolicy') IS NOT NULL UPDATE dbo.Outlets SET CancellationRefundPolicy=ISNULL(CancellationRefundPolicy,'');
+IF COL_LENGTH('dbo.Outlets','MealSkipReschedulePolicy') IS NOT NULL UPDATE dbo.Outlets SET MealSkipReschedulePolicy=ISNULL(MealSkipReschedulePolicy,'');
+IF COL_LENGTH('dbo.Outlets','DeliveryPolicy') IS NOT NULL UPDATE dbo.Outlets SET DeliveryPolicy=ISNULL(DeliveryPolicy,'');
+IF COL_LENGTH('dbo.Outlets','AllergenDietaryDisclaimer') IS NOT NULL UPDATE dbo.Outlets SET AllergenDietaryDisclaimer=ISNULL(AllergenDietaryDisclaimer,'');
+IF COL_LENGTH('dbo.Outlets','PaymentPricingPromotionalTerms') IS NOT NULL UPDATE dbo.Outlets SET PaymentPricingPromotionalTerms=ISNULL(PaymentPricingPromotionalTerms,'');
+IF COL_LENGTH('dbo.Outlets','LegalVersion') IS NOT NULL UPDATE dbo.Outlets SET LegalVersion=ISNULL(NULLIF(LegalVersion,''),'1.0');
+", cancellationToken);
+
         // Run updates only after the ALTER TABLE batch has completed.
         await db.Database.ExecuteSqlRawAsync(@"
 IF EXISTS (SELECT 1 FROM dbo.Outlets WHERE Slug='fitfood')
