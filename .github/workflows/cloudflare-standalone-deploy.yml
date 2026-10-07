@@ -12,11 +12,13 @@ on:
           - customer
           - outlet
           - admin
+          - broccoly
         default: all
 
 env:
   NODE_VERSION: '22'
   API_BASE_URL: 'https://api.broccoly.in/api'
+  OUTLET_APP_URL: 'https://app.broccoly.in'
 
 jobs:
   deploy:
@@ -47,6 +49,7 @@ jobs:
         env:
           VITE_API_BASE_URL: ${{ env.API_BASE_URL }}
         run: |
+          echo "Building customer with VITE_API_BASE_URL=${VITE_API_BASE_URL}"
           npm run build:customer
           npx wrangler@4 deploy --config apps/customer-web/wrangler.jsonc
 
@@ -54,7 +57,9 @@ jobs:
         if: inputs.app == 'outlet' || inputs.app == 'all'
         env:
           VITE_API_BASE_URL: ${{ env.API_BASE_URL }}
+          VITE_BROCCOLY_URL: 'https://broccoly.in'
         run: |
+          echo "Building outlet with VITE_API_BASE_URL=${VITE_API_BASE_URL}"
           npm run build:outlet
           npx wrangler@4 deploy --config apps/outlet-web/wrangler.jsonc
 
@@ -63,5 +68,16 @@ jobs:
         env:
           VITE_API_BASE_URL: ${{ env.API_BASE_URL }}
         run: |
+          echo "Building admin with VITE_API_BASE_URL=${VITE_API_BASE_URL}"
           npm run build:admin
           npx wrangler@4 deploy --config apps/admin-web/wrangler.jsonc
+
+      - name: Deploy Broccoly
+        if: inputs.app == 'broccoly' || inputs.app == 'all'
+        env:
+          VITE_API_BASE_URL: ${{ env.API_BASE_URL }}
+          VITE_OUTLET_APP_URL: ${{ env.OUTLET_APP_URL }}
+        run: |
+          echo "Building Broccoly with VITE_API_BASE_URL=${VITE_API_BASE_URL}"
+          npm run build:broccoly
+          npx wrangler@4 deploy --config apps/broccoly-web/wrangler.jsonc
