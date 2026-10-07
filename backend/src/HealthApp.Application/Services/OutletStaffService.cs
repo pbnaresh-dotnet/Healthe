@@ -79,9 +79,33 @@ public sealed class OutletStaffService(
         if (user.OutletId != outletId)
             throw new UnauthorizedAccessException("Staff account does not belong to this outlet.");
 
-        if (!Enum.TryParse<UserRole>(request.Role, true, out var role) || !ManagedRoles.Contains(role))
-            throw new ArgumentException("Staff role must be OutletManager or KitchenStaff.");
+        if (user.Role == UserRole.OutletAdmin)
+            throw new InvalidOperationException("The outlet admin account cannot be edited from Team.");
 
+        if (!Enum.TryParse<UserRole>(request.Role, true, out var role) || !ManagedRoles.Contains(role))
+            throw new ArgumentException("Staff role must be OutletManager, KitchenStaff or Driver.");
+
+        if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
+            throw new ArgumentException("First name and last name are required.");
+
+        var email = (request.Email ?? "").Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+            throw new ArgumentException("Enter a valid email address.");
+
+        var existing = await users.FindByEmailAsync(email, outletId);
+        if (existing is not null && existing.Id != id)
+            throw new InvalidOperationException("Another staff account already uses this email address.");
+
+        if (!string.IsNullOrWhiteSpace(request.Password))
+        {
+            if (request.Password.Length < 6)
+                throw new ArgumentException("Password must be at least 6 characters.");
+            user.PasswordHash = passwords.Hash(request.Password);
+        }
+
+        user.FirstName = request.FirstName.Trim();
+        user.LastName = request.LastName.Trim();
+        user.Email = email;
         user.Role = role;
         user.IsActive = request.IsActive;
         await users.UpdateAsync(user);
