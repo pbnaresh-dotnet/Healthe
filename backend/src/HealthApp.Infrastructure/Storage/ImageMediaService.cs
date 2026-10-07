@@ -34,6 +34,7 @@ public sealed class ImageMediaService(
 
         var definition = ProfileDefinition.For(profile);
         var baseFolder = SanitizeFolder(folder);
+        var assetId = Guid.NewGuid().ToString("N");
         var variants = new Dictionary<string, MediaVariantDto>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var variant in definition.Variants)
@@ -55,9 +56,9 @@ public sealed class ImageMediaService(
             output.Position = 0;
             var stored = await storage.UploadAsync(
                 output,
-                $"{Guid.NewGuid():N}.webp",
+                $"{assetId}.webp",
                 "image/webp",
-                $"{baseFolder}/{Guid.NewGuid():N}/{variant.Name}",
+                $"{baseFolder}/{assetId}/{variant.Name}",
                 cancellationToken);
 
             variants[variant.Name] = new MediaVariantDto(
