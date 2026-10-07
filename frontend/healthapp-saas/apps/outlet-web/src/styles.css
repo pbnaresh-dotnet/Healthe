@@ -424,3 +424,113 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .menuInlineSettings{flex-direction:column;align-items:stretch}
  .menuInlineSettings input{width:100%}
 }
+
+/* Production menu workspace refresh */
+.menuPage{max-width:1480px}
+.menuPageHead{margin-bottom:18px}
+.menuPageHead h1{letter-spacing:-.7px}
+.menuPageHead p{max-width:780px;line-height:1.55}
+.menuComposer{padding:20px;margin-bottom:18px;border-color:#dbe6de;box-shadow:0 8px 24px rgba(18,52,31,.045)}
+.menuComposerHead{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:16px}
+.menuComposerHead h3,.menuWeekPanelHead h3{margin:4px 0 3px;font-size:17px;color:#173b25}
+.menuComposerHead p,.menuWeekPanelHead p{margin:0;color:#728078;font-size:11px;line-height:1.5}
+.menuSectionKicker{font-size:9px;letter-spacing:.13em;font-weight:900;color:#4b8a61;text-transform:uppercase}
+.menuLegend{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 10px;border:1px solid #e2ebe4;border-radius:999px;background:#f8fbf9;white-space:nowrap}
+.menuLegend span{display:inline-flex;align-items:center;gap:5px;font-size:9px;color:#66746c;font-weight:800}
+.menuLegendDot{width:7px;height:7px;border-radius:50%;display:inline-block;background:#91a198}
+.menuLegendDot.required{background:#1d6b3a}.menuLegendDot.optional{background:#c4a25a}
+.menuComposerGrid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:11px;align-items:end}
+.menuField,.menuRequiredCard{display:grid;gap:6px;min-width:0}
+.menuField>span,.menuRequiredCard>span{font-size:9px;color:#5d6b62;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.menuField select,.menuField input{width:100%;min-height:42px;border:1px solid #d5e1d8;border-radius:10px;background:#fff;color:#1f2d24;padding:10px 11px;font:inherit;font-size:11px;outline:0}
+.menuField select:focus,.menuField input:focus{border-color:#69a47a;box-shadow:0 0 0 3px #69a47a18}
+.menuFieldWide{grid-column:span 3}
+.menuSelectedType{grid-column:span 2;min-height:42px;padding:9px 11px;border:1px solid #dce7df;border-radius:10px;background:#f7faf8;display:grid;align-content:center;gap:2px;min-width:0}
+.menuSelectedType>span:first-child{font-size:7px;letter-spacing:.08em;font-weight:900;color:#7b8981}
+.menuSelectedType b{font-size:11px;color:#1a5f35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.menuSelectedType small{font-size:8px;color:#7a877f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.menuRequiredCard{grid-column:span 2;display:flex;gap:8px;align-items:center;min-height:42px;padding:8px 10px;border:1px solid #dce6df;border-radius:10px;background:#fbfdfb}
+.menuRequiredCard input{accent-color:#176534;margin:0}
+.menuRequiredCard b{display:block;font-size:10px;color:#294337}
+.menuRequiredCard small{display:block;margin-top:2px;font-size:8px;color:#7a877f;line-height:1.3}
+.menuAddButton{grid-column:span 2;min-height:42px}
+.menuWeekPanel{padding:18px 0 0;overflow:hidden}
+.menuWeekPanelHead{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;padding:0 18px 15px}
+.menuWeekHint{font-size:9px;color:#7a877f;text-align:right}
+.menuWeekScroller{overflow-x:auto;overflow-y:hidden;padding:0 18px 18px;scrollbar-width:thin}
+.menuWeek{display:grid;grid-template-columns:repeat(7,minmax(176px,1fr));gap:12px;min-width:1255px}
+.menuDayCard{background:#fff;border:1px solid #dfe8e2;border-radius:14px;padding:12px;min-height:280px;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease;cursor:pointer}
+.menuDayCard:hover{border-color:#b9d0bf;box-shadow:0 10px 24px rgba(18,52,31,.06)}
+.menuDayCard.selected{border-color:#3e8a58;box-shadow:0 0 0 2px #e4f1e8,0 12px 28px rgba(18,52,31,.08)}
+.menuDayHead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding-bottom:10px;border-bottom:1px solid #edf2ee}
+.menuDayHead>div{display:flex;gap:8px;align-items:center;min-width:0}
+.menuDayIndex{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#f0f6f2;color:#2d7147;font-size:9px;font-weight:900;flex:0 0 auto}
+.menuDayHead b{display:block;font-size:12px;color:#203a2a}
+.menuDayHead small{display:block;margin-top:2px;font-size:8px;color:#849088}
+.menuDayCount{display:grid;place-items:center;min-width:24px;height:24px;padding:0 6px;border-radius:999px;background:#eaf5ed;color:#25683d;font-size:9px;font-weight:900}
+.menuDayList{display:grid;gap:8px;padding-top:8px}
+.menuScheduleItem{padding:10px;border:1px solid #e6ece7;border-radius:11px;background:#fbfdfb}
+.menuScheduleTop{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.menuScheduleTop>div{display:flex;gap:4px;flex-wrap:wrap}
+.menuSlotPill,.menuTypePill,.menuScheduleMeta span{display:inline-flex;align-items:center;border-radius:999px;font-size:7px;line-height:1.2;font-weight:900}
+.menuSlotPill{padding:4px 6px;background:#eef5f0;color:#567262}
+.menuTypePill{padding:4px 6px;background:#eaf5ed;color:#21663b}
+.menuScheduleName{display:block;margin-top:7px;font-size:10px;line-height:1.35;color:#1c3425}
+.menuScheduleMeta{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.menuScheduleMeta span{padding:3px 6px;background:#fff;border:1px solid #e3ebe5;color:#758179}
+.menuInlineSettings{display:grid;grid-template-columns:minmax(0,1fr) 55px;gap:6px;margin-top:8px;align-items:end}
+.menuInlineSettings label{display:grid;gap:3px;min-width:0}
+.menuInlineSettings label>span{font-size:7px;text-transform:uppercase;letter-spacing:.06em;color:#88948e;font-weight:900}
+.menuInlineSettings input{width:100%;min-height:30px;border:1px solid #d7e2da;border-radius:7px;padding:6px 7px;background:#fff;color:#28362d;font-size:9px}
+.menuInlineSettings .inlineCheck{grid-column:span 1;display:flex;align-items:center;gap:4px}
+.menuInlineSettings .inlineCheck input{width:auto;min-height:auto;padding:0;accent-color:#176534}
+.menuInlineSettings .inlineCheck span{text-transform:none;letter-spacing:0;font-size:8px;color:#66746c}
+.menuDayEmpty{display:grid;place-items:center;text-align:center;min-height:205px;padding:18px 10px;color:#96a29b}
+.menuDayEmpty span{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;background:#f0f5f1;color:#528162;font-size:18px}
+.menuDayEmpty b{margin-top:8px;font-size:10px;color:#627168}
+.menuDayEmpty small{margin-top:4px;font-size:8px;line-height:1.45;max-width:150px}
+.recipeFilterPanel{padding:15px 16px;margin-bottom:17px}
+.recipeFilterIntro{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:11px}
+.recipeFilterIntro b{display:block;font-size:11px;color:#254331}
+.recipeFilterIntro span{font-size:9px;color:#7d8982}
+.recipeFilterHint{white-space:nowrap}
+.recipeFilters{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(150px,.7fr) minmax(150px,.7fr);gap:10px}
+.recipeFilters label{display:grid;gap:5px}
+.recipeFilters label>span{font-size:8px;color:#627168;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.recipeFilters input,.recipeFilters select{min-height:42px;width:100%;border:1px solid #d8e2da;border-radius:10px;padding:9px 10px;background:#fff;color:#213228;font-size:11px}
+.recipeTypeRow{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.recipeMealTypeBadge,.recipeDietBadge{display:inline-flex;align-items:center;padding:4px 6px;border-radius:999px;font-size:7px;font-weight:900;line-height:1.2}
+.recipeMealTypeBadge{background:#eaf5ed;color:#21663b}.recipeDietBadge{background:#f2f4f2;color:#69766f}
+.recipePage .recipeCard{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.recipePage .recipeCard:hover{transform:translateY(-2px);border-color:#c8d8cd;box-shadow:0 14px 30px rgba(17,52,29,.08)}
+.recipePage .recipeTitle{align-items:flex-start}
+.recipePage .recipeTitle>b{white-space:nowrap}
+.recipePage .recipeBody>p{min-height:42px}
+
+@media(max-width:1200px){
+ .menuComposerGrid{grid-template-columns:repeat(6,minmax(0,1fr))}
+ .menuFieldWide{grid-column:span 2}
+ .menuSelectedType,.menuRequiredCard,.menuAddButton{grid-column:span 2}
+ .recipeFilters{grid-template-columns:1.4fr .8fr .8fr}
+}
+@media(max-width:760px){
+ .menuComposer{padding:14px}
+ .menuComposerHead,.menuWeekPanelHead,.recipeFilterIntro{align-items:flex-start;flex-direction:column}
+ .menuLegend,.menuWeekHint{white-space:normal;text-align:left}
+ .menuComposerGrid{grid-template-columns:1fr 1fr}
+ .menuFieldWide{grid-column:1/-1}
+ .menuSelectedType,.menuRequiredCard,.menuAddButton{grid-column:1/-1}
+ .menuRequiredCard{align-items:flex-start}
+ .menuWeekPanel{padding-top:14px}
+ .menuWeekPanelHead{padding:0 14px 12px}
+ .menuWeekScroller{padding:0 14px 14px}
+ .menuWeek{grid-template-columns:repeat(7,minmax(245px,1fr));min-width:1760px;gap:10px}
+ .menuDayCard{min-height:0}
+ .recipeFilters{grid-template-columns:1fr}
+ .recipeFilterHint{white-space:normal}
+}
+@media(max-width:480px){
+ .menuComposerGrid{grid-template-columns:1fr}
+ .menuFieldWide,.menuSelectedType,.menuRequiredCard,.menuAddButton{grid-column:1}
+ .menuWeek{grid-template-columns:repeat(7,minmax(285px,1fr));min-width:2025px}
+}
