@@ -222,6 +222,29 @@ public record OutletDashboardDto(
     IReadOnlyList<OutletDashboardSubscriptionDto> RecentSubscriptions);
 public record OutletKitchenMealCountDto(string MealName, string Category, string PortionSize, int Quantity);
 public record OutletKitchenDayDto(DateTime Date, string OutletName, string OutletLogoUrl, int TotalMeals, int UniqueCustomers, int ActiveSubscriptions, IReadOnlyList<OutletKitchenMealCountDto> Production, IReadOnlyList<DeliveryLabelDto> Labels);
-public record PaymentDto(Guid Id, Guid? SubscriptionId, string Provider, string ProviderPaymentId, decimal Amount, string Currency, string Status, DateTime CreatedAtUtc, DateTime? PaidAtUtc);
-public record CreatePaymentRequest(Guid SubscriptionId, string IdempotencyKey, string Provider = "Mock");
+public record PaymentDto(
+    Guid Id,
+    Guid? SubscriptionId,
+    string Provider,
+    string ProviderPaymentId,
+    string ProviderOrderId,
+    decimal Amount,
+    string Currency,
+    string Status,
+    string PaymentMethod,
+    DateTime CreatedAtUtc,
+    DateTime? PaidAtUtc);
+public record PaymentCheckoutDto(
+    Guid PaymentId,
+    string Provider,
+    string ProviderOrderId,
+    string PaymentSessionId,
+    decimal Amount,
+    string Currency,
+    string Status);
+public record PaymentWebhookResultDto(
+    bool Processed,
+    string Status,
+    Guid? PaymentId = null);
+public record CreatePaymentRequest(Guid SubscriptionId, string IdempotencyKey, string Provider = "Cashfree");
 public record RescheduleUnusedMealRequest(DateTime NewMealDate, int NewMealSlot, Guid? AddressId = null);
