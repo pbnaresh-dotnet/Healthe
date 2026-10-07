@@ -78,6 +78,7 @@ const INDIA_MAP_CENTER=[20.5937,78.9629];
 const CITY_MAP_CENTERS={
   Chennai:[13.0827,80.2707],
   Bengaluru:[12.9716,77.5946],
+  Bangalore:[12.9716,77.5946],
   Mumbai:[19.076,72.8777],
   Hyderabad:[17.3850,78.4867],
   'New Delhi':[28.6139,77.2090],
