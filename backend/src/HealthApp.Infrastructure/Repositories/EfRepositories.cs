@@ -15,6 +15,7 @@ public sealed class UserRepository(HealthAppDbContext db) : EfRepository(db), IU
 {
     public Task<User?> FindByEmailAsync(string email) => Context.Users.FirstOrDefaultAsync(x => x.Email == email.Trim().ToLower());
     public Task<User?> FindByEmailAsync(string email, Guid outletId) => Context.Users.FirstOrDefaultAsync(x => x.Email == email.Trim().ToLower() && x.OutletId == outletId);
+    public Task<User?> FindByMobileAsync(string mobileNumber, Guid? outletId = null) => Context.Users.FirstOrDefaultAsync(x => x.MobileNumber == mobileNumber.Trim() && x.OutletId == outletId);
     public async Task<IReadOnlyList<User>> FindTenantUsersByEmailAsync(string email) => await Context.Users.AsNoTracking().Where(x => x.Email == email.Trim().ToLower() && x.OutletId != null).OrderBy(x => x.OutletId).ThenBy(x => x.Role).ToListAsync();
     public Task<User?> FindByIdAsync(Guid id) => Context.Users.FirstOrDefaultAsync(x => x.Id == id);
     public async Task AddAsync(User user) {
