@@ -324,6 +324,7 @@ public sealed class CityAreaAdminService(ICityAreaRepository areas) : ICityAreaA
 public sealed class PaymentService(
     ICurrentUser current,
     IUserRepository users,
+    IOutletOnboardingRepository onboardingApplications,
     IPaymentTransactionRepository payments,
     ISubscriptionRepository subscriptions,
     IOrderRepository orders,
@@ -474,14 +475,21 @@ public sealed class PaymentService(
         if (payment is null)
             return new PaymentWebhookResultDto(true, "UnknownOrder");
 
+        var wasPaid = payment.Status == "Paid";
+
         // Always verify the actual payment status from Cashfree before fulfilment.
         await RefreshFromGatewayAsync(payment, cancellationToken, rawBody);
 
         if (payment.Status != "Paid")
             return new PaymentWebhookResultDto(true, payment.Status, payment.Id);
 
-        if (payment.PaymentType == "CustomerSubscription")
-            await CompleteCustomerPaymentAsync(payment.Id);
+        if (!wasPaid)
+        {
+            if (payment.PaymentType == "CustomerSubscription")
+                await CompleteCustomerPaymentAsync(payment.Id);
+            else if (payment.PaymentType == "OutletOnboarding")
+                await CompleteOutletOnboardingPaymentAsync(payment);
+        }
 
         return new PaymentWebhookResultDto(true, "Paid", payment.Id);
     }
@@ -532,6 +540,30 @@ public sealed class PaymentService(
         }
 
         await payments.UpdateAsync(payment);
+    }
+
+    private async Task CompleteOutletOnboardingPaymentAsync(PaymentTransaction payment)
+    {
+        if (payment.OutletOnboardingApplicationId is not Guid applicationId)
+            return;
+
+        var application = await onboardingApplications.GetAsync(applicationId)
+            ?? throw new KeyNotFoundException("Outlet onboarding application not found.");
+
+        if (application.PaymentStatus == "Paid")
+            return;
+
+        if (payment.Amount <= 0 ||
+            payment.Status != "Paid")
+            return;
+
+        application.PaymentStatus = "Paid";
+        application.PaymentReference = string.IsNullOrWhiteSpace(payment.ProviderPaymentId)
+            ? payment.ProviderOrderId
+            : payment.ProviderPaymentId;
+        if (application.Status == "PaymentPending")
+            application.Status = "PendingVerification";
+        await onboardingApplications.UpdateAsync(application);
     }
 
     private async Task CompleteCustomerPaymentAsync(Guid paymentId)
