@@ -998,9 +998,9 @@ function App(){
  const builderSelections=useMemo(()=>Object.values(builder.selections).flatMap(normalizeSelectionValue).filter(x=>{const d=builderDays.find(y=>y.date===x.date);return d?isActiveDay(d.week,x.date):true}),[builder.selections,builderDays,builder.weekActiveDays]);
  const selectedCount=builderSelections.length;
  const setSelection=(date,slot,recipeId,portion=1,allergyConfirmed=false)=>{
-   const items=Array.isArray(recipeId)?recipeId:[{recipeId,portion}];
+   const items=Array.isArray(recipeId)?recipeId:[{recipeId,portion,allergyConfirmed}];
    setBuilder(b=>{
-     const next=items.filter(x=>x?.recipeId).map(x=>({date,slot:Number(slot),recipeId:x.recipeId,portion:Number(x.portion||1)}));
+     const next=items.filter(x=>x?.recipeId).map(x=>({date,slot:Number(slot),recipeId:x.recipeId,portion:Number(x.portion||1),allergyConfirmed:Boolean(x.allergyConfirmed)}));
      const acknowledgement={...b.allergyAcknowledged};
      if(allergyConfirmed&&recipeId&&!Array.isArray(recipeId))acknowledgement[recipeId]=true;
      next.forEach(x=>{if(x.allergyConfirmed)acknowledgement[x.recipeId]=true});
@@ -1092,24 +1092,24 @@ function App(){
      notify('Please review the allergy warning before continuing.','warning');
      return;
    }
-   const q=await customer.quote({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity});
+   const q=await customer.quote({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity,mealPlanId:builder.selectedPlanId||null});
    setBuilder(b=>({...b,quote:q,step:2}));
  });
 
- const applyDiscountCode=async code=>{const normalized=String(code||'').trim().toUpperCase();if(!normalized){notify('Enter a discount code first.','warning');return;}await run(async()=>{if(!builder.outlet)throw new Error('Select an outlet first.');const q=await customer.quote({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,selections:selectionPayload,discountCode:normalized,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity});setBuilder(b=>({...b,discountCode:normalized,quote:q,step:2}));notify('Discount code applied. Your total has been updated.','success')});};
+ const applyDiscountCode=async code=>{const normalized=String(code||'').trim().toUpperCase();if(!normalized){notify('Enter a discount code first.','warning');return;}await run(async()=>{if(!builder.outlet)throw new Error('Select an outlet first.');const q=await customer.quote({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,selections:selectionPayload,discountCode:normalized,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity,mealPlanId:builder.selectedPlanId||null});setBuilder(b=>({...b,discountCode:normalized,quote:q,step:2}));notify('Discount code applied. Your total has been updated.','success')});};
  const subscribeBuilder=async(legalAccepted)=>run(async()=>{
-   const q=builder.quote||await customer.quote({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity,legalPolicyVersionId:builder.legalPolicyVersionId||undefined,legalAccepted:Boolean(legalAccepted)});
+   const q=builder.quote||await customer.quote({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity,legalPolicyVersionId:builder.legalPolicyVersionId||undefined,legalAccepted:Boolean(legalAccepted),mealPlanId:builder.selectedPlanId||null});
    if(q.requiresAllergyConfirmation)throw new Error('Please review and confirm the allergy warning before continuing.');
-   const s=await customer.subscribe({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,frequency:'Weekly',selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity,legalPolicyVersionId:builder.legalPolicyVersionId||undefined,legalAccepted:Boolean(legalAccepted)});
+   const s=await customer.subscribe({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,frequency:'Weekly',selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity,legalPolicyVersionId:builder.legalPolicyVersionId||undefined,legalAccepted:Boolean(legalAccepted),mealPlanId:builder.selectedPlanId||null});
    setSubs(x=>[s,...x.filter(y=>y.id!==s.id)]);
    setGlobal(g=>({...g,subscriptions:[s,...g.subscriptions.filter(y=>y.id!==s.id)]}));
    setSelectedSubId(s.id);
    setBuilder(b=>({...b,quote:q,step:3}));
    setGuestPackageReady(false);
    try{localStorage.removeItem('healthapp.savedPackageDraft')}catch{}
-   setPaymentSubId(s.id);
-   setActive('payment');
-   notify('Package confirmed. Continue with payment to complete your order.');
+   setPaymentSubId(s.packageStatus==='PaymentPending'?s.id:'');
+   setActive(s.packageStatus==='PendingOutletReview'?'subscriptions':'payment');
+   notify(s.packageStatus==='PendingOutletReview'?'Package submitted. Your outlet will review and confirm the final price before payment.':'Package ready. Continue with payment to activate your order.');
  });
 
  const paySubscription=s=>{setPaymentSubId(s.id);setActive('payment')};
