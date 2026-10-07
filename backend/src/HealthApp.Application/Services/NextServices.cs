@@ -528,11 +528,12 @@ public sealed class PaymentService(
         var normalized = latest.PaymentStatus.Trim().ToUpperInvariant();
         if (normalized == "SUCCESS")
         {
-            if (latest.Amount.HasValue &&
-                Math.Abs(latest.Amount.Value - payment.Amount) > 0.01m)
+            if ((latest.Amount.HasValue &&
+                 Math.Abs(latest.Amount.Value - payment.Amount) > 0.01m) ||
+                !string.Equals(latest.Currency, payment.Currency, StringComparison.OrdinalIgnoreCase))
             {
                 payment.Status = "Failed";
-                payment.FailureReason = "Cashfree payment amount does not match the Broccoly order amount.";
+                payment.FailureReason = "Cashfree payment amount or currency does not match the Broccoly order.";
             }
             else
             {
