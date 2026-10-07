@@ -1,7 +1,7 @@
 using HealthApp.Application.Abstractions; using HealthApp.Shared.DTOs; using Microsoft.AspNetCore.Authorization; using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 namespace HealthApp.Api.Controllers;
-[ApiController,Route("api/outlets/me"),Authorize(Roles="OutletAdmin,OutletManager,KitchenStaff")]
+[ApiController,Route("api/outlets/me"),Authorize(Roles="OutletAdmin,OutletManager,KitchenStaff,Driver")]
 public sealed class OutletController(IOutletService service, IFileStorage fileStorage, IOutletPackageService outletPackages, IOutletSettingsService settings, ICurrentUser current):ControllerBase
 {
  [Authorize(Roles="OutletAdmin")][HttpGet("settings")] public async Task<IActionResult> Settings()=>Ok(await settings.GetAsync());
