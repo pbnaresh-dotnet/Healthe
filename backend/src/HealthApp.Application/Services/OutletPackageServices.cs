@@ -22,8 +22,12 @@ public sealed class OutletPackageActivationService(
         var subscription = await subscriptions.GetAsync(subscriptionId)
             ?? throw new KeyNotFoundException("Subscription not found.");
 
-        if (!subscription.IsOutletCreated)
-            throw new InvalidOperationException("This subscription is not an outlet-created package.");
+        if (!subscription.IsOutletCreated && subscription.PackageStatus != "PaymentPending")
+            throw new InvalidOperationException("This subscription is not awaiting activation payment.");
+
+        var customer = await users.FindByIdAsync(subscription.CustomerId);
+        if (customer is null || customer.Role != UserRole.Customer || customer.OutletId != subscription.OutletId)
+            throw new InvalidOperationException("The package customer is not associated with the package outlet.");
 
         if (subscription.PackageStatus == "Active" && subscription.Status == SubscriptionStatus.Active)
             return subscription;
@@ -59,7 +63,6 @@ public sealed class OutletPackageActivationService(
             var existingDeliveries = await deliveries.GetBySubscriptionAsync(subscription.Id);
             if (existingDeliveries.Count == 0)
             {
-                var customer = await users.FindByIdAsync(subscription.CustomerId);
                 var groups = subscription.DeliveryMode == SubscriptionDeliveryMode.OneDeliveryPerDay
                     ? mealRows.GroupBy(x => x.MealDate.Date).Select(g => g.ToList())
                     : mealRows.Select(x => new List<SubscriptionMealSelection> { x });
@@ -157,19 +160,16 @@ public sealed class OutletPackageService(
     IAllergySafetyService allergySafety,
     IOutletSubscriptionRepository outletSubscriptions,
     IOutletPackageActivationService activation,
-    IUnitOfWork unitOfWork) : IOutletPackageService
+    IUnitOfWork unitOfWork,
+    IOutletLegalPolicyRepository legalPolicies) : IOutletPackageService
 {
     public async Task<IReadOnlyList<UserDto>> GetCustomersAsync()
     {
         if (current.OutletId is not Guid outletId)
             return [];
 
-        var outletSubscriptionCustomerIds = (await subscriptions.GetByOutletAsync(outletId))
-            .Select(x => x.CustomerId)
-            .ToHashSet();
-
         return (await users.GetAllAsync())
-            .Where(x => x.Role == UserRole.Customer && (x.OutletId == outletId || outletSubscriptionCustomerIds.Contains(x.Id)))
+            .Where(x => x.Role == UserRole.Customer && x.OutletId == outletId)
             .OrderBy(x => x.FirstName)
             .ThenBy(x => x.LastName)
             .Select(MapUser)
@@ -187,8 +187,8 @@ public sealed class OutletPackageService(
             throw new ArgumentException("Customer email is required.");
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
             throw new ArgumentException("Customer password must be at least 6 characters.");
-        if (await users.FindByEmailAsync(request.Email) is not null)
-            throw new InvalidOperationException("A customer with this email already exists.");
+        if (await users.FindByEmailAsync(request.Email, outletId) is not null)
+            throw new InvalidOperationException("A customer with this email already exists for this outlet.");
 
         var requestedAllergies = (request.AllergyIds ?? []).Distinct().ToList();
         var validAllergies = await allergens.GetByIdsAsync(requestedAllergies);
@@ -214,22 +214,25 @@ public sealed class OutletPackageService(
             IsActive = true
         };
 
-        await users.AddAsync(customer);
-
-        await profiles.AddOrUpdateAsync(new CustomerProfile
+        await unitOfWork.ExecuteAsync(async () =>
         {
-            Id = Guid.NewGuid(),
-            CustomerId = customer.Id,
-            WeightKg = request.WeightKg,
-            HeightCm = request.HeightCm,
-            Bmi = bmi,
-            DateOfBirth = request.DateOfBirth,
-            Goal = string.IsNullOrWhiteSpace(request.Goal) ? "WeightLoss" : request.Goal.Trim(),
-            ActivityLevel = string.IsNullOrWhiteSpace(request.ActivityLevel) ? "Moderate" : request.ActivityLevel.Trim(),
-            Diet = request.Diet?.Trim() ?? string.Empty,
-            UpdatedAtUtc = DateTime.UtcNow
+            await users.AddAsync(customer);
+
+            await profiles.AddOrUpdateAsync(new CustomerProfile
+            {
+                Id = Guid.NewGuid(),
+                CustomerId = customer.Id,
+                WeightKg = request.WeightKg,
+                HeightCm = request.HeightCm,
+                Bmi = bmi,
+                DateOfBirth = request.DateOfBirth,
+                Goal = string.IsNullOrWhiteSpace(request.Goal) ? "WeightLoss" : request.Goal.Trim(),
+                ActivityLevel = string.IsNullOrWhiteSpace(request.ActivityLevel) ? "Moderate" : request.ActivityLevel.Trim(),
+                Diet = request.Diet?.Trim() ?? string.Empty,
+                UpdatedAtUtc = DateTime.UtcNow
+            });
+            await customerAllergies.ReplaceAsync(customer.Id, requestedAllergies);
         });
-        await customerAllergies.ReplaceAsync(customer.Id, requestedAllergies);
 
         return MapUser(customer);
     }
@@ -294,8 +297,11 @@ public sealed class OutletPackageService(
         profile.Diet = request.Diet?.Trim() ?? string.Empty;
         profile.UpdatedAtUtc = DateTime.UtcNow;
 
-        await profiles.AddOrUpdateAsync(profile);
-        await customerAllergies.ReplaceAsync(customerId, requestedAllergies);
+        await unitOfWork.ExecuteAsync(async () =>
+        {
+            await profiles.AddOrUpdateAsync(profile);
+            await customerAllergies.ReplaceAsync(customerId, requestedAllergies);
+        });
 
         return await GetCustomerProfileAsync(customerId);
     }
@@ -535,7 +541,124 @@ public sealed class OutletPackageService(
         return MapSubscription(subscription, "Pending");
     }
 
-    public async Task<SubscriptionDto?> AcceptAsync(Guid subscriptionId)
+    public async Task<SubscriptionDto?> ConfirmCustomerPackageAsync(Guid subscriptionId, ConfirmCustomerPackageRequest request)
+    {
+        if (current.OutletId is not Guid outletId || current.UserId is not Guid outletUserId)
+            return null;
+
+        var subscription = await subscriptions.GetAsync(subscriptionId)
+            ?? throw new KeyNotFoundException("Package not found.");
+        if (subscription.OutletId != outletId)
+            throw new UnauthorizedAccessException("Package does not belong to this outlet.");
+        if (subscription.IsOutletCreated || subscription.PackageStatus != "PendingOutletReview")
+            throw new InvalidOperationException("This package is not awaiting outlet review.");
+
+        var customer = await users.FindByIdAsync(subscription.CustomerId)
+            ?? throw new KeyNotFoundException("Package customer not found.");
+        if (customer.Role != UserRole.Customer || customer.OutletId != outletId)
+            throw new InvalidOperationException("Package customer is not associated with this outlet.");
+
+        var discountType = Parse<OutletPackageDiscountType>(request.DiscountType, "discount type");
+        var discountValue = Math.Max(0m, request.DiscountValue);
+        if (discountType == OutletPackageDiscountType.Percent && discountValue > 100m)
+            throw new ArgumentException("Outlet discount percentage cannot exceed 100%.");
+
+        var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
+        var mealRows = (await selections.GetBySubscriptionAsync(subscription.Id))
+            .Where(x => x.Status != MealSelectionStatus.Cancelled)
+            .ToList();
+        if (mealRows.Count == 0)
+            throw new InvalidOperationException("The package contains no scheduled meals.");
+
+        var gross = Math.Round(mealRows.Sum(x => x.MealPrice), 2);
+        var baseDiscount = Math.Max(0m, subscription.SubscriptionDiscountAmount - subscription.OutletDiscountValue);
+        var outletDiscount = discountType switch
+        {
+            OutletPackageDiscountType.Percent => Math.Round(gross * discountValue / 100m, 2),
+            OutletPackageDiscountType.Fixed => Math.Min(gross, discountValue),
+            _ => 0m
+        };
+        var calculatedTotalDiscount = Math.Min(gross, baseDiscount + outletDiscount);
+        var discountedMealAmount = Math.Round(gross - calculatedTotalDiscount, 2);
+        if (request.FinalMealAmount.HasValue)
+        {
+            var finalMealAmount = Math.Round(request.FinalMealAmount.Value, 2);
+            if (finalMealAmount < 0m || finalMealAmount > gross)
+                throw new ArgumentException("Final meal amount must be between ₹0 and the package gross meal amount.");
+            discountedMealAmount = finalMealAmount;
+        }
+        var totalDiscount = Math.Round(gross - discountedMealAmount, 2);
+        var additionalOutletDiscount = Math.Max(0m, totalDiscount - baseDiscount);
+        var serviceFee = platformFee.Calculate(discountedMealAmount);
+        var taxes = taxStrategy.Calculate(discountedMealAmount, serviceFee, outlet.RestaurantGstRate, outlet.RestaurantGstMode);
+        var net = taxes.RestaurantTaxableAmount;
+        var commissionRate = subscription.OutletCommissionPercent;
+        var commission = Math.Round(net * commissionRate, 2);
+        var delivery = subscription.DeliveryFee;
+        var totalCharged = Math.Round(net + taxes.RestaurantAmount + delivery + serviceFee + taxes.PlatformAmount, 2);
+        var outletAmount = Math.Round(net + taxes.RestaurantAmount - commission, 2);
+        var now = DateTime.UtcNow;
+
+        await unitOfWork.ExecuteAsync(async () =>
+        {
+            subscription.GrossMealAmount = gross;
+            subscription.SubscriptionDiscountPercent = gross == 0 ? 0 : Math.Round(totalDiscount / gross * 100m, 4);
+            subscription.SubscriptionDiscountAmount = totalDiscount;
+            subscription.NetMealAmount = net;
+            subscription.PlatformServiceFee = serviceFee;
+            subscription.PlatformServiceGst = taxes.PlatformAmount;
+            subscription.PlatformServiceFeePercent = platformFee.Percent;
+            subscription.PlatformServiceGstRate = taxes.PlatformRate;
+            subscription.RestaurantGstRate = taxes.RestaurantRate;
+            subscription.RestaurantGstMode = taxes.RestaurantMode;
+            subscription.RestaurantTaxableAmount = taxes.RestaurantTaxableAmount;
+            subscription.RestaurantGstAmount = taxes.RestaurantAmount;
+            subscription.Price = net;
+            subscription.TotalCharged = totalCharged;
+            subscription.OutletAmount = outletAmount;
+            subscription.OutletCommissionAmount = commission;
+            subscription.OutletDiscountType = request.FinalMealAmount.HasValue ? OutletPackageDiscountType.Fixed : discountType;
+            subscription.OutletDiscountValue = request.FinalMealAmount.HasValue ? additionalOutletDiscount : discountValue;
+            subscription.OutletDiscountReason = request.DiscountReason?.Trim() ?? "";
+            subscription.PackageStatus = "PaymentPending";
+            subscription.Status = SubscriptionStatus.Pending;
+            subscription.SentAtUtc = now;
+            subscription.CreatedByOutletUserId ??= outletUserId;
+
+            await subscriptions.UpdateAsync(subscription);
+
+            var order = await orders.GetBySubscriptionAsync(subscription.Id);
+            if (order is null)
+                throw new InvalidOperationException("Package order could not be found.");
+            order.Total = totalCharged;
+            await orders.UpdateAsync(order);
+
+            var financial = await orderFinancials.GetByOrderAsync(order.Id);
+            if (financial is not null)
+            {
+                financial.GrossMealAmount = gross;
+                financial.DiscountAmount = totalDiscount;
+                financial.NetMealAmount = net;
+                financial.DeliveryAmount = delivery;
+                financial.PlatformServiceFee = serviceFee;
+                financial.PlatformServiceGst = taxes.PlatformAmount;
+                financial.RestaurantGstRate = taxes.RestaurantRate;
+                financial.RestaurantGstMode = taxes.RestaurantMode;
+                financial.RestaurantTaxableAmount = taxes.RestaurantTaxableAmount;
+                financial.RestaurantGstAmount = taxes.RestaurantAmount;
+                financial.CustomerPayable = totalCharged;
+                financial.OutletCommission = commission;
+                financial.OutletSettlementAmount = outletAmount;
+                financial.HealthAppRevenue = serviceFee + commission;
+                // OrderFinancialRepository currently exposes insert-only persistence.
+                // The tracked entity is updated by EF on the unit-of-work SaveChanges.
+            }
+        });
+
+        return MapSubscription(subscription, "Pending");
+    }
+
+    public async Task<SubscriptionDto?> AcceptAsync(Guid subscriptionId, AcceptOutletPackageRequest request, LegalAcceptanceContext? acceptanceContext = null)
     {
         if (current.UserId is not Guid customerId)
             return null;
@@ -544,14 +667,41 @@ public sealed class OutletPackageService(
             ?? throw new KeyNotFoundException("Package not found.");
         if (!subscription.IsOutletCreated || subscription.CustomerId != customerId)
             throw new UnauthorizedAccessException("This package is not available to the current customer.");
+        if (current.OutletId is not Guid customerOutletId || subscription.OutletId != customerOutletId)
+            throw new UnauthorizedAccessException("This package belongs to a different outlet.");
         if (subscription.PackageStatus == "Active")
             return MapSubscription(subscription, (await payments.GetLatestBySubscriptionAsync(subscription.Id))?.Status ?? "Paid");
         if (subscription.PackageStatus != "SentToCustomer")
             throw new InvalidOperationException("This package has already been accepted or is no longer available.");
 
-        subscription.PackageStatus = "PaymentPending";
-        subscription.AcceptedAtUtc = DateTime.UtcNow;
-        await subscriptions.UpdateAsync(subscription);
+        var publishedLegal = await legalPolicies.GetPublishedAsync(subscription.OutletId)
+            ?? throw new InvalidOperationException("This outlet is not ready for customer acceptance because its customer legal policies are not published.");
+        if (!request.LegalAccepted || request.LegalPolicyVersionId != publishedLegal.Id)
+            throw new InvalidOperationException("Please review and accept the latest outlet Terms & Privacy Policy before accepting this package.");
+        var alreadyAccepted = await legalPolicies.HasAcceptedVersionAsync(customerId, subscription.OutletId, publishedLegal.Id);
+        await unitOfWork.ExecuteAsync(async () =>
+        {
+            if (!alreadyAccepted)
+            {
+                await legalPolicies.AddAcceptanceAsync(new CustomerLegalAcceptance
+                {
+                    Id = Guid.NewGuid(),
+                    CustomerId = customerId,
+                    OutletId = subscription.OutletId,
+                    LegalPolicyVersionId = publishedLegal.Id,
+                    TermsAccepted = true,
+                    PrivacyAccepted = true,
+                    CommercialPoliciesAccepted = true,
+                    AcceptedAtUtc = DateTime.UtcNow,
+                    IpAddress = acceptanceContext?.IpAddress,
+                    UserAgent = acceptanceContext?.UserAgent
+                });
+            }
+
+            subscription.PackageStatus = "PaymentPending";
+            subscription.AcceptedAtUtc = DateTime.UtcNow;
+            await subscriptions.UpdateAsync(subscription);
+        });
         return MapSubscription(subscription, "Pending");
     }
 
@@ -562,8 +712,10 @@ public sealed class OutletPackageService(
 
         var subscription = await subscriptions.GetAsync(subscriptionId)
             ?? throw new KeyNotFoundException("Package not found.");
-        if (!subscription.IsOutletCreated || subscription.OutletId != outletId)
+        if (subscription.OutletId != outletId)
             throw new UnauthorizedAccessException("Package does not belong to this outlet.");
+        if (subscription.PackageStatus is not ("SentToCustomer" or "PaymentPending"))
+            throw new InvalidOperationException("This package is not awaiting payment.");
         if (subscription.PackageStatus == "Active")
             return MapSubscription(subscription, "Paid");
 
@@ -617,6 +769,8 @@ public sealed class OutletPackageService(
         var customer = await users.FindByIdAsync(request.CustomerId) ?? throw new KeyNotFoundException("Customer not found.");
         if (customer.Role != UserRole.Customer || !customer.IsActive)
             throw new InvalidOperationException("Select an active customer.");
+
+        await EnsureCustomerAccessAsync(customer.Id);
 
         var duration = Parse<SubscriptionDuration>(request.Duration, "package duration");
         var deliveryMode = Parse<SubscriptionDeliveryMode>(request.DeliveryMode, "delivery mode");
@@ -808,13 +962,8 @@ public sealed class OutletPackageService(
         if (user is null || user.Role != UserRole.Customer)
             throw new KeyNotFoundException("Customer not found.");
 
-        if (user.OutletId == outletId)
-            return;
-
-        if ((await subscriptions.GetByOutletAsync(outletId)).Any(x => x.CustomerId == customerId))
-            return;
-
-        throw new UnauthorizedAccessException("Customer is not connected to this outlet.");
+        if (user.OutletId != outletId)
+            throw new UnauthorizedAccessException("Customer is not associated with this outlet.");
     }
 
     private static SubscriptionDto MapSubscription(Subscription x, string paymentStatus)
@@ -852,11 +1001,16 @@ public sealed class OutletPackageService(
             x.IsOutletCreated,
             x.OutletDiscountType.ToString(),
             x.OutletDiscountValue,
-            x.OutletDiscountReason);
+            x.OutletDiscountReason,
+            x.IsPreplanned,
+            x.PricingMode,
+            x.PriceVisibleToCustomer,
+            x.DeliveryFeeVisibleToCustomer,
+            x.PackageStatus=="PendingOutletReview");
     }
 
     private static UserDto MapUser(User x)
-        => new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId);
+        => new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId, false, null, x.MobileNumber);
 
     private static T Parse<T>(string value, string label) where T : struct, Enum
         => Enum.TryParse<T>(value, true, out var result)

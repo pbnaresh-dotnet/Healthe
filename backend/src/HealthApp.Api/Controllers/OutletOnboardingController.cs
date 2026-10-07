@@ -32,7 +32,7 @@ public sealed class OutletOnboardingController(IOutletOnboardingService service)
 
     [Authorize(Roles = "OutletAdmin")]
     [HttpPost("me/documents")]
-    [RequestSizeLimit(5_000_000)]
+    [RequestSizeLimit(20_000_000)]
     public async Task<IActionResult> CurrentDocument([FromForm] string documentType, IFormFile file)
     {
         if (file is null || file.Length == 0) return BadRequest(new { message = "Please select a document." });
@@ -47,6 +47,16 @@ public sealed class OutletOnboardingController(IOutletOnboardingService service)
     {
         var result = await service.SubmitCurrentAsync();
         return result is null ? Unauthorized() : Ok(result);
+    }
+
+    [Authorize(Roles = "OutletAdmin")]
+    [HttpGet("me/documents/{documentType}")]
+    public async Task<IActionResult> CurrentDocument(string documentType)
+    {
+        var result = await service.GetCurrentDocumentAsync(documentType);
+        return result is null
+            ? NotFound(new { message = "The requested document was not found." })
+            : SendProtectedFile(result);
     }
 
     [HttpGet("{id:guid}")]
@@ -83,4 +93,21 @@ public sealed class OutletOnboardingController(IOutletOnboardingService service)
         var result = await service.SubmitAsync(id, key);
         return result is null ? Unauthorized() : Ok(result);
     }
+
+    [HttpGet("{id:guid}/documents/{documentType}")]
+    public async Task<IActionResult> Document(Guid id, string documentType)
+    {
+        var key = Request.Headers["X-Onboarding-Key"].ToString();
+        var result = await service.GetDocumentAsync(id, key, documentType);
+        return result is null
+            ? Unauthorized()
+            : File(result.Content, result.ContentType, result.FileName);
+    }
+    private IActionResult SendProtectedFile(ProtectedFileDownload result)
+    {
+        Response.Headers.CacheControl = "no-store, no-cache";
+        Response.Headers.Pragma = "no-cache";
+        return File(result.Content, result.ContentType, result.FileName, enableRangeProcessing: false);
+    }
+
 }

@@ -27,6 +27,10 @@ public sealed class User
         set;
     }
     = "";
+    public string? MobileNumber {
+        get;
+        set;
+    }
     public UserRole Role {
         get;
         set;
@@ -44,6 +48,8 @@ public sealed class User
         get;
         set;
     }
+    public bool MarketingOptIn { get; set; }
+    public DateTime? MarketingOptInAtUtc { get; set; }
     public DateTime? DemoExpiresAtUtc {
         get;
         set;
@@ -541,6 +547,27 @@ public sealed class OrderFinancialBreakdown
     }
 }
 
+public sealed class OutletBranding
+{
+    public Guid Id { get; set; }
+    public Guid OutletId { get; set; }
+    public string BrandName { get; set; } = "";
+    public string Tagline { get; set; } = "";
+    public string LogoUrl { get; set; } = "";
+    public string HeroImageUrl { get; set; } = "";
+    public string FaviconUrl { get; set; } = "";
+    public string PrimaryColor { get; set; } = "#14532d";
+    public string SecondaryColor { get; set; } = "#166534";
+    public string HealthHighlights { get; set; } = "";
+    public string About { get; set; } = "";
+    public string FooterText { get; set; } = "";
+    public string FontFamily { get; set; } = "Inter";
+    public string ThemeStyle { get; set; } = "Fresh";
+    public string ButtonStyle { get; set; } = "Rounded";
+    public string CardStyle { get; set; } = "Soft";
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 public sealed class Outlet
 {
     public Guid Id {
@@ -589,6 +616,7 @@ public sealed class Outlet
         get;
         set;
     }
+    public DeliveryCoverageMode DeliveryCoverageMode { get; set; } = DeliveryCoverageMode.Radius;
     public OutletStatus Status {
         get;
         set;
@@ -648,6 +676,24 @@ public sealed class Outlet
         set;
     }
     = true;
+
+    // Outlet-owned customer-facing legal and commercial policies.
+    public string CustomerTermsAndConditions { get; set; } = "";
+    public string CustomerPrivacyPolicy { get; set; } = "";
+    public string CancellationRefundPolicy { get; set; } = "";
+    public string MealSkipReschedulePolicy { get; set; } = "";
+    public string DeliveryPolicy { get; set; } = "";
+    public string AllergenDietaryDisclaimer { get; set; } = "";
+    public string PaymentPricingPromotionalTerms { get; set; } = "";
+    public string LegalVersion { get; set; } = "1.0";
+    public DateTime? LegalEffectiveDateUtc { get; set; }
+    public bool LegalPoliciesPublished { get; set; }
+
+    // Customer package experience configuration. Values are snapshotted onto subscriptions when created.
+    public string CustomPackagePricingMode { get; set; } = "Calculated";
+    public bool ShowPackagePriceToCustomer { get; set; } = true;
+    public bool ShowDeliveryFeeToCustomer { get; set; } = true;
+
     public decimal RestaurantGstRate {
         get;
         set;
@@ -656,6 +702,7 @@ public sealed class Outlet
         get;
         set;
     } = GstMode.Exclusive;
+    public OutletBranding? Branding { get; set; }
 }
 
 public sealed class SaaSPlan
@@ -699,6 +746,20 @@ public sealed class SaaSPlan
         set;
     }
     = "";
+}
+
+public sealed class OutletDomain
+{
+    public Guid Id { get; set; }
+    public Guid OutletId { get; set; }
+    public string Hostname { get; set; } = "";
+    public string VerificationToken { get; set; } = "";
+    public string VerificationRecordName { get; set; } = "";
+    public OutletDomainStatus Status { get; set; } = OutletDomainStatus.Pending;
+    public bool IsPrimary { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? VerifiedAtUtc { get; set; }
+    public Outlet? Outlet { get; set; }
 }
 
 public sealed class OutletSubscription
@@ -777,14 +838,18 @@ public sealed class OutletOnboardingApplication
     public string OwnerPhone { get; set; } = "";
     public string AadhaarNumber { get; set; } = "";
     public string AadhaarCardUrl { get; set; } = "";
+    public string AadhaarCardKey { get; set; } = "";
     public string AadhaarCardFileName { get; set; } = "";
     public string BusinessRegistrationUrl { get; set; } = "";
+    public string BusinessRegistrationKey { get; set; } = "";
     public string BusinessRegistrationFileName { get; set; } = "";
     public string BusinessPan { get; set; } = "";
     public string BusinessPanDocumentUrl { get; set; } = "";
+    public string BusinessPanDocumentKey { get; set; } = "";
     public string BusinessPanDocumentFileName { get; set; } = "";
     public string GstNumber { get; set; } = "";
     public string GstCertificateUrl { get; set; } = "";
+    public string GstCertificateKey { get; set; } = "";
     public string GstCertificateFileName { get; set; } = "";
     public string VerificationNotes { get; set; } = "";
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
@@ -841,6 +906,10 @@ public sealed class MealPlan
         set;
     }
     = true;
+    // A preplanned package is an outlet-defined recommended package with a fixed base price.
+    public bool IsPreplanned { get; set; }
+    public string AvailableCity { get; set; } = "";
+    public int DurationDays { get; set; } = 7;
 }
 
 public sealed class Recipe
@@ -1127,6 +1196,10 @@ public sealed class OutletMenuItem
         get;
         set;
     }
+    // Outlet-configured option grouping for the customer meal picker.
+    public string OptionGroup { get; set; } = "Main";
+    public bool IsRequired { get; set; } = true;
+    public int MaxSelections { get; set; } = 1;
 }
 
 public sealed class Subscription
@@ -1292,6 +1365,10 @@ public sealed class Subscription
         get;
         set;
     } = "Active";
+    public bool IsPreplanned { get; set; }
+    public string PricingMode { get; set; } = "Calculated";
+    public bool PriceVisibleToCustomer { get; set; } = true;
+    public bool DeliveryFeeVisibleToCustomer { get; set; } = true;
     public bool IsOutletCreated {
         get;
         set;

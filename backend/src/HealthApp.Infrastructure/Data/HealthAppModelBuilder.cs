@@ -10,6 +10,8 @@ internal static class HealthAppModelBuilder
         b.HasDefaultSchema("dbo");
         ConfigureUser(b.Entity<User>());
         ConfigureOutlet(b.Entity<Outlet>());
+        ConfigureOutletBranding(b.Entity<OutletBranding>());
+        ConfigureOutletDomain(b.Entity<OutletDomain>());
         ConfigureSaaSPlan(b.Entity<SaaSPlan>());
         ConfigureOutletSubscription(b.Entity<OutletSubscription>());
         ConfigureOutletOnboarding(b.Entity<OutletOnboardingApplication>());
@@ -42,22 +44,67 @@ internal static class HealthAppModelBuilder
         ConfigurePayment(b.Entity<PaymentTransaction>());
         ConfigureDiscountCode(b.Entity<DiscountCode>());
         ConfigureOrderFinancial(b.Entity<OrderFinancialBreakdown>());
+        ConfigureOutletLegalPolicyVersion(b.Entity<OutletLegalPolicyVersion>());
+        ConfigureCustomerLegalAcceptance(b.Entity<CustomerLegalAcceptance>());
+        ConfigureOutletForeignKeys(b);
+    }
+
+    private static void ConfigureOutletForeignKeys(ModelBuilder b)
+    {
+        b.Entity<OutletSubscription>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<PlatformTransaction>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<MealPlan>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Recipe>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<OutletMenuItem>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Subscription>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Order>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Delivery>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<DeliveryRoute>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<OutletDeliveryArea>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<DeliveryPricingRule>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<SubscriptionDiscountTier>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<DiscountCode>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+
+        b.Entity<CustomerAddress>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<CustomerCreditTransaction>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Subscription>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Order>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<PaymentTransaction>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<PlatformTransaction>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Delivery>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<OutletOnboardingApplication>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<OutletOnboardingApplication>().HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
     }
     private static void ConfigureUser(EntityTypeBuilder<User> e)
     {
         e.ToTable("Users");
         e.HasKey(x => x.Id);
         e.Property(x => x.Email).HasMaxLength(320).IsRequired();
-        e.HasIndex(x => x.Email).IsUnique();
+        // Customer identities are tenant-scoped. Keep a single global identity for
+        // platform users while allowing the same email in different outlet tenants.
+        e.HasIndex(x => x.Email)
+            .HasDatabaseName("IX_Users_Email_Global")
+            .IsUnique()
+            .HasFilter("[OutletId] IS NULL");
+        e.HasIndex(x => new { x.OutletId, x.Email })
+            .HasDatabaseName("IX_Users_OutletId_Email")
+            .IsUnique()
+            .HasFilter("[OutletId] IS NOT NULL");
         e.Property(x => x.PasswordHash).HasMaxLength(500).IsRequired();
         e.Property(x => x.FirstName).HasMaxLength(100);
         e.Property(x => x.LastName).HasMaxLength(100);
+        e.Property(x => x.MobileNumber).HasMaxLength(20);
+        e.HasIndex(x => new { x.MobileNumber, x.OutletId }).IsUnique()
+            .HasFilter("[MobileNumber] IS NOT NULL AND [MobileNumber] <> ''");
         e.Property(x => x.Role).HasConversion<int>();
         e.HasIndex(x => x.OutletId);
         e.HasIndex(x => x.IsDemo);
         e.Property(x => x.DemoExpiresAtUtc);
+        e.Property(x => x.MarketingOptIn).IsRequired();
+        e.Property(x => x.MarketingOptInAtUtc);
         e.HasIndex(x => x.IsDemo);
         e.Property(x => x.DemoExpiresAtUtc);
+        e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
     }
     private static void ConfigureOutlet(EntityTypeBuilder<Outlet> e)
     {
@@ -70,6 +117,20 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.State).HasMaxLength(100).IsRequired();
         e.Property(x => x.Pincode).HasMaxLength(20).IsRequired();
         e.Property(x => x.DeliveryDays).HasMaxLength(200);
+        e.Property(x => x.CustomerTermsAndConditions).HasColumnType("nvarchar(max)");
+        e.Property(x => x.CustomerPrivacyPolicy).HasColumnType("nvarchar(max)");
+        e.Property(x => x.CancellationRefundPolicy).HasColumnType("nvarchar(max)");
+        e.Property(x => x.MealSkipReschedulePolicy).HasColumnType("nvarchar(max)");
+        e.Property(x => x.DeliveryPolicy).HasColumnType("nvarchar(max)");
+        e.Property(x => x.AllergenDietaryDisclaimer).HasColumnType("nvarchar(max)");
+        e.Property(x => x.PaymentPricingPromotionalTerms).HasColumnType("nvarchar(max)");
+        e.Property(x => x.LegalVersion).HasMaxLength(40);
+        e.Property(x => x.LegalEffectiveDateUtc);
+        e.Property(x => x.LegalPoliciesPublished);
+        e.Property(x => x.DeliveryCoverageMode).HasConversion<int>();
+        e.Property(x => x.CustomPackagePricingMode).HasMaxLength(30).IsRequired();
+        e.Property(x => x.ShowPackagePriceToCustomer).IsRequired();
+        e.Property(x => x.ShowDeliveryFeeToCustomer).IsRequired();
         e.Property(x => x.Status).HasConversion<int>();
         e.Property(x => x.BillingPlan).HasConversion<int>();
         e.Property(x => x.LogoUrl).HasMaxLength(1000);
@@ -81,6 +142,83 @@ internal static class HealthAppModelBuilder
         e.HasIndex(x => x.Slug).IsUnique();
         e.HasIndex(x => x.Subdomain).IsUnique();
     }
+    private static void ConfigureOutletLegalPolicyVersion(EntityTypeBuilder<OutletLegalPolicyVersion> e)
+    {
+        e.ToTable("OutletLegalPolicyVersions");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Version).HasMaxLength(40).IsRequired();
+        e.Property(x => x.CustomerTermsAndConditions).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.CustomerPrivacyPolicy).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.CancellationRefundPolicy).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.MealSkipReschedulePolicy).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.DeliveryPolicy).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.AllergenDietaryDisclaimer).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.PaymentPricingPromotionalTerms).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.ContentHash).HasMaxLength(64).IsRequired();
+        e.Property(x => x.EffectiveDateUtc).IsRequired();
+        e.Property(x => x.CreatedAtUtc).IsRequired();
+        e.Property(x => x.PublishedAtUtc);
+        e.Property(x => x.CreatedByUserId);
+        e.Property(x => x.IsPublished).IsRequired();
+        e.HasIndex(x => new { x.OutletId, x.Version }).IsUnique();
+        e.HasIndex(x => x.OutletId)
+            .IsUnique()
+            .HasFilter("[IsPublished] = 1")
+            .HasDatabaseName("UX_OutletLegalPolicyVersions_Current");
+        e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+    }
+
+    private static void ConfigureCustomerLegalAcceptance(EntityTypeBuilder<CustomerLegalAcceptance> e)
+    {
+        e.ToTable("CustomerLegalAcceptances");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.TermsAccepted).IsRequired();
+        e.Property(x => x.PrivacyAccepted).IsRequired();
+        e.Property(x => x.CommercialPoliciesAccepted).IsRequired();
+        e.Property(x => x.AcceptedAtUtc).IsRequired();
+        e.Property(x => x.IpAddress).HasMaxLength(64);
+        e.Property(x => x.UserAgent).HasMaxLength(1000);
+        e.HasIndex(x => new { x.CustomerId, x.OutletId, x.LegalPolicyVersionId }).IsUnique();
+        e.HasIndex(x => new { x.CustomerId, x.OutletId, x.AcceptedAtUtc });
+        e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<OutletLegalPolicyVersion>().WithMany().HasForeignKey(x => x.LegalPolicyVersionId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+    }
+
+    private static void ConfigureOutletBranding(EntityTypeBuilder<OutletBranding> e)
+    {
+        e.ToTable("OutletBrandings");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.BrandName).HasMaxLength(200).IsRequired();
+        e.Property(x => x.Tagline).HasMaxLength(300);
+        e.Property(x => x.LogoUrl).HasMaxLength(1000);
+        e.Property(x => x.HeroImageUrl).HasMaxLength(1000);
+        e.Property(x => x.FaviconUrl).HasMaxLength(1000);
+        e.Property(x => x.PrimaryColor).HasMaxLength(20);
+        e.Property(x => x.SecondaryColor).HasMaxLength(20);
+        e.Property(x => x.HealthHighlights).HasMaxLength(2000);
+        e.Property(x => x.About).HasMaxLength(4000);
+        e.Property(x => x.FooterText).HasMaxLength(1000);
+        e.Property(x => x.FontFamily).HasMaxLength(40);
+        e.Property(x => x.ThemeStyle).HasMaxLength(40);
+        e.Property(x => x.ButtonStyle).HasMaxLength(40);
+        e.Property(x => x.CardStyle).HasMaxLength(40);
+        e.HasIndex(x => x.OutletId).IsUnique();
+        e.HasOne<Outlet>().WithOne(x => x.Branding).HasForeignKey<OutletBranding>(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+    }
+    private static void ConfigureOutletDomain(EntityTypeBuilder<OutletDomain> e)
+    {
+        e.ToTable("OutletDomains");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Hostname).HasMaxLength(253).IsRequired();
+        e.Property(x => x.VerificationToken).HasMaxLength(128).IsRequired();
+        e.Property(x => x.VerificationRecordName).HasMaxLength(253).IsRequired();
+        e.Property(x => x.Status).HasConversion<int>();
+        e.HasIndex(x => x.Hostname).IsUnique();
+        e.HasIndex(x => new { x.OutletId, x.Status });
+        e.HasOne(x => x.Outlet).WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+    }
+
     private static void ConfigureSaaSPlan(EntityTypeBuilder<SaaSPlan> e)
     {
         e.ToTable("SaaSPlans");
@@ -136,14 +274,18 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.OwnerPhone).HasMaxLength(40);
         e.Property(x => x.AadhaarNumber).HasMaxLength(20);
         e.Property(x => x.AadhaarCardUrl).HasMaxLength(1000);
+        e.Property(x => x.AadhaarCardKey).HasMaxLength(1000);
         e.Property(x => x.AadhaarCardFileName).HasMaxLength(255);
         e.Property(x => x.BusinessRegistrationUrl).HasMaxLength(1000);
+        e.Property(x => x.BusinessRegistrationKey).HasMaxLength(1000);
         e.Property(x => x.BusinessRegistrationFileName).HasMaxLength(255);
         e.Property(x => x.BusinessPan).HasMaxLength(20);
         e.Property(x => x.BusinessPanDocumentUrl).HasMaxLength(1000);
+        e.Property(x => x.BusinessPanDocumentKey).HasMaxLength(1000);
         e.Property(x => x.BusinessPanDocumentFileName).HasMaxLength(255);
         e.Property(x => x.GstNumber).HasMaxLength(30);
         e.Property(x => x.GstCertificateUrl).HasMaxLength(1000);
+        e.Property(x => x.GstCertificateKey).HasMaxLength(1000);
         e.Property(x => x.GstCertificateFileName).HasMaxLength(255);
         e.Property(x => x.VerificationNotes).HasMaxLength(2000);
         e.HasIndex(x => x.Email);
@@ -175,7 +317,11 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.Price).HasPrecision(18,2);
         e.Property(x => x.Currency).HasMaxLength(3);
         e.Property(x => x.Description).HasMaxLength(1000);
-        e.HasIndex(x => x.OutletId);
+        e.Property(x => x.AvailableCity).HasMaxLength(100);
+        e.Property(x => x.DurationDays).IsRequired();
+        e.Property(x => x.IsPreplanned).IsRequired();
+        e.HasIndex(x => new { x.OutletId, x.IsActive, x.IsPreplanned });
+        e.HasIndex(x => new { x.OutletId, x.AvailableCity });
     }
     private static void ConfigureRecipe(EntityTypeBuilder<Recipe> e)
     {
@@ -262,6 +408,9 @@ internal static class HealthAppModelBuilder
         e.HasKey(x => x.Id);
         e.Property(x => x.DayOfWeek).HasConversion<int>();
         e.Property(x => x.MealSlot).HasConversion<int>();
+        e.Property(x => x.OptionGroup).HasMaxLength(50).IsRequired();
+        e.Property(x => x.IsRequired).IsRequired();
+        e.Property(x => x.MaxSelections).IsRequired();
         e.HasIndex(x => new {
             x.OutletId, x.DayOfWeek, x.MealSlot, x.RecipeId
         });
@@ -295,9 +444,19 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.Frequency).HasMaxLength(30);
         e.Property(x => x.Status).HasConversion<int>();
         e.Property(x => x.PackageStatus).HasMaxLength(40);
+        e.Property(x => x.PricingMode).HasMaxLength(30);
+        e.Property(x => x.IsPreplanned).IsRequired();
+        e.Property(x => x.PriceVisibleToCustomer).IsRequired();
+        e.Property(x => x.DeliveryFeeVisibleToCustomer).IsRequired();
         e.Property(x => x.OutletDiscountType).HasConversion<int>();
         e.Property(x => x.OutletDiscountValue).HasPrecision(18,2);
         e.Property(x => x.OutletDiscountReason).HasMaxLength(500);
+        // Explicit SQL Server precision for subscription financial snapshot fields.
+        e.Property(x => x.DiscountCodeAmount).HasPrecision(18,2);
+        e.Property(x => x.OutletCommissionAmount).HasPrecision(18,2);
+        e.Property(x => x.OutletCommissionPercent).HasPrecision(9,4);
+        e.Property(x => x.PlatformServiceFeePercent).HasPrecision(9,4);
+        e.Property(x => x.PlatformServiceGstRate).HasPrecision(9,4);
         e.Property(x => x.PaymentMethod).HasMaxLength(40);
         e.HasIndex(x => new {
             x.CustomerId, x.Status

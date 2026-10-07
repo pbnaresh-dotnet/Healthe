@@ -10,7 +10,8 @@ public sealed class OutletVerificationService(
     ISaaSPlanRepository plans,
     IOutletRepository outlets,
     IOutletSubscriptionRepository outletSubscriptions,
-    IUserRepository users) : IOutletVerificationService
+    IUserRepository users,
+    IFileStorage storage) : IOutletVerificationService
 {
     public async Task<IReadOnlyList<OutletVerificationSummaryDto>> GetPendingAsync() =>
         (await applications.GetByStatusAsync("UnderVerification"))
@@ -23,6 +24,42 @@ public sealed class OutletVerificationService(
     {
         var x = await applications.GetAsync(id);
         return x is null ? null : ToDetail(x);
+    }
+
+    public async Task<ProtectedFileDownload?> GetDocumentAsync(Guid id, string documentType)
+    {
+        var x = await applications.GetAsync(id);
+        if (x is null)
+            return null;
+
+        var type = NormalizeDocumentType(documentType)
+            ?? throw new ArgumentException("Unsupported document type.");
+
+        var key = type switch
+        {
+            "AadhaarCard" => x.AadhaarCardKey,
+            "BusinessRegistration" => x.BusinessRegistrationKey,
+            "BusinessPan" => x.BusinessPanDocumentKey,
+            "GstCertificate" => x.GstCertificateKey,
+            _ => ""
+        };
+
+        var fileName = type switch
+        {
+            "AadhaarCard" => x.AadhaarCardFileName,
+            "BusinessRegistration" => x.BusinessRegistrationFileName,
+            "BusinessPan" => x.BusinessPanDocumentFileName,
+            "GstCertificate" => x.GstCertificateFileName,
+            _ => ""
+        };
+
+        if (string.IsNullOrWhiteSpace(key))
+            return null;
+
+        var file = await storage.OpenReadAsync(key);
+        return file is null
+            ? null
+            : new ProtectedFileDownload(file.Content, file.ContentType, string.IsNullOrWhiteSpace(fileName) ? "document" : fileName);
     }
 
     public async Task<OutletVerificationDetailDto?> DecideAsync(Guid id, DecideOutletVerificationRequest request)
@@ -130,6 +167,19 @@ public sealed class OutletVerificationService(
         return ToDetail(x);
     }
 
+    private static string? NormalizeDocumentType(string? value) =>
+        value?.Trim().Replace(" ", "", StringComparison.Ordinal)
+            .Replace("-", "", StringComparison.Ordinal)
+            .Replace("_", "", StringComparison.Ordinal)
+            .ToLowerInvariant() switch
+        {
+            "aadhaar" or "aadhaarcard" => "AadhaarCard",
+            "businessregistration" or "registration" => "BusinessRegistration",
+            "businesspan" or "pan" => "BusinessPan",
+            "gstcertificate" or "gst" => "GstCertificate",
+            _ => null
+        };
+
     private async Task<string> CreateUniqueSlugAsync(string name)
     {
         var baseSlug = Slugify(name);
@@ -168,7 +218,9 @@ public sealed class OutletVerificationService(
             x.Id, x.Status, x.PaymentStatus, x.PlanName, x.BillingCycle, x.SubscriptionFee, x.SetupFee,
             x.BusinessType, x.OutletName, x.Description, x.City, x.State, x.Pincode,
             x.AddressLine1, x.AddressLine2, x.OwnerName, x.OwnerEmail, x.OwnerPhone,
-            x.AadhaarNumber, x.AadhaarCardUrl, x.BusinessRegistrationUrl,
-            x.BusinessPan, x.BusinessPanDocumentUrl, x.GstNumber, x.GstCertificateUrl,
+            x.AadhaarNumber, !string.IsNullOrWhiteSpace(x.AadhaarCardKey) ? $"/api/admin/outlet-onboarding/{x.Id}/documents/AadhaarCard" : "",
+            !string.IsNullOrWhiteSpace(x.BusinessRegistrationKey) ? $"/api/admin/outlet-onboarding/{x.Id}/documents/BusinessRegistration" : "",
+            x.BusinessPan, !string.IsNullOrWhiteSpace(x.BusinessPanDocumentKey) ? $"/api/admin/outlet-onboarding/{x.Id}/documents/BusinessPan" : "",
+            x.GstNumber, !string.IsNullOrWhiteSpace(x.GstCertificateKey) ? $"/api/admin/outlet-onboarding/{x.Id}/documents/GstCertificate" : "",
             x.SubmittedAtUtc, x.VerificationNotes);
 }

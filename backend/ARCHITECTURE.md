@@ -4,6 +4,27 @@
 
 `CustomerService` -> repository abstractions -> EF repositories -> `HealthAppDbContext` -> SQL Server.
 
+## Multi-tenant SaaS
+
+The platform uses a shared SQL Server database with outlet-level tenancy. Tenant-owned business records carry an `OutletId`; customer identities also carry `OutletId`.
+
+Examples:
+
+`Outlet 1 -> Customer A/B/C`
+`Outlet 2 -> Customer D/E/F`
+
+Tenant isolation is enforced in layers:
+
+- authenticated customer/outlet tokens carry `outlet_id`;
+- `TenantContextMiddleware` resolves the optional `X-Outlet-Slug` request tenant and rejects mismatches;
+- outlet application services validate `CurrentUser.OutletId`;
+- tenant-sensitive repositories expose outlet-scoped operations where an ID-only operation could cross a tenant boundary;
+- SQL Server foreign keys connect tenant-owned tables to `Outlets`;
+- customer email uniqueness is scoped to outlet for tenant accounts.
+
+Marketplace APIs remain multi-outlet when no tenant is supplied. Standalone customer deployments can still set `VITE_OUTLET_SLUG` for local or build-time compatibility, but the customer SPA can now resolve the tenant from its runtime hostname. Platform subdomains such as `fitfood.healthapp.com` resolve through the outlet's existing `Subdomain`; custom domains are stored in `OutletDomains` and only `Active` mappings are resolved. Hostname/header/authenticated-tenant mismatches are rejected.
+
+
 Transactions use EF Core execution strategies and explicit SQL transactions.
 
 ## Patterns
@@ -42,3 +63,9 @@ Unused meals can be rescheduled through subscription end + seven calendar days.
 Images and other uploaded files use the `IFileStorage` abstraction. The default development provider stores files locally; production can switch to Azure Blob Storage through `Storage:Provider` configuration without changing the API/application layer.
 
 Address map lookup uses the `IGeocodingService` abstraction. Customer-selected latitude/longitude remains the authoritative delivery pinpoint; reverse geocoding only supplies editable address text and helps match the HealthApp city/area master.
+
+## Outlet branding ownership
+
+Visual branding is tenant-owned and configured by each **Outlet Admin**. The platform keeps a dedicated one-to-one `OutletBrandings` row per outlet for the presentation source of truth. It includes the brand name, tagline, logo, hero image, favicon, primary/secondary colours, health highlights, about text and footer text.
+
+Super Admin remains responsible for tenant/platform controls such as outlet activation, SaaS subscription and domain configuration. Outlet Admin controls the outlet's customer-facing presentation and operating content. Legacy branding fields on `Outlets` remain synchronized for backward compatibility with older reports and labels.

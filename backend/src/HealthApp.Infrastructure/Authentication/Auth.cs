@@ -53,6 +53,6 @@ public sealed class JwtTokenService(IOptions<JwtOptions> options) : ITokenServic
         var key=new SymmetricSecurityKey(Encoding.UTF8.GetBytes(o.Key));
         var creds=new SigningCredentials(key,SecurityAlgorithms.HmacSha256);
         var token=new JwtSecurityToken(o.Issuer,o.Audience,claims,expires:expires,signingCredentials:creds);
-        return new(new JwtSecurityTokenHandler().WriteToken(token),expires,new(user.Id,user.Email,user.FirstName,user.LastName,user.Role.ToString(),user.OutletId));
+        return new(new JwtSecurityTokenHandler().WriteToken(token),expires,new(user.Id,user.Email,user.FirstName,user.LastName,user.Role.ToString(),user.OutletId,false,null,user.MobileNumber,user.MarketingOptIn,user.MarketingOptInAtUtc));
     }
 }

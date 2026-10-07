@@ -10,10 +10,38 @@ public interface ICustomerAllergyRepository { Task<IReadOnlyList<CustomerAllergy
 public interface ICatalogService { Task<IReadOnlyList<IngredientDto>> GetIngredientsAsync(); Task<IReadOnlyList<AllergenDto>> GetAllergensAsync(); }
 public interface IAllergySafetyService { Task<IReadOnlyList<AllergyWarningDto>> GetWarningsAsync(Guid customerId, IReadOnlyCollection<Recipe> recipes); Task EnsureConfirmedAsync(Guid customerId, IReadOnlyCollection<Recipe> recipes, IReadOnlyCollection<Guid>? confirmedRecipeIds); }
 
-public interface IUserRepository { Task<User?> FindByEmailAsync(string email); Task<User?> FindByIdAsync(Guid id); Task AddAsync(User user); Task<IReadOnlyList<User>> GetAllAsync(); }
+public interface IUserRepository { Task<User?> FindByEmailAsync(string email); Task<User?> FindByEmailAsync(string email, Guid outletId); Task<IReadOnlyList<User>> FindTenantUsersByEmailAsync(string email); Task<User?> FindByMobileAsync(string mobileNumber, Guid? outletId = null); Task<User?> FindByIdAsync(Guid id); Task AddAsync(User user); Task UpdateAsync(User user); Task<IReadOnlyList<User>> GetAllAsync(); }
+public interface IOutletBrandingRepository
+{
+    Task<OutletBranding?> GetByOutletAsync(Guid outletId);
+    Task AddAsync(OutletBranding branding);
+    Task UpdateAsync(OutletBranding branding);
+}
+public interface IOutletDomainRepository
+{
+    Task<OutletDomain?> GetAsync(Guid id);
+    Task<OutletDomain?> GetActiveByHostnameAsync(string hostname);
+    Task<OutletDomain?> GetByHostnameAsync(string hostname);
+    Task<IReadOnlyList<OutletDomain>> GetByOutletAsync(Guid outletId);
+    Task<IReadOnlyList<OutletDomain>> GetAllAsync();
+    Task AddAsync(OutletDomain domain);
+    Task UpdateAsync(OutletDomain domain);
+}
+
+
 public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); Task<Outlet?> GetByIdAsync(Guid id); Task<Outlet?> GetBySlugAsync(string slug); Task<Outlet?> GetBySubdomainAsync(string subdomain); Task AddAsync(Outlet outlet); Task UpdateAsync(Outlet outlet); }
+public interface IOutletLegalPolicyRepository
+{
+    Task<OutletLegalPolicyVersion?> GetPublishedAsync(Guid outletId);
+    Task<OutletLegalPolicyVersion?> GetByIdAsync(Guid id, Guid outletId);
+    Task<OutletLegalPolicyVersion?> GetByVersionAsync(Guid outletId, string version);
+    Task<IReadOnlyList<OutletLegalPolicyVersion>> GetHistoryAsync(Guid outletId);
+    Task PublishVersionAsync(OutletLegalPolicyVersion version);
+    Task<bool> HasAcceptedVersionAsync(Guid customerId, Guid outletId, Guid versionId);
+    Task AddAcceptanceAsync(CustomerLegalAcceptance acceptance);
+}
 public interface ISaaSPlanRepository { Task<IReadOnlyList<SaaSPlan>> GetActiveAsync(); Task<SaaSPlan?> GetAsync(Guid id); }
-public interface IOutletSubscriptionRepository { Task<OutletSubscription?> GetByOutletAsync(Guid outletId); Task AddAsync(OutletSubscription subscription); Task UpdateAsync(OutletSubscription subscription); }
+public interface IOutletSubscriptionRepository { Task<OutletSubscription?> GetByOutletAsync(Guid outletId); Task<IReadOnlySet<Guid>> GetActiveOutletIdsAsync(); Task AddAsync(OutletSubscription subscription); Task UpdateAsync(OutletSubscription subscription); }
 public interface IPlatformTransactionRepository { Task AddAsync(PlatformTransaction transaction); Task<IReadOnlyList<PlatformTransaction>> GetAllAsync(); Task<bool> ExistsByReferenceAsync(string referenceId); }
 public interface IOutletOnboardingRepository
 {
@@ -32,7 +60,9 @@ public interface IOutletOnboardingService
     Task<OutletOnboardingDto?> SaveCurrentDetailsAsync(SaveOutletOnboardingDetailsRequest request);
     Task<OutletOnboardingDocumentDto?> UploadCurrentDocumentAsync(string documentType, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default);
     Task<OutletOnboardingDto?> SubmitCurrentAsync();
+    Task<ProtectedFileDownload?> GetCurrentDocumentAsync(string documentType);
     Task<OutletOnboardingDto?> GetAsync(Guid id, string accessKey);
+    Task<ProtectedFileDownload?> GetDocumentAsync(Guid id, string accessKey, string documentType);
     Task<OutletOnboardingDto?> SaveDetailsAsync(Guid id, string accessKey, SaveOutletOnboardingDetailsRequest request);
     Task<OutletOnboardingDocumentDto?> UploadDocumentAsync(Guid id, string accessKey, string documentType, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default);
     Task<OutletOnboardingDto?> SubmitAsync(Guid id, string accessKey);
@@ -42,11 +72,12 @@ public interface IOutletVerificationService
 {
     Task<IReadOnlyList<OutletVerificationSummaryDto>> GetPendingAsync();
     Task<OutletVerificationDetailDto?> GetAsync(Guid id);
+    Task<ProtectedFileDownload?> GetDocumentAsync(Guid id, string documentType);
     Task<OutletVerificationDetailDto?> DecideAsync(Guid id, DecideOutletVerificationRequest request);
 }
 
 public interface IMealPlanRepository { Task<IReadOnlyList<MealPlan>> GetByOutletAsync(Guid outletId); Task<MealPlan?> GetAsync(Guid id); Task AddAsync(MealPlan plan); }
-public interface IRecipeRepository { Task<IReadOnlyList<Recipe>> GetByOutletAsync(Guid outletId); Task<IReadOnlyList<Recipe>> GetByOutletAndCategoryAsync(Guid outletId, string? category); Task<IReadOnlyList<Recipe>> GetByIdsAsync(IEnumerable<Guid> ids); Task<Recipe?> GetAsync(Guid id); Task AddAsync(Recipe recipe); Task UpdateAsync(Recipe recipe); Task DeleteAsync(Guid id); }
+public interface IRecipeRepository { Task<IReadOnlyList<Recipe>> GetByOutletAsync(Guid outletId); Task<IReadOnlyList<Recipe>> GetByOutletAndCategoryAsync(Guid outletId, string? category); Task<IReadOnlyList<Recipe>> GetByIdsAsync(IEnumerable<Guid> ids); Task<IReadOnlyList<Recipe>> GetByIdsForOutletAsync(IEnumerable<Guid> ids, Guid outletId); Task<Recipe?> GetAsync(Guid id); Task<Recipe?> GetForOutletAsync(Guid id, Guid outletId); Task AddAsync(Recipe recipe); Task UpdateAsync(Recipe recipe); Task DeleteAsync(Guid id); Task<bool> DeleteAsync(Guid id, Guid outletId); }
 public interface IOutletMenuRepository { Task<IReadOnlyList<OutletMenuItem>> GetByOutletAsync(Guid outletId); Task<IReadOnlyList<OutletMenuItem>> GetByOutletDayAsync(Guid outletId, DayOfWeek day); Task AddAsync(OutletMenuItem item); Task DeleteAsync(Guid id); Task ReplaceAsync(Guid outletId, IEnumerable<OutletMenuItem> items); }
 public interface ISubscriptionRepository { Task<IReadOnlyList<Subscription>> GetByCustomerAsync(Guid customerId); Task<IReadOnlyList<Subscription>> GetByOutletAsync(Guid outletId); Task<Subscription?> GetAsync(Guid id); Task AddAsync(Subscription subscription); Task UpdateAsync(Subscription subscription); }
 public interface ISubscriptionMealSelectionRepository { Task<IReadOnlyList<SubscriptionMealSelection>> GetBySubscriptionAsync(Guid subscriptionId); Task<IReadOnlyList<SubscriptionMealSelection>> GetBySubscriptionAndDateRangeAsync(Guid subscriptionId, DateTime from, DateTime to); Task<SubscriptionMealSelection?> GetAsync(Guid id); Task AddRangeAsync(IEnumerable<SubscriptionMealSelection> selections); Task UpdateAsync(SubscriptionMealSelection selection); Task DeleteBySubscriptionAndDateRangeAsync(Guid subscriptionId, DateTime from, DateTime to); }
@@ -55,25 +86,83 @@ public interface IOrderRepository { Task<IReadOnlyList<Order>> GetByCustomerAsyn
 public interface IDeliveryRepository { Task<IReadOnlyList<Delivery>> GetByOutletAsync(Guid outletId); Task AddAsync(Delivery delivery); Task<Delivery?> GetAsync(Guid id); Task UpdateAsync(Delivery delivery); Task<IReadOnlyList<Delivery>> GetBySubscriptionAsync(Guid subscriptionId); }
 public interface ITokenService { AuthResponse CreateToken(User user); }
 public sealed record FileStorageResult(string Url, string Key, string ContentType);
-public interface IFileStorage { Task<FileStorageResult> UploadAsync(Stream content, string fileName, string contentType, string folder, CancellationToken cancellationToken = default); }
+public sealed record FileStorageDownload(Stream Content, string ContentType);
+public sealed record ProtectedFileDownload(Stream Content, string ContentType, string FileName);
+public interface IFileStorage { Task<FileStorageResult> UploadAsync(Stream content, string fileName, string contentType, string folder, CancellationToken cancellationToken = default); Task<FileStorageResult> UploadPrivateAsync(Stream content, string fileName, string contentType, string folder, CancellationToken cancellationToken = default); Task<FileStorageDownload?> OpenReadAsync(string key, CancellationToken cancellationToken = default); }
 public interface IGeocodingService { Task<ReverseGeocodeDto?> ReverseAsync(double latitude, double longitude, CancellationToken cancellationToken = default); }
 public interface IPasswordService { string Hash(string password); bool Verify(string password, string hash); }
 public interface ICurrentUser { Guid? UserId { get; } Guid? OutletId { get; } string? Role { get; } bool IsAuthenticated { get; } }
-public interface IAuthService { Task<AuthResponse?> LoginAsync(LoginRequest request); Task<AuthResponse> RegisterAsync(RegisterRequest request); }
+public interface ITenantContext { Guid? OutletId { get; } string? OutletSlug { get; } bool IsResolved { get; } void Set(Guid outletId, string outletSlug); }
+public interface ITenantHostResolver { Task<Outlet?> ResolveAsync(string? hostname); }
+public sealed class TenantDomainSettings { public string PlatformBaseDomain { get; set; } = "healthapp.com"; }
+public sealed class CloudflarePagesSettings
+{
+    public bool Enabled { get; set; }
+    public string AccountId { get; set; } = "";
+    public string ProjectName { get; set; } = "healthapp-customer";
+    public string ApiToken { get; set; } = "";
+}
+public sealed record CloudflarePagesDomainState(
+    string Name,
+    string Status,
+    string ValidationMethod,
+    string ValidationStatus,
+    string? ValidationError,
+    string? TxtName,
+    string? TxtValue,
+    string VerificationStatus,
+    string? VerificationError);
+public interface ICloudflarePagesService
+{
+    bool IsEnabled { get; }
+    Task<CloudflarePagesDomainState> EnsureDomainAsync(string hostname, CancellationToken cancellationToken = default);
+    Task<CloudflarePagesDomainState?> GetDomainAsync(string hostname, CancellationToken cancellationToken = default);
+    Task<CloudflarePagesDomainState?> RetryValidationAsync(string hostname, CancellationToken cancellationToken = default);
+}
+public sealed record LegalAcceptanceContext(string? IpAddress, string? UserAgent);
+public interface IAuthService { Task<AuthResponse?> LoginAsync(LoginRequest request); Task<AuthResponse> RegisterAsync(RegisterRequest request, LegalAcceptanceContext? acceptanceContext = null); }
 public interface IEmailService { Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default); }
 public interface IOutletDemoService { Task<OutletDemoRequestDto> RequestAsync(RequestOutletDemoRequest request, CancellationToken cancellationToken = default); }
-public interface IMarketplaceService { Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync(); Task<AvailabilityResponse> GetAvailabilityAsync(double latitude, double longitude, string? city = null); Task<IReadOnlyList<CityDto>> GetCitiesAsync(); Task<IReadOnlyList<OutletDto>> GetAllOutletsAsync(string? city = null); Task<OutletDto?> GetOutletAsync(string slug); Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(Guid outletId); Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(Guid outletId, string? category); Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(Guid outletId); }
-public interface ICustomerService { Task<UserDto?> GetProfileAsync(); Task<CustomerDashboardDto?> GetDashboardAsync(); Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync(); Task<IReadOnlyList<OrderDto>> GetOrdersAsync(); Task<SubscriptionDto?> SubscribeAsync(CreateSubscriptionRequest request); Task<SubscriptionQuoteDto?> QuoteAsync(SubscriptionQuoteRequest request); Task<IReadOnlyList<RecipeDto>> GetSubscriptionRecipesAsync(Guid subscriptionId, string? category); Task<IReadOnlyList<MenuItemDto>> GetSubscriptionMenuAsync(Guid subscriptionId); Task<IReadOnlyList<MealSelectionDto>> GetMealSelectionsAsync(Guid subscriptionId, DateTime? weekStart); Task<IReadOnlyList<MealSelectionDto>> SaveMealSelectionsAsync(Guid subscriptionId, SaveMealSelectionsRequest request); Task<MealSelectionDto?> SkipMealAsync(Guid subscriptionId, Guid selectionId, SkipMealRequest request); Task<IReadOnlyList<MealSelectionDto>> SkipDayAsync(Guid subscriptionId, DateTime date, SkipDayRequest request); Task<MealSelectionDto?> RescheduleMealAsync(Guid subscriptionId, Guid selectionId, RescheduleMealRequest request); Task<CreditBalanceDto> GetCreditBalanceAsync(); Task<IReadOnlyList<CreditTransactionDto>> GetCreditTransactionsAsync(); }
+public interface IMarketplaceService { Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync(); Task<AvailabilityResponse> GetAvailabilityAsync(double latitude, double longitude, string? city = null); Task<IReadOnlyList<CityDto>> GetCitiesAsync(); Task<IReadOnlyList<OutletDto>> GetAllOutletsAsync(string? city = null); Task<OutletDto?> GetOutletAsync(string slug); Task<OutletLegalPoliciesDto?> GetOutletLegalAsync(string slug); Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(Guid outletId, string? city = null); Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(Guid outletId, string? category); Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(Guid outletId); }
+public interface ICustomerService { Task<UserDto?> GetProfileAsync(); Task<UserDto?> UpdateMarketingPreferenceAsync(UpdateMarketingPreferenceRequest request); Task<CustomerLegalStatusDto?> GetLegalStatusAsync(); Task<CustomerLegalStatusDto?> AcceptLegalAsync(AcceptCustomerLegalRequest request, LegalAcceptanceContext? acceptanceContext = null); Task<CustomerDashboardDto?> GetDashboardAsync(); Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync(); Task<IReadOnlyList<OrderDto>> GetOrdersAsync(); Task<SubscriptionDto?> SubscribeAsync(CreateSubscriptionRequest request, LegalAcceptanceContext? acceptanceContext = null); Task<SubscriptionQuoteDto?> QuoteAsync(SubscriptionQuoteRequest request); Task<IReadOnlyList<RecipeDto>> GetSubscriptionRecipesAsync(Guid subscriptionId, string? category); Task<IReadOnlyList<MenuItemDto>> GetSubscriptionMenuAsync(Guid subscriptionId); Task<IReadOnlyList<MealSelectionDto>> GetMealSelectionsAsync(Guid subscriptionId, DateTime? weekStart); Task<IReadOnlyList<MealSelectionDto>> SaveMealSelectionsAsync(Guid subscriptionId, SaveMealSelectionsRequest request); Task<MealSelectionDto?> SkipMealAsync(Guid subscriptionId, Guid selectionId, SkipMealRequest request); Task<IReadOnlyList<MealSelectionDto>> SkipDayAsync(Guid subscriptionId, DateTime date, SkipDayRequest request); Task<MealSelectionDto?> RescheduleMealAsync(Guid subscriptionId, Guid selectionId, RescheduleMealRequest request); Task<CreditBalanceDto> GetCreditBalanceAsync(); Task<IReadOnlyList<CreditTransactionDto>> GetCreditTransactionsAsync(); }
 public interface IOutletSettingsService
 {
     Task<OutletSettingsDto?> GetAsync();
+    Task<IReadOnlyList<OutletDomainDto>> GetDomainsAsync();
+    Task<OutletDomainDto> RequestDomainAsync(RequestOutletDomainRequest request);
+    Task<OutletDomainDto> VerifyDomainAsync(Guid domainId, bool activateIfReady = true);
     Task<OutletSettingsDto?> UpdateDeliveryDaysAsync(UpdateOutletSettingsRequest request);
+    Task<OutletSettingsDto?> UpdatePackageSettingsAsync(UpdateOutletPackageSettingsRequest request);
+    Task<OutletLegalPoliciesDto?> GetLegalPoliciesAsync();
+    Task<OutletLegalPoliciesDto?> UpdateLegalPoliciesAsync(UpdateOutletLegalPoliciesRequest request);
+    Task<OutletBrandingDto?> UpdateBrandingAsync(UpdateOutletBrandingRequest request);
+    Task<OutletBrandingDto?> UpdateBrandingAssetAsync(string assetType, string url);
+
     Task<OutletReadinessDto?> GetReadinessAsync();
     Task<OutletReadinessDto?> GoLiveAsync();
 }
 
+public record CreateOutletStaffRequest(string FirstName, string LastName, string Email, string Password, string Role);
+public record UpdateOutletStaffRequest(string FirstName, string LastName, string Email, string Role, bool IsActive, string? Password = null);
+public record OutletStaffDto(Guid Id, string Name, string Email, string Role, bool IsActive);
+
+public interface IOutletStaffService
+{
+    Task<IReadOnlyList<OutletStaffDto>> GetAsync();
+    Task<OutletStaffDto?> CreateAsync(CreateOutletStaffRequest request);
+    Task<OutletStaffDto?> UpdateAsync(Guid id, UpdateOutletStaffRequest request);
+}
+
 public interface IOutletService { Task<OutletTaxSettingsDto?> GetTaxSettingsAsync(); Task<OutletTaxSettingsDto?> UpdateTaxSettingsAsync(UpdateOutletTaxSettingsRequest request); Task<OutletDashboardDto> GetDashboardAsync(); Task<OutletSubscriptionDetailDto?> GetSubscriptionDetailAsync(Guid subscriptionId); Task<OutletKitchenDayDto> GetKitchenDayAsync(DateTime date); Task<OutletBillingDto?> GetBillingAsync(); Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync(); Task<OutletBillingDto?> ChangeSubscriptionAsync(ChangeOutletSubscriptionRequest request); Task<OutletDto?> GetCurrentAsync(); Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(); Task<MealPlanDto?> CreatePlanAsync(CreateMealPlanRequest request); Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(string? category); Task<RecipeDto?> CreateRecipeAsync(CreateRecipeRequest request); Task<RecipeDto?> UpdateRecipeAsync(Guid recipeId, UpdateRecipeRequest request); Task<bool> DeleteRecipeAsync(Guid recipeId); Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(); Task<IReadOnlyList<MenuItemDto>> SaveMenuAsync(BulkMenuRequest request); Task<IReadOnlyList<UserDto>> GetCustomersAsync(); Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync(); Task<IReadOnlyList<OrderDto>> GetOrdersAsync(); Task<IReadOnlyList<DeliveryDto>> GetDeliveriesAsync(); }
-public interface IAdminService { Task<IReadOnlyList<OutletDto>> GetOutletsAsync(); Task<IReadOnlyList<UserDto>> GetUsersAsync(); Task<object> GetDashboardAsync(); Task<PlatformRevenueDto> GetRevenueAsync(); }
+public interface IAdminService
+{
+    Task<IReadOnlyList<OutletDto>> GetOutletsAsync();
+    Task<IReadOnlyList<UserDto>> GetUsersAsync();
+    Task<object> GetDashboardAsync();
+    Task<PlatformRevenueDto> GetRevenueAsync();
+    Task<IReadOnlyList<OutletDomainDto>> GetOutletDomainsAsync();
+    Task<OutletDomainDto> SetOutletDomainStatusAsync(Guid domainId, OutletDomainStatus status);
+}
 
 
 public interface ICustomerProfileRepository { Task<CustomerProfile?> GetAsync(Guid customerId); Task AddOrUpdateAsync(CustomerProfile profile); }
@@ -102,6 +191,8 @@ public interface IDeliveryRouteRepository
 {
     Task<IReadOnlyList<DeliveryRoute>> GetByOutletAndDateAsync(Guid outletId, DateTime date, MealSlot mealSlot);
     Task<IReadOnlyList<DeliveryRoute>> GetByIdsAsync(IEnumerable<Guid> ids);
+    Task<DeliveryRoute?> GetAsync(Guid id);
+    Task UpdateAsync(DeliveryRoute route);
     Task DeleteByOutletAndDateAsync(Guid outletId, DateTime date, MealSlot mealSlot);
     Task AddAsync(DeliveryRoute route);
 }
@@ -129,6 +220,10 @@ public interface IDeliveryRouteService
     Task<DriverDto?> CreateDriverAsync(CreateDriverRequest request);
     Task<DeliveryRoutePlanDto> GetPlanAsync(DateTime date, int mealSlot = 2);
     Task<DeliveryRoutePlanDto> PlanRoutesAsync(PlanDeliveryRoutesRequest request);
+    Task<DeliveryRoutePlanDto> DispatchRouteAsync(Guid routeId);
+    Task<DeliveryRoutePlanDto?> GetDriverPlanAsync(DateTime date, int mealSlot = 2);
+    Task<DeliveryRoutePlanDto?> StartDriverRouteAsync(Guid routeId);
+    Task<DeliveryRoutePlanDto?> CompleteDriverStopAsync(Guid stopId);
 }
 public interface IOutletDiscountCodeService { Task<IReadOnlyList<DiscountCodeDto>> GetAsync(); Task<DiscountCodeDto?> CreateAsync(CreateDiscountCodeRequest request); Task<bool> DisableAsync(Guid id); }
 
@@ -143,7 +238,8 @@ public interface IOutletPackageService
     Task<OutletPackageQuoteDto?> QuoteAsync(OutletPackageQuoteRequest request);
     Task<SubscriptionDto?> CreateAsync(CreateOutletPackageRequest request);
     Task<SubscriptionDto?> MarkPaidAsync(Guid subscriptionId, MarkOutletPackagePaidRequest request);
-    Task<SubscriptionDto?> AcceptAsync(Guid subscriptionId);
+    Task<SubscriptionDto?> ConfirmCustomerPackageAsync(Guid subscriptionId, ConfirmCustomerPackageRequest request);
+    Task<SubscriptionDto?> AcceptAsync(Guid subscriptionId, AcceptOutletPackageRequest request, LegalAcceptanceContext? acceptanceContext = null);
 }
 
 public interface IOutletPackageActivationService

@@ -12,20 +12,27 @@ Cloudflare supports multiple Pages projects from one Git repository with differe
 | healthapp-outlet | frontend/healthapp-saas | npm run build:outlet | apps/outlet-web/dist |
 | healthapp-admin | frontend/healthapp-saas | npm run build:admin | apps/admin-web/dist |
 
-Production branch: `main`
+Standalone test branch: `feature/standalone-saas`
 
-## Cloudflare dashboard setup
+## Cloudflare dashboard setup for standalone testing
 
-In Cloudflare:
+Use the existing three Cloudflare projects for the standalone test because marketplace deployments are paused. Do not create a second set of projects.
 
-1. Workers & Pages -> Create application -> Pages -> Import an existing Git repository.
-2. Select `pbnaresh-dotnet/Healthe`.
-3. Set the production branch to `main`.
-4. Set the project Root directory to `frontend/healthapp-saas`.
-5. Use the matching build command and output directory from the table.
-6. Deploy.
+Configure each existing project as follows:
 
-Repeat for all three projects. Cloudflare will give each site a `*.pages.dev` address and can rebuild automatically after commits to the connected repository.
+| Project | Source branch | Custom domain | Build command | Output |
+|---|---|---|---|---|
+| `healthapp-customer` | `feature/standalone-saas` | `fitfood.broccoly.in` | `npm run build:customer` | `apps/customer-web/dist` |
+| `healthapp-outlet` | `feature/standalone-saas` | `outlet.broccoly.in` | `npm run build:outlet` | `apps/outlet-web/dist` |
+| `healthapp-admin` | `feature/standalone-saas` | `admin.broccoly.in` | `npm run build:admin` | `apps/admin-web/dist` |
+
+For each project, open Settings -> Builds/Builds & deployments -> Branch control, set the production branch to `feature/standalone-saas`, turn off automatic production branch deployments, and set Preview branch to None. This prevents ordinary feature commits from consuming Cloudflare builds. Cloudflare's documented branch controls support both disabling automatic production deployments and disabling preview deployments. Use the manual GitHub Actions workflow `.github/workflows/cloudflare-standalone-deploy.yml` to deploy a selected app or all three when a cloud test is needed.
+
+In each project's Production environment variables, set:
+
+`VITE_API_BASE_URL=https://api.broccoly.in/api`
+
+Keep the existing custom domains attached to their respective projects.
 
 ## API environment variable
 
@@ -34,6 +41,47 @@ The frontend must not use the local `http://localhost:50448/api` value after dep
 In each Pages project go to Settings -> Environment variables and add:
 
 `VITE_API_BASE_URL=https://YOUR-PUBLIC-API-HOST/api`
+
+### Standalone outlet deployment
+
+### Production-style Broccoly domains
+
+Use the platform domain `broccoly.in` for the test environment. The customer site is tenant-aware at runtime, so one shared customer Pages project can serve multiple outlet subdomains without rebuilding the SPA per outlet.
+
+- `fitfood.broccoly.in` -> customer Pages project -> resolves the `fitfood` outlet at runtime
+- `outlet.broccoly.in` -> outlet management Pages project
+- `admin.broccoly.in` -> Super Admin Pages project
+- `api.broccoly.in` -> Azure App Service API
+
+For the first production-style test, do not configure a customer-owned domain. A customer can later attach `www.fitfood.com` as an optional custom domain.
+
+For the standalone customer portal, `VITE_OUTLET_SLUG` is intentionally optional. Production standalone sites resolve the outlet from the browser hostname.
+
+Examples:
+
+- `fitfood.broccoly.in` -> the outlet whose `Subdomain` is `fitfood`
+- `www.fitfood.com` -> an optional outlet custom-domain mapping
+
+When a custom domain is requested, Outlet Admin receives a verification token/instructions and Super Admin must verify the DNS change and activate the mapping. Only active mappings are used for tenant resolution.
+
+The customer web app uses the resolved outlet slug for subsequent API requests. The API also checks hostname/header consistency and authenticated `outlet_id` consistency.
+
+Cloudflare Pages does not support a wildcard custom domain such as `*.broccoly.in`. Each standalone outlet hostname (for example `fitfood.broccoly.in`) must therefore be added individually to the shared `healthapp-customer` Pages project. We can automate those per-outlet custom-domain registrations later through the Cloudflare Pages API, while all outlets continue using the same customer Pages deployment, API and SQL Server database.
+
+### Cloudflare Pages API integration
+
+The API can attach requested custom domains to the shared `healthapp-customer` Pages project and read Cloudflare's live validation state. Cloudflare's Pages API exposes the domain status plus `validation_data` including the validation method and TXT name/value when TXT validation is used.
+
+Configure these server-side settings through deployment secrets/environment variables:
+
+- `CloudflarePages:Enabled=true`
+- `CloudflarePages:AccountId=<Cloudflare account ID>`
+- `CloudflarePages:ProjectName=healthapp-customer`
+- `CloudflarePages:ApiToken=<secret API token>`
+
+The API token should have the minimum Pages permissions required for the configured operation. Cloudflare documents `Pages Write` for adding a Pages custom domain and `Pages Read` for reading custom-domain status.
+
+The outlet must still control its DNS. For an apex domain such as `fitfood.com`, Cloudflare's current Pages documentation requires the site to be a Cloudflare zone with its nameservers configured for Cloudflare.
 
 Set it for Production and Preview as appropriate.
 
