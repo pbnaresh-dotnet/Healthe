@@ -555,6 +555,10 @@ public sealed class OutletBranding
     public string HealthHighlights { get; set; } = "";
     public string About { get; set; } = "";
     public string FooterText { get; set; } = "";
+    public string FontFamily { get; set; } = "Inter";
+    public string ThemeStyle { get; set; } = "Fresh";
+    public string ButtonStyle { get; set; } = "Rounded";
+    public string CardStyle { get; set; } = "Soft";
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
