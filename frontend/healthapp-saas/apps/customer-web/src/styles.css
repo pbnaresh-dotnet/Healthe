@@ -1597,3 +1597,26 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media(max-width:560px){
  .publicAuthShell{padding:16px 13px 24px}.publicAuthTop{margin-bottom:10px}.authBrand b{font-size:22px}.authBrand small{font-size:10px}.publicAuthStory{padding-top:7px}.publicAuthKicker{font-size:10px}.publicAuthStory h1{font-size:34px}.publicAuthStory>p{font-size:13px}.authBenefitGrid{grid-template-columns:1fr 1fr}.authStoryImage{aspect-ratio:1.22;margin-top:13px;border-radius:17px}.publicAuthCard{padding:21px 16px!important;border-radius:18px!important}.authStepper{gap:4px}.authStepper>div{min-width:58px}.authStepper span{width:30px;height:30px}.authStepper b{font-size:8px}.authCardHeader{gap:14px}.authCardHeader h2{font-size:25px}.authCardHeader p{font-size:12px}.authFormGrid{gap:12px}.authInputWrap,.authPhoneWrap{min-height:47px}.authInputWrap input,.authPhoneWrap input{padding:12px 8px;font-size:13px!important}.authPhonePrefix{padding:0 10px}.authPhonePrefix b{font-size:12px}.authPasswordRules{gap:5px}.authConsent label{font-size:10px}.authSubmit{min-height:50px}
 }
+
+/* Package builder: inline delivery-address completion */
+.builderAddressPicker{margin-top:10px}
+.builderAddressPicker .tinyLabel{margin-top:0;display:block}
+.addressSelectRow{display:flex;align-items:center;gap:5px;margin-top:4px}
+.builderAddressSelect{width:100%;min-width:0;font-size:10px!important;padding:7px 8px!important;background:#fff;border:1px solid #cdd9cf;border-radius:8px;transition:.18s ease}
+.builderAddressSelect.missing{border-color:#e2a44b;background:#fffaf0;box-shadow:0 0 0 3px rgba(226,164,75,.12);color:#8a611d;font-weight:800}
+.builderAddressSelect.missing:focus{border-color:#e29a2e;box-shadow:0 0 0 3px rgba(226,164,75,.18)}
+.addressAddLink{border:0;background:transparent;color:#237544;font-size:8px;font-weight:900;padding:3px 1px;white-space:nowrap;cursor:pointer}
+.addressAddLink:hover{text-decoration:underline}
+.addressMissingBtn{width:100%;border:1px solid #e2a44b;background:#fffaf0;color:#8a611d;border-radius:8px;padding:7px 8px;font-size:9px;font-weight:900;text-align:left;cursor:pointer;box-shadow:0 0 0 3px rgba(226,164,75,.10)}
+.addressMissingBtn:hover{background:#fff5df}
+.addressSelectRow.compact{align-items:stretch;flex-direction:column;gap:2px}
+.addressSelectRow.compact .addressAddLink{align-self:flex-start}
+.summaryAddressMissing{margin-top:3px;color:#b56d12!important;font-size:8px!important;font-weight:900}
+.builderReviewCta:disabled{background:#dbe6dd!important;color:#718078!important;cursor:not-allowed;box-shadow:none}
+.builderFooter{background:#173b24}
+.builderFooter small{color:#c7dccb}
+
+/* Keep one review CTA: the summary card is the single actionable review control. */
+@media(max-width:1200px){
+ .builderSummaryCard>.builderReviewCta{display:block}
+}
