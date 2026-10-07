@@ -116,8 +116,10 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    let disposed=false;
    const loadTenant=async()=>{
      try{
-       const outlet=TENANT_OUTLET_SLUG
-         ?await outlets.get(TENANT_OUTLET_SLUG)
+       const queryOutletSlug=new URLSearchParams(window.location.search).get('outlet')?.trim().toLowerCase()||'';
+       const resolvedSlug=queryOutletSlug||TENANT_OUTLET_SLUG;
+       const outlet=resolvedSlug
+         ?await outlets.get(resolvedSlug)
          :await resolveTenantFromHost();
        if(disposed)return;
        if(outlet){
@@ -125,6 +127,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
          setPublicCities([{city:outlet.city,state:outlet.state}]);
          setPublicCity(outlet.city||'');
          setNearbyOutlets([outlet]);
+         try{setPublicOutletMenu(await menu.outlet(outlet.id)||[])}catch{setPublicOutletMenu([])}
          return;
        }
        const list=await locations.cities();
@@ -221,9 +224,9 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    const day=dayId(date);
    return (publicOutletMenu||[]).filter(x=>Number(x.mealSlotValue)===Number(slot)&&Number(x.dayOfWeek)===Number(day));
  };
- const openGuestBuilder=()=>{
-   if(!publicOutlet)return;
-   setGuestBuilderOutlet(publicOutlet);
+ const openGuestBuilder=(targetOutlet=publicOutlet)=>{
+   if(!targetOutlet)return;
+   setGuestBuilderOutlet(targetOutlet);
    const days=publicBuilderDays();
    const first={};
    for(const d of days){
@@ -302,6 +305,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  </div>;
 
  if(publicOutlet&&!guestBuilderOpen) return <PublicOutletHome outlet={publicOutlet} menu={publicOutletMenu} busy={publicOutletBusy} error={publicOutletError} onBack={()=>setPublicOutlet(null)} onBuild={openGuestBuilder}/>;
+ if(standaloneMode&&tenantOutlet&&!guestBuilderOpen) return <PublicOutletHome standalone outlet={tenantOutlet} menu={publicOutletMenu} busy={false} error={publicMapError} onBack={()=>{}} onBuild={()=>openGuestBuilder(tenantOutlet)} onSignIn={()=>openAuth('login')} onRegister={()=>openAuth('register')}/>;
 
  return <><LoadingIndicator active={publicMapBusy||publicOutletBusy} label={publicOutletBusy?'Loading outlet menu':'Finding outlets'}/><div className="publicHome" data-public-tenant-root={standaloneMode?'1':undefined} style={standaloneMode?{'--brand-primary':tenantOutlet?.primaryColor||'#14532d','--brand-secondary':tenantOutlet?.secondaryColor||'#166534'}:undefined}>
    <header className="publicNav">
@@ -377,7 +381,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  </div></>;
 }
 
-function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild}){
+function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild,standalone=false,onSignIn,onRegister}){
  const[slot,setSlot]=useState(1);
  useEffect(()=>{
    if(!outlet)return;
@@ -413,7 +417,7 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild}){
  return <><LoadingIndicator active={busy} label="Loading outlet menu"/><div className="publicOutletHome" style={{'--brand-primary':outlet?.primaryColor||'#14532d','--brand-secondary':outlet?.secondaryColor||'#166534'}}>
    <header className="publicOutletTopbar">
      <button className="publicBrand" type="button" onClick={onBack}><span className="brandMark">{outlet?.logoUrl?<img src={getImg(outlet.logoUrl)} alt="" style={{width:28,height:28,objectFit:'cover',borderRadius:7}}/>:(outlet?.name||'H').slice(0,1).toUpperCase()}</span><span><b>{outlet?.name||'HealthApp'}</b><small>{outlet?.tagline||'Healthy meals, built around you'}</small></span></button>
-     <div className="publicOutletTopActions"><button className="secondary" onClick={onBack}>← Find outlets</button><button className="primary" onClick={onBuild}>Build Package →</button></div>
+     <div className="publicOutletTopActions">{standalone?<><button className="secondary" onClick={onSignIn}>Sign in</button><button className="primary" onClick={onRegister}>Create account</button></>:<button className="secondary" onClick={onBack}>← Find outlets</button>}<button className="primary" onClick={onBuild}>Build Package →</button></div>
    </header>
    <main>
      <section className="publicOutletHero">
@@ -425,7 +429,7 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild}){
          <p>{outlet?.city}, {outlet?.state}{outlet?.distanceKm?' · '+outlet.distanceKm+' km away':''}</p>
          <div className="publicOutletMeta"><span>★ <b>{Number(outlet?.rating||4.8).toFixed(1)}</b> ({outlet?.reviewCount||0} reviews)</span>{healthy.slice(0,4).map((h,i)=><span key={i}>✓ {h}</span>)}</div>
        </div>
-       <button className="publicOutletBackFloating" onClick={onBack}>← Back to outlets</button>
+       {!standalone&&<button className="publicOutletBackFloating" onClick={onBack}>← Back to outlets</button>}
        <button className="primary publicOutletHeroBuild" onClick={onBuild}>Build Package →</button>
      </section>
      <section className="publicOutletBody">
