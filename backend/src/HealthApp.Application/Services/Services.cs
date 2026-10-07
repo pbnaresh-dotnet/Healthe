@@ -257,7 +257,10 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
         var outlet = await outlets.GetByIdAsync(outletId);
         return outlet is null || outlet.Status != OutletStatus.Live || await outletSubscriptions.GetByOutletAsync(outletId) is null
             ? []
-            : (await recipes.GetByOutletAndCategoryAsync(outletId, category)).Where(x => x.IsActive).Select(Map).ToList();
+            : (await recipes.GetByOutletAndCategoryAsync(outletId, category))
+                .Where(x => x.IsActive)
+                .Select(x => MapRecipeForCustomer(x, outlet.ShowMealPriceToCustomer))
+                .ToList();
     }
     public async Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(Guid outletId) {
         if (tenant.OutletId is Guid tenantOutletId && tenantOutletId != outletId)
@@ -266,12 +269,20 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
         var outlet = await outlets.GetByIdAsync(outletId);
         return outlet is null || outlet.Status != OutletStatus.Live || await outletSubscriptions.GetByOutletAsync(outletId) is null
             ? []
-            : await MapMenu(outletId, await menu.GetByOutletAsync(outletId));
+            : await MapMenu(outletId, await menu.GetByOutletAsync(outletId), outlet.ShowMealPriceToCustomer);
     }
-    private async Task<IReadOnlyList<MenuItemDto>> MapMenu(Guid outletId, IReadOnlyList<OutletMenuItem> items)
+    private async Task<IReadOnlyList<MenuItemDto>> MapMenu(Guid outletId, IReadOnlyList<OutletMenuItem> items, bool showMealPrice)
     {
         var rs = (await recipes.GetByOutletAsync(outletId)).ToDictionary(x => x.Id);
-        return items.Where(x => x.IsAvailable).Select(x => rs.TryGetValue(x.RecipeId, out var r) ? new MenuItemDto(x.Id, x.OutletId, x.RecipeId, r.Name, x.DayOfWeek, x.MealSlot.ToString(), (int)x.MealSlot, r.PricePerMeal, r.LargePricePerMeal, r.Calories, r.ProteinGrams, r.Category.ToString(), r.ImageUrl, x.IsAvailable, x.DisplayOrder, r.CarbsGrams, r.FatGrams, r.FiberGrams, x.OptionGroup, x.IsRequired, x.MaxSelections, r.MealType) : null).Where(x => x is not null).Cast<MenuItemDto>().ToList();
+        return items.Where(x => x.IsAvailable)
+            .Select(x => rs.TryGetValue(x.RecipeId, out var r)
+                ? new MenuItemDto(x.Id, x.OutletId, x.RecipeId, r.Name, x.DayOfWeek, x.MealSlot.ToString(), (int)x.MealSlot,
+                    showMealPrice ? r.PricePerMeal : 0m,
+                    showMealPrice ? r.LargePricePerMeal : 0m,
+                    r.Calories, r.ProteinGrams, r.Category.ToString(), r.ImageUrl, x.IsAvailable, x.DisplayOrder,
+                    r.CarbsGrams, r.FatGrams, r.FiberGrams, x.OptionGroup, x.IsRequired, x.MaxSelections, r.MealType)
+                : null)
+            .Where(x => x is not null).Cast<MenuItemDto>().ToList();
     }
     private static SaaSPlanDto Map(SaaSPlan x) => new(x.Id, x.Name, x.MonthlyFee, x.AnnualFee, x.IncludedActiveCustomers, x.AdditionalCustomerFee, x.CustomerTransactionFeePercent, x.Description, x.IsActive);
     private static MealPlanDto Map(MealPlan x) => new(x.Id, x.OutletId, x.Name, x.Frequency, x.MealsPerDay, x.MealsPerWeek, x.Price, x.Currency, x.Description, x.IsActive, x.IsPreplanned, x.AvailableCity, x.DurationDays);
@@ -290,7 +301,7 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
         var primary = string.IsNullOrWhiteSpace(b?.PrimaryColor) ? x.PrimaryColor : b.PrimaryColor;
         var secondary = b?.SecondaryColor ?? string.Empty;
         var about = string.IsNullOrWhiteSpace(b?.About) ? x.About : b.About;
-        return new(x.Id, brandName, x.Slug, x.Subdomain, x.City, x.State, x.Pincode, x.Status.ToString(), x.BillingPlan.ToString(), logo, hero, highlights, primary, x.Status == OutletStatus.Live, Math.Round(distance, 1), x.Rating, x.ReviewCount, about, x.Latitude, x.Longitude, b?.Tagline ?? string.Empty, secondary, b?.FaviconUrl ?? string.Empty, x.DeliveryCoverageMode.ToString(), x.ServiceRadiusKm, b?.FontFamily ?? "Inter", b?.ThemeStyle ?? "Fresh", b?.ButtonStyle ?? "Rounded", b?.CardStyle ?? "Soft", x.CustomPackagePricingMode, x.ShowPackagePriceToCustomer, x.ShowDeliveryFeeToCustomer);
+        return new(x.Id, brandName, x.Slug, x.Subdomain, x.City, x.State, x.Pincode, x.Status.ToString(), x.BillingPlan.ToString(), logo, hero, highlights, primary, x.Status == OutletStatus.Live, Math.Round(distance, 1), x.Rating, x.ReviewCount, about, x.Latitude, x.Longitude, b?.Tagline ?? string.Empty, secondary, b?.FaviconUrl ?? string.Empty, x.DeliveryCoverageMode.ToString(), x.ServiceRadiusKm, b?.FontFamily ?? "Inter", b?.ThemeStyle ?? "Fresh", b?.ButtonStyle ?? "Rounded", b?.CardStyle ?? "Soft", x.CustomPackagePricingMode, x.ShowPackagePriceToCustomer, x.ShowMealPriceToCustomer, x.ShowDeliveryFeeToCustomer);
     }
     private static double Distance(double lat1,double lon1,double lat2,double lon2) {
         const double R=6371d;
