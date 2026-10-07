@@ -78,3 +78,5 @@ public record OutletPackageAddressRequest(
     double Longitude,
     Guid? CityAreaId = null,
     bool IsDefault = false);
+
+public record ConfirmCustomerPackageRequest(string DiscountType = "None", decimal DiscountValue = 0m, string DiscountReason = "");
