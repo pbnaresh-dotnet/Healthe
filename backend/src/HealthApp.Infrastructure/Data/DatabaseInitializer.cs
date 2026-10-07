@@ -12,10 +12,17 @@ public static class DatabaseInitializer
         // replace EnsureCreatedAsync with EF Core MigrateAsync after generating migrations.
         await db.Database.EnsureCreatedAsync(cancellationToken);
 
+        // Add the column in its own batch first. SQL Server compiles a batch
+        // before executing it, so referencing MobileNumber later in the same batch
+        // can fail when this is an existing database being upgraded.
         await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.Users','MobileNumber') IS NULL
     ALTER TABLE dbo.Users ADD MobileNumber nvarchar(20) NULL;
+", cancellationToken);
 
+        // Tenant-scoped unique mobile number. Keep this in a separate batch so the
+        // newly-added column is visible to SQL Server when the index is created.
+        await db.Database.ExecuteSqlRawAsync(@"
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
     WHERE name='IX_Users_MobileNumber' AND object_id=OBJECT_ID('dbo.Users')
