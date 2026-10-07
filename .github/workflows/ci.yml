@@ -4,13 +4,111 @@ on:
   push:
     branches:
       - main
-      - feature/standalone-saas
+      - marketplace-release
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/ci.yml"
+      - "global.json"
+      - "NuGet.config"
+      - "Directory.*"
+      - "*.sln"
+      - "*.props"
+      - "*.targets"
   pull_request:
     branches:
       - main
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/ci.yml"
+      - "global.json"
+      - "NuGet.config"
+      - "Directory.*"
+      - "*.sln"
+      - "*.props"
+      - "*.targets"
+  workflow_dispatch:
+
+concurrency:
+  group: healthapp-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Classify changes
+        id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          backend=false
+          frontend=false
+
+          case "${{ github.event_name }}" in
+            workflow_dispatch)
+              backend=true
+              frontend=true
+              ;;
+            pull_request)
+              base_sha="${{ github.event.pull_request.base.sha }}"
+              head_sha="${{ github.event.pull_request.head.sha }}"
+              ;;
+            push)
+              base_sha="${{ github.event.before }}"
+              head_sha="${{ github.sha }}"
+
+              if [[ ! "$base_sha" =~ ^[0]{40}$ ]]; then
+                :
+              else
+                base_sha="$(git rev-list --max-parents=0 "$head_sha")"
+              fi
+              ;;
+            *)
+              backend=true
+              frontend=true
+              ;;
+          esac
+
+          if [[ "${{ github.event_name }}" != "workflow_dispatch" ]]; then
+            while IFS= read -r file; do
+              [[ -z "$file" ]] && continue
+
+              case "$file" in
+                backend/*)
+                  backend=true
+                  ;;
+                frontend/*)
+                  frontend=true
+                  ;;
+                .github/workflows/ci.yml|global.json|NuGet.config|Directory.*|*.sln|*.props|*.targets)
+                  backend=true
+                  frontend=true
+                  ;;
+              esac
+            done < <(git diff --name-only "$base_sha" "$head_sha")
+          fi
+
+          echo "backend=$backend" >> "$GITHUB_OUTPUT"
+          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
+          echo "Backend build: $backend"
+          echo "Frontend build: $frontend"
+
   backend:
+    name: Backend build
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -21,7 +119,7 @@ jobs:
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.x'
+          dotnet-version: "10.x"
 
       - name: Restore
         run: dotnet restore HealthApp.sln
@@ -30,6 +128,9 @@ jobs:
         run: dotnet build HealthApp.sln -c Release --no-restore
 
   frontend:
+    name: Frontend build
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -40,7 +141,7 @@ jobs:
       - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: Install dependencies
         run: npm install
