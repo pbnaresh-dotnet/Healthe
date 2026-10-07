@@ -1044,7 +1044,7 @@ SELECT
 FROM dbo.Outlets o
 WHERE NOT EXISTS (SELECT 1 FROM dbo.OutletBrandings b WHERE b.OutletId=o.Id);
 ", cancellationToken);
-
+    }
 
     private static async Task SeedDefaultLegalPoliciesAsync(
         HealthAppDbContext db,
