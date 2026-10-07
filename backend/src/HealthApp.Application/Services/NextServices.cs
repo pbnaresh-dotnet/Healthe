@@ -321,59 +321,286 @@ public sealed class CityAreaAdminService(ICityAreaRepository areas) : ICityAreaA
     public async Task<CityAreaDto?> CreateAsync(CreateCityAreaRequest r){var x=new CityArea{Id=Guid.NewGuid(),City=r.City,State=r.State,Name=r.Name,Pincode=r.Pincode,Latitude=r.Latitude,Longitude=r.Longitude};await areas.AddAsync(x);return new(x.Id,x.City,x.State,x.Name,x.Pincode,x.Latitude,x.Longitude,x.IsActive);}
 }
 
-public sealed class PaymentService(ICurrentUser current,IPaymentTransactionRepository payments,ISubscriptionRepository subscriptions,IOrderRepository orders,IOutletPackageActivationService outletPackageActivation) : IPaymentService
+public sealed class PaymentService(
+    ICurrentUser current,
+    IUserRepository users,
+    IPaymentTransactionRepository payments,
+    ISubscriptionRepository subscriptions,
+    IOrderRepository orders,
+    IOutletPackageActivationService outletPackageActivation,
+    IPaymentGateway gateway) : IPaymentService
 {
-    public async Task<PaymentDto?> CreateAsync(CreatePaymentRequest r)
+    public async Task<PaymentCheckoutDto?> CreateAsync(
+        CreatePaymentRequest request,
+        CancellationToken cancellationToken = default)
     {
-        if(current.UserId is not Guid id)return null;
-        if(string.IsNullOrWhiteSpace(r.IdempotencyKey))throw new ArgumentException("Idempotency key is required.");
-        var s=await subscriptions.GetAsync(r.SubscriptionId)??throw new KeyNotFoundException("Subscription not found.");
-        if(s.CustomerId!=id)throw new UnauthorizedAccessException();
-        if(current.OutletId is not Guid customerOutletId || customerOutletId != s.OutletId)
-            throw new UnauthorizedAccessException("The current customer is not associated with the subscription outlet.");
-        if(s.PackageStatus=="PendingOutletReview")
+        if (current.UserId is not Guid customerId)
+            return null;
+
+        if (current.OutletId is not Guid customerOutletId)
+            throw new UnauthorizedAccessException("Customer outlet context is required.");
+
+        if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            throw new ArgumentException("Idempotency key is required.");
+
+        if (!string.Equals(request.Provider, gateway.Provider, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Unsupported payment provider '{request.Provider}'. Use {gateway.Provider}.");
+
+        var subscription = await subscriptions.GetAsync(request.SubscriptionId)
+            ?? throw new KeyNotFoundException("Subscription not found.");
+
+        if (subscription.CustomerId != customerId || subscription.OutletId != customerOutletId)
+            throw new UnauthorizedAccessException("The subscription does not belong to the current customer.");
+
+        if (subscription.PackageStatus == "PendingOutletReview")
             throw new InvalidOperationException("This package is awaiting outlet confirmation before payment.");
-        if(s.IsOutletCreated&&s.PackageStatus!="PaymentPending")
+
+        if (subscription.IsOutletCreated && subscription.PackageStatus != "PaymentPending")
             throw new InvalidOperationException("Accept the outlet-created package before making payment.");
 
-        var existing=await payments.GetByIdempotencyKeyAsync(r.IdempotencyKey);
-        if(existing is not null)
+        var existing = await payments.GetByIdempotencyKeyAsync(request.IdempotencyKey);
+        if (existing is not null)
         {
-            if(existing.CustomerId != id)
+            if (existing.CustomerId != customerId ||
+                existing.SubscriptionId != subscription.Id)
                 throw new InvalidOperationException("The payment idempotency key is already in use.");
-            return Map(existing);
+
+            return MapCheckout(existing);
         }
-        var now=DateTime.UtcNow;
-        var p=new PaymentTransaction{Id=Guid.NewGuid(),CustomerId=id,SubscriptionId=s.Id,Provider=r.Provider,ProviderPaymentId=$"mock_{Guid.NewGuid():N}",IdempotencyKey=r.IdempotencyKey,Amount=s.TotalCharged,Currency="INR",Status="Paid",CreatedAtUtc=now,PaidAtUtc=now};
-        await payments.AddAsync(p);
-        if(s.PackageStatus=="PaymentPending")
+
+        var customer = await users.FindByIdAsync(customerId)
+            ?? throw new UnauthorizedAccessException("Customer account not found.");
+
+        var payment = new PaymentTransaction
         {
-            await outletPackageActivation.ActivateAsync(s.Id,"Online",id);
+            Id = Guid.NewGuid(),
+            CustomerId = customerId,
+            OutletId = subscription.OutletId,
+            SubscriptionId = subscription.Id,
+            PaymentType = "CustomerSubscription",
+            Provider = gateway.Provider,
+            ProviderOrderId = $"BRC-CUS-{Guid.NewGuid():N}",
+            IdempotencyKey = request.IdempotencyKey.Trim(),
+            Amount = subscription.TotalCharged,
+            Currency = "INR",
+            Status = "Pending",
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        await payments.AddAsync(payment);
+
+        try
+        {
+            var checkout = await gateway.CreateOrderAsync(
+                new PaymentGatewayCreateOrderRequest(
+                    payment.ProviderOrderId,
+                    payment.Amount,
+                    payment.Currency,
+                    customer.Id.ToString("N"),
+                    $"{customer.FirstName} {customer.LastName}".Trim(),
+                    customer.Email,
+                    NormalizePhone(customer.MobileNumber),
+                    GetReturnUrl("customer"),
+                    GetWebhookUrl(),
+                    $"Broccoly meal subscription {subscription.PlanName}"),
+                cancellationToken);
+
+            payment.PaymentSessionId = checkout.PaymentSessionId;
+            payment.ProviderStatus = checkout.Status;
+            payment.GatewayResponseJson = JsonSerializer.Serialize(new
+            {
+                checkout.ProviderOrderId,
+                checkout.PaymentSessionId,
+                checkout.Status
+            });
+            await payments.UpdateAsync(payment);
+
+            return MapCheckout(payment);
+        }
+        catch (Exception ex)
+        {
+            payment.Status = "Failed";
+            payment.FailureReason = ex.Message.Length > 900 ? ex.Message[..900] : ex.Message;
+            await payments.UpdateAsync(payment);
+            throw;
+        }
+    }
+
+    public async Task<PaymentDto?> GetAsync(Guid id)
+    {
+        if (current.UserId is not Guid uid)
+            return null;
+
+        var payment = await payments.GetAsync(id);
+        if (payment is null || payment.CustomerId != uid)
+            return null;
+
+        if (payment.SubscriptionId is not Guid subscriptionId)
+            return null;
+
+        var subscription = await subscriptions.GetAsync(subscriptionId);
+        if (subscription is null ||
+            subscription.CustomerId != uid ||
+            current.OutletId != subscription.OutletId)
+            return null;
+
+        if (payment.Status is not "Paid" &&
+            !string.IsNullOrWhiteSpace(payment.ProviderOrderId))
+        {
+            await RefreshFromGatewayAsync(payment, CancellationToken.None);
+        }
+
+        return Map(payment);
+    }
+
+    public async Task<PaymentWebhookResultDto> HandleCashfreeWebhookAsync(
+        string rawBody,
+        string signature,
+        string timestamp,
+        CancellationToken cancellationToken = default)
+    {
+        if (!gateway.VerifyWebhookSignature(signature, timestamp, rawBody))
+            throw new UnauthorizedAccessException("Invalid Cashfree webhook signature.");
+
+        using var document = JsonDocument.Parse(rawBody);
+        var providerOrderId = ExtractString(document.RootElement, "data", "order", "order_id")
+            ?? ExtractString(document.RootElement, "data", "payment", "cf_order_id")
+            ?? ExtractString(document.RootElement, "data", "payment", "order_id");
+
+        if (string.IsNullOrWhiteSpace(providerOrderId))
+            return new PaymentWebhookResultDto(true, "Ignored");
+
+        var payment = await payments.GetByProviderOrderIdAsync(providerOrderId);
+        if (payment is null)
+            return new PaymentWebhookResultDto(true, "UnknownOrder");
+
+        // Always verify the actual payment status from Cashfree before fulfilment.
+        await RefreshFromGatewayAsync(payment, cancellationToken, rawBody);
+
+        if (payment.Status != "Paid")
+            return new PaymentWebhookResultDto(true, payment.Status, payment.Id);
+
+        if (payment.PaymentType == "CustomerSubscription")
+            await CompleteCustomerPaymentAsync(payment.Id);
+
+        return new PaymentWebhookResultDto(true, "Paid", payment.Id);
+    }
+
+    private async Task RefreshFromGatewayAsync(
+        PaymentTransaction payment,
+        CancellationToken cancellationToken,
+        string? webhookBody = null)
+    {
+        var transactions = await gateway.GetPaymentsAsync(payment.ProviderOrderId, cancellationToken);
+        var latest = transactions
+            .OrderByDescending(x => string.Equals(x.PaymentStatus, "SUCCESS", StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault();
+
+        if (latest is null)
+            return;
+
+        payment.ProviderStatus = latest.PaymentStatus;
+        payment.ProviderPaymentId = latest.ProviderPaymentId;
+        payment.PaymentMethod = latest.PaymentMethod ?? "";
+        if (webhookBody is not null)
+            payment.GatewayResponseJson = webhookBody;
+
+        var normalized = latest.PaymentStatus.Trim().ToUpperInvariant();
+        if (normalized == "SUCCESS")
+        {
+            if (latest.Amount.HasValue &&
+                Math.Abs(latest.Amount.Value - payment.Amount) > 0.01m)
+            {
+                payment.Status = "Failed";
+                payment.FailureReason = "Cashfree payment amount does not match the Broccoly order amount.";
+            }
+            else
+            {
+                payment.Status = "Paid";
+                payment.FailureReason = "";
+                payment.PaidAtUtc ??= DateTime.UtcNow;
+            }
+        }
+        else if (normalized == "PENDING")
+        {
+            payment.Status = "Pending";
         }
         else
         {
-            var order=await orders.GetBySubscriptionAsync(s.Id);
-            if(order is not null){order.Status=OrderStatus.Confirmed;await orders.UpdateAsync(order);}
+            payment.Status = "Failed";
+            payment.FailureReason = latest.PaymentMessage ?? "Cashfree payment was not successful.";
         }
-        return Map(p);
+
+        await payments.UpdateAsync(payment);
     }
-    public async Task<PaymentDto?> GetAsync(Guid id)
+
+    private async Task CompleteCustomerPaymentAsync(Guid paymentId)
     {
-        if(current.UserId is not Guid uid) return null;
+        var payment = await payments.GetAsync(paymentId)
+            ?? throw new KeyNotFoundException("Payment transaction not found.");
 
-        var p = await payments.GetAsync(id);
-        if(p is null || p.CustomerId != uid) return null;
+        if (payment.Status != "Paid" || payment.SubscriptionId is not Guid subscriptionId)
+            return;
 
-        if(current.OutletId is not Guid customerOutletId) return null;
-        if(p.SubscriptionId is not Guid subscriptionId) return null;
+        var subscription = await subscriptions.GetAsync(subscriptionId)
+            ?? throw new KeyNotFoundException("Subscription not found.");
 
-        var subscription = await subscriptions.GetAsync(subscriptionId);
-        if(subscription is null || subscription.CustomerId != uid || subscription.OutletId != customerOutletId)
-            return null;
+        if (subscription.PackageStatus == "PaymentPending")
+        {
+            await outletPackageActivation.ActivateAsync(subscription.Id, "Cashfree", payment.CustomerId!.Value);
+            return;
+        }
 
-        return Map(p);
+        var order = await orders.GetBySubscriptionAsync(subscription.Id);
+        if (order is not null)
+        {
+            order.Status = OrderStatus.Confirmed;
+            await orders.UpdateAsync(order);
+        }
     }
-    private static PaymentDto Map(PaymentTransaction p)=>new(p.Id,p.SubscriptionId,p.Provider,p.ProviderPaymentId,p.Amount,p.Currency,p.Status,p.CreatedAtUtc,p.PaidAtUtc);
+
+    private static string GetReturnUrl(string type)
+        => type == "customer"
+            ? "https://app.broccoly.in/payment"
+            : "https://broccoly.in/payment";
+
+    private static string GetWebhookUrl()
+        => "https://api.broccoly.in/api/payments/cashfree/webhook";
+
+    private static string NormalizePhone(string? value)
+    {
+        var phone = new string((value ?? "").Where(char.IsDigit).ToArray());
+        return phone.Length >= 10 ? phone[^10..] : phone;
+    }
+
+    private static string? ExtractString(JsonElement element, params string[] path)
+    {
+        foreach (var segment in path)
+        {
+            if (element.ValueKind != JsonValueKind.Object ||
+                !element.TryGetProperty(segment, out element))
+                return null;
+        }
+
+        return element.ValueKind == JsonValueKind.String ? element.GetString() : null;
+    }
+
+    private static PaymentCheckoutDto MapCheckout(PaymentTransaction p) =>
+        new(p.Id, p.Provider, p.ProviderOrderId, p.PaymentSessionId, p.Amount, p.Currency, p.Status);
+
+    private static PaymentDto Map(PaymentTransaction p) =>
+        new(
+            p.Id,
+            p.SubscriptionId,
+            p.Provider,
+            p.ProviderPaymentId,
+            p.ProviderOrderId,
+            p.Amount,
+            p.Currency,
+            p.Status,
+            p.PaymentMethod,
+            p.CreatedAtUtc,
+            p.PaidAtUtc);
 }
 
 public sealed class DeliveryLabelService(
