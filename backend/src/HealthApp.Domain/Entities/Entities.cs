@@ -674,6 +674,19 @@ public sealed class Outlet
         set;
     }
     = true;
+
+    // Outlet-owned customer-facing legal and commercial policies.
+    public string CustomerTermsAndConditions { get; set; } = "";
+    public string CustomerPrivacyPolicy { get; set; } = "";
+    public string CancellationRefundPolicy { get; set; } = "";
+    public string MealSkipReschedulePolicy { get; set; } = "";
+    public string DeliveryPolicy { get; set; } = "";
+    public string AllergenDietaryDisclaimer { get; set; } = "";
+    public string PaymentPricingPromotionalTerms { get; set; } = "";
+    public string LegalVersion { get; set; } = "1.0";
+    public DateTime? LegalEffectiveDateUtc { get; set; }
+    public bool LegalPoliciesPublished { get; set; }
+
     public decimal RestaurantGstRate {
         get;
         set;
