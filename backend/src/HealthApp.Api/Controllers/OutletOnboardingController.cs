@@ -32,7 +32,7 @@ public sealed class OutletOnboardingController(IOutletOnboardingService service)
 
     [Authorize(Roles = "OutletAdmin")]
     [HttpPost("me/documents")]
-    [RequestSizeLimit(5_000_000)]
+    [RequestSizeLimit(20_000_000)]
     public async Task<IActionResult> CurrentDocument([FromForm] string documentType, IFormFile file)
     {
         if (file is null || file.Length == 0) return BadRequest(new { message = "Please select a document." });
