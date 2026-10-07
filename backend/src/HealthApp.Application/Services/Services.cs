@@ -93,6 +93,8 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
             FirstName = r.FirstName.Trim(),
             LastName = r.LastName.Trim(),
             MobileNumber = normalizedMobile,
+            MarketingOptIn = role == UserRole.Customer && r.MarketingOptIn,
+            MarketingOptInAtUtc = role == UserRole.Customer && r.MarketingOptIn ? DateTime.UtcNow : null,
             Role = role,
             OutletId = outletId,
             PasswordHash = passwords.Hash(r.Password)
