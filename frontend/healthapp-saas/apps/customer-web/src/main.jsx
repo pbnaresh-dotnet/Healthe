@@ -4,6 +4,7 @@ import{auth,outlets,locations,recipes,menu,customer,catalog,money,currentUser,AP
 import{MapContainer,TileLayer,CircleMarker,useMap,useMapEvents}from'react-leaflet';
 import'leaflet/dist/leaflet.css';
 import'./styles.css';
+import LegalDocuments from'./LegalDocuments.jsx';
 
 const SLOT=[{id:1,label:'Morning',icon:'☀️'},{id:2,label:'Afternoon',icon:'🥗'},{id:3,label:'Evening',icon:'🍲'},{id:4,label:'Night',icon:'🌙'}];
 const DAYS=[{id:1,label:'Monday',short:'Mon'},{id:2,label:'Tuesday',short:'Tue'},{id:3,label:'Wednesday',short:'Wed'},{id:4,label:'Thursday',short:'Thu'},{id:5,label:'Friday',short:'Fri'},{id:6,label:'Saturday',short:'Sat'},{id:0,label:'Sunday',short:'Sun'}];
@@ -383,7 +384,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
            </div>
            <div className="authPasswordRules">{passwordChecks.map(([ok,text])=><span className={ok?'valid':''} key={text}><b>{ok?'✓':'○'}</b>{text}</span>)}</div>
            <div className="authConsent">
-             <label><input type="checkbox" checked={authForm.agreeTerms} onChange={e=>setAuthForm({...authForm,agreeTerms:e.target.checked})} required/><span>I agree to the <a href="/terms" onClick={e=>e.preventDefault()}>Terms of Service</a> and <a href="/privacy" onClick={e=>e.preventDefault()}>Privacy Policy</a></span></label>
+             <label><input type="checkbox" checked={authForm.agreeTerms} onChange={e=>setAuthForm({...authForm,agreeTerms:e.target.checked})} required/><span>I agree to the <a href="?legal=terms">Terms of Service</a> and <a href="?legal=privacy">Privacy Policy</a></span></label>
              <label><input type="checkbox" checked={authForm.marketingOptIn} onChange={e=>setAuthForm({...authForm,marketingOptIn:e.target.checked})}/><span>Send me updates on new meals, offers and health tips</span></label>
            </div>
            <button className="primary big authSubmit">Create account <span>→</span></button>
@@ -706,6 +707,7 @@ function GuestPackageModal({outlet,menu,duration,setDuration,startDate,setStartD
 
 
 function App(){
+ const legalDoc=(()=>{try{return new URLSearchParams(window.location.search).get('legal')||''}catch{return ''}})();
  const[user,setUser]=useState(currentUser());
  const[active,setActive]=useState('home');
  const[loading,setLoading]=useState(false);
@@ -1077,6 +1079,7 @@ function App(){
  const hasDraftPackage=Boolean(packageDraftSaved||guestPackageReady||((builder.outlet&&selectedCount)>0));
  const pageTitle=tabs.find(x=>x[0]===active)?.[2]||'Home';
 
+ if(legalDoc)return <LegalDocuments documentId={legalDoc} outletName={(()=>{try{const slug=new URLSearchParams(window.location.search).get('outlet');return slug==='fitfood'?'FitFood':'Your outlet'}catch{return'Your outlet'}})()} onBack={()=>{window.location.href=window.location.pathname}}/>;
  if(!user)return <PublicHome authMode={authMode} setAuthMode={setAuthMode} authForm={authForm} setAuthForm={setAuthForm} doAuth={doAuth} error={error} setError={setError}/>;
 
  return <><LoadingIndicator active={loading||mapBusy} label={loading?'Loading HealthApp data':'Updating location'}/><div className="customerShell"><aside className="sidebar"><div className="sideBrand"><div className="brandMark">{(brandOutlet?.name||'HealthApp').slice(0,1).toUpperCase()}</div><div><b>{brandOutlet?.name||'HealthApp'}</b><small>Customer portal</small></div></div><div className="sideSection">Your journey</div>{sideTabs.slice(0,4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="sideSection">Manage</div>{sideTabs.slice(4).map(t=><button key={t[0]} className={active===t[0]?'navItem active':'navItem'} onClick={()=>go(t[0])}><span>{t[1]}</span>{t[2]}</button>)}<div className="sideBottom"><div className="miniCredit">Wallet <b>{money(global.credit.balance)}</b></div><button className="logoutBtn" onClick={logout}>Log out</button></div></aside><section className="mainPanel"><header className={active==='builder'?'topbar builderTopbar':'topbar'}>
