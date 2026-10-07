@@ -462,7 +462,9 @@ public sealed class OutletSettingsService(
 
             if (published is not null && published.Version == version)
             {
-                if (!string.Equals(published.ContentHash, contentHash, StringComparison.OrdinalIgnoreCase))
+                var requestedHash = ComputePolicyHash(outlet);
+                if (!string.Equals(published.ContentHash, requestedHash, StringComparison.OrdinalIgnoreCase) ||
+                    published.EffectiveDateUtc.Date != request.LegalEffectiveDateUtc.Value.Date)
                     throw new InvalidOperationException($"Legal version {version} is already published and immutable. Increase the version number before publishing revised content.");
             }
             else
