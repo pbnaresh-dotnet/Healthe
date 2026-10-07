@@ -100,6 +100,8 @@ internal static class HealthAppModelBuilder
         e.HasIndex(x => x.OutletId);
         e.HasIndex(x => x.IsDemo);
         e.Property(x => x.DemoExpiresAtUtc);
+        e.Property(x => x.MarketingOptIn).IsRequired();
+        e.Property(x => x.MarketingOptInAtUtc);
         e.HasIndex(x => x.IsDemo);
         e.Property(x => x.DemoExpiresAtUtc);
         e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
