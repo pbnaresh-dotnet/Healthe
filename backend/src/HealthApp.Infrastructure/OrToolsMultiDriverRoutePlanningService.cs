@@ -23,6 +23,37 @@ public sealed class OrToolsMultiDriverRoutePlanningService : IMultiDriverRoutePl
 
         var manager = new RoutingIndexManager(points.Count, driverIds.Count, 0);
         var routing = new RoutingModel(manager);
+        var solver = routing.solver();
+
+        // A delivery location can contain multiple address records (for example,
+        // several apartments sharing the same map pin). Those records are one
+        // physical stop and must stay on the same driver's route.
+        var locationGroups = points
+            .Select((point, node) => new { Point = point, Node = node })
+            .Skip(1) // node 0 is the outlet/depot
+            .GroupBy(x => CoordinateKey(x.Point.Latitude, x.Point.Longitude))
+            .ToList();
+
+        foreach (var group in locationGroups.Where(x => x.Count() > 1))
+        {
+            var firstIndex = manager.NodeToIndex(group.First().Node);
+            foreach (var item in group.Skip(1))
+            {
+                var index = manager.NodeToIndex(item.Node);
+                solver.Add(solver.MakeEquality(
+                    routing.VehicleVar(firstIndex),
+                    routing.VehicleVar(index)));
+            }
+        }
+
+        // When there are enough distinct physical locations, use every selected
+        // driver. This prevents the optimizer from quietly leaving one selected
+        // driver idle while another driver receives all stops.
+        if (locationGroups.Count >= driverIds.Count)
+        {
+            for (var vehicle = 0; vehicle < driverIds.Count; vehicle++)
+                solver.Add(solver.MakeEquality(routing.ActiveVehicleVar(vehicle), 1));
+        }
 
         var transitCallbackIndex = routing.RegisterTransitCallback((long fromIndex, long toIndex) =>
         {
@@ -74,4 +105,7 @@ public sealed class OrToolsMultiDriverRoutePlanningService : IMultiDriverRoutePl
 
         return Task.FromResult(new MultiDriverRoutePlan(routes));
     }
+
+    private static string CoordinateKey(double latitude, double longitude)
+        => $"{Math.Round(latitude, 6):F6}|{Math.Round(longitude, 6):F6}";
 }
