@@ -19,7 +19,8 @@ public sealed class OutletSettingsService(
     IOutletBrandingRepository brandingRepository,
     IOutletDomainRepository domains,
     IOptions<TenantDomainSettings> domainSettings,
-    ICloudflarePagesService cloudflarePages) : IOutletSettingsService
+    ICloudflarePagesService cloudflarePages,
+    IOutletLegalPolicyRepository legalPolicies) : IOutletSettingsService
 {
     private static readonly DayOfWeek[] Weekdays =
     [
@@ -423,13 +424,21 @@ public sealed class OutletSettingsService(
     {
         if (current.OutletId is not Guid outletId) return null;
         var outlet = await outlets.GetByIdAsync(outletId);
-        return outlet is null ? null : MapLegalPolicies(outlet);
+        if (outlet is null) return null;
+
+        var published = await legalPolicies.GetPublishedAsync(outletId);
+        var history = await legalPolicies.GetHistoryAsync(outletId);
+        return MapLegalPolicies(outlet, published, history);
     }
 
     public async Task<OutletLegalPoliciesDto?> UpdateLegalPoliciesAsync(UpdateOutletLegalPoliciesRequest request)
     {
         if (current.OutletId is not Guid outletId) return null;
         var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
+
+        var version = string.IsNullOrWhiteSpace(request.LegalVersion) ? "1.0" : request.LegalVersion.Trim();
+        if (version.Length > 40)
+            throw new ArgumentException("Legal document version must be 40 characters or fewer.");
 
         outlet.CustomerTermsAndConditions = NormalizePolicy(request.CustomerTermsAndConditions, "Customer Terms & Conditions");
         outlet.CustomerPrivacyPolicy = NormalizePolicy(request.CustomerPrivacyPolicy, "Customer Privacy Policy");
@@ -438,24 +447,85 @@ public sealed class OutletSettingsService(
         outlet.DeliveryPolicy = NormalizePolicy(request.DeliveryPolicy, "Delivery Policy");
         outlet.AllergenDietaryDisclaimer = NormalizePolicy(request.AllergenDietaryDisclaimer, "Allergen & Dietary Disclaimer");
         outlet.PaymentPricingPromotionalTerms = NormalizePolicy(request.PaymentPricingPromotionalTerms, "Payment, Pricing & Promotional Terms");
-        outlet.LegalVersion = string.IsNullOrWhiteSpace(request.LegalVersion) ? "1.0" : request.LegalVersion.Trim();
+        outlet.LegalVersion = version;
 
+        var published = await legalPolicies.GetPublishedAsync(outletId);
         if (request.LegalPoliciesPublished)
         {
             if (string.IsNullOrWhiteSpace(outlet.CustomerTermsAndConditions) ||
                 string.IsNullOrWhiteSpace(outlet.CustomerPrivacyPolicy))
                 throw new ArgumentException("Customer Terms & Conditions and Customer Privacy Policy are required before publishing.");
 
-            outlet.LegalEffectiveDateUtc = request.LegalEffectiveDateUtc ?? DateTime.UtcNow;
+            if (!request.LegalEffectiveDateUtc.HasValue)
+                throw new ArgumentException("An effective date is required before publishing.");
+
+            var contentHash = ComputePolicyHash(outlet);
+            if (published is not null && published.Version == version)
+            {
+                if (!string.Equals(published.ContentHash, contentHash, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"Legal version {version} is already published and immutable. Increase the version number before publishing revised content.");
+            }
+            else
+            {
+                var existingVersion = await legalPolicies.GetByVersionAsync(outletId, version);
+                if (existingVersion is not null)
+                    throw new InvalidOperationException($"Legal version {version} already exists. Use a new version number.");
+
+                var actor = current.UserId;
+                await legalPolicies.AddVersionAsync(new OutletLegalPolicyVersion
+                {
+                    Id = Guid.NewGuid(),
+                    OutletId = outletId,
+                    Version = version,
+                    CustomerTermsAndConditions = outlet.CustomerTermsAndConditions,
+                    CustomerPrivacyPolicy = outlet.CustomerPrivacyPolicy,
+                    CancellationRefundPolicy = outlet.CancellationRefundPolicy,
+                    MealSkipReschedulePolicy = outlet.MealSkipReschedulePolicy,
+                    DeliveryPolicy = outlet.DeliveryPolicy,
+                    AllergenDietaryDisclaimer = outlet.AllergenDietaryDisclaimer,
+                    PaymentPricingPromotionalTerms = outlet.PaymentPricingPromotionalTerms,
+                    ContentHash = contentHash,
+                    EffectiveDateUtc = request.LegalEffectiveDateUtc.Value,
+                    CreatedAtUtc = DateTime.UtcNow,
+                    PublishedAtUtc = DateTime.UtcNow,
+                    CreatedByUserId = actor,
+                    IsPublished = true
+                });
+                // Make the immutable published version the only current published version.
+                // Existing versions are retained for audit/history.
+                await legalPolicies.UnpublishOthersAsync(outletId, version);
+            }
+
+            outlet.LegalEffectiveDateUtc = request.LegalEffectiveDateUtc.Value;
+            outlet.LegalPoliciesPublished = true;
         }
         else
         {
+            // Saving a draft never changes or deletes the currently published customer version.
+            // It only updates the editable outlet draft fields.
             outlet.LegalEffectiveDateUtc = request.LegalEffectiveDateUtc;
+            outlet.LegalPoliciesPublished = published is not null;
         }
 
-        outlet.LegalPoliciesPublished = request.LegalPoliciesPublished;
         await outlets.UpdateAsync(outlet);
-        return MapLegalPolicies(outlet);
+        var latestPublished = await legalPolicies.GetPublishedAsync(outletId);
+        var history = await legalPolicies.GetHistoryAsync(outletId);
+        return MapLegalPolicies(outlet, latestPublished, history);
+    }
+
+    private static string ComputePolicyHash(Outlet outlet)
+    {
+        var canonical = string.Join("\n---\n", new[]
+        {
+            outlet.CustomerTermsAndConditions ?? string.Empty,
+            outlet.CustomerPrivacyPolicy ?? string.Empty,
+            outlet.CancellationRefundPolicy ?? string.Empty,
+            outlet.MealSkipReschedulePolicy ?? string.Empty,
+            outlet.DeliveryPolicy ?? string.Empty,
+            outlet.AllergenDietaryDisclaimer ?? string.Empty,
+            outlet.PaymentPricingPromotionalTerms ?? string.Empty
+        });
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
     }
 
     private static string NormalizePolicy(string? value, string name)
@@ -466,19 +536,28 @@ public sealed class OutletSettingsService(
         return text;
     }
 
-    private static OutletLegalPoliciesDto MapLegalPolicies(Outlet outlet) => new(
-        outlet.Id,
-        outlet.Name,
-        outlet.CustomerTermsAndConditions ?? string.Empty,
-        outlet.CustomerPrivacyPolicy ?? string.Empty,
-        outlet.CancellationRefundPolicy ?? string.Empty,
-        outlet.MealSkipReschedulePolicy ?? string.Empty,
-        outlet.DeliveryPolicy ?? string.Empty,
-        outlet.AllergenDietaryDisclaimer ?? string.Empty,
-        outlet.PaymentPricingPromotionalTerms ?? string.Empty,
-        outlet.LegalVersion ?? "1.0",
-        outlet.LegalEffectiveDateUtc,
-        outlet.LegalPoliciesPublished);
+    private static OutletLegalPoliciesDto MapLegalPolicies(
+        Outlet outlet,
+        OutletLegalPolicyVersion? published,
+        IReadOnlyList<OutletLegalPolicyVersion> history)
+        => new(
+            outlet.Id,
+            outlet.Name,
+            outlet.CustomerTermsAndConditions ?? string.Empty,
+            outlet.CustomerPrivacyPolicy ?? string.Empty,
+            outlet.CancellationRefundPolicy ?? string.Empty,
+            outlet.MealSkipReschedulePolicy ?? string.Empty,
+            outlet.DeliveryPolicy ?? string.Empty,
+            outlet.AllergenDietaryDisclaimer ?? string.Empty,
+            outlet.PaymentPricingPromotionalTerms ?? string.Empty,
+            outlet.LegalVersion ?? "1.0",
+            outlet.LegalEffectiveDateUtc,
+            published is not null,
+            published?.Id,
+            published?.Version ?? string.Empty,
+            published?.EffectiveDateUtc,
+            history.Select(x => new OutletLegalPolicyVersionDto(
+                x.Id, x.Version, x.EffectiveDateUtc, x.CreatedAtUtc, x.PublishedAtUtc, x.IsPublished, x.ContentHash)).ToList());
 
     public async Task<OutletReadinessDto?> GetReadinessAsync()
     {
