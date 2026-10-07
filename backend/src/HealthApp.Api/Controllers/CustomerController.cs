@@ -14,6 +14,10 @@ public sealed class CustomerController(ICustomerService service, IOutletPackageS
         => Ok(await outletPackages.AcceptAsync(subscriptionId, request,
             new LegalAcceptanceContext(HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString())));
     [HttpPatch("marketing-preference")] public async Task<IActionResult> MarketingPreference(UpdateMarketingPreferenceRequest request) => Ok(await service.UpdateMarketingPreferenceAsync(request));
+    [HttpGet("legal-status")] public async Task<IActionResult> LegalStatus() => Ok(await service.GetLegalStatusAsync());
+    [HttpPost("legal-acceptance")] public async Task<IActionResult> AcceptLegal(AcceptCustomerLegalRequest request)
+        => Ok(await service.AcceptLegalAsync(request,
+            new LegalAcceptanceContext(HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString())));
     [HttpGet("dashboard")] public async Task<IActionResult> Dashboard() => Ok(await service.GetDashboardAsync());
     [HttpGet("subscriptions")] public async Task<IActionResult> Subscriptions() => Ok(await service.GetSubscriptionsAsync());
     [HttpPost("subscriptions/quote")] public async Task<IActionResult> Quote(SubscriptionQuoteRequest request) => Ok(await service.QuoteAsync(request));
