@@ -543,9 +543,6 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var publishedLegal = await legalPolicies.GetPublishedAsync(outlet.Id);
         if (publishedLegal is null)
             throw new InvalidOperationException("This outlet is not ready for customer orders because its customer legal policies are not published.");
-        if (!r.LegalAccepted || r.LegalPolicyVersionId != publishedLegal.Id)
-            throw new InvalidOperationException("Please review and accept the latest outlet Terms & Privacy Policy before completing your package.");
-        var alreadyAccepted = await legalPolicies.HasAcceptedVersionAsync(customerId, outlet.Id, publishedLegal.Id);
         var deliveryCity = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var menuItems = await menu.GetByOutletAsync(outlet.Id);
@@ -586,6 +583,11 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if (await outletSubscriptions.GetByOutletAsync(outlet.Id) is null)
             throw new KeyNotFoundException("Outlet not found or unavailable.");
         EnsureCustomerOutletAccess(outlet.Id);
+        var publishedLegal = await legalPolicies.GetPublishedAsync(outlet.Id)
+            ?? throw new InvalidOperationException("This outlet is not ready for customer orders because its customer legal policies are not published.");
+        if (!r.LegalAccepted || r.LegalPolicyVersionId != publishedLegal.Id)
+            throw new InvalidOperationException("Please review and accept the latest outlet Terms & Privacy Policy before completing your package.");
+        var alreadyAccepted = await legalPolicies.HasAcceptedVersionAsync(customerId, outlet.Id, publishedLegal.Id);
         var deliveryCity = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var mealEntities = BuildSelections(r.Selections, outlet.Id, await menu.GetByOutletAsync(outlet.Id), rs);
