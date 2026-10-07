@@ -12,7 +12,8 @@ public sealed class OutletStaffService(
     private static readonly HashSet<UserRole> ManagedRoles =
     [
         UserRole.OutletManager,
-        UserRole.KitchenStaff
+        UserRole.KitchenStaff,
+        UserRole.Driver
     ];
 
     public async Task<IReadOnlyList<OutletStaffDto>> GetAsync()
@@ -36,7 +37,7 @@ public sealed class OutletStaffService(
             throw new UnauthorizedAccessException("Outlet context is required.");
 
         if (!Enum.TryParse<UserRole>(request.Role, true, out var role) || !ManagedRoles.Contains(role))
-            throw new ArgumentException("Staff role must be OutletManager or KitchenStaff.");
+            throw new ArgumentException("Staff role must be OutletManager, KitchenStaff or Driver.");
 
         if (string.IsNullOrWhiteSpace(request.FirstName) ||
             string.IsNullOrWhiteSpace(request.LastName) ||
@@ -77,9 +78,6 @@ public sealed class OutletStaffService(
 
         if (user.OutletId != outletId)
             throw new UnauthorizedAccessException("Staff account does not belong to this outlet.");
-
-        if (user.Role is UserRole.OutletAdmin or UserRole.Driver)
-            throw new InvalidOperationException("This staff account cannot be changed from Team.");
 
         if (!Enum.TryParse<UserRole>(request.Role, true, out var role) || !ManagedRoles.Contains(role))
             throw new ArgumentException("Staff role must be OutletManager or KitchenStaff.");
