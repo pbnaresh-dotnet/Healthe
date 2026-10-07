@@ -124,7 +124,7 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
         return tokens.CreateToken(user);
     }
 }
-public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepository plans, IRecipeRepository recipes, IOutletMenuRepository menu, ISaaSPlanRepository saasPlans, IServiceCityRepository serviceCities, ITenantContext tenant, IOutletSubscriptionRepository outletSubscriptions) : IMarketplaceService
+public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepository plans, IRecipeRepository recipes, IOutletMenuRepository menu, ISaaSPlanRepository saasPlans, IServiceCityRepository serviceCities, ITenantContext tenant, IOutletSubscriptionRepository outletSubscriptions, IOutletLegalPolicyRepository legalPolicyRepository) : IMarketplaceService
 {
     public async Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync() => (await saasPlans.GetActiveAsync()).Select(Map).ToList();
     public async Task<AvailabilityResponse> GetAvailabilityAsync(double latitude, double longitude, string? city = null)
@@ -214,6 +214,7 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
             return null;
         if (!x.LegalPoliciesPublished || string.IsNullOrWhiteSpace(x.CustomerTermsAndConditions) || string.IsNullOrWhiteSpace(x.CustomerPrivacyPolicy))
             return null;
+        var publishedLegal = await legalPolicyRepository.GetPublishedAsync(x.Id);
         return new(
             x.Id,
             x.Name,
@@ -224,9 +225,12 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
             x.DeliveryPolicy ?? string.Empty,
             x.AllergenDietaryDisclaimer ?? string.Empty,
             x.PaymentPricingPromotionalTerms ?? string.Empty,
-            x.LegalVersion ?? "1.0",
-            x.LegalEffectiveDateUtc,
-            x.LegalPoliciesPublished);
+            publishedLegal?.Version ?? x.LegalVersion ?? "1.0",
+            publishedLegal?.EffectiveDateUtc ?? x.LegalEffectiveDateUtc,
+            publishedLegal is not null,
+            publishedLegal?.Id,
+            publishedLegal?.Version ?? string.Empty,
+            publishedLegal?.EffectiveDateUtc);
     }
 
     public async Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(Guid outletId) {
