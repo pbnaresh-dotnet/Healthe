@@ -48,6 +48,8 @@ public sealed class User
         get;
         set;
     }
+    public bool MarketingOptIn { get; set; }
+    public DateTime? MarketingOptInAtUtc { get; set; }
     public DateTime? DemoExpiresAtUtc {
         get;
         set;
