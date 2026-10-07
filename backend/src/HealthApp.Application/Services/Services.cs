@@ -312,7 +312,20 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     {
         if (current.UserId is not Guid id) return null;
         var x = await users.FindByIdAsync(id);
-        return x is null ? null : new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId, false, null, x.MobileNumber);
+        return x is null ? null : new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId, false, null, x.MobileNumber, x.MarketingOptIn, x.MarketingOptInAtUtc);
+    }
+
+    public async Task<UserDto?> UpdateMarketingPreferenceAsync(UpdateMarketingPreferenceRequest request)
+    {
+        if (current.UserId is not Guid id) return null;
+        var x = await users.FindByIdAsync(id) ?? throw new KeyNotFoundException("Customer not found.");
+        if (x.Role != UserRole.Customer)
+            throw new UnauthorizedAccessException("Only customer accounts can change marketing preferences.");
+
+        x.MarketingOptIn = request.MarketingOptIn;
+        x.MarketingOptInAtUtc = request.MarketingOptIn ? DateTime.UtcNow : null;
+        await users.UpdateAsync(x);
+        return new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId, x.IsDemo, x.DemoExpiresAtUtc, x.MobileNumber, x.MarketingOptIn, x.MarketingOptInAtUtc);
     }
     public async Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync()
     {
