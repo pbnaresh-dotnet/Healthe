@@ -1690,3 +1690,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
 
 .legalUnavailableNotice{padding:16px;border-radius:10px;background:#fff8e8;border:1px solid #ead39c;color:#7a6839}.legalUnavailableNotice b{display:block;color:#9a7016;font-size:11px;margin-bottom:4px}.legalUnavailableNotice span{display:block;font-size:9px;line-height:1.55}
+
+
+/* Customer re-consent banner for a newly published legal version */
+.legalReconsentBanner{margin:0 auto 12px;max-width:1180px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:start;padding:13px 14px;border:1px solid #d8c88e;border-radius:12px;background:#fffaf0;box-shadow:0 5px 18px rgba(93,76,27,.06)}
+.legalReconsentIcon{width:32px;height:32px;border-radius:9px;background:#ead99a;color:#7b6418;display:grid;place-items:center;font-weight:900;font-size:16px}
+.legalReconsentCopy{min-width:0}.legalReconsentCopy .eyebrow{display:block;color:#95761b!important;margin-bottom:3px}.legalReconsentCopy h3{margin:0 0 4px;font-size:12px;color:#4e4017}.legalReconsentCopy p{margin:0;color:#75673c;font-size:9px;line-height:1.5}.legalReconsentCopy p b{color:#5f4d12}
+.legalReconsentLinks{display:flex;gap:8px;margin-top:6px}.legalReconsentLinks a{color:#21683a;font-size:8px;font-weight:900}.legalReconsentCheck{display:flex!important;gap:7px;align-items:flex-start;margin:8px 0 0!important;padding:7px 8px;border:1px solid #e9ddb0;border-radius:8px;background:#fffdf7}.legalReconsentCheck input{margin-top:2px}.legalReconsentCheck span{font-size:8px!important;line-height:1.4;color:#6f623c!important}
+.legalReconsentBanner>.primary{white-space:nowrap}
+@media(max-width:760px){.legalReconsentBanner{grid-template-columns:auto minmax(0,1fr)}.legalReconsentBanner>.primary{grid-column:1/-1;width:100%}}
+@media(max-width:500px){.legalReconsentBanner{padding:11px;gap:9px}.legalReconsentIcon{width:28px;height:28px;font-size:14px}.legalReconsentCopy h3{font-size:11px}.legalReconsentCopy p{font-size:8px}}
