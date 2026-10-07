@@ -455,8 +455,13 @@ public sealed class OutletSettingsService(
         if (request.LegalPoliciesPublished)
         {
             if (string.IsNullOrWhiteSpace(outlet.CustomerTermsAndConditions) ||
-                string.IsNullOrWhiteSpace(outlet.CustomerPrivacyPolicy))
-                throw new ArgumentException("Customer Terms & Conditions and Customer Privacy Policy are required before publishing.");
+                string.IsNullOrWhiteSpace(outlet.CustomerPrivacyPolicy) ||
+                string.IsNullOrWhiteSpace(outlet.CancellationRefundPolicy) ||
+                string.IsNullOrWhiteSpace(outlet.MealSkipReschedulePolicy) ||
+                string.IsNullOrWhiteSpace(outlet.DeliveryPolicy) ||
+                string.IsNullOrWhiteSpace(outlet.AllergenDietaryDisclaimer) ||
+                string.IsNullOrWhiteSpace(outlet.PaymentPricingPromotionalTerms))
+                throw new ArgumentException("All customer-facing legal and commercial policies must be completed before publishing.");
 
             if (!request.LegalEffectiveDateUtc.HasValue)
                 throw new ArgumentException("An effective date is required before publishing.");
