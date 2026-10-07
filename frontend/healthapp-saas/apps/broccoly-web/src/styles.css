@@ -40,3 +40,60 @@ body{font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--ha-bg);color:v
 .startMain{max-width:1040px;margin:0 auto;padding:34px 20px 70px}.startIntro{text-align:center;max-width:720px;margin:0 auto 30px}.startIntro h1{font-size:36px;letter-spacing:-.045em;line-height:1.06;margin:9px 0}.startIntro p{font-size:12px;line-height:1.6;color:#6c7971}.startChoices{display:grid;grid-template-columns:1fr 1fr;gap:15px}.startChoice{position:relative;background:#fff;border:1px solid var(--ha-border);border-radius:16px;padding:23px;display:flex;flex-direction:column;min-height:380px}.startChoice.recommended{border-color:#83b692;box-shadow:0 14px 35px rgba(18,59,36,.08)}.startChoiceIcon{width:42px;height:42px;border-radius:11px;background:#e2f4e6;color:var(--ha-green);display:grid;place-items:center;font-size:19px;font-weight:900;margin-bottom:17px}.startChoice h2{font-size:22px;margin:6px 0}.startChoice p{font-size:10px;line-height:1.55;color:#6e7b73}.startFacts{display:grid;gap:8px;margin:14px 0 auto}.startFacts span{font-size:9px;color:#56675c;line-height:1.45}.startChoice .primary{margin-top:18px}.startChoice .popular{top:14px;right:14px;background:#e2f4e6;color:var(--ha-green)}
 @media(max-width:1080px){.why{grid-template-columns:1fr}.featureGrid{grid-template-columns:1fr 1fr}.testimonialGrid{grid-template-columns:1fr 1fr}.hero{grid-template-columns:1fr}.heroVisual{order:-1}.heroImageCard{height:360px}.heroDevice{right:4px}.plans{grid-template-columns:1fr 1fr}.startChoices{grid-template-columns:1fr 1fr}}
 @media(max-width:680px){.nav{padding:12px 14px}.navActions .secondary{display:none}.hero{padding:42px 16px 24px}.hero h1{font-size:41px}.heroImageCard{height:290px}.heroDevice{width:112px;border-width:4px;border-radius:18px}.heroDevice .deviceImage{height:130px}.heroFloat{transform:scale(.88)}.benefitStrip{grid-template-columns:1fr 1fr;padding:0 16px 30px}.section{padding:55px 16px}.featureGrid,.testimonialGrid,.plans,.startChoices{grid-template-columns:1fr}.howDemo,.finalCta{flex-direction:column;align-items:flex-start}.finalCtaActions{width:100%;display:grid;grid-template-columns:1fr}.finalCtaActions button{width:100%}.footer{grid-template-columns:1fr;gap:15px}.startMain{padding:28px 15px 55px}.startIntro h1{font-size:30px}.startChoice{min-height:0}.progress{overflow:auto}.registerTop{padding:14px}.registerMain{padding-inline:14px}.registerCard{padding:18px}}
+
+/* Plan selection refresh — final overrides for a clearer, livelier responsive experience. */
+.registerMain{max-width:1260px;padding:30px 24px 82px}
+.registerCard{padding:36px;border-radius:28px;background:linear-gradient(180deg,#ffffff 0%,#fbfdfb 100%);border:1px solid #d5e5d9;box-shadow:0 20px 55px rgba(23,70,39,.09)}
+.registerIntro h1{font-size:clamp(40px,4vw,54px);line-height:1;letter-spacing:-.055em;color:#123b24;margin:12px 0}
+.registerIntro p{font-size:14px;line-height:1.7;color:#607267;max-width:700px}
+.cycleToggle{display:inline-flex;align-items:center;gap:4px;margin:26px 0 26px;padding:5px;border:1px solid #d4e6d9;border-radius:15px;background:#eaf4ed;box-shadow:0 8px 20px rgba(38,93,55,.07)}
+.cycleToggle button{padding:10px 16px;border-radius:10px;font-size:12px;font-weight:900;color:#5b6d61}
+.cycleToggle button.active{color:#176031;box-shadow:0 3px 12px rgba(28,80,45,.11)}
+.cycleToggle small{font-size:9px;font-weight:800;color:#72857a}
+.registerPlans{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;align-items:stretch}
+.registerPlan{position:relative;overflow:hidden;min-height:390px;padding:24px;border:1px solid #d5e5da;border-radius:22px;background:linear-gradient(180deg,#fff 0%,#f7fbf8 100%);box-shadow:0 10px 26px rgba(32,82,48,.055);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.registerPlan:before{content:"";position:absolute;inset:0 0 auto;height:5px;background:linear-gradient(90deg,#2d824b,#8fcf96)}
+.registerPlan:nth-child(2):before{background:linear-gradient(90deg,#2f7cbd,#87bdf0)}
+.registerPlan:nth-child(3):before{background:linear-gradient(90deg,#d28a22,#f2c56a)}
+.registerPlan:nth-child(4):before{background:linear-gradient(90deg,#7c4ac7,#c39bf4)}
+.registerPlan:hover{transform:translateY(-5px);box-shadow:0 18px 38px rgba(26,82,46,.12);border-color:#a9cdb3}
+.registerPlan.selected{border-color:#428d59;box-shadow:0 0 0 4px #e2f1e5,0 18px 38px rgba(38,108,58,.14);transform:translateY(-3px)}
+.registerPlan .planIcon{width:48px;height:48px;display:grid;place-items:center;border-radius:15px;background:#edf7ef;font-size:27px;box-shadow:inset 0 0 0 1px rgba(39,122,69,.06)}
+.registerPlan:nth-child(2) .planIcon{background:#eef6ff}
+.registerPlan:nth-child(3) .planIcon{background:#fff7e7}
+.registerPlan:nth-child(4) .planIcon{background:#f6efff}
+.registerPlan h3{font-size:24px;line-height:1.05;letter-spacing:-.03em;color:#143a25;margin:15px 0 7px}
+.registerPlan p{font-size:12px;line-height:1.6;color:#607067;min-height:42px;margin:0}
+.registerPlan>strong{font-size:34px;line-height:1;letter-spacing:-.045em;color:#123b24;margin:24px 0 7px}
+.registerPlan>strong small{font-size:11px;color:#73827a;font-weight:800;letter-spacing:0}
+.registerPlan>span{font-size:11px;line-height:1.5;color:#4f6457;font-weight:700;margin-top:9px}
+.registerPlan button{width:100%;margin-top:auto;padding:13px 14px;border-radius:12px;font-size:13px;font-weight:900}
+.registerBottom{margin-top:26px;padding-top:20px}
+.registerBottom b{font-size:12px}
+.registerBottom span{font-size:10px}
+@media(max-width:1080px){
+ .registerMain{max-width:980px;padding-inline:18px}
+ .registerPlans{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .registerPlan{min-height:365px}
+}
+@media(max-width:680px){
+ .registerMain{padding:18px 12px 55px}
+ .registerCard{padding:20px;border-radius:20px}
+ .registerIntro h1{font-size:35px}
+ .registerIntro p{font-size:13px}
+ .cycleToggle{max-width:100%;margin:20px 0}
+ .cycleToggle button{padding:9px 12px;font-size:11px}
+ .registerPlans{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .registerPlan{min-height:335px;padding:17px;border-radius:17px}
+ .registerPlan .planIcon{width:42px;height:42px;border-radius:13px;font-size:23px}
+ .registerPlan h3{font-size:20px}
+ .registerPlan p{font-size:10px;min-height:48px}
+ .registerPlan>strong{font-size:27px;margin:18px 0 6px}
+ .registerPlan>strong small{font-size:9px}
+ .registerPlan>span{font-size:9px}
+ .registerPlan button{font-size:11px;padding:11px 8px}
+}
+@media(max-width:430px){
+ .registerPlans{grid-template-columns:1fr}
+ .registerPlan{min-height:0}
+}
