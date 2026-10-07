@@ -158,8 +158,8 @@ public sealed class OutletOnboardingService(
                     user.FirstName + (string.IsNullOrWhiteSpace(user.LastName) ? "" : " " + user.LastName),
                     user.Email,
                     NormalizePhone(user.MobileNumber ?? request.OwnerPhone),
-                    "https://broccoly.in/payment",
-                    "https://api.broccoly.in/api/payments/cashfree/webhook",
+                    paymentGateway.OutletReturnUrl,
+                    paymentGateway.WebhookUrl,
                     "Broccoly outlet setup fee"),
                 CancellationToken.None);
 
