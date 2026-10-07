@@ -229,8 +229,6 @@ BEGIN
     INNER JOIN ranked r ON r.Id = v.Id
     WHERE r.rn > 1;
 END;
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_OutletLegalPolicyVersions_Current' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
-    CREATE UNIQUE INDEX UX_OutletLegalPolicyVersions_Current ON dbo.OutletLegalPolicyVersions(OutletId) WHERE IsPublished = 1;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_CustomerLegalAcceptances_Customer_Outlet_Version' AND object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
     CREATE UNIQUE INDEX UX_CustomerLegalAcceptances_Customer_Outlet_Version ON dbo.CustomerLegalAcceptances(CustomerId, OutletId, LegalPolicyVersionId);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_CustomerLegalAcceptances_Customer_Outlet_Date' AND object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
@@ -311,6 +309,15 @@ BEGIN
           SELECT 1 FROM dbo.OutletLegalPolicyVersions v
           WHERE v.OutletId = o.Id
             AND v.Version = COALESCE(NULLIF(o.LegalVersion,''),'1.0')
+      )
+      -- A legacy outlet that already has any published immutable version must keep
+      -- that immutable version as the source of truth. Do not attempt to create a
+      -- second current version from the mutable legacy columns.
+      AND NOT EXISTS
+      (
+          SELECT 1 FROM dbo.OutletLegalPolicyVersions v
+          WHERE v.OutletId = o.Id
+            AND v.IsPublished = 1
       );
 
     UPDATE o
@@ -324,6 +331,13 @@ BEGIN
             AND v.IsPublished = 1
       );
 END;
+", cancellationToken);
+
+        // Recreate the filtered unique current-version index only after legacy backfill has
+        // completed. This prevents the backfill from colliding with an existing current row.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_OutletLegalPolicyVersions_Current' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
+    CREATE UNIQUE INDEX UX_OutletLegalPolicyVersions_Current ON dbo.OutletLegalPolicyVersions(OutletId) WHERE IsPublished = 1;
 ", cancellationToken);
 
         // Existing databases may receive nullable columns first. Populate safe defaults
