@@ -743,11 +743,13 @@ public sealed class OutletPackageService(
             await subscriptions.UpdateAsync(subscription);
         });
 
+        var customer = await users.FindByIdAsync(customerId);
+        var outlet = await outlets.GetByIdAsync(subscription.OutletId);
         var outletAdmin = (await users.GetAllAsync())
-            .Where(x => x.OutletId == outletId && x.Role == UserRole.OutletAdmin && x.IsActive)
+            .Where(x => x.OutletId == subscription.OutletId && x.Role == UserRole.OutletAdmin && x.IsActive)
             .OrderBy(x => x.Id)
             .FirstOrDefault();
-        if (outletAdmin is not null)
+        if (outletAdmin is not null && customer is not null)
         {
             await emails.TrySendAsync(
                 EmailTemplateId.PackageAccepted,
@@ -755,7 +757,7 @@ public sealed class OutletPackageService(
                 new Dictionary<string, string?>
                 {
                     ["CustomerName"] = $"{customer.FirstName} {customer.LastName}".Trim(),
-                    ["OutletName"] = (await outlets.GetByIdAsync(outletId))?.Name ?? "Your outlet",
+                    ["OutletName"] = outlet?.Name ?? "Your outlet",
                     ["PackageName"] = subscription.PlanName,
                     ["MealCount"] = subscription.TotalMealCount.ToString(),
                     ["Total"] = $"₹{subscription.TotalCharged:N2}",
