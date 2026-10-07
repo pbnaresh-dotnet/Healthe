@@ -9,17 +9,21 @@ namespace HealthApp.Api.Controllers;
 public sealed class OutletDeliveryRoutesController(IDeliveryRouteService service) : ControllerBase
 {
     [HttpGet("drivers")]
+    [Authorize(Roles = "OutletAdmin,OutletManager")]
     public async Task<IActionResult> Drivers() => Ok(await service.GetDriversAsync());
 
     [HttpPost("drivers")]
+    [Authorize(Roles = "OutletAdmin,OutletManager")]
     public async Task<IActionResult> CreateDriver(CreateDriverRequest request)
         => Ok(await service.CreateDriverAsync(request));
 
     [HttpGet]
+    [Authorize(Roles = "OutletAdmin,OutletManager")]
     public async Task<IActionResult> Plan([FromQuery] DateTime? date, [FromQuery] int? mealSlot)
         => Ok(await service.GetPlanAsync((date ?? DateTime.UtcNow).Date, mealSlot ?? 2));
 
     [HttpPost("plan")]
+    [Authorize(Roles = "OutletAdmin,OutletManager")]
     public async Task<IActionResult> PlanRoutes(PlanDeliveryRoutesRequest request)
         => Ok(await service.PlanRoutesAsync(request));
 
@@ -39,6 +43,7 @@ public sealed class OutletDeliveryRoutesController(IDeliveryRouteService service
         => Ok(await service.CompleteDriverStopAsync(stopId));
 
     [HttpPost("{routeId:guid}/dispatch")]
+    [Authorize(Roles = "OutletAdmin,OutletManager")]
     public async Task<IActionResult> Dispatch(Guid routeId)
         => Ok(await service.DispatchRouteAsync(routeId));
 }
