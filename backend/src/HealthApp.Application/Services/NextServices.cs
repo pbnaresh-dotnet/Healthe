@@ -576,6 +576,17 @@ public sealed class PaymentService(
             : payment.ProviderPaymentId;
         if (application.Status == "PaymentPending")
             application.Status = "PendingVerification";
+
+        if (application.UserId is Guid userId)
+        {
+            var user = await users.FindByIdAsync(userId);
+            if (user is not null && !user.IsActive)
+            {
+                user.IsActive = true;
+                await users.UpdateAsync(user);
+            }
+        }
+
         await onboardingApplications.UpdateAsync(application);
     }
 
