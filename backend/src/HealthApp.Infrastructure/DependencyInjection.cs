@@ -33,6 +33,7 @@ public static class DependencyInjection
 
         services.Configure<JwtOptions>(config.GetSection("Jwt"));
         services.Configure<StorageOptions>(config.GetSection("Storage"));
+        services.Configure<MediaOptions>(config.GetSection("Media"));
         services.Configure<GeocodingOptions>(config.GetSection("Geocoding"));
         services.Configure<TenantDomainSettings>(config.GetSection("TenantDomains"));
         services.Configure<CloudflarePagesSettings>(config.GetSection("CloudflarePages"));
@@ -69,6 +70,7 @@ public static class DependencyInjection
         {
             throw new InvalidOperationException($"Unsupported Geocoding:Provider '{geocodingProvider}'.");
         }
+        services.AddSingleton<IMediaService, ImageMediaService>();
         services.AddSingleton<IPasswordService, PasswordService>();
         services.AddSingleton<ITokenService, JwtTokenService>();
 
