@@ -630,7 +630,12 @@ public sealed class OutletSettingsService(
         var publishedLegal = await legalPolicies.GetPublishedAsync(outletId);
         var legalReady = publishedLegal is not null &&
             !string.IsNullOrWhiteSpace(publishedLegal.CustomerTermsAndConditions) &&
-            !string.IsNullOrWhiteSpace(publishedLegal.CustomerPrivacyPolicy);
+            !string.IsNullOrWhiteSpace(publishedLegal.CustomerPrivacyPolicy) &&
+            !string.IsNullOrWhiteSpace(publishedLegal.CancellationRefundPolicy) &&
+            !string.IsNullOrWhiteSpace(publishedLegal.MealSkipReschedulePolicy) &&
+            !string.IsNullOrWhiteSpace(publishedLegal.DeliveryPolicy) &&
+            !string.IsNullOrWhiteSpace(publishedLegal.AllergenDietaryDisclaimer) &&
+            !string.IsNullOrWhiteSpace(publishedLegal.PaymentPricingPromotionalTerms);
 
         var menuDaysReady = deliveryDays.Count > 0
             ? deliveryDays.Count(day => menuItems.Any(x => x.DayOfWeek == day))
@@ -657,7 +662,7 @@ public sealed class OutletSettingsService(
                 pricingRules > 0, pricingRules, 1, "pricing"),
             new("tax", "Tax settings", "Confirm the restaurant GST rate for customer pricing.",
                 outlet.RestaurantGstRate >= 0m, 1, 1, "tax"),
-            new("legal", "Customer legal policies", "Publish an immutable Terms & Privacy policy version before accepting customer registrations and orders.",
+            new("legal", "Customer legal policies", "Complete and publish an immutable Terms, Privacy and customer-policy version before accepting registrations and orders.",
                 legalReady, legalReady ? 1 : 0, 1, "legal")
         };
 
