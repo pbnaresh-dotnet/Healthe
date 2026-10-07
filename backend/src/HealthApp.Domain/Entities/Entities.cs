@@ -692,6 +692,7 @@ public sealed class Outlet
     // Customer package experience configuration. Values are snapshotted onto subscriptions when created.
     public string CustomPackagePricingMode { get; set; } = "Calculated";
     public bool ShowPackagePriceToCustomer { get; set; } = true;
+    public bool ShowMealPriceToCustomer { get; set; } = true;
     public bool ShowDeliveryFeeToCustomer { get; set; } = true;
 
     public decimal RestaurantGstRate {

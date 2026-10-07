@@ -41,7 +41,7 @@ public sealed class OutletSettingsService(
             outlet.DeliveryDays, outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString(),
             await BuildReadinessAsync(outlet), MapBranding(branding),
             outlet.DeliveryCoverageMode.ToString(), outlet.ServiceRadiusKm, outlet.Latitude, outlet.Longitude, outlet.Slug,
-            outlet.CustomPackagePricingMode, outlet.ShowPackagePriceToCustomer, outlet.ShowDeliveryFeeToCustomer);
+            outlet.CustomPackagePricingMode, outlet.ShowPackagePriceToCustomer, outlet.ShowMealPriceToCustomer, outlet.ShowDeliveryFeeToCustomer);
     }
 
     public async Task<IReadOnlyList<OutletDomainDto>> GetDomainsAsync()
@@ -402,6 +402,7 @@ public sealed class OutletSettingsService(
             throw new ArgumentException("Custom package pricing mode must be Calculated or ReviewRequired.");
         outlet.CustomPackagePricingMode = mode.Equals("ReviewRequired", StringComparison.OrdinalIgnoreCase) ? "ReviewRequired" : "Calculated";
         outlet.ShowPackagePriceToCustomer = request.ShowPackagePriceToCustomer;
+        outlet.ShowMealPriceToCustomer = request.ShowMealPriceToCustomer;
         outlet.ShowDeliveryFeeToCustomer = request.ShowDeliveryFeeToCustomer;
         await outlets.UpdateAsync(outlet);
         return await GetAsync();
