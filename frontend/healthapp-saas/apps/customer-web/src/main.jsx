@@ -155,7 +155,10 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
          setPublicCities([{city:outlet.city,state:outlet.state}]);
          setPublicCity(outlet.city||'');
          setNearbyOutlets([outlet]);
+         setPublicOutletMenu([]);
+         setPublicOutletBusy(true);
          try{setPublicOutletMenu(await menu.outlet(outlet.id)||[])}catch{setPublicOutletMenu([])}
+         finally{if(!disposed)setPublicOutletBusy(false)}
          return;
        }
        const list=await locations.cities();
@@ -419,7 +422,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  if(publicOutlet&&!standaloneMode&&!guestBuilderOpen) return <PublicOutletHome outlet={publicOutlet} menu={publicOutletMenu} busy={publicOutletBusy} error={publicOutletError} onBack={()=>setPublicOutlet(null)} onBuild={openGuestBuilder}/>;
  if(standaloneMode){
    if(!tenantOutlet&&!guestBuilderOpen) return <div className="tenantLoadingShell"><LoadingIndicator active label="Loading outlet website"/><div><span className="publicEyebrow">OUTLET WEBSITE</span><h1>Loading your outlet…</h1><p>Preparing the latest menu, branding and delivery information.</p></div></div>;
-   if(tenantOutlet&&!guestBuilderOpen) return <PublicOutletHome standalone outlet={tenantOutlet} menu={publicOutletMenu} busy={false} error={publicMapError} onBack={()=>{}} onBuild={()=>openGuestBuilder(tenantOutlet)} onSignIn={()=>openAuth('login')} onRegister={()=>openAuth('register')}/>;
+   if(tenantOutlet&&!guestBuilderOpen) return <PublicOutletHome standalone outlet={tenantOutlet} menu={publicOutletMenu} busy={publicOutletBusy} error={publicMapError} onBack={()=>{}} onBuild={()=>openGuestBuilder(tenantOutlet)} onSignIn={()=>openAuth('login')} onRegister={()=>openAuth('register')}/>;
  }
 
  return <><LoadingIndicator active={publicMapBusy||publicOutletBusy} label={publicOutletBusy?'Loading outlet menu':'Finding outlets'}/><div className="publicHome" data-public-tenant-root={standaloneMode?'1':undefined} style={standaloneMode?{'--brand-primary':tenantOutlet?.primaryColor||'#14532d','--brand-secondary':tenantOutlet?.secondaryColor||'#166534'}:undefined}>
@@ -483,6 +486,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    {guestBuilderOpen&&<GuestPackageModal
      outlet={guestBuilderOutlet}
      menu={publicOutletMenu}
+     busy={publicOutletBusy}
      duration={guestDuration}
      setDuration={value=>{setGuestDuration(value);setGuestSelections({})}}
      startDate={guestStartDate}
@@ -620,6 +624,7 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild,standalone=fals
  </div></>;
 }
 function CustomerOutletHome({outlet,menu,busy,error,onBuild,onViewPlan}){
+ const showMealPrice=outlet?.showMealPriceToCustomer!==false;
  const[slot,setSlot]=useState(1);
  const[filter,setFilter]=useState('All');
  useEffect(()=>{
@@ -679,7 +684,8 @@ function CustomerOutletHome({outlet,menu,busy,error,onBuild,onViewPlan}){
  </div></>;
 }
 
-function GuestPackageModal({outlet,menu,duration,setDuration,startDate,setStartDate,selections,setSelections,selectedCount,onClose,onContinue}){
+function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDate,setStartDate,selections,setSelections,selectedCount,onClose,onContinue}){
+ const showMealPrice=outlet?.showMealPriceToCustomer!==false;
  const days=useMemo(()=>{
    const d=DURATIONS.find(x=>x.id===duration)||DURATIONS[2];
    const start=startDate||todayISO();
@@ -698,7 +704,14 @@ function GuestPackageModal({outlet,menu,duration,setDuration,startDate,setStartD
        <div className="publicGuestCount"><b>{selectedCount}</b><span>meals selected</span></div>
        <div className="publicGuestOutlet"><span>OUTLET</span><b>{outlet?.name}</b><small>{outlet?.city}</small></div>
      </div>
-     <div className="publicGuestWeeks">
+     {busy?
+       <div className="publicGuestLoading" role="status" aria-live="polite">
+         <div className="publicGuestLoadingSpinner"/>
+         <div className="publicGuestLoadingCopy"><b>Preparing your package builder…</b><span>Loading the outlet's published meals and building your schedule.</span></div>
+         <div className="publicGuestProgress"><span/></div>
+         <small>Almost ready</small>
+       </div>
+       :<div className="publicGuestWeeks">
        {days.map(d=><section className="publicGuestDay" key={d.date}>
          <div className="publicGuestDayHead"><div><b>{dayName(dayId(d.date))}</b><span>{shortDate(d.date)}</span></div><small>{SLOT.filter(s=>menuFor(d.date,s.id).length).length} meal slots available</small></div>
          <div className="publicGuestSlots">
@@ -706,15 +719,15 @@ function GuestPackageModal({outlet,menu,duration,setDuration,startDate,setStartD
              const opts=menuFor(d.date,s.id);
              if(!opts.length)return null;
              const selected=selections[key(d.date,s.id)]||'';
-             return <label key={s.id}><span>{s.icon} {s.label}</span><select value={selected} onChange={e=>setSelections(g=>({...g,[key(d.date,s.id)]:e.target.value}))}><option value="">Choose a meal</option>{opts.map(m=><option key={m.recipeId} value={m.recipeId}>{m.recipeName} · {money(m.pricePerMeal)}</option>)}</select></label>;
+             return <label key={s.id}><span>{s.icon} {s.label}</span><select value={selected} onChange={e=>setSelections(g=>({...g,[key(d.date,s.id)]:e.target.value}))}><option value="">Choose a meal</option>{opts.map(m=><option key={m.recipeId} value={m.recipeId}>{m.recipeName}{showMealPrice?' · '+money(m.pricePerMeal):''}</option>)}</select></label>;
            })}
          </div>
          {!SLOT.some(s=>menuFor(d.date,s.id).length)&&<div className="publicGuestNoMenu">No menu is published for this day.</div>}
        </section>)}
-     </div>
+     </div>}
      <div className="publicGuestFooter">
        <div><b>{selectedCount} meals selected</b><span>After creating your account, we'll ask for your exact delivery address and allergy preferences before payment.</span></div>
-       <button className="primary big" disabled={!selectedCount} onClick={onContinue}>Create account to continue →</button>
+       <button className="primary big" disabled={busy||!selectedCount} onClick={onContinue}>{busy?'Preparing package…':'Create account to continue →'}</button>
      </div>
    </div>
  </div>;
