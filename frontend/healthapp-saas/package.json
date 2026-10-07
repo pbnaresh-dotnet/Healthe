@@ -20,6 +20,10 @@
     "cf:deploy:customer": "npm run build:customer && npx wrangler deploy --config apps/customer-web/wrangler.jsonc",
     "cf:deploy:outlet": "npm run build:outlet && npx wrangler deploy --config apps/outlet-web/wrangler.jsonc",
     "cf:deploy:admin": "npm run build:admin && npx wrangler deploy --config apps/admin-web/wrangler.jsonc",
-    "cf:deploy:all": "npm run cf:deploy:customer && npm run cf:deploy:outlet && npm run cf:deploy:admin"
+    "cf:deploy:all": "npm run cf:deploy:customer && npm run cf:deploy:outlet && npm run cf:deploy:admin && npm run cf:deploy:broccoly",
+    "dev:broccoly": "npm run dev --workspace @healthapp/broccoly-web",
+    "build:broccoly": "npm run build --workspace @healthapp/broccoly-web",
+    "cf:build:broccoly": "npm run build:broccoly",
+    "cf:deploy:broccoly": "npm run build:broccoly && npx wrangler deploy --config apps/broccoly-web/wrangler.jsonc"
   }
 }
