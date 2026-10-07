@@ -10,6 +10,7 @@ using HealthApp.Infrastructure.Repositories;
 using HealthApp.Infrastructure.Storage;
 using HealthApp.Infrastructure.Geocoding;
 using HealthApp.Infrastructure.Email;
+using HealthApp.Infrastructure.Payments;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
