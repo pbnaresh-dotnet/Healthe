@@ -123,8 +123,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID
     ALTER TABLE dbo.OutletOnboardingApplications ADD CONSTRAINT FK_OutletOnboardingApplications_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
 ", cancellationToken);
 
-        // Payment gateway schema reconciliation. Keep this separate from the FK batch so
-        // existing production databases can be upgraded safely without EF migrations.
+        // Payment gateway schema reconciliation.
+        // IMPORTANT: SQL Server compiles an entire batch before executing it. Therefore
+        // newly-added payment columns must be created in one batch, and indexes/FKs that
+        // reference those columns must be created in a separate batch.
         await db.Database.ExecuteSqlRawAsync(@"
 IF OBJECT_ID('dbo.PaymentTransactions','U') IS NOT NULL
 BEGIN
@@ -156,23 +158,28 @@ BEGIN
     )
         ALTER TABLE dbo.PaymentTransactions ALTER COLUMN CustomerId uniqueidentifier NULL;
 END;
+", cancellationToken);
 
-IF NOT EXISTS (
-    SELECT 1 FROM sys.indexes
-    WHERE name='UX_PaymentTransactions_ProviderOrderId'
-      AND object_id=OBJECT_ID('dbo.PaymentTransactions')
-)
-    CREATE UNIQUE INDEX UX_PaymentTransactions_ProviderOrderId
-    ON dbo.PaymentTransactions(ProviderOrderId)
-    WHERE ProviderOrderId IS NOT NULL AND ProviderOrderId <> '';
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.PaymentTransactions','U') IS NOT NULL
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE name='UX_PaymentTransactions_ProviderOrderId'
+          AND object_id=OBJECT_ID('dbo.PaymentTransactions')
+    )
+        CREATE UNIQUE INDEX UX_PaymentTransactions_ProviderOrderId
+        ON dbo.PaymentTransactions(ProviderOrderId)
+        WHERE ProviderOrderId IS NOT NULL AND ProviderOrderId <> '';
 
-IF NOT EXISTS (
-    SELECT 1 FROM sys.indexes
-    WHERE name='IX_PaymentTransactions_OnboardingApplicationId'
-      AND object_id=OBJECT_ID('dbo.PaymentTransactions')
-)
-    CREATE INDEX IX_PaymentTransactions_OnboardingApplicationId
-    ON dbo.PaymentTransactions(OutletOnboardingApplicationId);
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE name='IX_PaymentTransactions_OnboardingApplicationId'
+          AND object_id=OBJECT_ID('dbo.PaymentTransactions')
+    )
+        CREATE INDEX IX_PaymentTransactions_OnboardingApplicationId
+        ON dbo.PaymentTransactions(OutletOnboardingApplicationId);
+END;
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.foreign_keys
