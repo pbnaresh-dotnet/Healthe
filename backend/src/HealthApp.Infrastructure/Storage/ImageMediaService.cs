@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace HealthApp.Infrastructure.Storage;
 
@@ -43,7 +44,7 @@ public sealed class ImageMediaService(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            using var variantImage = image.Clone();
+            using var variantImage = image.CloneAs<Rgba32>();
             ApplyResize(variantImage, definition.Mode, variant.Width, variant.Height);
 
             await using var output = new MemoryStream();
