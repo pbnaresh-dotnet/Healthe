@@ -44,7 +44,12 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
     }
     public async Task<AuthResponse> RegisterAsync(RegisterRequest r)
     {
-        if (string.IsNullOrWhiteSpace(r.Password) || r.Password.Length < 6) throw new ArgumentException("Password must be at least 6 characters.");
+        if (string.IsNullOrWhiteSpace(r.Password) || r.Password.Length < 8) throw new ArgumentException("Password must be at least 8 characters.");
+        var mobileDigits = new string((r.MobileNumber ?? string.Empty).Where(char.IsDigit).ToArray());
+        if (mobileDigits.StartsWith("91") && mobileDigits.Length == 12) mobileDigits = mobileDigits[2..];
+        if (!System.Text.RegularExpressions.Regex.IsMatch(mobileDigits, "^[6-9]\\d{9}$"))
+            throw new ArgumentException("Enter a valid 10-digit Indian mobile number.");
+        var normalizedMobile = "+91" + mobileDigits;
         var role = Enum.TryParse<UserRole>(r.Role, true, out var parsed) ? parsed : UserRole.Customer;
         if (role is UserRole.SuperAdmin or UserRole.Driver or UserRole.OutletManager or UserRole.KitchenStaff) throw new UnauthorizedAccessException("This role cannot be self-registered.");
         if (role == UserRole.OutletAdmin)
@@ -68,6 +73,8 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
             if (await users.FindByEmailAsync(r.Email, outletId.Value) is not null)
                 throw new InvalidOperationException("Email is already registered for this outlet.");
         }
+        if (await users.FindByMobileAsync(normalizedMobile, outletId) is not null)
+            throw new InvalidOperationException("Mobile number is already registered for this outlet.");
         else if (await users.FindByEmailAsync(r.Email) is not null)
         {
             throw new InvalidOperationException("Email is already registered.");
@@ -78,6 +85,7 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
             Email = r.Email.Trim().ToLowerInvariant(),
             FirstName = r.FirstName.Trim(),
             LastName = r.LastName.Trim(),
+            MobileNumber = normalizedMobile,
             Role = role,
             OutletId = outletId,
             PasswordHash = passwords.Hash(r.Password)
