@@ -560,14 +560,35 @@ public sealed class MealSelectionHistoryRepository(HealthAppDbContext db) : EfRe
 
 public sealed class PaymentTransactionRepository(HealthAppDbContext db) : EfRepository(db), IPaymentTransactionRepository
 {
-    public Task<PaymentTransaction?> GetAsync(Guid id) => Context.PaymentTransactions.FirstOrDefaultAsync(x=>x.Id==id);
-    public Task<PaymentTransaction?> GetLatestBySubscriptionAsync(Guid subscriptionId) => Context.PaymentTransactions.AsNoTracking().Where(x=>x.SubscriptionId==subscriptionId).OrderByDescending(x=>x.CreatedAtUtc).FirstOrDefaultAsync();
-    public Task<PaymentTransaction?> GetByIdempotencyKeyAsync(string key) => Context.PaymentTransactions.FirstOrDefaultAsync(x=>x.IdempotencyKey==key);
-    public async Task AddAsync(PaymentTransaction payment) {
+    public Task<PaymentTransaction?> GetAsync(Guid id) =>
+        Context.PaymentTransactions.FirstOrDefaultAsync(x => x.Id == id);
+
+    public Task<PaymentTransaction?> GetLatestBySubscriptionAsync(Guid subscriptionId) =>
+        Context.PaymentTransactions.AsNoTracking()
+            .Where(x => x.SubscriptionId == subscriptionId)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .FirstOrDefaultAsync();
+
+    public Task<PaymentTransaction?> GetByIdempotencyKeyAsync(string key) =>
+        Context.PaymentTransactions.FirstOrDefaultAsync(x => x.IdempotencyKey == key);
+
+    public Task<PaymentTransaction?> GetByProviderOrderIdAsync(string providerOrderId) =>
+        Context.PaymentTransactions.FirstOrDefaultAsync(x => x.ProviderOrderId == providerOrderId);
+
+    public Task<PaymentTransaction?> GetByOnboardingApplicationIdAsync(Guid applicationId) =>
+        Context.PaymentTransactions
+            .Where(x => x.OutletOnboardingApplicationId == applicationId)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .FirstOrDefaultAsync();
+
+    public async Task AddAsync(PaymentTransaction payment)
+    {
         Context.PaymentTransactions.Add(payment);
         await SaveAsync();
     }
-    public async Task UpdateAsync(PaymentTransaction payment) {
+
+    public async Task UpdateAsync(PaymentTransaction payment)
+    {
         Context.PaymentTransactions.Update(payment);
         await SaveAsync();
     }

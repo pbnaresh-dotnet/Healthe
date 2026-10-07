@@ -174,7 +174,44 @@ public interface ICustomerAddressRepository { Task<IReadOnlyList<CustomerAddress
 public interface ICustomerLikedMealRepository { Task<IReadOnlyList<CustomerLikedMeal>> GetByCustomerAsync(Guid customerId); Task<bool> ExistsAsync(Guid customerId, Guid recipeId); Task AddAsync(CustomerLikedMeal meal); Task RemoveAsync(Guid customerId, Guid recipeId); }
 public interface ISubscriptionDiscountTierRepository { Task<IReadOnlyList<SubscriptionDiscountTier>> GetByOutletAsync(Guid outletId); Task AddAsync(SubscriptionDiscountTier tier); Task UpdateAsync(SubscriptionDiscountTier tier); Task DeleteAsync(Guid outletId, Guid id); }
 public interface IMealSelectionHistoryRepository { Task AddAsync(MealSelectionHistory history); Task<IReadOnlyList<MealSelectionHistory>> GetBySelectionAsync(Guid selectionId); }
-public interface IPaymentTransactionRepository { Task<PaymentTransaction?> GetAsync(Guid id); Task<PaymentTransaction?> GetByIdempotencyKeyAsync(string key); Task<PaymentTransaction?> GetLatestBySubscriptionAsync(Guid subscriptionId); Task AddAsync(PaymentTransaction payment); Task UpdateAsync(PaymentTransaction payment); }
+public interface IPaymentTransactionRepository
+{
+    Task<PaymentTransaction?> GetAsync(Guid id);
+    Task<PaymentTransaction?> GetByIdempotencyKeyAsync(string key);
+    Task<PaymentTransaction?> GetByProviderOrderIdAsync(string providerOrderId);
+    Task<PaymentTransaction?> GetByOnboardingApplicationIdAsync(Guid applicationId);
+    Task<PaymentTransaction?> GetLatestBySubscriptionAsync(Guid subscriptionId);
+    Task AddAsync(PaymentTransaction payment);
+    Task UpdateAsync(PaymentTransaction payment);
+}
+public sealed record PaymentGatewayCreateOrderRequest(
+    string OrderId,
+    decimal Amount,
+    string Currency,
+    string CustomerId,
+    string CustomerName,
+    string CustomerEmail,
+    string CustomerPhone,
+    string ReturnUrl,
+    string NotifyUrl,
+    string OrderNote);
+public sealed record PaymentGatewayCheckoutSession(string ProviderOrderId, string PaymentSessionId, string Status);
+public sealed record PaymentGatewayTransactionStatus(
+    string ProviderPaymentId,
+    string PaymentStatus,
+    string? PaymentMessage,
+    string? PaymentMethod,
+    decimal? Amount,
+    string Currency);
+public interface IPaymentGateway
+{
+    string Provider { get; }
+    string OutletReturnUrl { get; }
+    string WebhookUrl { get; }
+    Task<PaymentGatewayCheckoutSession> CreateOrderAsync(PaymentGatewayCreateOrderRequest request, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PaymentGatewayTransactionStatus>> GetPaymentsAsync(string providerOrderId, CancellationToken cancellationToken = default);
+    bool VerifyWebhookSignature(string signature, string timestamp, string rawBody);
+}
 public interface IDiscountCodeRepository { Task<DiscountCode?> GetAsync(Guid? outletId, string code); Task<IReadOnlyList<DiscountCode>> GetByOutletAsync(Guid outletId); Task AddAsync(DiscountCode code); Task UpdateAsync(DiscountCode code); }
 public interface IOrderFinancialRepository { Task AddAsync(OrderFinancialBreakdown breakdown); Task<OrderFinancialBreakdown?> GetByOrderAsync(Guid orderId); }
 public interface IDeliveryCalculator { Task<DeliveryQuoteDto> QuoteAsync(Guid outletId, Guid customerId, Guid addressId); Task<decimal> CalculateForSelectionsAsync(Guid outletId, Guid customerId, SubscriptionDeliveryMode mode, IReadOnlyList<SubscriptionMealSelection> selections); }
@@ -185,7 +222,13 @@ public interface IOutletDeliveryService { Task<IReadOnlyList<CityAreaDto>> GetAv
 public interface IDiscountConfigurationService { Task<IReadOnlyList<SubscriptionDiscountTierDto>> GetTiersAsync(); Task<SubscriptionDiscountTierDto?> AddTierAsync(SaveSubscriptionDiscountTierRequest request); Task<SubscriptionDiscountTierDto?> UpdateTierAsync(Guid id, SaveSubscriptionDiscountTierRequest request); Task<bool> DeleteTierAsync(Guid id); }
 public interface IServiceCityAdminService { Task<IReadOnlyList<ServiceCityDto>> GetAsync(); Task<ServiceCityDto?> CreateAsync(CreateServiceCityRequest request); Task<ServiceCityDto?> SetEnabledAsync(Guid id, bool enabled); }
 public interface ICityAreaAdminService { Task<IReadOnlyList<CityAreaDto>> GetAsync(string? city); Task<CityAreaDto?> CreateAsync(CreateCityAreaRequest request); }
-public interface IPaymentService { Task<PaymentDto?> CreateAsync(CreatePaymentRequest request); Task<PaymentDto?> GetAsync(Guid id); }
+public interface IPaymentService
+{
+    Task<PaymentCheckoutDto?> CreateAsync(CreatePaymentRequest request, CancellationToken cancellationToken = default);
+    Task<PaymentDto?> GetAsync(Guid id);
+    Task<PaymentWebhookResultDto> HandleCashfreeWebhookAsync(string rawBody, string signature, string timestamp, CancellationToken cancellationToken = default);
+}
+
 public interface IDeliveryLabelService { Task<IReadOnlyList<DeliveryLabelDto>> GetLabelsAsync(DateTime? date); }
 public interface IDeliveryRouteRepository
 {

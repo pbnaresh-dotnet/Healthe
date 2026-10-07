@@ -1,10 +1,10 @@
 import React,{useEffect,useMemo,useState}from'react';
 import{createRoot}from'react-dom/client';
-import{locations,money,outletDemo,outletOnboarding}from'@healthapp/shared';
+import{locations,money,outletDemo,outletOnboarding,openCashfreeCheckout}from'@healthapp/shared';
 import'./styles.css';
 
-const OUTLET_APP_URL=import.meta.env.VITE_OUTLET_APP_URL||'https://app.broccoly.in';
-const PAYMENT_MODE=String(import.meta.env.VITE_PAYMENT_MODE||'Mock').toLowerCase();
+const OUTLET_APP_URL=import.meta.env.VITE_OUTLET_APP_URL||'https://outlet.broccoly.in';
+
 const SETUP_FEE=5000;
 const EMPTY={businessType:'Individual',outletName:'',city:'',state:'',pincode:'',addressLine1:'',addressLine2:'',ownerName:'',ownerPhone:'',email:'',password:''};
 
@@ -55,11 +55,75 @@ function Registration({plans,initialPlan,onBack,onLogin}){const[selectedPlan,set
  useEffect(()=>{locations.cities().then(x=>setCities(x||[])).catch(()=>setCities([]))},[]);
  const cityOptions=useMemo(()=>cities||[],[cities]),selected=selectedPlan,fee=selected?(cycle==='Annual'?selected.annualFee:selected.monthlyFee):0;
  const saveBusiness=e=>{e.preventDefault();setError('');if(details.password.length<8){setError('Password must be at least 8 characters.');return;}setStep(3)};
- const pay=async()=>{if(!selected)return;try{setBusy(true);setError('');await outletOnboarding.pay({saasPlanId:selected.id,billingCycle:cycle,businessType:details.businessType,outletName:details.outletName,city:details.city,state:details.state,pincode:details.pincode,addressLine1:details.addressLine1,addressLine2:details.addressLine2,ownerName:details.ownerName,ownerPhone:details.ownerPhone,email:details.email,password:details.password});setSuccess(true)}catch(e){setError(e.message||'Unable to complete outlet registration.')}finally{setBusy(false)}};
- if(success)return <div className="registerShell"><div className="registerTop"><Brand/><button className="linkButton" onClick={onLogin}>Go to outlet login →</button></div><div className="successPage"><div className="successIcon">✓</div><span className="eyebrow">OUTLET ACCOUNT CREATED</span><h1>Welcome to Broccoly!</h1><p>Your <b>{selected?.name}</b> setup payment was recorded. Sign in to complete verification, upload documents and configure your storefront.</p><div className="successSteps"><span><b>1</b>We will verify your business details and documents</span><span><b>2</b>You will receive email with further instructions</span><span><b>3</b>Once verified, sign in to your outlet dashboard and start configuring</span></div><button className="primary large" onClick={onLogin}>Go to Dashboard →</button></div></div>;
+ const waitForOnboardingPayment=async(session)=>{
+   const deadline=Date.now()+60000;
+   while(Date.now()<deadline){
+     const current=await outletOnboarding.get(session.id,session.accessKey);
+     const status=String(current?.paymentStatus||'').toLowerCase();
+     if(status==='paid')return current;
+     if(status==='failed')throw new Error('Cashfree payment failed. Please retry.');
+     await new Promise(resolve=>setTimeout(resolve,2000));
+   }
+   throw new Error('Payment confirmation is taking longer than expected. Please check your payment status and try again.');
+ };
+ const pay=async()=>{
+   if(!selected)return;
+   try{
+     setBusy(true);
+     setError('');
+     const session=await outletOnboarding.pay({
+       saasPlanId:selected.id,
+       billingCycle:cycle,
+       businessType:details.businessType,
+       outletName:details.outletName,
+       city:details.city,
+       state:details.state,
+       pincode:details.pincode,
+       addressLine1:details.addressLine1,
+       addressLine2:details.addressLine2,
+       ownerName:details.ownerName,
+       ownerPhone:details.ownerPhone,
+       email:details.email,
+       password:details.password
+     });
+     if(String(session?.paymentStatus||'').toLowerCase()==='paid'){
+       setSuccess(true);
+       return;
+     }
+     if(!session?.paymentSessionId)throw new Error('Cashfree payment session was not created.');
+     await openCashfreeCheckout(session.paymentSessionId,{
+       mode:String(import.meta.env.VITE_CASHFREE_MODE||'sandbox').toLowerCase(),
+       redirectTarget:'_modal'
+     });
+     await waitForOnboardingPayment(session);
+     setSuccess(true);
+   }catch(e){
+     setError(e.message||'Unable to complete outlet payment.');
+   }finally{
+     setBusy(false);
+   }
+ };
+ if(success)return <div className="registerShell"><div className="registerTop"><Brand/><button className="linkButton" onClick={onLogin}>Go to outlet login →</button></div><div className="successPage"><div className="successIcon">✓</div><span className="eyebrow">PAYMENT CONFIRMED</span><h1>Welcome to Broccoly!</h1><p>Your <b>{selected?.name}</b> setup payment has been confirmed. Sign in to complete verification, upload documents and configure your storefront.</p><div className="successSteps"><span><b>1</b>We will verify your business details and documents</span><span><b>2</b>You will receive email with further instructions</span><span><b>3</b>Once verified, sign in to your outlet dashboard and start configuring</span></div><button className="primary large" onClick={onLogin}>Go to Dashboard →</button></div></div>;
  return <div className="registerShell"><div className="registerTop"><Brand/><button className="linkButton" onClick={onBack}>← Back to Broccoly</button></div><div className="progress">{['Plan','Business Details','Payment','Confirmation'].map((label,i)=><React.Fragment key={label}><div className={(i+1<step?'done ':'')+(i+1===step?'current':'')}><span>{i+1<step?'✓':i+1}</span><small>{label}</small></div>{i<3&&<i className={i+1<step?'filled':''}/>}</React.Fragment>)}</div><main className="registerMain">{error&&<div className="errorBanner"><b>Something needs attention</b><span>{error}</span><button onClick={()=>setError('')}>×</button></div>}{step===1&&<section className="registerCard"><div className="registerIntro"><span className="eyebrow">STEP 1 OF 4 · PLAN</span><h1>Choose your plan</h1><p>You can change your SaaS plan later as your business grows.</p></div><div className="cycleToggle"><button className={cycle==='Monthly'?'active':''} onClick={()=>setCycle('Monthly')}>Monthly</button><button className={cycle==='Annual'?'active':''} onClick={()=>setCycle('Annual')}>Annual <small>Save with annual billing</small></button></div><div className="registerPlans">{plans.map((p,i)=><article className={'registerPlan '+(selected?.id===p.id?'selected':'')} key={p.id} onClick={()=>setSelectedPlan(p)}><div className="planIcon">{i===0?'🌱':i===1?'📈':'⭐'}</div><h3>{p.name}</h3><p>{p.description||'Tools and capacity for your outlet.'}</p><strong>{money(cycle==='Annual'?p.annualFee:p.monthlyFee)}<small>/{cycle.toLowerCase()}</small></strong><span>✓ {p.includedActiveCustomers} included customers</span><span>✓ {Number(p.customerTransactionFeePercent||0)}% customer transaction fee</span><span>✓ {money(p.additionalCustomerFee)} per additional customer</span><button type="button" className={selected?.id===p.id?'primary':'secondary'} onClick={e=>{e.stopPropagation();setSelectedPlan(p)}}>{selected?.id===p.id?'Selected':'Choose '+p.name}</button></article>)}</div><div className="registerBottom"><div><b>One-time setup fee</b><span>{money(SETUP_FEE)} at the payment step</span></div><button className="primary large" disabled={!selected} onClick={()=>setStep(2)}>Continue to business details →</button></div></section>}
  {step===2&&<section className="registerCard"><div className="registerIntro"><span className="eyebrow">STEP 2 OF 4 · BUSINESS DETAILS</span><h1>Business details</h1><p>Tell us about your outlet.</p></div><form onSubmit={saveBusiness}><div className="formSection"><b>Outlet details</b><span>Name and address for your business.</span></div><div className="formGrid"><label><span>Outlet name *</span><input value={details.outletName} onChange={e=>setDetails({...details,outletName:e.target.value})} required/></label><label><span>Business type *</span><select value={details.businessType} onChange={e=>setDetails({...details,businessType:e.target.value})}><option value="Individual">Individual / Unregistered</option><option value="RegisteredBusiness">Registered business</option></select></label><label><span>City *</span>{cityOptions.length?<select value={details.city} onChange={e=>{const v=e.target.value;const row=cityOptions.find(x=>x.city===v);setDetails({...details,city:v,state:row?.state||details.state})}} required><option value="">Select city</option>{cityOptions.map(x=><option key={x.city+'|'+x.state} value={x.city}>{x.city} · {x.state}</option>)}</select>:<input value={details.city} onChange={e=>setDetails({...details,city:e.target.value})} placeholder="City" required/>}</label><label><span>State *</span><input value={details.state} onChange={e=>setDetails({...details,state:e.target.value})} required/></label><label><span>Pincode *</span><input value={details.pincode} onChange={e=>setDetails({...details,pincode:e.target.value})} required/></label><label className="span2"><span>Address line 1 *</span><input value={details.addressLine1} onChange={e=>setDetails({...details,addressLine1:e.target.value})} placeholder="Building / flat / street" required/></label><label className="span2"><span>Address line 2</span><input value={details.addressLine2} onChange={e=>setDetails({...details,addressLine2:e.target.value})} placeholder="Area / landmark"/></label></div><div className="formSection"><b>Owner & account</b><span>These credentials will be used to access the outlet workspace.</span></div><div className="formGrid"><label><span>Owner name *</span><input value={details.ownerName} onChange={e=>setDetails({...details,ownerName:e.target.value})} required/></label><label><span>Email *</span><input type="email" value={details.email} onChange={e=>setDetails({...details,email:e.target.value.toLowerCase()})} required/></label><label><span>Contact number *</span><input value={details.ownerPhone} onChange={e=>setDetails({...details,ownerPhone:e.target.value})} required/></label><label><span>Password *</span><input type="password" minLength="8" value={details.password} onChange={e=>setDetails({...details,password:e.target.value})} placeholder="At least 8 characters" required/></label></div><div className="infoBox"><b>What happens next?</b><span>The setup payment creates your outlet account. Then sign in to complete verification documents and submit the outlet for Broccoly review.</span></div><div className="registerBottom"><button type="button" className="secondary" onClick={()=>setStep(1)}>← Change plan</button><button className="primary large">Continue to payment →</button></div></form></section>}
- {step===3&&selected&&<section className="registerCard"><div className="registerIntro"><span className="eyebrow">STEP 3 OF 4 · PAYMENT</span><h1>Payment Summary</h1><p>Review your plan and complete payment.</p></div><div className="paymentGrid"><section className="summaryCard"><span className="eyebrow">SELECTED PLAN</span><h3>{selected.name}</h3><div className="line"><span>{cycle} subscription</span><b>{money(fee)}</b></div><div className="line"><span>One-time setup fee</span><b>{money(SETUP_FEE)}</b></div><div className="line"><span>Taxes</span><b>As applicable</b></div><div className="total"><span>Total today</span><strong>{money(SETUP_FEE)}</strong></div></section><section className="summaryCard"><div className={PAYMENT_MODE==='mock'?'sandbox':'secure'}>{PAYMENT_MODE==='mock'?'TEST MODE · MOCK PAYMENT':'SECURE CHECKOUT'}</div><div className="methods"><span className="active">💳 Card</span><span>⚡ UPI</span></div><div className="accountPreview"><span>Account email</span><b>{details.email}</b><small>{details.ownerName} · {details.ownerPhone}</small><small>{details.outletName} · {details.city}</small></div>{PAYMENT_MODE==='mock'&&<div className="infoBox"><b>Development checkout</b><span>No real money is charged by the current onboarding endpoint.</span></div>}<div className="registerBottom"><button className="secondary" onClick={()=>setStep(2)}>← Edit details</button><button className="primary large" disabled={busy} onClick={pay}>{busy?'Creating outlet…':'Pay '+money(SETUP_FEE)+' & create outlet'}</button></div></section></div></section>}</main></div>
+ {step===3&&selected&&<section className="registerCard">
+  <div className="registerIntro"><span className="eyebrow">STEP 3 OF 4 · PAYMENT</span><h1>Payment Summary</h1><p>Review your plan and complete secure payment.</p></div>
+  <div className="paymentGrid">
+   <section className="summaryCard">
+    <span className="eyebrow">SELECTED PLAN</span><h3>{selected.name}</h3>
+    <div className="line"><span>{cycle} subscription</span><b>{money(fee)}</b></div>
+    <div className="line"><span>One-time setup fee</span><b>{money(SETUP_FEE)}</b></div>
+    <div className="line"><span>Taxes</span><b>As applicable</b></div>
+    <div className="total"><span>Total today</span><strong>{money(SETUP_FEE)}</strong></div>
+   </section>
+   <section className="summaryCard">
+    <div className="secure">SECURE CHECKOUT · {String(import.meta.env.VITE_CASHFREE_MODE||'sandbox').toUpperCase()}</div>
+    <div className="accountPreview"><span>Account email</span><b>{details.email}</b><small>{details.ownerName} · {details.ownerPhone}</small><small>{details.outletName} · {details.city}</small></div>
+    <div className="infoBox"><b>Secure Cashfree checkout</b><span>Card, UPI and other supported payment methods are handled by Cashfree. Broccoly never receives or stores your card credentials.</span></div>
+    <div className="registerBottom"><button className="secondary" onClick={()=>setStep(2)} disabled={busy}>← Edit details</button><button className="primary large" disabled={busy} onClick={pay}>{busy?'Opening secure checkout…':'Pay '+money(SETUP_FEE)+' securely & continue'}</button></div>
+   </section>
+  </div>
+ </section></main></div>
 }
 
 function App(){const[plans,setPlans]=useState([]),[planLoading,setPlanLoading]=useState(true),[demoOpen,setDemoOpen]=useState(false),[register,setRegister]=useState(false),[startOpen,setStartOpen]=useState(false),[initialPlan,setInitialPlan]=useState(null);

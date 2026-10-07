@@ -373,56 +373,26 @@ public sealed class MealSelectionHistory
 
 public sealed class PaymentTransaction
 {
-    public Guid Id {
-        get;
-        set;
-    }
-    public Guid CustomerId {
-        get;
-        set;
-    }
-    public Guid? SubscriptionId {
-        get;
-        set;
-    }
-    public string Provider {
-        get;
-        set;
-    }
-    = "Mock";
-    public string ProviderPaymentId {
-        get;
-        set;
-    }
-    = "";
-    public string IdempotencyKey {
-        get;
-        set;
-    }
-    = "";
-    public decimal Amount {
-        get;
-        set;
-    }
-    public string Currency {
-        get;
-        set;
-    }
-    = "INR";
-    public string Status {
-        get;
-        set;
-    }
-    = "Pending";
-    public DateTime CreatedAtUtc {
-        get;
-        set;
-    }
-    = DateTime.UtcNow;
-    public DateTime? PaidAtUtc {
-        get;
-        set;
-    }
+    public Guid Id { get; set; }
+    public Guid? CustomerId { get; set; }
+    public Guid? OutletId { get; set; }
+    public Guid? SubscriptionId { get; set; }
+    public Guid? OutletOnboardingApplicationId { get; set; }
+    public string PaymentType { get; set; } = "CustomerSubscription";
+    public string Provider { get; set; } = "Cashfree";
+    public string ProviderPaymentId { get; set; } = "";
+    public string ProviderOrderId { get; set; } = "";
+    public string PaymentSessionId { get; set; } = "";
+    public string PaymentMethod { get; set; } = "";
+    public string ProviderStatus { get; set; } = "";
+    public string IdempotencyKey { get; set; } = "";
+    public decimal Amount { get; set; }
+    public string Currency { get; set; } = "INR";
+    public string Status { get; set; } = "Pending";
+    public string FailureReason { get; set; } = "";
+    public string GatewayResponseJson { get; set; } = "";
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? PaidAtUtc { get; set; }
 }
 
 public sealed class DiscountCode
@@ -823,7 +793,7 @@ public sealed class OutletOnboardingApplication
     public string BillingCycle { get; set; } = "Monthly";
     public decimal SubscriptionFee { get; set; }
     public decimal SetupFee { get; set; }
-    public string PaymentStatus { get; set; } = "Paid";
+    public string PaymentStatus { get; set; } = "Pending";
     public string PaymentReference { get; set; } = "";
     public string Status { get; set; } = "Onboarding";
     public string BusinessType { get; set; } = "Individual";

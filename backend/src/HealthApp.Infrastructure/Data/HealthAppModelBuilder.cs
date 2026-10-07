@@ -658,13 +658,27 @@ internal static class HealthAppModelBuilder
     {
         e.ToTable("PaymentTransactions");
         e.HasKey(x => x.Id);
-        e.Property(x => x.Provider).HasMaxLength(50);
+        e.Property(x => x.PaymentType).HasMaxLength(50).IsRequired();
+        e.Property(x => x.Provider).HasMaxLength(50).IsRequired();
         e.Property(x => x.ProviderPaymentId).HasMaxLength(200);
+        e.Property(x => x.ProviderOrderId).HasMaxLength(80);
+        e.Property(x => x.PaymentSessionId).HasMaxLength(1000);
+        e.Property(x => x.PaymentMethod).HasMaxLength(100);
+        e.Property(x => x.ProviderStatus).HasMaxLength(50);
         e.Property(x => x.IdempotencyKey).HasMaxLength(200).IsRequired();
         e.Property(x => x.Amount).HasPrecision(18,2);
         e.Property(x => x.Currency).HasMaxLength(3);
         e.Property(x => x.Status).HasMaxLength(30);
+        e.Property(x => x.FailureReason).HasMaxLength(1000);
+        e.Property(x => x.GatewayResponseJson).HasColumnType("nvarchar(max)");
         e.HasIndex(x => x.IdempotencyKey).IsUnique();
+        e.HasIndex(x => x.ProviderOrderId).IsUnique().HasFilter("[ProviderOrderId] IS NOT NULL AND [ProviderOrderId] <> ''");
+        e.HasIndex(x => x.OutletOnboardingApplicationId);
+        e.HasIndex(x => new { x.OutletId, x.CreatedAtUtc });
+        e.HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction).IsRequired(false);
+        e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction).IsRequired(false);
+        e.HasOne<Subscription>().WithMany().HasForeignKey(x => x.SubscriptionId).OnDelete(DeleteBehavior.NoAction).IsRequired(false);
+        e.HasOne<OutletOnboardingApplication>().WithMany().HasForeignKey(x => x.OutletOnboardingApplicationId).OnDelete(DeleteBehavior.NoAction).IsRequired(false);
     }
     private static void ConfigureDiscountCode(EntityTypeBuilder<DiscountCode> e)
     {

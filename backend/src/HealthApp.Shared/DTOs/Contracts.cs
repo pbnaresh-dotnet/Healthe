@@ -166,7 +166,19 @@ public record ChangeOutletSubscriptionRequest(Guid SaaSPlanId, string BillingCyc
 public record RequestOutletDemoRequest(string Email, string? BusinessName = null);
 public record OutletDemoRequestDto(bool Created, string Message, DateTime DemoExpiresAtUtc);
 public record OutletOnboardingPaymentRequest(Guid SaaSPlanId, string BillingCycle, string BusinessType, string OutletName, string City, string State, string Pincode, string AddressLine1, string AddressLine2, string OwnerName, string Email, string OwnerPhone, string Password);
-public record OutletOnboardingSessionDto(Guid Id, string AccessKey, string Status, string PaymentStatus, string PlanName, string BillingCycle, decimal SubscriptionFee, decimal SetupFee, DateTime? SubmittedAtUtc);
+public record OutletOnboardingSessionDto(
+    Guid Id,
+    string AccessKey,
+    string Status,
+    string PaymentStatus,
+    string PlanName,
+    string BillingCycle,
+    decimal SubscriptionFee,
+    decimal SetupFee,
+    DateTime? SubmittedAtUtc,
+    Guid? PaymentId = null,
+    string ProviderOrderId = "",
+    string PaymentSessionId = "");
 public record SaveOutletOnboardingDetailsRequest(string BusinessType, string OutletName, string Description, string City, string State, string Pincode, string AddressLine1, string AddressLine2, string OwnerName, string OwnerEmail, string OwnerPhone, string AadhaarNumber, string BusinessPan, string GstNumber);
 public record OutletOnboardingDocumentDto(string DocumentType, string Url, string FileName, DateTime UploadedAtUtc);
 public record OutletOnboardingDto(Guid Id, string Status, string PaymentStatus, string PlanName, string BillingCycle, decimal SubscriptionFee, decimal SetupFee, string BusinessType, string OutletName, string Description, string City, string State, string Pincode, string AddressLine1, string AddressLine2, string OwnerName, string OwnerEmail, string OwnerPhone, string AadhaarNumber, string BusinessPan, string GstNumber, IReadOnlyList<OutletOnboardingDocumentDto> Documents, DateTime? SubmittedAtUtc, DateTime? VerifiedAtUtc, string VerificationNotes, Guid? UserId = null, Guid? OutletId = null);
@@ -222,6 +234,30 @@ public record OutletDashboardDto(
     IReadOnlyList<OutletDashboardSubscriptionDto> RecentSubscriptions);
 public record OutletKitchenMealCountDto(string MealName, string Category, string PortionSize, int Quantity);
 public record OutletKitchenDayDto(DateTime Date, string OutletName, string OutletLogoUrl, int TotalMeals, int UniqueCustomers, int ActiveSubscriptions, IReadOnlyList<OutletKitchenMealCountDto> Production, IReadOnlyList<DeliveryLabelDto> Labels);
-public record PaymentDto(Guid Id, Guid? SubscriptionId, string Provider, string ProviderPaymentId, decimal Amount, string Currency, string Status, DateTime CreatedAtUtc, DateTime? PaidAtUtc);
-public record CreatePaymentRequest(Guid SubscriptionId, string IdempotencyKey, string Provider = "Mock");
+public record PaymentDto(
+    Guid Id,
+    Guid? SubscriptionId,
+    string Provider,
+    string ProviderPaymentId,
+    string ProviderOrderId,
+    decimal Amount,
+    string Currency,
+    string Status,
+    string PaymentMethod,
+    string FailureReason,
+    DateTime CreatedAtUtc,
+    DateTime? PaidAtUtc);
+public record PaymentCheckoutDto(
+    Guid PaymentId,
+    string Provider,
+    string ProviderOrderId,
+    string PaymentSessionId,
+    decimal Amount,
+    string Currency,
+    string Status);
+public record PaymentWebhookResultDto(
+    bool Processed,
+    string Status,
+    Guid? PaymentId = null);
+public record CreatePaymentRequest(Guid SubscriptionId, string IdempotencyKey, string Provider = "Cashfree");
 public record RescheduleUnusedMealRequest(DateTime NewMealDate, int NewMealSlot, Guid? AddressId = null);

@@ -18,7 +18,7 @@ on:
 env:
   NODE_VERSION: '22'
   API_BASE_URL: 'https://api.broccoly.in/api'
-  OUTLET_APP_URL: 'https://app.broccoly.in'
+  OUTLET_APP_URL: 'https://outlet.broccoly.in'
 
 jobs:
   deploy:

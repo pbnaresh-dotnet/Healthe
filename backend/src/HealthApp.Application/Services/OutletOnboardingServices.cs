@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using HealthApp.Application.Abstractions;
+using System.Text.Json;
 using HealthApp.Domain.Entities;
 using HealthApp.Domain.Enums;
 using HealthApp.Shared.DTOs;
@@ -17,7 +18,9 @@ public sealed class OutletOnboardingService(
     ICurrentUser current,
     IFileStorage storage,
     IPasswordService passwords,
-    IUnitOfWork unitOfWork) : IOutletOnboardingService
+    IUnitOfWork unitOfWork,
+    IPaymentTransactionRepository payments,
+    IPaymentGateway paymentGateway) : IOutletOnboardingService
 {
     private const decimal SetupFee = 5000m;
 
@@ -70,7 +73,7 @@ public sealed class OutletOnboardingService(
             Role = UserRole.OutletAdmin,
             OutletId = outlet.Id,
             PasswordHash = passwords.Hash(request.Password),
-            IsActive = true
+            IsActive = false
         };
 
         var application = new OutletOnboardingApplication
@@ -86,9 +89,9 @@ public sealed class OutletOnboardingService(
             BillingCycle = cycle,
             SubscriptionFee = cycle == "Annual" ? plan.AnnualFee : plan.MonthlyFee,
             SetupFee = SetupFee,
-            PaymentStatus = "Paid",
-            PaymentReference = $"ONB-{Guid.NewGuid():N}",
-            Status = "PendingVerification",
+            PaymentStatus = "Pending",
+            PaymentReference = "",
+            Status = "PaymentPending",
             BusinessType = string.IsNullOrWhiteSpace(request.BusinessType) ? "Individual" : request.BusinessType.Trim(),
             OutletName = request.OutletName.Trim(),
             Description = "",
@@ -127,14 +130,67 @@ public sealed class OutletOnboardingService(
             await applications.AddAsync(application);
         });
 
-        return ToSession(application, accessKey);
+        var payment = new PaymentTransaction
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = null,
+            OutletId = outlet.Id,
+            OutletOnboardingApplicationId = application.Id,
+            PaymentType = "OutletOnboarding",
+            Provider = paymentGateway.Provider,
+            ProviderOrderId = $"BRC-ONB-{application.Id:N}",
+            IdempotencyKey = $"outlet-onboarding-{application.Id:N}",
+            Amount = SetupFee,
+            Currency = "INR",
+            Status = "Pending",
+            CreatedAtUtc = now
+        };
+        await payments.AddAsync(payment);
+
+        try
+        {
+            var checkout = await paymentGateway.CreateOrderAsync(
+                new PaymentGatewayCreateOrderRequest(
+                    payment.ProviderOrderId,
+                    payment.Amount,
+                    payment.Currency,
+                    user.Id.ToString("N"),
+                    user.FirstName + (string.IsNullOrWhiteSpace(user.LastName) ? "" : " " + user.LastName),
+                    user.Email,
+                    NormalizePhone(user.MobileNumber ?? request.OwnerPhone),
+                    paymentGateway.OutletReturnUrl,
+                    paymentGateway.WebhookUrl,
+                    "Broccoly outlet setup fee"),
+                CancellationToken.None);
+
+            payment.PaymentSessionId = checkout.PaymentSessionId;
+            payment.ProviderStatus = checkout.Status;
+            payment.GatewayResponseJson = JsonSerializer.Serialize(new
+            {
+                checkout.ProviderOrderId,
+                checkout.PaymentSessionId,
+                checkout.Status
+            });
+            await payments.UpdateAsync(payment);
+
+            return ToSession(application, accessKey, payment);
+        }
+        catch (Exception ex)
+        {
+            payment.Status = "Failed";
+            payment.FailureReason = ex.Message.Length > 900 ? ex.Message[..900] : ex.Message;
+            await payments.UpdateAsync(payment);
+            throw;
+        }
     }
 
     public async Task<OutletOnboardingDto?> GetCurrentAsync()
     {
         if (current.UserId is not Guid userId) return null;
         var x = await applications.GetByUserIdAsync(userId);
-        return x is null ? null : ToDto(x);
+        if (x is null) return null;
+        await RefreshPaymentAsync(x, CancellationToken.None);
+        return ToDto(x);
     }
 
     public async Task<OutletOnboardingDto?> SaveCurrentDetailsAsync(SaveOutletOnboardingDetailsRequest request)
@@ -185,7 +241,9 @@ public sealed class OutletOnboardingService(
     public async Task<OutletOnboardingDto?> GetAsync(Guid id, string accessKey)
     {
         var x = await AuthorizeAsync(id, accessKey);
-        return x is null ? null : ToDto(x);
+        if (x is null) return null;
+        await RefreshPaymentAsync(x, CancellationToken.None);
+        return ToDto(x);
     }
 
     public async Task<ProtectedFileDownload?> GetDocumentAsync(Guid id, string accessKey, string documentType)
@@ -329,6 +387,60 @@ public sealed class OutletOnboardingService(
         x.GstNumber = request.GstNumber?.Trim().ToUpperInvariant() ?? "";
     }
 
+    private async Task RefreshPaymentAsync(OutletOnboardingApplication application, CancellationToken cancellationToken)
+    {
+        if (application.PaymentStatus == "Paid")
+            return;
+
+        var payment = await payments.GetByOnboardingApplicationIdAsync(application.Id);
+        if (payment is null || string.IsNullOrWhiteSpace(payment.ProviderOrderId))
+            return;
+
+        var transactions = await paymentGateway.GetPaymentsAsync(payment.ProviderOrderId, cancellationToken);
+        var latest = transactions
+            .OrderByDescending(x => string.Equals(x.PaymentStatus, "SUCCESS", StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault();
+        if (latest is null)
+            return;
+
+        payment.ProviderStatus = latest.PaymentStatus;
+        payment.ProviderPaymentId = latest.ProviderPaymentId;
+        payment.PaymentMethod = latest.PaymentMethod ?? "";
+        if ((latest.Amount.HasValue && Math.Abs(latest.Amount.Value - payment.Amount) > 0.01m) ||
+            !string.Equals(latest.Currency, payment.Currency, StringComparison.OrdinalIgnoreCase))
+        {
+            payment.Status = "Failed";
+            payment.FailureReason = "Cashfree payment amount or currency does not match the onboarding amount.";
+        }
+        else if (latest.PaymentStatus.Equals("SUCCESS", StringComparison.OrdinalIgnoreCase))
+        {
+            payment.Status = "Paid";
+            payment.PaidAtUtc ??= DateTime.UtcNow;
+            application.PaymentStatus = "Paid";
+            application.PaymentReference = latest.ProviderPaymentId;
+            if (application.Status == "PaymentPending")
+                application.Status = "PendingVerification";
+            await applications.UpdateAsync(application);
+        }
+        else if (latest.PaymentStatus.Equals("PENDING", StringComparison.OrdinalIgnoreCase))
+        {
+            payment.Status = "Pending";
+        }
+        else
+        {
+            payment.Status = "Failed";
+            payment.FailureReason = latest.PaymentMessage ?? "Cashfree payment was not successful.";
+        }
+
+        await payments.UpdateAsync(payment);
+    }
+
+    private static string NormalizePhone(string value)
+    {
+        var phone = new string((value ?? "").Where(char.IsDigit).ToArray());
+        return phone.Length >= 10 ? phone[^10..] : phone;
+    }
+
     private static void EnsureEditable(OutletOnboardingApplication x)
     {
         if (x.PaymentStatus != "Paid")
@@ -451,8 +563,23 @@ public sealed class OutletOnboardingService(
     private static string Hash(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 
-    private static OutletOnboardingSessionDto ToSession(OutletOnboardingApplication x, string accessKey) =>
-        new(x.Id, accessKey, x.Status, x.PaymentStatus, x.PlanName, x.BillingCycle, x.SubscriptionFee, x.SetupFee, x.SubmittedAtUtc);
+    private static OutletOnboardingSessionDto ToSession(
+        OutletOnboardingApplication x,
+        string accessKey,
+        PaymentTransaction? payment = null) =>
+        new(
+            x.Id,
+            accessKey,
+            x.Status,
+            x.PaymentStatus,
+            x.PlanName,
+            x.BillingCycle,
+            x.SubscriptionFee,
+            x.SetupFee,
+            x.SubmittedAtUtc,
+            payment?.Id,
+            payment?.ProviderOrderId ?? "",
+            payment?.PaymentSessionId ?? "");
 
     private static OutletOnboardingDto ToDto(OutletOnboardingApplication x)
     {

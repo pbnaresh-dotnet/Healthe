@@ -123,6 +123,82 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID
     ALTER TABLE dbo.OutletOnboardingApplications ADD CONSTRAINT FK_OutletOnboardingApplications_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
 ", cancellationToken);
 
+        // Payment gateway schema reconciliation. Keep this separate from the FK batch so
+        // existing production databases can be upgraded safely without EF migrations.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.PaymentTransactions','U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('dbo.PaymentTransactions','OutletId') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD OutletId uniqueidentifier NULL;
+    IF COL_LENGTH('dbo.PaymentTransactions','OutletOnboardingApplicationId') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD OutletOnboardingApplicationId uniqueidentifier NULL;
+    IF COL_LENGTH('dbo.PaymentTransactions','PaymentType') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD PaymentType nvarchar(50) NOT NULL CONSTRAINT DF_PaymentTransactions_PaymentType_Compat DEFAULT 'CustomerSubscription' WITH VALUES;
+    IF COL_LENGTH('dbo.PaymentTransactions','ProviderOrderId') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD ProviderOrderId nvarchar(80) NOT NULL CONSTRAINT DF_PaymentTransactions_ProviderOrderId_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.PaymentTransactions','PaymentSessionId') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD PaymentSessionId nvarchar(1000) NOT NULL CONSTRAINT DF_PaymentTransactions_PaymentSessionId_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.PaymentTransactions','PaymentMethod') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD PaymentMethod nvarchar(100) NOT NULL CONSTRAINT DF_PaymentTransactions_PaymentMethod_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.PaymentTransactions','ProviderStatus') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD ProviderStatus nvarchar(50) NOT NULL CONSTRAINT DF_PaymentTransactions_ProviderStatus_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.PaymentTransactions','FailureReason') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD FailureReason nvarchar(1000) NOT NULL CONSTRAINT DF_PaymentTransactions_FailureReason_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.PaymentTransactions','GatewayResponseJson') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD GatewayResponseJson nvarchar(max) NOT NULL CONSTRAINT DF_PaymentTransactions_GatewayResponseJson_Compat DEFAULT '' WITH VALUES;
+
+    IF EXISTS (
+        SELECT 1
+        FROM sys.columns
+        WHERE object_id = OBJECT_ID('dbo.PaymentTransactions')
+          AND name = 'CustomerId'
+          AND is_nullable = 0
+    )
+        ALTER TABLE dbo.PaymentTransactions ALTER COLUMN CustomerId uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name='UX_PaymentTransactions_ProviderOrderId'
+      AND object_id=OBJECT_ID('dbo.PaymentTransactions')
+)
+    CREATE UNIQUE INDEX UX_PaymentTransactions_ProviderOrderId
+    ON dbo.PaymentTransactions(ProviderOrderId)
+    WHERE ProviderOrderId IS NOT NULL AND ProviderOrderId <> '';
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name='IX_PaymentTransactions_OnboardingApplicationId'
+      AND object_id=OBJECT_ID('dbo.PaymentTransactions')
+)
+    CREATE INDEX IX_PaymentTransactions_OnboardingApplicationId
+    ON dbo.PaymentTransactions(OutletOnboardingApplicationId);
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.foreign_keys
+    WHERE name='FK_PaymentTransactions_Outlets'
+      AND parent_object_id=OBJECT_ID('dbo.PaymentTransactions')
+)
+    ALTER TABLE dbo.PaymentTransactions ADD CONSTRAINT FK_PaymentTransactions_Outlets
+    FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.foreign_keys
+    WHERE name='FK_PaymentTransactions_Subscriptions'
+      AND parent_object_id=OBJECT_ID('dbo.PaymentTransactions')
+)
+    ALTER TABLE dbo.PaymentTransactions ADD CONSTRAINT FK_PaymentTransactions_Subscriptions
+    FOREIGN KEY(SubscriptionId) REFERENCES dbo.Subscriptions(Id) ON DELETE NO ACTION;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.foreign_keys
+    WHERE name='FK_PaymentTransactions_OutletOnboardingApplications'
+      AND parent_object_id=OBJECT_ID('dbo.PaymentTransactions')
+)
+    ALTER TABLE dbo.PaymentTransactions ADD CONSTRAINT FK_PaymentTransactions_OutletOnboardingApplications
+    FOREIGN KEY(OutletOnboardingApplicationId) REFERENCES dbo.OutletOnboardingApplications(Id) ON DELETE NO ACTION;
+", cancellationToken);
+
         // Add the column in its own SQL batch. SQL Server may compile the whole batch
         // before executing the ALTER TABLE, which makes a same-batch UPDATE reference
         // to the newly-added column fail with "Invalid column name".
@@ -493,7 +569,7 @@ BEGIN
         BillingCycle nvarchar(30) NOT NULL CONSTRAINT DF_OutletOnboarding_BillingCycle DEFAULT 'Monthly',
         SubscriptionFee decimal(18,2) NOT NULL CONSTRAINT DF_OutletOnboarding_SubscriptionFee DEFAULT 0,
         SetupFee decimal(18,2) NOT NULL CONSTRAINT DF_OutletOnboarding_SetupFee DEFAULT 5000,
-        PaymentStatus nvarchar(30) NOT NULL CONSTRAINT DF_OutletOnboarding_PaymentStatus DEFAULT 'Paid',
+        PaymentStatus nvarchar(30) NOT NULL CONSTRAINT DF_OutletOnboarding_PaymentStatus DEFAULT 'Pending',
         PaymentReference nvarchar(100) NOT NULL,
         Status nvarchar(40) NOT NULL CONSTRAINT DF_OutletOnboarding_Status DEFAULT 'Onboarding',
         BusinessType nvarchar(40) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessType DEFAULT 'Individual',
