@@ -76,6 +76,7 @@ public static class DependencyInjection
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IOutletRepository, OutletRepository>();
+        services.AddScoped<IOutletLegalPolicyRepository, OutletLegalPolicyRepository>();
         services.AddScoped<IOutletBrandingRepository, OutletBrandingRepository>();
         services.AddScoped<IOutletDomainRepository, OutletDomainRepository>();
         services.AddHttpClient<ICloudflarePagesService, CloudflarePagesService>((sp, client) =>
