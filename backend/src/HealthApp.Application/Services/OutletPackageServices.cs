@@ -561,26 +561,30 @@ public sealed class OutletPackageService(
             ?? throw new InvalidOperationException("This outlet is not ready for customer acceptance because its customer legal policies are not published.");
         if (!request.LegalAccepted || request.LegalPolicyVersionId != publishedLegal.Id)
             throw new InvalidOperationException("Please review and accept the latest outlet Terms & Privacy Policy before accepting this package.");
-        if (!await legalPolicies.HasAcceptedVersionAsync(customerId, subscription.OutletId, publishedLegal.Id))
+        var alreadyAccepted = await legalPolicies.HasAcceptedVersionAsync(customerId, subscription.OutletId, publishedLegal.Id);
+        await unitOfWork.ExecuteAsync(async () =>
         {
-            await legalPolicies.AddAcceptanceAsync(new CustomerLegalAcceptance
+            if (!alreadyAccepted)
             {
-                Id = Guid.NewGuid(),
-                CustomerId = customerId,
-                OutletId = subscription.OutletId,
-                LegalPolicyVersionId = publishedLegal.Id,
-                TermsAccepted = true,
-                PrivacyAccepted = true,
-                CommercialPoliciesAccepted = true,
-                AcceptedAtUtc = DateTime.UtcNow,
-                IpAddress = acceptanceContext?.IpAddress,
-                UserAgent = acceptanceContext?.UserAgent
-            });
-        }
+                await legalPolicies.AddAcceptanceAsync(new CustomerLegalAcceptance
+                {
+                    Id = Guid.NewGuid(),
+                    CustomerId = customerId,
+                    OutletId = subscription.OutletId,
+                    LegalPolicyVersionId = publishedLegal.Id,
+                    TermsAccepted = true,
+                    PrivacyAccepted = true,
+                    CommercialPoliciesAccepted = true,
+                    AcceptedAtUtc = DateTime.UtcNow,
+                    IpAddress = acceptanceContext?.IpAddress,
+                    UserAgent = acceptanceContext?.UserAgent
+                });
+            }
 
-        subscription.PackageStatus = "PaymentPending";
-        subscription.AcceptedAtUtc = DateTime.UtcNow;
-        await subscriptions.UpdateAsync(subscription);
+            subscription.PackageStatus = "PaymentPending";
+            subscription.AcceptedAtUtc = DateTime.UtcNow;
+            await subscriptions.UpdateAsync(subscription);
+        });
         return MapSubscription(subscription, "Pending");
     }
 
