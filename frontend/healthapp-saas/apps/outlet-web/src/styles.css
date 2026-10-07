@@ -366,3 +366,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .legalSettingsLinks{display:flex;gap:7px;flex-wrap:wrap;align-items:center}.legalSettingsLinks span{flex:1 1 240px;color:#7a877e;font-size:8px;line-height:1.45}
 .legalDraftToolbar{margin-top:14px}
 @media(max-width:820px){.legalPage{padding:18px 14px 35px}.legalHeader h1{font-size:24px}.legalHeader p{font-size:10px}.legalLayout{grid-template-columns:1fr}.legalIndex{position:static;display:flex;overflow:auto}.legalIndex button{min-width:185px}.legalBody{padding:18px}.legalSettingsGrid{grid-template-columns:1fr}.legalSettingsCard.featured{grid-column:auto}}
+
+
+/* Outlet legal policy editor */
+.legalPublishStatus{display:grid;justify-items:end;gap:5px}.legalPublishStatus small{font-size:8px;color:#718078}
+.legalEditorForm{display:grid;gap:14px}.legalEditorIntro{padding:11px 13px;border:1px solid #d9e5dc;background:#f3f9f4;border-radius:10px;display:flex;gap:9px;align-items:flex-start;font-size:9px;line-height:1.5;color:#607269}.legalEditorIntro b{color:#21683a}.legalEditorForm>.field>textarea,.legalTwoCol .field textarea{width:100%;min-height:120px;resize:vertical;line-height:1.55;font-family:inherit}
+.legalEditorForm>.field>textarea:focus,.legalTwoCol .field textarea:focus{border-color:#7fb78e;box-shadow:0 0 0 3px rgba(127,183,142,.12);outline:none}
+.legalTwoCol{display:grid;grid-template-columns:1fr 1fr;gap:12px}.legalTwoCol .span2{grid-column:1/-1}
+.legalControlGrid{display:grid;grid-template-columns:170px 170px minmax(0,1fr);gap:12px;align-items:end}
+.legalPublishCheck{display:flex!important;align-items:flex-start;gap:8px;margin:0;padding:10px 12px;border:1px solid #dfe8e1;border-radius:10px;background:#fbfdfb;min-height:62px}.legalPublishCheck input{margin-top:3px}.legalPublishCheck span{display:grid;gap:3px}.legalPublishCheck b{font-size:10px;color:#1d4f2d}.legalPublishCheck small{font-size:8px;color:#6f7d74;line-height:1.45}
+.legalQuickLinks{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid #e5ece6}.legalQuickLinks a{display:inline-block;padding:7px 9px;border-radius:8px;border:1px solid #d4e1d7;background:#fff;color:#21683a;text-decoration:none;font-size:8px;font-weight:900}
+.legalQuickLinks a:hover{background:#eef8f0}
+@media(max-width:850px){.legalTwoCol,.legalControlGrid{grid-template-columns:1fr}.legalTwoCol .span2{grid-column:auto}.legalControlGrid{gap:8px}.legalPublishStatus{justify-items:start}}
