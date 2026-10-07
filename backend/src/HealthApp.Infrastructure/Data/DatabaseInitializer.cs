@@ -274,7 +274,6 @@ IF EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletLegalPolicyVersions_Ou
 
 IF EXISTS (SELECT 1 FROM dbo.OutletLegalPolicyVersions)
 BEGIN
-    -- Keep exactly one published row per outlet. The newest published snapshot is authoritative.
     WITH ranked AS
     (
         SELECT Id,
@@ -292,8 +291,6 @@ BEGIN
     INNER JOIN ranked r ON r.Id=v.Id
     WHERE r.rn > 1;
 
-    -- Version must be unique within an outlet. Preserve duplicate history rather than deleting it:
-    -- suffix older duplicates with a deterministic immutable legacy identifier.
     WITH duplicates AS
     (
         SELECT Id, OutletId, Version,
@@ -330,8 +327,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_CustomerLegalAccept
 
         // Backward compatibility: if an older release marked outlet policies as published
         // in the mutable Outlet fields, snapshot the complete policy set into immutable version 1.x
-        // before production versioned publishing is enforced. Incomplete legacy policies are not
-        // auto-published and will remain a go-live blocker until the outlet publishes a complete set.
+        // before production versioned publishing is enforced.
         await db.Database.ExecuteSqlRawAsync(@"
 IF OBJECT_ID('dbo.OutletLegalPolicyVersions','U') IS NOT NULL
 BEGIN
@@ -350,7 +346,7 @@ BEGIN
                 THEN LTRIM(RTRIM(o.LegalVersion))
             WHEN LEN(LTRIM(RTRIM(COALESCE(o.LegalVersion,'')))) = 0
                 THEN N'1.0'
-            ELSE N'legacy-' + LEFT(REPLACE(CONVERT(varchar(36), o.Id),'-',''), 32)
+            ELSE N'legacy-' + REPLACE(CONVERT(varchar(36), o.Id),'-','')
         END,
         o.CustomerTermsAndConditions,
         o.CustomerPrivacyPolicy,
@@ -366,6 +362,7 @@ BEGIN
                     o.CustomerTermsAndConditions, NCHAR(10), N'---', NCHAR(10),
                     o.CustomerPrivacyPolicy, NCHAR(10), N'---', NCHAR(10),
                     o.CancellationRefundPolicy, NCHAR(10), N'---', NCHAR(10),
+                    o.MealSkipReschedulePolicy, NCHAR(10), N'---', NCHAR(10),
                     o.DeliveryPolicy, NCHAR(10), N'---', NCHAR(10),
                     o.AllergenDietaryDisclaimer, NCHAR(10), N'---', NCHAR(10),
                     o.PaymentPricingPromotionalTerms
@@ -385,7 +382,7 @@ BEGIN
                 THEN LTRIM(RTRIM(o.LegalVersion))
             WHEN LEN(LTRIM(RTRIM(COALESCE(o.LegalVersion,'')))) = 0
                 THEN N'1.0'
-            ELSE N'legacy-' + LEFT(REPLACE(CONVERT(varchar(36), o.Id),'-',''), 32)
+            ELSE N'legacy-' + REPLACE(CONVERT(varchar(36), o.Id),'-','')
         END AS TargetVersion
     ) targetVersion
     WHERE o.LegalPoliciesPublished = 1
@@ -690,3 +687,312 @@ IF COL_LENGTH('dbo.Deliveries','RouteSequence') IS NULL
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_Deliveries_RouteId' AND object_id=OBJECT_ID('dbo.Deliveries'))
     CREATE INDEX IX_Deliveries_RouteId ON dbo.Deliveries(RouteId);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_Deliveries_RouteStopId' AND object_id=OBJECT_ID('dbo.Deliveries'))
+    CREATE INDEX IX_Deliveries_RouteStopId ON dbo.Deliveries(RouteStopId);
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id=OBJECT_ID('dbo.Deliveries') AND referenced_object_id=OBJECT_ID('dbo.DeliveryRoutes'))
+    ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_Routes FOREIGN KEY(RouteId) REFERENCES dbo.DeliveryRoutes(Id) ON DELETE SET NULL;
+IF EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name='FK_Deliveries_RouteStops'
+      AND parent_object_id=OBJECT_ID('dbo.Deliveries')
+      AND referenced_object_id=OBJECT_ID('dbo.DeliveryRouteStops')
+      AND delete_referential_action_desc <> 'NO_ACTION'
+)
+    ALTER TABLE dbo.Deliveries DROP CONSTRAINT FK_Deliveries_RouteStops;
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE parent_object_id=OBJECT_ID('dbo.Deliveries')
+      AND referenced_object_id=OBJECT_ID('dbo.DeliveryRouteStops')
+)
+    ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_RouteStops FOREIGN KEY(RouteStopId) REFERENCES dbo.DeliveryRouteStops(Id) ON DELETE NO ACTION;
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRoutes') AND name='TotalDistanceKm' AND system_type_id=59)
+    ALTER TABLE dbo.DeliveryRoutes ALTER COLUMN TotalDistanceKm float NOT NULL;
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRoutes') AND name='TotalDurationMinutes' AND system_type_id=59)
+    ALTER TABLE dbo.DeliveryRoutes ALTER COLUMN TotalDurationMinutes float NOT NULL;
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRouteStops') AND name='Latitude' AND system_type_id=59)
+    ALTER TABLE dbo.DeliveryRouteStops ALTER COLUMN Latitude float NOT NULL;
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRouteStops') AND name='Longitude' AND system_type_id=59)
+    ALTER TABLE dbo.DeliveryRouteStops ALTER COLUMN Longitude float NOT NULL;
+IF COL_LENGTH('dbo.Subscriptions','DeliveryCity') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD DeliveryCity nvarchar(100) NULL;
+
+IF OBJECT_ID('dbo.OutletDomains', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OutletDomains
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_OutletDomains PRIMARY KEY,
+        OutletId uniqueidentifier NOT NULL,
+        Hostname nvarchar(253) NOT NULL,
+        VerificationToken nvarchar(128) NOT NULL CONSTRAINT DF_OutletDomains_VerificationToken DEFAULT '',
+        VerificationRecordName nvarchar(253) NOT NULL CONSTRAINT DF_OutletDomains_VerificationRecordName DEFAULT '',
+        Status int NOT NULL CONSTRAINT DF_OutletDomains_Status DEFAULT 0,
+        IsPrimary bit NOT NULL CONSTRAINT DF_OutletDomains_IsPrimary DEFAULT 0,
+        CreatedAtUtc datetime2 NOT NULL CONSTRAINT DF_OutletDomains_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
+        VerifiedAtUtc datetime2 NULL
+    );
+END;
+
+IF COL_LENGTH('dbo.OutletDomains','VerificationToken') IS NULL
+    ALTER TABLE dbo.OutletDomains ADD VerificationToken nvarchar(128) NOT NULL CONSTRAINT DF_OutletDomains_VerificationToken_Compat DEFAULT '';
+IF COL_LENGTH('dbo.OutletDomains','VerificationRecordName') IS NULL
+    ALTER TABLE dbo.OutletDomains ADD VerificationRecordName nvarchar(253) NOT NULL CONSTRAINT DF_OutletDomains_VerificationRecordName_Compat DEFAULT '';
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletDomains_Hostname' AND object_id=OBJECT_ID('dbo.OutletDomains'))
+    CREATE UNIQUE INDEX IX_OutletDomains_Hostname ON dbo.OutletDomains(Hostname);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletDomains_OutletId_Status' AND object_id=OBJECT_ID('dbo.OutletDomains'))
+    CREATE INDEX IX_OutletDomains_OutletId_Status ON dbo.OutletDomains(OutletId, Status);
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name='FK_OutletDomains_Outlets'
+      AND parent_object_id=OBJECT_ID('dbo.OutletDomains')
+)
+    ALTER TABLE dbo.OutletDomains
+        ADD CONSTRAINT FK_OutletDomains_Outlets
+        FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+
+IF COL_LENGTH('dbo.Outlets','HeroImageUrl') IS NULL
+    ALTER TABLE dbo.Outlets ADD HeroImageUrl nvarchar(1000) NULL;
+IF COL_LENGTH('dbo.Outlets','HealthHighlights') IS NULL
+    ALTER TABLE dbo.Outlets ADD HealthHighlights nvarchar(2000) NULL;
+IF COL_LENGTH('dbo.Outlets','Rating') IS NULL
+    ALTER TABLE dbo.Outlets ADD Rating float NOT NULL CONSTRAINT DF_Outlets_Rating DEFAULT 4.8;
+IF COL_LENGTH('dbo.Outlets','ReviewCount') IS NULL
+    ALTER TABLE dbo.Outlets ADD ReviewCount int NOT NULL CONSTRAINT DF_Outlets_ReviewCount DEFAULT 0;
+IF COL_LENGTH('dbo.Outlets','About') IS NULL
+    ALTER TABLE dbo.Outlets ADD About nvarchar(2000) NULL;
+IF COL_LENGTH('dbo.Outlets','RestaurantGstRate') IS NULL
+    ALTER TABLE dbo.Outlets ADD RestaurantGstRate decimal(9,4) NOT NULL CONSTRAINT DF_Outlets_RestaurantGstRate DEFAULT 5;
+IF COL_LENGTH('dbo.Outlets','RestaurantGstMode') IS NULL
+    ALTER TABLE dbo.Outlets ADD RestaurantGstMode int NOT NULL CONSTRAINT DF_Outlets_RestaurantGstMode DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','RestaurantGstMode') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD RestaurantGstMode int NOT NULL CONSTRAINT DF_Subscriptions_RestaurantGstMode DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','RestaurantTaxableAmount') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD RestaurantTaxableAmount decimal(18,2) NOT NULL CONSTRAINT DF_Subscriptions_RestaurantTaxableAmount DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','PackageStatus') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PackageStatus nvarchar(40) NOT NULL CONSTRAINT DF_Subscriptions_PackageStatus DEFAULT 'Active';
+IF COL_LENGTH('dbo.Subscriptions','IsOutletCreated') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD IsOutletCreated bit NOT NULL CONSTRAINT DF_Subscriptions_IsOutletCreated DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','CreatedByOutletUserId') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD CreatedByOutletUserId uniqueidentifier NULL;
+IF COL_LENGTH('dbo.Subscriptions','OutletDiscountType') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD OutletDiscountType int NOT NULL CONSTRAINT DF_Subscriptions_OutletDiscountType DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','OutletDiscountValue') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD OutletDiscountValue decimal(18,2) NOT NULL CONSTRAINT DF_Subscriptions_OutletDiscountValue DEFAULT 0;
+IF COL_LENGTH('dbo.Subscriptions','OutletDiscountReason') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD OutletDiscountReason nvarchar(500) NOT NULL CONSTRAINT DF_Subscriptions_OutletDiscountReason DEFAULT '';
+IF COL_LENGTH('dbo.Subscriptions','PaymentMethod') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PaymentMethod nvarchar(40) NOT NULL CONSTRAINT DF_Subscriptions_PaymentMethod DEFAULT 'Online';
+IF COL_LENGTH('dbo.Subscriptions','PaidByUserId') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PaidByUserId uniqueidentifier NULL;
+IF COL_LENGTH('dbo.Subscriptions','PaidAtUtc') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PaidAtUtc datetime2 NULL;
+IF COL_LENGTH('dbo.Subscriptions','AcceptedAtUtc') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD AcceptedAtUtc datetime2 NULL;
+IF COL_LENGTH('dbo.Subscriptions','SentAtUtc') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD SentAtUtc datetime2 NULL;
+IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantGstRate') IS NULL
+    ALTER TABLE dbo.OrderFinancialBreakdowns ADD RestaurantGstRate decimal(9,4) NOT NULL CONSTRAINT DF_OrderFinancialBreakdowns_RestaurantGstRate DEFAULT 5;
+IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantGstMode') IS NULL
+    ALTER TABLE dbo.OrderFinancialBreakdowns ADD RestaurantGstMode int NOT NULL CONSTRAINT DF_OrderFinancialBreakdowns_RestaurantGstMode DEFAULT 0;
+IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantTaxableAmount') IS NULL
+    ALTER TABLE dbo.OrderFinancialBreakdowns ADD RestaurantTaxableAmount decimal(18,2) NOT NULL CONSTRAINT DF_OrderFinancialBreakdowns_RestaurantTaxableAmount DEFAULT 0;
+
+IF COL_LENGTH('dbo.CustomerProfiles','Allergies') IS NOT NULL
+    ALTER TABLE dbo.CustomerProfiles ALTER COLUMN Allergies nvarchar(max) NULL;
+
+-- Legacy column retained for older databases; normalized RecipeAllergens/IngredientAllergens are authoritative.
+IF COL_LENGTH('dbo.Recipes','FiberGrams') IS NULL
+    ALTER TABLE dbo.Recipes ADD FiberGrams int NOT NULL CONSTRAINT DF_Recipes_FiberGrams DEFAULT 0;
+IF COL_LENGTH('dbo.Recipes','Allergens') IS NOT NULL
+    ALTER TABLE dbo.Recipes ALTER COLUMN Allergens nvarchar(max) NULL;
+", cancellationToken);
+
+        await db.Database.ExecuteSqlRawAsync(@"
+UPDATE ca
+SET City = COALESCE(NULLIF(ca.City, ''), area.City),
+    State = COALESCE(NULLIF(ca.State, ''), area.State),
+    Pincode = COALESCE(NULLIF(ca.Pincode, ''), area.Pincode),
+    Locality = COALESCE(NULLIF(ca.Locality, ''), area.Name)
+FROM dbo.CustomerAddresses ca
+LEFT JOIN dbo.CityAreas area ON area.Id = ca.CityAreaId
+WHERE (ca.City IS NULL OR ca.City = '')
+   OR (ca.State IS NULL OR ca.State = '')
+   OR (ca.Pincode IS NULL OR ca.Pincode = '')
+   OR (ca.Locality IS NULL OR ca.Locality = '');
+", cancellationToken);
+
+        // Run data updates in separate SQL batches so SQL Server compiles the UPDATE statements
+        // only after any newly-added columns exist. This avoids invalid-column and nested-quote failures.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Subscriptions','DeliveryCity') IS NOT NULL
+BEGIN
+    UPDATE s
+    SET DeliveryCity = COALESCE(NULLIF(s.DeliveryCity, ''), o.City)
+    FROM dbo.Subscriptions s
+    INNER JOIN dbo.Outlets o ON o.Id = s.OutletId
+    WHERE s.DeliveryCity IS NULL OR s.DeliveryCity = '';
+END;
+", cancellationToken);
+
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Outlets','HeroImageUrl') IS NOT NULL
+   AND COL_LENGTH('dbo.Outlets','HealthHighlights') IS NOT NULL
+BEGIN
+    UPDATE dbo.Outlets
+    SET HeroImageUrl = COALESCE(NULLIF(HeroImageUrl, ''), 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1200&q=85'),
+        HealthHighlights = COALESCE(NULLIF(HealthHighlights, ''), 'Grilled,Cold Pressed Oil,High Protein,Exotic Bowls,Fresh Ingredients')
+    WHERE Slug = 'fitfood';
+
+    UPDATE dbo.Outlets
+    SET HeroImageUrl = COALESCE(NULLIF(HeroImageUrl, ''), 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=85'),
+        HealthHighlights = COALESCE(NULLIF(HealthHighlights, ''), 'Fresh Ingredients,Balanced Nutrition,Vegetarian Friendly,High Protein')
+    WHERE Slug = 'abc';
+END;
+", cancellationToken);
+
+        // Existing demo databases can contain NULLs in columns that are now represented by
+        // non-nullable C# strings. EF Core materializes those columns with GetString(), which
+        // results in SqlNullValueException. Normalize legacy NULLs before any repository query runs.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Users','OutletId') IS NOT NULL
+   AND EXISTS (SELECT 1 FROM dbo.Outlets WHERE Slug='fitfood')
+BEGIN
+    UPDATE u
+    SET OutletId = o.Id
+    FROM dbo.Users u
+    CROSS JOIN dbo.Outlets o
+    WHERE u.Email = 'customer@healthapp.test'
+      AND u.Role = 0
+      AND u.OutletId IS NULL
+      AND o.Slug = 'fitfood';
+END;
+
+IF COL_LENGTH('dbo.Users','Email') IS NOT NULL UPDATE dbo.Users SET Email = COALESCE(Email,'');
+IF COL_LENGTH('dbo.Users','PasswordHash') IS NOT NULL UPDATE dbo.Users SET PasswordHash = COALESCE(PasswordHash,'');
+IF COL_LENGTH('dbo.Users','FirstName') IS NOT NULL UPDATE dbo.Users SET FirstName = COALESCE(FirstName,'');
+IF COL_LENGTH('dbo.Users','LastName') IS NOT NULL UPDATE dbo.Users SET LastName = COALESCE(LastName,'');
+
+IF COL_LENGTH('dbo.Outlets','Name') IS NOT NULL UPDATE dbo.Outlets SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.Outlets','Slug') IS NOT NULL UPDATE dbo.Outlets SET Slug = COALESCE(Slug,'');
+IF COL_LENGTH('dbo.Outlets','Subdomain') IS NOT NULL UPDATE dbo.Outlets SET Subdomain = COALESCE(Subdomain,'');
+IF COL_LENGTH('dbo.Outlets','City') IS NOT NULL UPDATE dbo.Outlets SET City = COALESCE(City,'');
+IF COL_LENGTH('dbo.Outlets','State') IS NOT NULL UPDATE dbo.Outlets SET State = COALESCE(State,'');
+IF COL_LENGTH('dbo.Outlets','Pincode') IS NOT NULL UPDATE dbo.Outlets SET Pincode = COALESCE(Pincode,'');
+IF COL_LENGTH('dbo.Outlets','DeliveryDays') IS NOT NULL UPDATE dbo.Outlets SET DeliveryDays = COALESCE(DeliveryDays,'');
+IF COL_LENGTH('dbo.Outlets','LogoUrl') IS NOT NULL UPDATE dbo.Outlets SET LogoUrl = COALESCE(LogoUrl,'');
+IF COL_LENGTH('dbo.Outlets','HeroImageUrl') IS NOT NULL UPDATE dbo.Outlets SET HeroImageUrl = COALESCE(HeroImageUrl,'');
+IF COL_LENGTH('dbo.Outlets','HealthHighlights') IS NOT NULL UPDATE dbo.Outlets SET HealthHighlights = COALESCE(HealthHighlights,'');
+IF COL_LENGTH('dbo.Outlets','PrimaryColor') IS NOT NULL UPDATE dbo.Outlets SET PrimaryColor = COALESCE(PrimaryColor,'#14532d');
+IF COL_LENGTH('dbo.Outlets','About') IS NOT NULL UPDATE dbo.Outlets SET About = COALESCE(About,'');
+
+IF COL_LENGTH('dbo.CustomerProfiles','Goal') IS NOT NULL UPDATE dbo.CustomerProfiles SET Goal = COALESCE(Goal,'WeightLoss');
+IF COL_LENGTH('dbo.CustomerProfiles','ActivityLevel') IS NOT NULL UPDATE dbo.CustomerProfiles SET ActivityLevel = COALESCE(ActivityLevel,'Moderate');
+IF COL_LENGTH('dbo.CustomerProfiles','Diet') IS NOT NULL UPDATE dbo.CustomerProfiles SET Diet = COALESCE(Diet,'');
+
+IF COL_LENGTH('dbo.CustomerAddresses','City') IS NOT NULL UPDATE dbo.CustomerAddresses SET City = COALESCE(City,'');
+IF COL_LENGTH('dbo.CustomerAddresses','State') IS NOT NULL UPDATE dbo.CustomerAddresses SET State = COALESCE(State,'');
+IF COL_LENGTH('dbo.CustomerAddresses','Pincode') IS NOT NULL UPDATE dbo.CustomerAddresses SET Pincode = COALESCE(Pincode,'');
+IF COL_LENGTH('dbo.CustomerAddresses','Locality') IS NOT NULL UPDATE dbo.CustomerAddresses SET Locality = COALESCE(Locality,'');
+IF COL_LENGTH('dbo.CustomerAddresses','Label') IS NOT NULL UPDATE dbo.CustomerAddresses SET Label = COALESCE(Label,'');
+IF COL_LENGTH('dbo.CustomerAddresses','AddressLine1') IS NOT NULL UPDATE dbo.CustomerAddresses SET AddressLine1 = COALESCE(AddressLine1,'');
+IF COL_LENGTH('dbo.CustomerAddresses','AddressLine2') IS NOT NULL UPDATE dbo.CustomerAddresses SET AddressLine2 = COALESCE(AddressLine2,'');
+IF COL_LENGTH('dbo.CustomerAddresses','ContactName') IS NOT NULL UPDATE dbo.CustomerAddresses SET ContactName = COALESCE(ContactName,'');
+IF COL_LENGTH('dbo.CustomerAddresses','ContactPhone') IS NOT NULL UPDATE dbo.CustomerAddresses SET ContactPhone = COALESCE(ContactPhone,'');
+
+IF COL_LENGTH('dbo.Outlets','RestaurantGstRate') IS NOT NULL UPDATE dbo.Outlets SET RestaurantGstRate = COALESCE(RestaurantGstRate,5);
+IF COL_LENGTH('dbo.Outlets','RestaurantGstMode') IS NOT NULL UPDATE dbo.Outlets SET RestaurantGstMode = COALESCE(RestaurantGstMode,0);
+IF COL_LENGTH('dbo.Subscriptions','RestaurantGstMode') IS NOT NULL UPDATE dbo.Subscriptions SET RestaurantGstMode = COALESCE(RestaurantGstMode,0);
+IF COL_LENGTH('dbo.Subscriptions','RestaurantTaxableAmount') IS NOT NULL UPDATE dbo.Subscriptions SET RestaurantTaxableAmount = CASE WHEN RestaurantTaxableAmount=0 THEN COALESCE(NetMealAmount,0) ELSE RestaurantTaxableAmount END;
+IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantGstRate') IS NOT NULL UPDATE dbo.OrderFinancialBreakdowns SET RestaurantGstRate = COALESCE(RestaurantGstRate,5);
+IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantGstMode') IS NOT NULL UPDATE dbo.OrderFinancialBreakdowns SET RestaurantGstMode = COALESCE(RestaurantGstMode,0);
+IF COL_LENGTH('dbo.OrderFinancialBreakdowns','RestaurantTaxableAmount') IS NOT NULL UPDATE dbo.OrderFinancialBreakdowns SET RestaurantTaxableAmount = CASE WHEN RestaurantTaxableAmount=0 AND RestaurantGstAmount=0 THEN COALESCE(NetMealAmount,0) ELSE RestaurantTaxableAmount END;
+
+IF COL_LENGTH('dbo.Subscriptions','DeliveryCity') IS NOT NULL UPDATE dbo.Subscriptions SET DeliveryCity = COALESCE(DeliveryCity,'');
+IF COL_LENGTH('dbo.Subscriptions','PlanName') IS NOT NULL UPDATE dbo.Subscriptions SET PlanName = COALESCE(PlanName,'');
+IF COL_LENGTH('dbo.Subscriptions','Frequency') IS NOT NULL UPDATE dbo.Subscriptions SET Frequency = COALESCE(Frequency,'Weekly');
+IF COL_LENGTH('dbo.Subscriptions','DiscountCode') IS NOT NULL UPDATE dbo.Subscriptions SET DiscountCode = COALESCE(DiscountCode,'');
+
+IF COL_LENGTH('dbo.Recipes','Name') IS NOT NULL UPDATE dbo.Recipes SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.Recipes','Description') IS NOT NULL UPDATE dbo.Recipes SET Description = COALESCE(Description,'');
+IF COL_LENGTH('dbo.Recipes','ImageUrl') IS NOT NULL UPDATE dbo.Recipes SET ImageUrl = COALESCE(ImageUrl,'');
+IF COL_LENGTH('dbo.Recipes','Tags') IS NOT NULL UPDATE dbo.Recipes SET Tags = COALESCE(Tags,'');
+-- Recipe allergens are normalized in RecipeAllergens; the legacy Recipes.Allergens column is optional and is not updated.
+
+IF COL_LENGTH('dbo.Ingredients','Name') IS NOT NULL UPDATE dbo.Ingredients SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.Ingredients','DefaultUnit') IS NOT NULL UPDATE dbo.Ingredients SET DefaultUnit = COALESCE(DefaultUnit,'g');
+IF COL_LENGTH('dbo.Allergens','Name') IS NOT NULL UPDATE dbo.Allergens SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.RecipeIngredients','Unit') IS NOT NULL UPDATE dbo.RecipeIngredients SET Unit = COALESCE(Unit,'g');
+IF COL_LENGTH('dbo.MealPlans','Name') IS NOT NULL UPDATE dbo.MealPlans SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.MealPlans','Frequency') IS NOT NULL UPDATE dbo.MealPlans SET Frequency = COALESCE(Frequency,'Weekly');
+IF COL_LENGTH('dbo.MealPlans','Currency') IS NOT NULL UPDATE dbo.MealPlans SET Currency = COALESCE(Currency,'INR');
+IF COL_LENGTH('dbo.MealPlans','Description') IS NOT NULL UPDATE dbo.MealPlans SET Description = COALESCE(Description,'');
+IF COL_LENGTH('dbo.SaaSPlans','Name') IS NOT NULL UPDATE dbo.SaaSPlans SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.SaaSPlans','Description') IS NOT NULL UPDATE dbo.SaaSPlans SET Description = COALESCE(Description,'');
+IF COL_LENGTH('dbo.OutletSubscriptions','BillingCycle') IS NOT NULL UPDATE dbo.OutletSubscriptions SET BillingCycle = COALESCE(BillingCycle,'Monthly');
+IF COL_LENGTH('dbo.OutletSubscriptions','Status') IS NOT NULL UPDATE dbo.OutletSubscriptions SET Status = COALESCE(Status,'Active');
+
+IF COL_LENGTH('dbo.Orders','Address') IS NOT NULL UPDATE dbo.Orders SET Address = COALESCE(Address,'');
+IF COL_LENGTH('dbo.Deliveries','CustomerName') IS NOT NULL UPDATE dbo.Deliveries SET CustomerName = COALESCE(CustomerName,'');
+IF COL_LENGTH('dbo.Deliveries','Address') IS NOT NULL UPDATE dbo.Deliveries SET Address = COALESCE(Address,'');
+IF COL_LENGTH('dbo.DeliveryRouteStops','CustomerName') IS NOT NULL UPDATE dbo.DeliveryRouteStops SET CustomerName = COALESCE(CustomerName,'');
+IF COL_LENGTH('dbo.DeliveryRouteStops','Address') IS NOT NULL UPDATE dbo.DeliveryRouteStops SET Address = COALESCE(Address,'');
+IF COL_LENGTH('dbo.DeliveryRoutes','RoutingSource') IS NOT NULL UPDATE dbo.DeliveryRoutes SET RoutingSource = COALESCE(RoutingSource,'OSRM');
+IF COL_LENGTH('dbo.DeliveryRoutes','GeometryJson') IS NOT NULL UPDATE dbo.DeliveryRoutes SET GeometryJson = COALESCE(GeometryJson,'[]');
+IF COL_LENGTH('dbo.MealSelectionHistories','Action') IS NOT NULL UPDATE dbo.MealSelectionHistories SET Action = COALESCE(Action,'');
+IF COL_LENGTH('dbo.MealSelectionHistories','Reason') IS NOT NULL UPDATE dbo.MealSelectionHistories SET Reason = COALESCE(Reason,'');
+IF COL_LENGTH('dbo.PaymentTransactions','Provider') IS NOT NULL UPDATE dbo.PaymentTransactions SET Provider = COALESCE(Provider,'Mock');
+IF COL_LENGTH('dbo.PaymentTransactions','ProviderPaymentId') IS NOT NULL UPDATE dbo.PaymentTransactions SET ProviderPaymentId = COALESCE(ProviderPaymentId,'');
+IF COL_LENGTH('dbo.PaymentTransactions','IdempotencyKey') IS NOT NULL UPDATE dbo.PaymentTransactions SET IdempotencyKey = COALESCE(IdempotencyKey,'');
+IF COL_LENGTH('dbo.PaymentTransactions','Currency') IS NOT NULL UPDATE dbo.PaymentTransactions SET Currency = COALESCE(Currency,'INR');
+IF COL_LENGTH('dbo.PaymentTransactions','Status') IS NOT NULL UPDATE dbo.PaymentTransactions SET Status = COALESCE(Status,'Pending');
+IF COL_LENGTH('dbo.DiscountCodes','Code') IS NOT NULL UPDATE dbo.DiscountCodes SET Code = COALESCE(Code,'');
+", cancellationToken);
+
+        // ServiceCities can pre-date the current non-nullable C# string model. Normalize
+        // legacy NULL text values before DatabaseSeeder queries ServiceCities.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.ServiceCities','City') IS NOT NULL
+    UPDATE dbo.ServiceCities SET City = COALESCE(City,'');
+IF COL_LENGTH('dbo.ServiceCities','State') IS NOT NULL
+    UPDATE dbo.ServiceCities SET State = COALESCE(State,'');
+IF COL_LENGTH('dbo.ServiceCities','Country') IS NOT NULL
+    UPDATE dbo.ServiceCities SET Country = COALESCE(Country,'India');
+", cancellationToken);
+
+        // CityAreas are also queried by the seeder using non-nullable C# strings. Legacy
+        // databases can contain NULLs here, which EF materializes with GetString() and fails.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.CityAreas','City') IS NOT NULL
+    UPDATE dbo.CityAreas SET City = COALESCE(City,'');
+IF COL_LENGTH('dbo.CityAreas','State') IS NOT NULL
+    UPDATE dbo.CityAreas SET State = COALESCE(State,'');
+IF COL_LENGTH('dbo.CityAreas','Name') IS NOT NULL
+    UPDATE dbo.CityAreas SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.CityAreas','Pincode') IS NOT NULL
+    UPDATE dbo.CityAreas SET Pincode = COALESCE(Pincode,'');
+", cancellationToken);
+
+        // Keep the old text columns harmless for older databases; normalized values are now authoritative.
+        await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(), cancellationToken);
+
+        await db.Database.ExecuteSqlRawAsync(@"
+INSERT INTO dbo.OutletBrandings
+(
+    Id, OutletId, BrandName, Tagline, LogoUrl, HeroImageUrl, FaviconUrl,
+    PrimaryColor, SecondaryColor, HealthHighlights, About, FooterText, UpdatedAtUtc
+)
+SELECT
+    NEWID(), o.Id, o.Name, '', COALESCE(o.LogoUrl,''), COALESCE(o.HeroImageUrl,''), '',
+    COALESCE(NULLIF(o.PrimaryColor,''),'#14532d'), '#166534',
+    COALESCE(o.HealthHighlights,''), COALESCE(o.About,''), '', SYSUTCDATETIME()
+FROM dbo.Outlets o
+WHERE NOT EXISTS (SELECT 1 FROM dbo.OutletBrandings b WHERE b.OutletId=o.Id);
+", cancellationToken);
+
+
+    }
+}
