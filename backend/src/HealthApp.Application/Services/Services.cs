@@ -7,7 +7,7 @@ using HealthApp.Domain.Enums;
 using HealthApp.Domain.Events;
 using HealthApp.Shared.DTOs;
 namespace HealthApp.Application.Services;
-public sealed class AuthService(IUserRepository users, ITokenService tokens, IPasswordService passwords, IOutletRepository outlets) : IAuthService
+public sealed class AuthService(IUserRepository users, ITokenService tokens, IPasswordService passwords, IOutletRepository outlets, IOutletLegalPolicyRepository legalPolicies, IUnitOfWork unitOfWork) : IAuthService
 {
     public async Task<AuthResponse?> LoginAsync(LoginRequest r)
     {
@@ -42,7 +42,7 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
             throw new UnauthorizedAccessException("Your 7-day demo has expired. Request a new demo account to continue exploring HealthApp.");
         return tokens.CreateToken(user);
     }
-    public async Task<AuthResponse> RegisterAsync(RegisterRequest r)
+    public async Task<AuthResponse> RegisterAsync(RegisterRequest r, LegalAcceptanceContext? acceptanceContext = null)
     {
         if (string.IsNullOrWhiteSpace(r.Password) || r.Password.Length < 8) throw new ArgumentException("Password must be at least 8 characters.");
         var mobileDigits = new string((r.MobileNumber ?? string.Empty).Where(char.IsDigit).ToArray());
@@ -66,6 +66,12 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
                 throw new KeyNotFoundException("The selected outlet is not available for customer registration.");
 
             outletId = outlet.Id;
+
+            var publishedLegal = await legalPolicies.GetPublishedAsync(outlet.Id);
+            if (publishedLegal is null)
+                throw new InvalidOperationException("This outlet is not ready for customer registration because its customer legal policies have not been published.");
+            if (r.LegalPolicyVersionId != publishedLegal.Id)
+                throw new InvalidOperationException("Please review and accept the latest customer Terms & Privacy Policy before creating your account.");
         }
 
         if (outletId.HasValue)
@@ -91,7 +97,30 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
             OutletId = outletId,
             PasswordHash = passwords.Hash(r.Password)
         };
-        await users.AddAsync(user);
+        await unitOfWork.ExecuteAsync(async () =>
+        {
+            await users.AddAsync(user);
+            if (role == UserRole.Customer && outletId is Guid customerOutletId)
+            {
+                var version = await legalPolicies.GetPublishedAsync(customerOutletId)
+                    ?? throw new InvalidOperationException("The outlet legal policy is no longer published. Please refresh and try again.");
+                if (r.LegalPolicyVersionId != version.Id)
+                    throw new InvalidOperationException("The customer legal policy changed while registering. Please review the latest version and try again.");
+                await legalPolicies.AddAcceptanceAsync(new CustomerLegalAcceptance
+                {
+                    Id = Guid.NewGuid(),
+                    CustomerId = user.Id,
+                    OutletId = customerOutletId,
+                    LegalPolicyVersionId = version.Id,
+                    TermsAccepted = true,
+                    PrivacyAccepted = true,
+                    CommercialPoliciesAccepted = true,
+                    AcceptedAtUtc = DateTime.UtcNow,
+                    IpAddress = acceptanceContext?.IpAddress,
+                    UserAgent = acceptanceContext?.UserAgent
+                });
+            }
+        });
         return tokens.CreateToken(user);
     }
 }
