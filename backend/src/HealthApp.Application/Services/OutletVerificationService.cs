@@ -1,4 +1,5 @@
 using HealthApp.Application.Abstractions;
+using Microsoft.Extensions.Configuration;
 using HealthApp.Domain.Entities;
 using HealthApp.Domain.Enums;
 using HealthApp.Shared.DTOs;
