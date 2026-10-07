@@ -13,6 +13,10 @@ const DIETS=['Veg','NonVeg','Vegan','Eggetarian','Pescatarian'];
 const ACTIVITY=[['Sedentary','Sedentary'],['Light','Lightly active'],['Moderate','Moderately active'],['High','Highly active'],['Athlete','Athlete']];
 const CATEGORIES=['All','Veg','NonVeg','Vegan','Eggetarian','Pescatarian'];
 const todayISO=()=>new Date().toISOString().slice(0,10);
+const normalizeIndianMobile=value=>{
+ const digits=String(value??'').replace(/\D/g,'');
+ return digits.length===12&&digits.startsWith('91')?digits.slice(2):digits;
+};
 const nextMonday=()=>{const d=new Date();const n=((8-(d.getDay()||7))%7)||7;d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
 const defaultWeekActiveDays=(startDate,duration)=>{
  const d=DURATIONS.find(x=>x.id===duration)||DURATIONS[2];
@@ -372,7 +376,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
              <label><span>First name <b>*</b></span><div className="authInputWrap"><i>◯</i><input value={authForm.firstName} onChange={e=>setAuthForm({...authForm,firstName:e.target.value})} required/></div></label>
              <label><span>Last name <b>*</b></span><div className="authInputWrap"><i>◯</i><input value={authForm.lastName} onChange={e=>setAuthForm({...authForm,lastName:e.target.value})} required/></div></label>
              <label className="authSpan2"><span>Email address <b>*</b></span><div className="authInputWrap"><i>✉</i><input type="email" value={authForm.email} onChange={e=>setAuthForm({...authForm,email:e.target.value.toLowerCase()})} required/></div></label>
-             <label className="authSpan2"><span>Mobile number <b>*</b></span><div className="authPhoneWrap"><span className="authPhonePrefix"><span>🇮🇳</span><b>+91</b></span><input inputMode="numeric" autoComplete="tel-national" maxLength="10" pattern="[6-9][0-9]{9}" value={authForm.mobileNumber} onChange={e=>setAuthForm({...authForm,mobileNumber:e.target.value.replace(/\D/g,'').slice(0,10)})} placeholder="98765 43210" required/></div></label>
+             <label className="authSpan2"><span>Mobile number <b>*</b></span><div className="authPhoneWrap"><span className="authPhonePrefix"><span>🇮🇳</span><b>+91</b></span><input name="mobileNumber" type="tel" inputMode="numeric" autoComplete="tel" maxLength="12" value={authForm.mobileNumber} onChange={e=>setAuthForm({...authForm,mobileNumber:normalizeIndianMobile(e.target.value).slice(0,10)})} placeholder="98765 43210" required/></div></label>
              <label><span>Password <b>*</b></span><div className="authInputWrap authPasswordWrap"><i>▣</i><input type="password" autoComplete="new-password" value={authForm.password} onChange={e=>setAuthForm({...authForm,password:e.target.value})} minLength="8" required/><button type="button" className="authPasswordToggle" onClick={e=>{const input=e.currentTarget.parentElement?.querySelector('input');if(input)input.type=input.type==='password'?'text':'password'}}>◉</button></div><div className="authPasswordMeter"><span style={{width:(Math.max(1,passwordScore)/4*100)+'%'}}/></div><small className={passwordScore>=3?'valid':'invalid'}>{passwordScore>=3?'Strong password':'Build a stronger password'}</small></label>
              <label><span>Confirm password <b>*</b></span><div className="authInputWrap authPasswordWrap"><i>▣</i><input type="password" autoComplete="new-password" value={authForm.confirmPassword} onChange={e=>setAuthForm({...authForm,confirmPassword:e.target.value})} minLength="8" required/><button type="button" className="authPasswordToggle" onClick={e=>{const input=e.currentTarget.parentElement?.querySelector('input');if(input)input.type=input.type==='password'?'text':'password'}}>◉</button></div><small className={authForm.confirmPassword&&authForm.password===authForm.confirmPassword?'valid':'invalid'}>{authForm.confirmPassword&&authForm.password===authForm.confirmPassword?'Passwords match':'Re-enter your password'}</small></label>
            </div>
@@ -857,8 +861,10 @@ function App(){
 
  const doAuth=async e=>{e.preventDefault();
    if(authMode==='register'){
-     const digits=String(authForm.mobileNumber||'').replace(/\D/g,'');
+     const mobileInput=e.currentTarget.elements.namedItem('mobileNumber');
+     const digits=normalizeIndianMobile(mobileInput?.value??authForm.mobileNumber);
      if(!/^[6-9]\d{9}$/.test(digits)){setError('Enter a valid 10-digit Indian mobile number.');return;}
+     if(digits!==authForm.mobileNumber)setAuthForm(f=>({...f,mobileNumber:digits}));
      if(String(authForm.password||'').length<8){setError('Password must be at least 8 characters.');return;}
      if(authForm.password!==authForm.confirmPassword){setError('Passwords do not match.');return;}
      if(!authForm.agreeTerms){setError('Please accept the Terms of Service and Privacy Policy.');return;}
@@ -869,7 +875,7 @@ function App(){
    const draftOutletSlug=draft?.outlet?.slug||draft?.outletSlug||null;
    const x=authMode==='login'
      ?await auth.login({email:authForm.email,password:authForm.password,outletSlug:draftOutletSlug||undefined})
-     :await auth.register({firstName:authForm.firstName,lastName:authForm.lastName,email:authForm.email,password:authForm.password,role:'Customer',outletSlug:draftOutletSlug||undefined});
+     :await auth.register({firstName:authForm.firstName,lastName:authForm.lastName,email:authForm.email,password:authForm.password,mobileNumber:'+91'+normalizeIndianMobile(authForm.mobileNumber),role:'Customer',outletSlug:draftOutletSlug||undefined});
    setUser(x.user);
    if(draft&&(!draft.customerId||draft.customerId===x.user.id)){
      await restoreSavedPackage(draft);
