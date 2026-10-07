@@ -1,4 +1,5 @@
 using HealthApp.Application.Abstractions;
+using Microsoft.Extensions.Configuration;
 using HealthApp.Application.Orchestration;
 using HealthApp.Application.Strategies;
 using HealthApp.Domain.Entities;
@@ -15,7 +16,10 @@ public sealed class OutletPackageActivationService(
     ICustomerAddressRepository addresses,
     IUserRepository users,
     IPlatformTransactionRepository transactions,
-    IUnitOfWork unitOfWork) : IOutletPackageActivationService
+    IUnitOfWork unitOfWork,
+    ITransactionalEmailService emails,
+    IOutletRepository outlets,
+    IOutletUrlService outletUrls) : IOutletPackageActivationService
 {
     public async Task<Subscription> ActivateAsync(Guid subscriptionId, string paymentMethod, Guid? paidByUserId)
     {
@@ -131,6 +135,24 @@ public sealed class OutletPackageActivationService(
             }
         });
 
+        var outlet = await outlets.GetByIdAsync(subscription.OutletId);
+        if (outlet is not null && customer is not null)
+        {
+            await emails.TrySendAsync(
+                EmailTemplateId.PackagePaymentConfirmed,
+                customer.Email,
+                new Dictionary<string, string?>
+                {
+                    ["FirstName"] = customer.FirstName,
+                    ["OutletName"] = outlet.Name,
+                    ["PackageName"] = subscription.PlanName,
+                    ["Total"] = $"₹{subscription.TotalCharged:N2}",
+                    ["PaymentMethod"] = subscription.PaymentMethod,
+                    ["StartDate"] = subscription.StartDate.ToString("dd MMM yyyy"),
+                    ["StorefrontUrl"] = await outletUrls.GetStorefrontUrlAsync(outlet.Id)
+                });
+        }
+
         return subscription;
     }
 }
@@ -161,7 +183,10 @@ public sealed class OutletPackageService(
     IOutletSubscriptionRepository outletSubscriptions,
     IOutletPackageActivationService activation,
     IUnitOfWork unitOfWork,
-    IOutletLegalPolicyRepository legalPolicies) : IOutletPackageService
+    IOutletLegalPolicyRepository legalPolicies,
+    ITransactionalEmailService emails,
+    IOutletUrlService outletUrls,
+    IConfiguration configuration) : IOutletPackageService
 {
     public async Task<IReadOnlyList<UserDto>> GetCustomersAsync()
     {
@@ -538,6 +563,21 @@ public sealed class OutletPackageService(
             });
         });
 
+        await emails.TrySendAsync(
+            EmailTemplateId.PackageCreated,
+            customer.Email,
+            new Dictionary<string, string?>
+            {
+                ["FirstName"] = customer.FirstName,
+                ["OutletName"] = outlet.Name,
+                ["PackageName"] = subscription.PlanName,
+                ["MealCount"] = subscription.TotalMealCount.ToString(),
+                ["StartDate"] = subscription.StartDate.ToString("dd MMM yyyy"),
+                ["EndDate"] = subscription.EndDate.ToString("dd MMM yyyy"),
+                ["Total"] = $"₹{subscription.TotalCharged:N2}",
+                ["StorefrontUrl"] = await outletUrls.GetStorefrontUrlAsync(outlet.Id)
+            });
+
         return MapSubscription(subscription, "Pending");
     }
 
@@ -702,6 +742,28 @@ public sealed class OutletPackageService(
             subscription.AcceptedAtUtc = DateTime.UtcNow;
             await subscriptions.UpdateAsync(subscription);
         });
+
+        var customer = await users.FindByIdAsync(customerId);
+        var outlet = await outlets.GetByIdAsync(subscription.OutletId);
+        var outletAdmin = (await users.GetAllAsync())
+            .Where(x => x.OutletId == subscription.OutletId && x.Role == UserRole.OutletAdmin && x.IsActive)
+            .OrderBy(x => x.Id)
+            .FirstOrDefault();
+        if (outletAdmin is not null && customer is not null)
+        {
+            await emails.TrySendAsync(
+                EmailTemplateId.PackageAccepted,
+                outletAdmin.Email,
+                new Dictionary<string, string?>
+                {
+                    ["CustomerName"] = $"{customer.FirstName} {customer.LastName}".Trim(),
+                    ["OutletName"] = outlet?.Name ?? "Your outlet",
+                    ["PackageName"] = subscription.PlanName,
+                    ["MealCount"] = subscription.TotalMealCount.ToString(),
+                    ["Total"] = $"₹{subscription.TotalCharged:N2}",
+                    ["OutletAdminUrl"] = configuration["Email:OutletAdminUrl"] ?? "https://outlet.broccoly.in"
+                });
+        }
         return MapSubscription(subscription, "Pending");
     }
 

@@ -105,6 +105,8 @@ public static class DependencyInjection
         services.AddScoped<ISaaSPlanRepository, SaaSPlanRepository>();
         services.AddScoped<IOutletOnboardingRepository, OutletOnboardingRepository>();
         services.AddScoped<IEmailService, SmtpEmailService>();
+        services.AddScoped<ITransactionalEmailService, TransactionalEmailService>();
+        services.AddScoped<IOutletUrlService, OutletUrlService>();
         services.AddScoped<IOutletSubscriptionRepository, OutletSubscriptionRepository>();
         services.AddScoped<IPlatformTransactionRepository, PlatformTransactionRepository>();
         services.AddScoped<IIngredientRepository, IngredientRepository>();
@@ -150,6 +152,8 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
         services.AddScoped<IDomainEventHandler<MealSkippedEvent>, LateSkipFeeRevenueHandler>();
+        services.AddScoped<IDomainEventHandler<MealSkippedEvent>, CustomerMealSkippedEmailHandler>();
+        services.AddScoped<IDomainEventHandler<MealRescheduledEvent>, CustomerMealRescheduledEmailHandler>();
 
         services.AddSingleton<IPackageDiscountStrategy, DurationAndVolumeDiscountStrategy>();
         services.AddSingleton<IMealPriceStrategy, RecipeMealPriceStrategy>();

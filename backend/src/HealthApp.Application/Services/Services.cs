@@ -7,7 +7,7 @@ using HealthApp.Domain.Enums;
 using HealthApp.Domain.Events;
 using HealthApp.Shared.DTOs;
 namespace HealthApp.Application.Services;
-public sealed class AuthService(IUserRepository users, ITokenService tokens, IPasswordService passwords, IOutletRepository outlets, IOutletLegalPolicyRepository legalPolicies, IUnitOfWork unitOfWork) : IAuthService
+public sealed class AuthService(IUserRepository users, ITokenService tokens, IPasswordService passwords, IOutletRepository outlets, IOutletLegalPolicyRepository legalPolicies, IUnitOfWork unitOfWork, ITransactionalEmailService emails, IOutletUrlService outletUrls) : IAuthService
 {
     public async Task<AuthResponse?> LoginAsync(LoginRequest r)
     {
@@ -123,6 +123,24 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
                 });
             }
         });
+
+        if (role == UserRole.Customer && outletId is Guid customerOutletId)
+        {
+            var outlet = await outlets.GetByIdAsync(customerOutletId);
+            if (outlet is not null)
+            {
+                await emails.TrySendAsync(
+                    EmailTemplateId.CustomerWelcome,
+                    user.Email,
+                    new Dictionary<string, string?>
+                    {
+                        ["FirstName"] = user.FirstName,
+                        ["OutletName"] = outlet.Name,
+                        ["StorefrontUrl"] = await outletUrls.GetStorefrontUrlAsync(outlet.Id)
+                    });
+            }
+        }
+
         return tokens.CreateToken(user);
     }
 }
@@ -322,7 +340,7 @@ IPlatformServiceFeeStrategy platformFee, ITaxStrategy taxStrategy, IPackageDisco
 IDeliveryModeStrategyFactory deliveryModeFactory, IMealPriceStrategy mealPrice, ILateSkipFeePolicy lateSkipPolicy,
 IPlatformTransactionRepository transactions, IDomainEventDispatcher events, IUnitOfWork unitOfWork,
 ICustomerAddressRepository addresses, ISubscriptionDiscountTierRepository discountTiers, IMealSelectionHistoryRepository selectionHistory,
-IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments, IOutletLegalPolicyRepository legalPolicies) : ICustomerService
+IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments, IOutletLegalPolicyRepository legalPolicies, ITransactionalEmailService emails, IOutletUrlService outletUrls) : ICustomerService
 {
     public async Task<UserDto?> GetProfileAsync()
     {
@@ -751,6 +769,26 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             }
             await events.PublishAsync(new SubscriptionCreatedEvent(subscription.Id,customerId,outlet.Id));
         });
+
+        var customerForEmail = await users.FindByIdAsync(customerId);
+        if (customerForEmail is not null)
+        {
+            await emails.TrySendAsync(
+                EmailTemplateId.SubscriptionCreated,
+                customerForEmail.Email,
+                new Dictionary<string, string?>
+                {
+                    ["FirstName"] = customerForEmail.FirstName,
+                    ["OutletName"] = outlet.Name,
+                    ["PackageName"] = subscription.PlanName,
+                    ["MealCount"] = subscription.TotalMealCount.ToString(),
+                    ["StartDate"] = subscription.StartDate.ToString("dd MMM yyyy"),
+                    ["Total"] = $"₹{subscription.TotalCharged:N2}",
+                    ["PaymentStatus"] = subscription.PackageStatus == "PaymentPending" ? "Payment pending" : subscription.PackageStatus,
+                    ["StorefrontUrl"] = await outletUrls.GetStorefrontUrlAsync(outlet.Id)
+                });
+        }
+
         return await ToDto(subscription);
     }
     public async Task<IReadOnlyList<RecipeDto>> GetSubscriptionRecipesAsync(Guid subscriptionId,string? category) {

@@ -1,4 +1,5 @@
 using HealthApp.Application.Abstractions;
+using Microsoft.Extensions.Configuration;
 using HealthApp.Domain.Entities;
 using HealthApp.Domain.Enums;
 using HealthApp.Shared.DTOs;
@@ -11,7 +12,10 @@ public sealed class OutletVerificationService(
     IOutletRepository outlets,
     IOutletSubscriptionRepository outletSubscriptions,
     IUserRepository users,
-    IFileStorage storage) : IOutletVerificationService
+    IFileStorage storage,
+    ITransactionalEmailService emails,
+    IOutletUrlService outletUrls,
+    IConfiguration configuration) : IOutletVerificationService
 {
     public async Task<IReadOnlyList<OutletVerificationSummaryDto>> GetPendingAsync() =>
         (await applications.GetByStatusAsync("UnderVerification"))
@@ -77,6 +81,16 @@ public sealed class OutletVerificationService(
             x.VerificationNotes = (request.Notes ?? "").Trim();
             x.VerifiedAtUtc = DateTime.UtcNow;
             await applications.UpdateAsync(x);
+            await emails.TrySendAsync(
+                EmailTemplateId.OutletVerificationRejected,
+                x.Email,
+                new Dictionary<string, string?>
+                {
+                    ["OwnerName"] = x.OwnerName,
+                    ["OutletName"] = x.OutletName,
+                    ["Notes"] = string.IsNullOrWhiteSpace(x.VerificationNotes) ? "Please contact the Broccoly verification team for details." : x.VerificationNotes,
+                    ["OutletAdminUrl"] = configuration["Email:OutletAdminUrl"] ?? "https://outlet.broccoly.in"
+                });
             return ToDetail(x);
         }
 
@@ -158,11 +172,23 @@ public sealed class OutletVerificationService(
         await outlets.UpdateAsync(outlet);
 
         x.Status = "Approved";
-        x.VerificationNotes = (request.Notes ?? "Approved by HealthApp verification team.").Trim();
+        x.VerificationNotes = (request.Notes ?? "Approved by Broccoly verification team.").Trim();
         x.VerifiedAtUtc = DateTime.UtcNow;
         x.OutletId = outlet.Id;
         x.UserId = user.Id;
         await applications.UpdateAsync(x);
+
+        await emails.TrySendAsync(
+            EmailTemplateId.OutletVerificationApproved,
+            x.Email,
+            new Dictionary<string, string?>
+            {
+                ["OwnerName"] = x.OwnerName,
+                ["OutletName"] = x.OutletName,
+                ["PlanName"] = x.PlanName,
+                ["StorefrontUrl"] = await outletUrls.GetStorefrontUrlAsync(outlet.Id),
+                ["OutletAdminUrl"] = configuration["Email:OutletAdminUrl"] ?? "https://outlet.broccoly.in"
+            });
 
         return ToDetail(x);
     }
