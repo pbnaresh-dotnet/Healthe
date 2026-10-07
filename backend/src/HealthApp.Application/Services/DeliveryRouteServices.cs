@@ -336,7 +336,7 @@ public sealed class DeliveryRouteService(
 
     public async Task<DeliveryRoutePlanDto?> GetDriverPlanAsync(DateTime date, int mealSlotValue = (int)MealSlot.Afternoon)
     {
-        if (current.OutletId is not Guid outletId || current.UserId is not Guid driverId || current.Role != UserRole.Driver)
+        if (current.OutletId is not Guid outletId || current.UserId is not Guid driverId || !string.Equals(current.Role, UserRole.Driver.ToString(), StringComparison.OrdinalIgnoreCase))
             throw new UnauthorizedAccessException("Driver access is required.");
 
         if (!Enum.IsDefined(typeof(MealSlot), mealSlotValue))
