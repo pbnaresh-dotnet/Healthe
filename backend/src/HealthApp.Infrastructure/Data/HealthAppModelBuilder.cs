@@ -113,6 +113,16 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.State).HasMaxLength(100).IsRequired();
         e.Property(x => x.Pincode).HasMaxLength(20).IsRequired();
         e.Property(x => x.DeliveryDays).HasMaxLength(200);
+        e.Property(x => x.CustomerTermsAndConditions).HasColumnType("nvarchar(max)");
+        e.Property(x => x.CustomerPrivacyPolicy).HasColumnType("nvarchar(max)");
+        e.Property(x => x.CancellationRefundPolicy).HasColumnType("nvarchar(max)");
+        e.Property(x => x.MealSkipReschedulePolicy).HasColumnType("nvarchar(max)");
+        e.Property(x => x.DeliveryPolicy).HasColumnType("nvarchar(max)");
+        e.Property(x => x.AllergenDietaryDisclaimer).HasColumnType("nvarchar(max)");
+        e.Property(x => x.PaymentPricingPromotionalTerms).HasColumnType("nvarchar(max)");
+        e.Property(x => x.LegalVersion).HasMaxLength(40);
+        e.Property(x => x.LegalEffectiveDateUtc);
+        e.Property(x => x.LegalPoliciesPublished);
         e.Property(x => x.DeliveryCoverageMode).HasConversion<int>();
         e.Property(x => x.Status).HasConversion<int>();
         e.Property(x => x.BillingPlan).HasConversion<int>();
