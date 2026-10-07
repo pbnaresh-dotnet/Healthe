@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.Configure<TenantDomainSettings>(config.GetSection("TenantDomains"));
         services.Configure<CloudflarePagesSettings>(config.GetSection("CloudflarePages"));
         services.Configure<SmtpEmailOptions>(config.GetSection("Email"));
+        services.Configure<CashfreeOptions>(config.GetSection("Cashfree"));
 
         var storageProvider = (config["Storage:Provider"] ?? "Local").Trim().ToLowerInvariant();
         switch (storageProvider)
@@ -79,6 +80,18 @@ public static class DependencyInjection
         services.AddScoped<IOutletLegalPolicyRepository, OutletLegalPolicyRepository>();
         services.AddScoped<IOutletBrandingRepository, OutletBrandingRepository>();
         services.AddScoped<IOutletDomainRepository, OutletDomainRepository>();
+        services.AddHttpClient<IPaymentGateway, CashfreePaymentGateway>((sp, client) =>
+        {
+            var options = sp.GetRequiredService<IOptions<CashfreeOptions>>().Value;
+            var baseUrl = string.IsNullOrWhiteSpace(options.BaseUrl)
+                ? (options.Environment.Equals("Production", StringComparison.OrdinalIgnoreCase)
+                    ? "https://api.cashfree.com"
+                    : "https://sandbox.cashfree.com")
+                : options.BaseUrl.TrimEnd('/');
+            client.BaseAddress = new Uri(baseUrl + "/");
+            client.Timeout = TimeSpan.FromSeconds(20);
+        });
+
         services.AddHttpClient<ICloudflarePagesService, CloudflarePagesService>((sp, client) =>
         {
             var options = sp.GetRequiredService<IOptions<CloudflarePagesSettings>>().Value;
