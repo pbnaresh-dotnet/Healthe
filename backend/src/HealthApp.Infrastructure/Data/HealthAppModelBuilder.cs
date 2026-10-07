@@ -44,6 +44,8 @@ internal static class HealthAppModelBuilder
         ConfigurePayment(b.Entity<PaymentTransaction>());
         ConfigureDiscountCode(b.Entity<DiscountCode>());
         ConfigureOrderFinancial(b.Entity<OrderFinancialBreakdown>());
+        ConfigureOutletLegalPolicyVersion(b.Entity<OutletLegalPolicyVersion>());
+        ConfigureCustomerLegalAcceptance(b.Entity<CustomerLegalAcceptance>());
         ConfigureOutletForeignKeys(b);
     }
 
@@ -135,6 +137,46 @@ internal static class HealthAppModelBuilder
         e.HasIndex(x => x.Slug).IsUnique();
         e.HasIndex(x => x.Subdomain).IsUnique();
     }
+    private static void ConfigureOutletLegalPolicyVersion(EntityTypeBuilder<OutletLegalPolicyVersion> e)
+    {
+        e.ToTable("OutletLegalPolicyVersions");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Version).HasMaxLength(40).IsRequired();
+        e.Property(x => x.CustomerTermsAndConditions).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.CustomerPrivacyPolicy).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.CancellationRefundPolicy).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.MealSkipReschedulePolicy).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.DeliveryPolicy).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.AllergenDietaryDisclaimer).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.PaymentPricingPromotionalTerms).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.ContentHash).HasMaxLength(64).IsRequired();
+        e.Property(x => x.EffectiveDateUtc).IsRequired();
+        e.Property(x => x.CreatedAtUtc).IsRequired();
+        e.Property(x => x.PublishedAtUtc);
+        e.Property(x => x.CreatedByUserId);
+        e.Property(x => x.IsPublished).IsRequired();
+        e.HasIndex(x => new { x.OutletId, x.Version }).IsUnique();
+        e.HasIndex(x => new { x.OutletId, x.IsPublished });
+        e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+    }
+
+    private static void ConfigureCustomerLegalAcceptance(EntityTypeBuilder<CustomerLegalAcceptance> e)
+    {
+        e.ToTable("CustomerLegalAcceptances");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.TermsAccepted).IsRequired();
+        e.Property(x => x.PrivacyAccepted).IsRequired();
+        e.Property(x => x.CommercialPoliciesAccepted).IsRequired();
+        e.Property(x => x.AcceptedAtUtc).IsRequired();
+        e.Property(x => x.IpAddress).HasMaxLength(64);
+        e.Property(x => x.UserAgent).HasMaxLength(1000);
+        e.HasIndex(x => new { x.CustomerId, x.OutletId, x.LegalPolicyVersionId }).IsUnique();
+        e.HasIndex(x => new { x.CustomerId, x.OutletId, x.AcceptedAtUtc });
+        e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<OutletLegalPolicyVersion>().WithMany().HasForeignKey(x => x.LegalPolicyVersionId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.NoAction);
+    }
+
     private static void ConfigureOutletBranding(EntityTypeBuilder<OutletBranding> e)
     {
         e.ToTable("OutletBrandings");
