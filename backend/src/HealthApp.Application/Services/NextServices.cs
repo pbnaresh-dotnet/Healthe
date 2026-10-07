@@ -448,7 +448,10 @@ public sealed class PaymentService(
         if (payment.Status is not "Paid" &&
             !string.IsNullOrWhiteSpace(payment.ProviderOrderId))
         {
+            var wasPaid = payment.Status == "Paid";
             await RefreshFromGatewayAsync(payment, CancellationToken.None);
+            if (!wasPaid && payment.Status == "Paid")
+                await CompleteCustomerPaymentAsync(payment.Id);
         }
 
         return Map(payment);
