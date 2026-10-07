@@ -174,6 +174,30 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
             return null;
         return ToDto(x, 0);
     }
+    public async Task<OutletLegalPoliciesDto?> GetOutletLegalAsync(string slug)
+    {
+        var x = await outlets.GetBySlugAsync(slug);
+        if (x is null || x.Status != OutletStatus.Live)
+            return null;
+        if (tenant.OutletId is Guid tenantOutletId && x.Id != tenantOutletId)
+            return null;
+        if (await outletSubscriptions.GetByOutletAsync(x.Id) is null)
+            return null;
+        return new(
+            x.Id,
+            x.Name,
+            x.CustomerTermsAndConditions ?? string.Empty,
+            x.CustomerPrivacyPolicy ?? string.Empty,
+            x.CancellationRefundPolicy ?? string.Empty,
+            x.MealSkipReschedulePolicy ?? string.Empty,
+            x.DeliveryPolicy ?? string.Empty,
+            x.AllergenDietaryDisclaimer ?? string.Empty,
+            x.PaymentPricingPromotionalTerms ?? string.Empty,
+            x.LegalVersion ?? "1.0",
+            x.LegalEffectiveDateUtc,
+            x.LegalPoliciesPublished);
+    }
+
     public async Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(Guid outletId) {
         if (tenant.OutletId is Guid tenantOutletId && tenantOutletId != outletId)
             return [];
