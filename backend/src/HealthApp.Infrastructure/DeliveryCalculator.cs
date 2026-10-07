@@ -8,7 +8,8 @@ namespace HealthApp.Infrastructure;
 public sealed class DeliveryCalculator(
     IOutletRepository outlets,
     ICustomerAddressRepository addresses,
-    IDeliveryPricingRepository pricing) : IDeliveryCalculator
+    IDeliveryPricingRepository pricing,
+    IOutletDeliveryAreaRepository outletAreas) : IDeliveryCalculator
 {
     public async Task<DeliveryQuoteDto> QuoteAsync(Guid outletId, Guid customerId, Guid addressId)
     {
@@ -27,7 +28,18 @@ public sealed class DeliveryCalculator(
             throw new InvalidOperationException("The outlet has invalid map coordinates.");
         if (double.IsNaN(address.Latitude) || double.IsInfinity(address.Latitude) || address.Latitude is < -90 or > 90 || double.IsNaN(address.Longitude) || double.IsInfinity(address.Longitude) || address.Longitude is < -180 or > 180) throw new InvalidOperationException("The delivery address has invalid map coordinates.");
         var distance = DistanceKm(outlet.Latitude, outlet.Longitude, address.Latitude, address.Longitude);
-        if (distance > outlet.ServiceRadiusKm) throw new InvalidOperationException("Address is outside the outlet service radius.");
+        if (outlet.DeliveryCoverageMode == DeliveryCoverageMode.Areas)
+        {
+            if (!address.CityAreaId.HasValue)
+                throw new InvalidOperationException("This outlet delivers by selected service areas. Please choose an address inside a configured delivery area.");
+            var selectedAreas = await outletAreas.GetByOutletAsync(outletId);
+            if (!selectedAreas.Any(x => x.CityAreaId == address.CityAreaId.Value && x.IsActive))
+                throw new InvalidOperationException("This address is outside the outlet's selected delivery areas.");
+        }
+        else if (distance > outlet.ServiceRadiusKm)
+        {
+            throw new InvalidOperationException("Address is outside the outlet service radius.");
+        }
         var rules = await pricing.GetByOutletAsync(outletId);
         var rule = rules.FirstOrDefault(x => distance <= (double)x.MaxDistanceKm);
         if (rule is null) throw new InvalidOperationException("No delivery pricing slab covers this address distance.");
