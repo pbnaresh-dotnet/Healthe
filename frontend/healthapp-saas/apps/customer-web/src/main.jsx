@@ -1051,7 +1051,7 @@ function App(){
  const subscribeBuilder=async(legalAccepted)=>run(async()=>{
    const q=builder.quote||await customer.quote({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity,legalPolicyVersionId:builder.legalPolicyVersionId||undefined,legalAccepted:Boolean(legalAccepted)});
    if(q.requiresAllergyConfirmation)throw new Error('Please review and confirm the allergy warning before continuing.');
-   const s=await customer.subscribe({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,frequency:'Weekly',selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity});
+   const s=await customer.subscribe({outletId:builder.outlet.id,deliveryMode:builder.deliveryMode,duration:builder.duration,frequency:'Weekly',selections:selectionPayload,discountCode:builder.discountCode||null,confirmedAllergyRecipeIds,deliveryCity:builder.deliveryCity,legalPolicyVersionId:builder.legalPolicyVersionId||undefined,legalAccepted:Boolean(legalAccepted)});
    setSubs(x=>[s,...x.filter(y=>y.id!==s.id)]);
    setGlobal(g=>({...g,subscriptions:[s,...g.subscriptions.filter(y=>y.id!==s.id)]}));
    setSelectedSubId(s.id);
@@ -1268,10 +1268,11 @@ function RecipeCard({recipe,customerAllergies,onClick}){const matched=allergyMat
 function RecipeModal({recipe,onClose}){return <Modal title={recipe.name} onClose={onClose}><div className="recipeDetail"><div className="recipeDetailImage">{recipe.imageUrl?<img src={getImg(recipe.imageUrl)} alt=""/>:<span>🍱</span>}</div><div><div className="tag">{recipe.category}</div><p>{recipe.description}</p><div className="nutritionGrid"><StatBox label="Calories" value={recipe.calories+' kcal'}/><StatBox label="Protein" value={recipe.proteinGrams+' g'}/><StatBox label="Carbs" value={recipe.carbsGrams+' g'}/><StatBox label="Fiber" value={(recipe.fiberGrams??0)+' g'}/></div><h4>Ingredients</h4><div className="ingredientList">{(recipe.ingredients||[]).length?(recipe.ingredients||[]).map(i=><div key={i.ingredientId}><div><b>{i.name}</b><span>{i.quantity} {i.unit}</span></div>{(i.allergens||[]).length>0&&<small className="ingredientAllergen">⚠ {i.allergens.map(a=>a.name).join(', ')}</small>}</div>):<p>Ingredient details not provided by outlet.</p>}</div><h4>Allergens</h4><div className="allergenList">{(recipe.allergens||[]).length?(recipe.allergens||[]).map(a=><span key={a.id}>{a.name}</span>):<p>No allergens listed</p>}</div><h4>Tags</h4><p>{recipe.tags||'—'}</p><div className="priceLine"><span>Regular</span><b>{money(recipe.pricePerMeal)}</b><span>Large</span><b>{money(recipe.largePricePerMeal)}</b></div></div></div></Modal>}
 function StatBox({label,value}){return <div className="statBox"><span>{label}</span><b>{value}</b></div>}
 
-function ReviewConfirm({quote,selectionPayload,menuMap,addresses,outlet,duration,deliveryMode,profile,discountCode,onApplyDiscount,onBack,onConfirm}){
+function ReviewConfirm({quote,selectionPayload,menuMap,addresses,outlet,duration,deliveryMode,profile,discountCode,legalPolicyVersionId,outletSlug,onApplyDiscount,onBack,onConfirm}){
  const [safetyAcknowledged,setSafetyAcknowledged]=useState(false);
  const [discountInput,setDiscountInput]=useState(discountCode||'');
  const [discountApplying,setDiscountApplying]=useState(false);
+ const [legalAcknowledged,setLegalAcknowledged]=useState(false);
  const submitDiscount=async()=>{setDiscountApplying(true);try{await onApplyDiscount(discountInput)}finally{setDiscountApplying(false)}};
 
  const mealRows=selectionPayload.map(x=>{
@@ -1286,7 +1287,8 @@ function ReviewConfirm({quote,selectionPayload,menuMap,addresses,outlet,duration
  const goalKey=profile?.goal;
  const goalLabel=GOALS.find(x=>x[0]===goalKey)?.[1]||goalKey||'Personalised plan';
  const warnings=quote.allergyWarnings||[];
- const reviewComplete=!quote.requiresAllergyConfirmation&&(!warnings.length||safetyAcknowledged);
+ const legalReady=Boolean(legalPolicyVersionId&&legalAcknowledged);
+ const reviewComplete=!quote.requiresAllergyConfirmation&&(!warnings.length||safetyAcknowledged)&&legalReady;
  return <div className="reviewConfirmOverlay" role="dialog" aria-modal="true" aria-labelledby="review-confirm-title">
    <section className="reviewConfirmModal">
      <header className="reviewConfirmHeader">
@@ -1343,6 +1345,8 @@ function ReviewConfirm({quote,selectionPayload,menuMap,addresses,outlet,duration
 
          <section className="reviewSectionCard reviewPolicyCard">
            <div><b>Before you continue</b><p>Skipping a meal on or after the delivery day can add the configured late-skip fee. Unused meals are handled according to the subscription rescheduling rules rather than being automatically refunded.</p></div>
+           <label className="reviewLegalCheck"><input type="checkbox" checked={legalAcknowledged} onChange={e=>setLegalAcknowledged(e.target.checked)} disabled={!legalPolicyVersionId}/><span><b>I agree to {outlet?.name||'the outlet'}'s current Terms & Conditions and Privacy Policy</b><small>Legal version {quote?.legalPolicyVersion||'current published version'}. <a href={'?outlet='+encodeURIComponent(outletSlug||outlet?.slug||'')+'&legal=terms'} target="_blank" rel="noreferrer">Terms</a> · <a href={'?outlet='+encodeURIComponent(outletSlug||outlet?.slug||'')+'&legal=privacy'} target="_blank" rel="noreferrer">Privacy</a></small></span></label>
+           {!legalPolicyVersionId&&<div className="reviewLegalMissing">The outlet has not published its customer legal policy yet. Please try again after it is published.</div>}
          </section>
        </main>
 
@@ -1364,7 +1368,7 @@ function ReviewConfirm({quote,selectionPayload,menuMap,addresses,outlet,duration
            </div>
            <div className="reviewTotal"><span>Total payable</span><strong>{money(quote.totalCharged)}</strong></div>
            <div className="reviewSecureNote">🔒 Secure checkout · You will review payment details next</div>
-           <button className="primary big reviewContinueBtn" disabled={!reviewComplete} onClick={onConfirm}>{!reviewComplete?(quote.requiresAllergyConfirmation?'Review the allergy warning first':'Acknowledge allergy warnings to continue'):'Confirm & continue to payment →'}</button>
+           <button className="primary big reviewContinueBtn" disabled={!reviewComplete} onClick={()=>reviewComplete&&onConfirm(true)}>{!reviewComplete?(quote.requiresAllergyConfirmation?'Review the allergy warning first':!legalPolicyVersionId?'Outlet legal policies are not published':!legalAcknowledged?'Accept the Terms & Privacy Policy':'Acknowledge allergy warnings to continue'):'Confirm & continue to payment →'}</button>
            <small className="reviewEditHint">You can go back and change meals or delivery details before confirming.</small>
          </div>
        </aside>
