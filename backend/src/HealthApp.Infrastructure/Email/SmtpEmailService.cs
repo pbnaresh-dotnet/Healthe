@@ -1,8 +1,9 @@
 using System.Net;
-using System.Net.Mail;
-using System.Net.Mime;
 using System.Text;
 using HealthApp.Application.Abstractions;
+using MailKit.Net.Smtp;
+using MailKit.Security;
+using MimeKit;
 using Microsoft.Extensions.Options;
 
 namespace HealthApp.Infrastructure.Email;
@@ -11,7 +12,7 @@ public sealed class SmtpEmailOptions
 {
     public bool Enabled { get; set; }
     public string Host { get; set; } = "";
-    public int Port { get; set; } = 587;
+    public int Port { get; set; } = 465;
     public bool EnableSsl { get; set; } = true;
     public string Username { get; set; } = "";
     public string Password { get; set; } = "";
@@ -38,60 +39,94 @@ public sealed class SmtpEmailService(IOptions<SmtpEmailOptions> options) : IEmai
     public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
         var o = options.Value;
-        if (!o.Enabled)
-            throw new InvalidOperationException("Email delivery is disabled. Set Email:Enabled=true after configuring SMTP.");
 
-        if (string.IsNullOrWhiteSpace(o.Host) || string.IsNullOrWhiteSpace(o.FromAddress))
-            throw new InvalidOperationException("Email SMTP is not configured. Configure Email:Host and Email:FromAddress.");
+        if (!o.Enabled)
+            throw new InvalidOperationException(
+                "Email delivery is disabled. Set Email:Enabled=true after configuring SMTP.");
+
+        if (string.IsNullOrWhiteSpace(o.Host) ||
+            string.IsNullOrWhiteSpace(o.FromAddress))
+            throw new InvalidOperationException(
+                "Email SMTP is not configured. Configure Email:Host and Email:FromAddress.");
 
         if (!MailAddress.TryCreate(message.To, out _))
-            throw new ArgumentException("Recipient email address is invalid.", nameof(message));
+            throw new ArgumentException(
+                "Recipient email address is invalid.",
+                nameof(message));
 
-        using var mail = new MailMessage
-        {
-            From = new MailAddress(
-                o.FromAddress,
-                string.IsNullOrWhiteSpace(o.FromName) ? "Broccoly" : o.FromName),
-            Subject = message.Subject,
-            Body = message.HtmlBody,
-            IsBodyHtml = true,
-            SubjectEncoding = Encoding.UTF8,
-            BodyEncoding = Encoding.UTF8
-        };
-        mail.To.Add(message.To);
+        if (string.IsNullOrWhiteSpace(o.Username))
+            throw new InvalidOperationException(
+                "Email SMTP username is not configured.");
+
+        if (string.IsNullOrWhiteSpace(o.Password))
+            throw new InvalidOperationException(
+                "Email SMTP password is not configured.");
+
+        if (!MailAddress.TryCreate(o.FromAddress, out _))
+            throw new InvalidOperationException(
+                "Email SMTP FromAddress is invalid.");
+
+        var email = new MimeMessage();
+        email.From.Add(new MailboxAddress(
+            string.IsNullOrWhiteSpace(o.FromName) ? "Broccoly" : o.FromName,
+            o.FromAddress.Trim()));
+        email.To.Add(MailboxAddress.Parse(message.To.Trim()));
+        email.Subject = message.Subject ?? "";
 
         var replyTo = message.ReplyTo ?? o.ReplyToAddress;
         if (!string.IsNullOrWhiteSpace(replyTo) && MailAddress.TryCreate(replyTo, out _))
-            mail.ReplyToList.Add(replyTo);
+            email.ReplyTo.Add(MailboxAddress.Parse(replyTo.Trim()));
 
-        if (!string.IsNullOrWhiteSpace(message.TextBody))
+        var bodyBuilder = new BodyBuilder
         {
-            var textView = AlternateView.CreateAlternateViewFromString(
-                message.TextBody,
-                Encoding.UTF8,
-                MediaTypeNames.Text.Plain);
-            var htmlView = AlternateView.CreateAlternateViewFromString(
-                message.HtmlBody,
-                Encoding.UTF8,
-                MediaTypeNames.Text.Html);
-            mail.AlternateViews.Add(textView);
-            mail.AlternateViews.Add(htmlView);
-        }
-
-        using var client = new SmtpClient(o.Host, o.Port)
-        {
-            EnableSsl = o.EnableSsl,
-            UseDefaultCredentials = false,
-            DeliveryMethod = SmtpDeliveryMethod.Network,
-            Timeout = Math.Clamp(o.TimeoutSeconds, 5, 120) * 1000
+            TextBody = message.TextBody ?? "",
+            HtmlBody = message.HtmlBody ?? ""
         };
+        email.Body = bodyBuilder.ToMessageBody();
 
-        if (string.IsNullOrWhiteSpace(o.Username))
-            throw new InvalidOperationException("Email SMTP username is not configured.");
+        using var client = new SmtpClient();
+        client.Timeout = Math.Clamp(o.TimeoutSeconds, 5, 120) * 1000;
 
-        client.Credentials = new NetworkCredential(o.Username.Trim(), o.Password ?? string.Empty);
+        var secureSocketOptions = o.Port == 465 && o.EnableSsl
+            ? SecureSocketOptions.SslOnConnect
+            : o.EnableSsl
+                ? SecureSocketOptions.StartTls
+                : SecureSocketOptions.None;
 
-        cancellationToken.ThrowIfCancellationRequested();
-        await client.SendMailAsync(mail);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await client.ConnectAsync(
+                o.Host.Trim(),
+                o.Port,
+                secureSocketOptions,
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await client.AuthenticateAsync(
+                o.Username.Trim(),
+                o.Password,
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await client.SendAsync(email, cancellationToken);
+        }
+        finally
+        {
+            if (client.IsConnected)
+            {
+                try
+                {
+                    await client.DisconnectAsync(true, CancellationToken.None);
+                }
+                catch
+                {
+                    // The message has already been submitted; don't mask the send result.
+                }
+            }
+        }
     }
 }
