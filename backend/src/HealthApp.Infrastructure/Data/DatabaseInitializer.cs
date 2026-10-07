@@ -322,15 +322,6 @@ BEGIN
           SELECT 1 FROM dbo.OutletLegalPolicyVersions v
           WHERE v.OutletId = o.Id
             AND v.IsPublished = 1
-      )
-      AND (
-          NULLIF(o.CustomerTermsAndConditions,'') IS NULL
-          OR NULLIF(o.CustomerPrivacyPolicy,'') IS NULL
-          OR NULLIF(o.CancellationRefundPolicy,'') IS NULL
-          OR NULLIF(o.MealSkipReschedulePolicy,'') IS NULL
-          OR NULLIF(o.DeliveryPolicy,'') IS NULL
-          OR NULLIF(o.AllergenDietaryDisclaimer,'') IS NULL
-          OR NULLIF(o.PaymentPricingPromotionalTerms,'') IS NULL
       );
 END;
 ", cancellationToken);
