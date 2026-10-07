@@ -228,6 +228,13 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_CustomerLegalAccept
     ALTER TABLE dbo.CustomerLegalAcceptances ADD CONSTRAINT FK_CustomerLegalAcceptances_Versions FOREIGN KEY(LegalPolicyVersionId) REFERENCES dbo.OutletLegalPolicyVersions(Id) ON DELETE NO ACTION;
 ", cancellationToken);
 
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Users','MarketingOptIn') IS NULL
+    ALTER TABLE dbo.Users ADD MarketingOptIn bit NOT NULL CONSTRAINT DF_Users_MarketingOptIn DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Users','MarketingOptInAtUtc') IS NULL
+    ALTER TABLE dbo.Users ADD MarketingOptInAtUtc datetime2 NULL;
+", cancellationToken);
+
         // Existing databases may receive nullable columns first. Populate safe defaults
         // before EF reads them as required string properties.
         await db.Database.ExecuteSqlRawAsync(@"
