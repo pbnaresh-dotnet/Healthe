@@ -334,6 +334,112 @@ public sealed class DeliveryRouteService(
         return await GetPlanAsync(route.DeliveryDate.Date, (int)route.MealSlot);
     }
 
+    public async Task<DeliveryRoutePlanDto?> GetDriverPlanAsync(DateTime date, int mealSlotValue = (int)MealSlot.Afternoon)
+    {
+        if (current.OutletId is not Guid outletId || current.UserId is not Guid driverId || current.Role != UserRole.Driver)
+            throw new UnauthorizedAccessException("Driver access is required.");
+
+        if (!Enum.IsDefined(typeof(MealSlot), mealSlotValue))
+            throw new ArgumentException("Invalid meal slot.");
+
+        var mealSlot = (MealSlot)mealSlotValue;
+        var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
+        var routesForDay = await routes.GetByOutletAndDateAsync(outletId, date.Date, mealSlot);
+        var mine = routesForDay.Where(x => x.DriverId == driverId).ToList();
+        if (mine.Count == 0)
+            return null;
+
+        var eligible = await GetEligibleDeliveriesAsync(outletId, date.Date, mealSlot);
+        var routeDtos = await MapRoutesAsync(mine, eligible);
+        if (routeDtos.Count == 0)
+            return null;
+
+        var plan = await GetPlanAsync(date.Date, mealSlotValue);
+        return new DeliveryRoutePlanDto(
+            plan.Date,
+            plan.OutletName,
+            plan.OutletLatitude,
+            plan.OutletLongitude,
+            routeDtos.Sum(x => x.Stops.Count),
+            routeDtos.Sum(x => x.Stops.Sum(s => s.DeliveryCount)),
+            0,
+            routeDtos.Sum(x => x.TotalDistanceKm),
+            routeDtos.Sum(x => x.TotalDurationMinutes),
+            "Driver assignment",
+            plan.Points.Where(p => routeDtos.SelectMany(x => x.Stops).Any(s => s.AddressId == p.AddressId)).ToList(),
+            routeDtos);
+    }
+
+    public async Task<DeliveryRoutePlanDto?> StartDriverRouteAsync(Guid routeId)
+    {
+        if (current.OutletId is not Guid outletId || current.UserId is not Guid driverId)
+            throw new UnauthorizedAccessException("Driver context is required.");
+
+        var route = await routes.GetAsync(routeId)
+            ?? throw new KeyNotFoundException("Delivery route not found.");
+        if (route.OutletId != outletId || route.DriverId != driverId)
+            throw new UnauthorizedAccessException("This route is not assigned to the current driver.");
+
+        if (route.Status == RouteStatus.Planned)
+            route.Status = RouteStatus.InProgress;
+        else if (route.Status != RouteStatus.Dispatched && route.Status != RouteStatus.InProgress)
+            throw new InvalidOperationException($"This route cannot be started from status {route.Status}.");
+
+        route.UpdatedAtUtc = DateTime.UtcNow;
+        await routes.UpdateAsync(route);
+
+        var deliveryRows = await deliveries.GetByOutletAsync(outletId);
+        foreach (var delivery in deliveryRows.Where(x => x.RouteId == route.Id && x.Status == DeliveryStatus.Scheduled))
+        {
+            delivery.Status = DeliveryStatus.OutForDelivery;
+            await deliveries.UpdateAsync(delivery);
+        }
+
+        return await GetDriverPlanAsync(route.DeliveryDate.Date, (int)route.MealSlot);
+    }
+
+    public async Task<DeliveryRoutePlanDto?> CompleteDriverStopAsync(Guid stopId)
+    {
+        if (current.OutletId is not Guid outletId || current.UserId is not Guid driverId)
+            throw new UnauthorizedAccessException("Driver context is required.");
+
+        var routeRows = await routes.GetByOutletAndDateAsync(outletId, DateTime.UtcNow.Date, MealSlot.Afternoon);
+        var route = routeRows.FirstOrDefault(x => x.Stops.Any(s => s.Id == stopId && x.DriverId == driverId));
+        if (route is null)
+        {
+            var allSlots = Enum.GetValues<MealSlot>();
+            foreach (var slot in allSlots)
+            {
+                route = (await routes.GetByOutletAndDateAsync(outletId, DateTime.UtcNow.Date, slot))
+                    .FirstOrDefault(x => x.Stops.Any(s => s.Id == stopId && x.DriverId == driverId));
+                if (route is not null) break;
+            }
+        }
+
+        if (route is null)
+            throw new KeyNotFoundException("Delivery stop not found for the current driver.");
+
+        if (route.Status != RouteStatus.InProgress)
+            throw new InvalidOperationException("Start the delivery route before completing a stop.");
+
+        var stop = route.Stops.First(x => x.Id == stopId);
+        stop.Status = DeliveryStatus.Delivered;
+        route.UpdatedAtUtc = DateTime.UtcNow;
+
+        var deliveryRows = await deliveries.GetByOutletAsync(outletId);
+        foreach (var delivery in deliveryRows.Where(x => x.RouteStopId == stopId && x.Status != DeliveryStatus.Delivered))
+        {
+            delivery.Status = DeliveryStatus.Delivered;
+            await deliveries.UpdateAsync(delivery);
+        }
+
+        if (route.Stops.All(x => x.Status == DeliveryStatus.Delivered))
+            route.Status = RouteStatus.Completed;
+
+        await routes.UpdateAsync(route);
+        return await GetDriverPlanAsync(route.DeliveryDate.Date, (int)route.MealSlot);
+    }
+
     private async Task<List<Delivery>> GetEligibleDeliveriesAsync(Guid outletId, DateTime date, MealSlot mealSlot)
     {
         var rows = await deliveries.GetByOutletAsync(outletId);
