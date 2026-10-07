@@ -399,7 +399,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
            </div>
            <div className="authPasswordRules">{passwordChecks.map(([ok,text])=><span className={ok?'valid':''} key={text}><b>{ok?'✓':'○'}</b>{text}</span>)}</div>
            <div className="authConsent">
-             <label><input type="checkbox" checked={authForm.agreeTerms} onChange={e=>setAuthForm({...authForm,agreeTerms:e.target.checked})} required/><span>I agree to the <a href={'?outlet='+(encodeURIComponent(TENANT_OUTLET_SLUG||'fitfood'))+'&legal=terms'}>Terms of Service</a> and <a href={'?outlet='+(encodeURIComponent(TENANT_OUTLET_SLUG||'fitfood'))+'&legal=privacy'}>Privacy Policy</a></span></label>
+             <label><input type="checkbox" checked={authForm.agreeTerms} onChange={e=>setAuthForm({...authForm,agreeTerms:e.target.checked})} required/><span>I agree to the <a href={'?outlet='+(encodeURIComponent(TENANT_OUTLET_SLUG||'fitfood'))+'&legal=terms'}>Customer Terms & Conditions</a> and <a href={'?outlet='+(encodeURIComponent(TENANT_OUTLET_SLUG||'fitfood'))+'&legal=privacy'}>Privacy Policy</a>, including the outlet's published customer policies.</span></label>
              <label><input type="checkbox" checked={authForm.marketingOptIn} onChange={e=>setAuthForm({...authForm,marketingOptIn:e.target.checked})}/><span>Send me updates on new meals, offers and health tips</span></label>
            </div>
            <button className="primary big authSubmit">Create account <span>→</span></button>
@@ -907,7 +907,7 @@ function App(){
      if(digits!==authForm.mobileNumber)setAuthForm(f=>({...f,mobileNumber:digits}));
      if(String(authForm.password||'').length<8){setError('Password must be at least 8 characters.');return;}
      if(authForm.password!==authForm.confirmPassword){setError('Passwords do not match.');return;}
-     if(!authForm.agreeTerms){setError('Please accept the Terms of Service and Privacy Policy.');return;}
+     if(!authForm.agreeTerms){setError('Please accept the outlet Customer Terms & Conditions and Privacy Policy.');return;}
    }
    await run(async()=>{
    const draftRaw=(()=>{try{return sessionStorage.getItem('healthapp.guestPackageDraft')||localStorage.getItem('healthapp.savedPackageDraft')}catch{return null}})();
@@ -1371,7 +1371,7 @@ function ReviewConfirm({quote,selectionPayload,menuMap,addresses,outlet,duration
 
          <section className="reviewSectionCard reviewPolicyCard">
            <div><b>Before you continue</b><p>Skipping a meal on or after the delivery day can add the configured late-skip fee. Unused meals are handled according to the subscription rescheduling rules rather than being automatically refunded.</p></div>
-           <label className="reviewLegalCheck"><input type="checkbox" checked={legalAcknowledged} onChange={e=>setLegalAcknowledged(e.target.checked)} disabled={!legalPolicyVersionId}/><span><b>I agree to {outlet?.name||'the outlet'}'s current Terms & Conditions and Privacy Policy</b><small>Legal version {legalPolicyVersion||'current published version'}. <a href={'?outlet='+encodeURIComponent(outletSlug||outlet?.slug||'')+'&legal=terms'} target="_blank" rel="noreferrer">Terms</a> · <a href={'?outlet='+encodeURIComponent(outletSlug||outlet?.slug||'')+'&legal=privacy'} target="_blank" rel="noreferrer">Privacy</a></small></span></label>
+           <label className="reviewLegalCheck"><input type="checkbox" checked={legalAcknowledged} onChange={e=>setLegalAcknowledged(e.target.checked)} disabled={!legalPolicyVersionId}/><span><b>I agree to {outlet?.name||'the outlet'}'s current Customer Terms & Conditions and Privacy Policy</b><small>Legal version {legalPolicyVersion||'current published version'}. <a href={'?outlet='+encodeURIComponent(outletSlug||outlet?.slug||'')+'&legal=terms'} target="_blank" rel="noreferrer">Terms</a> · <a href={'?outlet='+encodeURIComponent(outletSlug||outlet?.slug||'')+'&legal=privacy'} target="_blank" rel="noreferrer">Privacy</a></small></span></label>
            {!legalPolicyVersionId&&<div className="reviewLegalMissing">The outlet has not published its customer legal policy yet. Please try again after it is published.</div>}
          </section>
        </main>
