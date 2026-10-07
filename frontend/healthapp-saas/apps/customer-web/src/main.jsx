@@ -571,7 +571,7 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild,standalone=fals
          <h1>{outlet?.tagline||<>Healthy meals<br/>made for {city}.</>}</h1>
          <p>{outlet?.about||'Freshly prepared meals, balanced portions and flexible delivery from your local meal team.'}</p>
          <div className="outletLandingHeroActions">
-           <button className="primary outletLandingCta" onClick={onBuild}>Build your meal plan →</button>
+           <button className="primary outletLandingHeroCtaButton" onClick={onBuild}>Build your meal plan →</button>
            <button className="secondary outletLandingMenuBtn" onClick={()=>scrollTo('outlet-menu')}>Explore menu</button>
          </div>
          <div className="outletLandingTrustRow">
@@ -610,13 +610,13 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild,standalone=fals
        <div className="outletLandingDeliveryCard"><div><span>📍</span><b>{city}</b><small>{outlet?.deliveryCoverageMode==='Areas'?'Selected service areas':outlet?.serviceRadiusKm?outlet.serviceRadiusKm+' km service radius':'Outlet-configured coverage'}</small></div><div><span>⏱</span><b>Flexible slots</b><small>Morning, afternoon, evening and night when published.</small></div><div><span>🥗</span><b>Published menu</b><small>Only meals configured by {outletName} appear here.</small></div></div>
      </section>
 
-     <section className="outletLandingCta">
+     <section className="outletLandingFinalCta">
        <div><span className="outletLandingKicker">READY WHEN YOU ARE</span><h2>Build your week with {outletName}.</h2><p>Pick your meals, schedule your deliveries and manage everything from your customer account.</p></div>
        <button className="primary outletLandingCtaButton" onClick={onBuild}>Build my meal plan →</button>
      </section>
    </main>
 
-   <footer className="outletLandingFooter"><div><span className="outletLandingLogo footer">{outlet?.logoUrl?<img src={getImg(outlet.logoUrl)} alt=""/>:<b>{outletName.slice(0,1).toUpperCase()}</b>}</span><div><strong>{outletName}</strong><small>{outlet?.tagline||'Fresh meals, prepared locally.'}</small></div></div><span>{city}, {outlet?.state||''} · {outlet?.pincode||''}</span><nav className="outletLandingLegalLinks" aria-label="Legal"><a href={'?outlet='+encodeURIComponent(TENANT_OUTLET_SLUG||outlet?.slug||'')+'&legal=terms'}>Terms</a><a href={'?outlet='+encodeURIComponent(TENANT_OUTLET_SLUG||outlet?.slug||'')+'&legal=privacy'}>Privacy</a><a href={'?outlet='+encodeURIComponent(TENANT_OUTLET_SLUG||outlet?.slug||'')+'&legal=cancellation'}>Refunds</a><a href={'?outlet='+encodeURIComponent(TENANT_OUTLET_SLUG||outlet?.slug||'')+'&legal=delivery'}>Delivery</a></nav></footer>
+   <footer className="outletLandingFooter"><div className="outletLandingFooterBrand"><span className="outletLandingLogo footer">{outlet?.logoUrl?<img src={getImg(outlet.logoUrl)} alt=""/>:<b>{outletName.slice(0,1).toUpperCase()}</b>}</span><div className="outletLandingFooterBrandCopy"><strong>{outletName}</strong><small>{outlet?.tagline||'Fresh meals, prepared locally.'}</small></div></div><div className="outletLandingFooterLocation">{city}, {outlet?.state||''} · {outlet?.pincode||''}</div><nav className="outletLandingLegalLinks" aria-label="Legal"><a href={'?outlet='+encodeURIComponent(TENANT_OUTLET_SLUG||outlet?.slug||'')+'&legal=terms'}>Terms</a><a href={'?outlet='+encodeURIComponent(TENANT_OUTLET_SLUG||outlet?.slug||'')+'&legal=privacy'}>Privacy</a><a href={'?outlet='+encodeURIComponent(TENANT_OUTLET_SLUG||outlet?.slug||'')+'&legal=cancellation'}>Refunds</a><a href={'?outlet='+encodeURIComponent(TENANT_OUTLET_SLUG||outlet?.slug||'')+'&legal=delivery'}>Delivery</a></nav></footer>
  </div></>;
 }
 function CustomerOutletHome({outlet,menu,busy,error,onBuild,onViewPlan}){
