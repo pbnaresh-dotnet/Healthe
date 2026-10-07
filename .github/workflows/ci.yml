@@ -1,23 +1,13 @@
 name: HealthApp CI
 
 on:
+  # Cost-controlled CI: run automatically only when release/testing branches
+  # receive changes. Feature branches are validated locally and do not consume
+  # Actions minutes on every push.
   push:
     branches:
       - main
       - marketplace-release
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - ".github/workflows/ci.yml"
-      - "global.json"
-      - "NuGet.config"
-      - "Directory.*"
-      - "*.sln"
-      - "*.props"
-      - "*.targets"
-  pull_request:
-    branches:
-      - main
     paths:
       - "backend/**"
       - "frontend/**"
@@ -60,10 +50,6 @@ jobs:
             workflow_dispatch)
               backend=true
               frontend=true
-              ;;
-            pull_request)
-              base_sha="${{ github.event.pull_request.base.sha }}"
-              head_sha="${{ github.event.pull_request.head.sha }}"
               ;;
             push)
               base_sha="${{ github.event.before }}"
