@@ -143,6 +143,8 @@ public record DeliveryRoutePlanDto(DateTime Date, string OutletName, double Outl
 public record CreateSubscriptionRequest(Guid OutletId, string DeliveryMode, string Frequency, IReadOnlyList<MealSelectionItem> Selections, string Duration = "OneWeek", string? DiscountCode = null, IReadOnlyList<Guid>? ConfirmedAllergyRecipeIds = null, string? DeliveryCity = null, Guid? LegalPolicyVersionId = null, bool LegalAccepted = false);
 public record AcceptOutletPackageRequest(Guid LegalPolicyVersionId, bool LegalAccepted);
 public record UpdateMarketingPreferenceRequest(bool MarketingOptIn);
+public record CustomerLegalStatusDto(Guid OutletId, string OutletName, Guid PublishedVersionId, string Version, DateTime EffectiveDateUtc, bool Accepted);
+public record AcceptCustomerLegalRequest(Guid LegalPolicyVersionId, bool TermsAccepted = true, bool PrivacyAccepted = true, bool CommercialPoliciesAccepted = true);
 public record CreateMealPlanRequest(string Name, string Frequency, int MealsPerDay, decimal Price, string Description);
 public record CreateRecipeRequest(string Name, string Category, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, decimal PricePerMeal, decimal LargePricePerMeal, string Description = "", string ImageUrl = "", string Tags = "", IReadOnlyList<RecipeIngredientInput>? Ingredients = null, IReadOnlyList<Guid>? AllergenIds = null, int FiberGrams = 0);
 public record UpdateRecipeRequest(string Name, string Category, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, decimal PricePerMeal, decimal LargePricePerMeal, string Description = "", string ImageUrl = "", string Tags = "", IReadOnlyList<RecipeIngredientInput>? Ingredients = null, IReadOnlyList<Guid>? AllergenIds = null, bool IsActive = true, int FiberGrams = 0);
