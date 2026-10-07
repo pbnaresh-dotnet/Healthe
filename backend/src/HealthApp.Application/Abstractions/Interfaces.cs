@@ -30,6 +30,16 @@ public interface IOutletDomainRepository
 
 
 public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); Task<Outlet?> GetByIdAsync(Guid id); Task<Outlet?> GetBySlugAsync(string slug); Task<Outlet?> GetBySubdomainAsync(string subdomain); Task AddAsync(Outlet outlet); Task UpdateAsync(Outlet outlet); }
+public interface IOutletLegalPolicyRepository
+{
+    Task<OutletLegalPolicyVersion?> GetPublishedAsync(Guid outletId);
+    Task<OutletLegalPolicyVersion?> GetByIdAsync(Guid id, Guid outletId);
+    Task<OutletLegalPolicyVersion?> GetByVersionAsync(Guid outletId, string version);
+    Task<IReadOnlyList<OutletLegalPolicyVersion>> GetHistoryAsync(Guid outletId);
+    Task AddVersionAsync(OutletLegalPolicyVersion version);
+    Task<bool> HasAcceptedVersionAsync(Guid customerId, Guid outletId, Guid versionId);
+    Task AddAcceptanceAsync(CustomerLegalAcceptance acceptance);
+}
 public interface ISaaSPlanRepository { Task<IReadOnlyList<SaaSPlan>> GetActiveAsync(); Task<SaaSPlan?> GetAsync(Guid id); }
 public interface IOutletSubscriptionRepository { Task<OutletSubscription?> GetByOutletAsync(Guid outletId); Task<IReadOnlySet<Guid>> GetActiveOutletIdsAsync(); Task AddAsync(OutletSubscription subscription); Task UpdateAsync(OutletSubscription subscription); }
 public interface IPlatformTransactionRepository { Task AddAsync(PlatformTransaction transaction); Task<IReadOnlyList<PlatformTransaction>> GetAllAsync(); Task<bool> ExistsByReferenceAsync(string referenceId); }
@@ -109,7 +119,8 @@ public interface ICloudflarePagesService
     Task<CloudflarePagesDomainState?> GetDomainAsync(string hostname, CancellationToken cancellationToken = default);
     Task<CloudflarePagesDomainState?> RetryValidationAsync(string hostname, CancellationToken cancellationToken = default);
 }
-public interface IAuthService { Task<AuthResponse?> LoginAsync(LoginRequest request); Task<AuthResponse> RegisterAsync(RegisterRequest request); }
+public sealed record LegalAcceptanceContext(string? IpAddress, string? UserAgent);
+public interface IAuthService { Task<AuthResponse?> LoginAsync(LoginRequest request); Task<AuthResponse> RegisterAsync(RegisterRequest request, LegalAcceptanceContext? acceptanceContext = null); }
 public interface IEmailService { Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default); }
 public interface IOutletDemoService { Task<OutletDemoRequestDto> RequestAsync(RequestOutletDemoRequest request, CancellationToken cancellationToken = default); }
 public interface IMarketplaceService { Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync(); Task<AvailabilityResponse> GetAvailabilityAsync(double latitude, double longitude, string? city = null); Task<IReadOnlyList<CityDto>> GetCitiesAsync(); Task<IReadOnlyList<OutletDto>> GetAllOutletsAsync(string? city = null); Task<OutletDto?> GetOutletAsync(string slug); Task<OutletLegalPoliciesDto?> GetOutletLegalAsync(string slug); Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(Guid outletId); Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(Guid outletId, string? category); Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(Guid outletId); }
