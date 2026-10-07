@@ -5,8 +5,8 @@
 SMTP credentials are intentionally not stored in source control. Configure the following environment variables in local development or Azure App Service:
 
 - Email__Enabled=true
-- Email__Host=<smtp-host>
-- Email__Port=587
+- Email__Host=smtpout.secureserver.net
+- Email__Port=465
 - Email__EnableSsl=true
 - Email__Username=<smtp-username>
 - Email__Password=<smtp-password>
@@ -18,7 +18,7 @@ SMTP credentials are intentionally not stored in source control. Configure the f
 - Email__OutletAdminUrl=https://outlet.broccoly.in
 - Email__TimeoutSeconds=20
 
-The exact SMTP host and credentials depend on the provider you use. Use a provider/domain where the sender address is verified and authenticated (SPF/DKIM/DMARC).
+GoDaddy Professional Email powered by Titan uses the GoDaddy SMTP host above for this configuration. The mailbox must allow third-party SMTP access and the authenticated sender should match the mailbox.
 
 ### Azure App Service
 
