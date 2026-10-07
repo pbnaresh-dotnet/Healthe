@@ -3,7 +3,7 @@ import{createRoot}from'react-dom/client';
 import{locations,money,outletDemo,outletOnboarding,openCashfreeCheckout}from'@healthapp/shared';
 import'./styles.css';
 
-const OUTLET_APP_URL=import.meta.env.VITE_OUTLET_APP_URL||'https://app.broccoly.in';
+const OUTLET_APP_URL=import.meta.env.VITE_OUTLET_APP_URL||'https://outlet.broccoly.in';
 
 const SETUP_FEE=5000;
 const EMPTY={businessType:'Individual',outletName:'',city:'',state:'',pincode:'',addressLine1:'',addressLine2:'',ownerName:'',ownerPhone:'',email:'',password:''};
