@@ -22,8 +22,8 @@ public sealed class OutletPackageActivationService(
         var subscription = await subscriptions.GetAsync(subscriptionId)
             ?? throw new KeyNotFoundException("Subscription not found.");
 
-        if (!subscription.IsOutletCreated)
-            throw new InvalidOperationException("This subscription is not an outlet-created package.");
+        if (!subscription.IsOutletCreated && subscription.PackageStatus != "PaymentPending")
+            throw new InvalidOperationException("This subscription is not awaiting activation payment.");
 
         var customer = await users.FindByIdAsync(subscription.CustomerId);
         if (customer is null || customer.Role != UserRole.Customer || customer.OutletId != subscription.OutletId)
@@ -541,6 +541,114 @@ public sealed class OutletPackageService(
         return MapSubscription(subscription, "Pending");
     }
 
+    public async Task<SubscriptionDto?> ConfirmCustomerPackageAsync(Guid subscriptionId, ConfirmCustomerPackageRequest request)
+    {
+        if (current.OutletId is not Guid outletId || current.UserId is not Guid outletUserId)
+            return null;
+
+        var subscription = await subscriptions.GetAsync(subscriptionId)
+            ?? throw new KeyNotFoundException("Package not found.");
+        if (subscription.OutletId != outletId)
+            throw new UnauthorizedAccessException("Package does not belong to this outlet.");
+        if (subscription.IsOutletCreated || subscription.PackageStatus != "PendingOutletReview")
+            throw new InvalidOperationException("This package is not awaiting outlet review.");
+
+        var customer = await users.FindByIdAsync(subscription.CustomerId)
+            ?? throw new KeyNotFoundException("Package customer not found.");
+        if (customer.Role != UserRole.Customer || customer.OutletId != outletId)
+            throw new InvalidOperationException("Package customer is not associated with this outlet.");
+
+        var discountType = Parse<OutletPackageDiscountType>(request.DiscountType, "discount type");
+        var discountValue = Math.Max(0m, request.DiscountValue);
+        if (discountType == OutletPackageDiscountType.Percent && discountValue > 100m)
+            throw new ArgumentException("Outlet discount percentage cannot exceed 100%.");
+
+        var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
+        var mealRows = (await selections.GetBySubscriptionAsync(subscription.Id))
+            .Where(x => x.Status != MealSelectionStatus.Cancelled)
+            .ToList();
+        if (mealRows.Count == 0)
+            throw new InvalidOperationException("The package contains no scheduled meals.");
+
+        var gross = Math.Round(mealRows.Sum(x => x.MealPrice), 2);
+        var baseDiscount = Math.Max(0m, subscription.SubscriptionDiscountAmount - subscription.OutletDiscountValue);
+        var outletDiscount = discountType switch
+        {
+            OutletPackageDiscountType.Percent => Math.Round(gross * discountValue / 100m, 2),
+            OutletPackageDiscountType.Fixed => Math.Min(gross, discountValue),
+            _ => 0m
+        };
+        var totalDiscount = Math.Min(gross, baseDiscount + outletDiscount);
+        var discountedMealAmount = Math.Round(gross - totalDiscount, 2);
+        var serviceFee = platformFee.Calculate(discountedMealAmount);
+        var taxes = taxStrategy.Calculate(discountedMealAmount, serviceFee, outlet.RestaurantGstRate, outlet.RestaurantGstMode);
+        var net = taxes.RestaurantTaxableAmount;
+        var commissionRate = subscription.OutletCommissionPercent;
+        var commission = Math.Round(net * commissionRate, 2);
+        var delivery = subscription.DeliveryFee;
+        var totalCharged = Math.Round(net + taxes.RestaurantAmount + delivery + serviceFee + taxes.PlatformAmount, 2);
+        var outletAmount = Math.Round(net + taxes.RestaurantAmount - commission, 2);
+        var now = DateTime.UtcNow;
+
+        await unitOfWork.ExecuteAsync(async () =>
+        {
+            subscription.GrossMealAmount = gross;
+            subscription.SubscriptionDiscountPercent = gross == 0 ? 0 : Math.Round(totalDiscount / gross * 100m, 4);
+            subscription.SubscriptionDiscountAmount = totalDiscount;
+            subscription.NetMealAmount = net;
+            subscription.PlatformServiceFee = serviceFee;
+            subscription.PlatformServiceGst = taxes.PlatformAmount;
+            subscription.PlatformServiceFeePercent = platformFee.Percent;
+            subscription.PlatformServiceGstRate = taxes.PlatformRate;
+            subscription.RestaurantGstRate = taxes.RestaurantRate;
+            subscription.RestaurantGstMode = taxes.RestaurantMode;
+            subscription.RestaurantTaxableAmount = taxes.RestaurantTaxableAmount;
+            subscription.RestaurantGstAmount = taxes.RestaurantAmount;
+            subscription.Price = net;
+            subscription.TotalCharged = totalCharged;
+            subscription.OutletAmount = outletAmount;
+            subscription.OutletCommissionAmount = commission;
+            subscription.OutletDiscountType = discountType;
+            subscription.OutletDiscountValue = discountValue;
+            subscription.OutletDiscountReason = request.DiscountReason?.Trim() ?? "";
+            subscription.PackageStatus = "PaymentPending";
+            subscription.Status = SubscriptionStatus.Pending;
+            subscription.SentAtUtc = now;
+            subscription.CreatedByOutletUserId ??= outletUserId;
+
+            await subscriptions.UpdateAsync(subscription);
+
+            var order = await orders.GetBySubscriptionAsync(subscription.Id);
+            if (order is null)
+                throw new InvalidOperationException("Package order could not be found.");
+            order.Total = totalCharged;
+            await orders.UpdateAsync(order);
+
+            var financial = await orderFinancials.GetByOrderAsync(order.Id);
+            if (financial is not null)
+            {
+                financial.GrossMealAmount = gross;
+                financial.DiscountAmount = totalDiscount;
+                financial.NetMealAmount = net;
+                financial.DeliveryAmount = delivery;
+                financial.PlatformServiceFee = serviceFee;
+                financial.PlatformServiceGst = taxes.PlatformAmount;
+                financial.RestaurantGstRate = taxes.RestaurantRate;
+                financial.RestaurantGstMode = taxes.RestaurantMode;
+                financial.RestaurantTaxableAmount = taxes.RestaurantTaxableAmount;
+                financial.RestaurantGstAmount = taxes.RestaurantAmount;
+                financial.CustomerPayable = totalCharged;
+                financial.OutletCommission = commission;
+                financial.OutletSettlementAmount = outletAmount;
+                financial.HealthAppRevenue = serviceFee + commission;
+                // OrderFinancialRepository currently exposes insert-only persistence.
+                // The tracked entity is updated by EF on the unit-of-work SaveChanges.
+            }
+        });
+
+        return MapSubscription(subscription, "Pending");
+    }
+
     public async Task<SubscriptionDto?> AcceptAsync(Guid subscriptionId, AcceptOutletPackageRequest request, LegalAcceptanceContext? acceptanceContext = null)
     {
         if (current.UserId is not Guid customerId)
@@ -595,8 +703,10 @@ public sealed class OutletPackageService(
 
         var subscription = await subscriptions.GetAsync(subscriptionId)
             ?? throw new KeyNotFoundException("Package not found.");
-        if (!subscription.IsOutletCreated || subscription.OutletId != outletId)
+        if (subscription.OutletId != outletId)
             throw new UnauthorizedAccessException("Package does not belong to this outlet.");
+        if (subscription.PackageStatus is not ("SentToCustomer" or "PaymentPending"))
+            throw new InvalidOperationException("This package is not awaiting payment.");
         if (subscription.PackageStatus == "Active")
             return MapSubscription(subscription, "Paid");
 
