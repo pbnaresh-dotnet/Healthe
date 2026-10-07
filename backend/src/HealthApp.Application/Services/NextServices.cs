@@ -401,8 +401,8 @@ public sealed class PaymentService(
                     $"{customer.FirstName} {customer.LastName}".Trim(),
                     customer.Email,
                     NormalizePhone(customer.MobileNumber),
-                    GetReturnUrl("customer"),
-                    GetWebhookUrl(),
+                    gateway.CustomerReturnUrl,
+                    gateway.WebhookUrl,
                     $"Broccoly meal subscription {subscription.PlanName}"),
                 cancellationToken);
 
@@ -590,14 +590,6 @@ public sealed class PaymentService(
             await orders.UpdateAsync(order);
         }
     }
-
-    private static string GetReturnUrl(string type)
-        => type == "customer"
-            ? "https://app.broccoly.in/payment"
-            : "https://broccoly.in/payment";
-
-    private static string GetWebhookUrl()
-        => "https://api.broccoly.in/api/payments/cashfree/webhook";
 
     private static string NormalizePhone(string? value)
     {
