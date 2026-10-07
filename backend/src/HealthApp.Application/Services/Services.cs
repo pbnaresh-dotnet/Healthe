@@ -20,8 +20,12 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
     }
     public async Task<AuthResponse> RegisterAsync(RegisterRequest r)
     {
-        if (string.IsNullOrWhiteSpace(r.Password) || r.Password.Length < 6) throw new ArgumentException("Password must be at least 6 characters.");
+        if (string.IsNullOrWhiteSpace(r.Password) || r.Password.Length < 8) throw new ArgumentException("Password must be at least 8 characters.");
         if (await users.FindByEmailAsync(r.Email) is not null) throw new InvalidOperationException("Email is already registered.");
+        var mobileDigits = new string((r.MobileNumber ?? string.Empty).Where(char.IsDigit).ToArray());
+        if (mobileDigits.StartsWith("91") && mobileDigits.Length == 12) mobileDigits = mobileDigits[2..];
+        if (!System.Text.RegularExpressions.Regex.IsMatch(mobileDigits, "^[6-9]\\d{9}$"))
+            throw new ArgumentException("Enter a valid 10-digit Indian mobile number.");
         var role = Enum.TryParse<UserRole>(r.Role, true, out var parsed) ? parsed : UserRole.Customer;
         if (role is UserRole.SuperAdmin or UserRole.Driver) throw new UnauthorizedAccessException("This role cannot be self-registered.");
         if (role == UserRole.OutletAdmin)
@@ -32,6 +36,7 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
             Email = r.Email.Trim().ToLowerInvariant(),
             FirstName = r.FirstName.Trim(),
             LastName = r.LastName.Trim(),
+            MobileNumber = "+91" + mobileDigits,
             Role = role,
             OutletId = outletId,
             PasswordHash = passwords.Hash(r.Password)
@@ -137,7 +142,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     {
         if (current.UserId is not Guid id) return null;
         var x = await users.FindByIdAsync(id);
-        return x is null ? null : new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId);
+        return x is null ? null : new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId, false, null, x.MobileNumber);
     }
     public async Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync()
     {
