@@ -42,6 +42,8 @@ public sealed class HealthAppDbContext(DbContextOptions<HealthAppDbContext> opti
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<DiscountCode> DiscountCodes => Set<DiscountCode>();
     public DbSet<OrderFinancialBreakdown> OrderFinancialBreakdowns => Set<OrderFinancialBreakdown>();
+    public DbSet<OutletLegalPolicyVersion> OutletLegalPolicyVersions => Set<OutletLegalPolicyVersion>();
+    public DbSet<CustomerLegalAcceptance> CustomerLegalAcceptances => Set<CustomerLegalAcceptance>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
         => HealthAppModelBuilder.Configure(modelBuilder);
