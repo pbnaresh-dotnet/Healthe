@@ -612,6 +612,10 @@ public sealed class OutletSettingsService(
             ? outlet.ServiceRadiusKm >= 1
             : selectedAreas > 0;
         var deliveryDays = ParseDays(outlet.DeliveryDays);
+        var publishedLegal = await legalPolicies.GetPublishedAsync(outletId);
+        var legalReady = publishedLegal is not null &&
+            !string.IsNullOrWhiteSpace(publishedLegal.CustomerTermsAndConditions) &&
+            !string.IsNullOrWhiteSpace(publishedLegal.CustomerPrivacyPolicy);
 
         var menuDaysReady = deliveryDays.Count > 0
             ? deliveryDays.Count(day => menuItems.Any(x => x.DayOfWeek == day))
@@ -637,7 +641,9 @@ public sealed class OutletSettingsService(
             new("delivery-pricing", "Delivery pricing", "Configure at least one distance-based delivery fee.",
                 pricingRules > 0, pricingRules, 1, "pricing"),
             new("tax", "Tax settings", "Confirm the restaurant GST rate for customer pricing.",
-                outlet.RestaurantGstRate >= 0m, 1, 1, "tax")
+                outlet.RestaurantGstRate >= 0m, 1, 1, "tax"),
+            new("legal", "Customer legal policies", "Publish an immutable Terms & Privacy policy version before accepting customer registrations and orders.",
+                legalReady, legalReady ? 1 : 0, 1, "legal")
         };
 
         var currentUser = current.UserId is Guid userId ? await users.FindByIdAsync(userId) : null;
