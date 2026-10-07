@@ -23,7 +23,10 @@ public sealed class OutletActivationMiddleware(RequestDelegate next)
         }
 
         if (context.User.Identity?.IsAuthenticated == true &&
-            context.User.IsInRole(nameof(UserRole.OutletAdmin)) &&
+            (context.User.IsInRole(nameof(UserRole.OutletAdmin)) ||
+             context.User.IsInRole(nameof(UserRole.OutletManager)) ||
+             context.User.IsInRole(nameof(UserRole.KitchenStaff)) ||
+             context.User.IsInRole(nameof(UserRole.Driver))) &&
             !path.StartsWith("/api/admin", StringComparison.OrdinalIgnoreCase))
         {
             var outletClaim = context.User.FindFirst("outlet_id")?.Value;

@@ -1,11 +1,12 @@
 using HealthApp.Application.Abstractions;
+using HealthApp.Application.Orchestration;
 using HealthApp.Domain.Entities;
 using HealthApp.Domain.Enums;
 using HealthApp.Shared.DTOs;
 
 namespace HealthApp.Application.Services;
 
-public sealed class CustomerProfileService(ICurrentUser current, ICustomerProfileRepository profiles, IAllergenRepository allergens, ICustomerAllergyRepository customerAllergies) : ICustomerProfileService
+public sealed class CustomerProfileService(ICurrentUser current, ICustomerProfileRepository profiles, IAllergenRepository allergens, ICustomerAllergyRepository customerAllergies, IUnitOfWork unitOfWork) : ICustomerProfileService
 {
     public async Task<CustomerProfileDto?> GetAsync()
     {
@@ -23,8 +24,11 @@ public sealed class CustomerProfileService(ICurrentUser current, ICustomerProfil
         decimal? bmi=r.WeightKg.HasValue&&r.HeightCm.HasValue?Math.Round(r.WeightKg.Value/((r.HeightCm.Value/100m)*(r.HeightCm.Value/100m)),2):null;
         var p=await profiles.GetAsync(id)??new CustomerProfile{Id=Guid.NewGuid(),CustomerId=id};
         p.WeightKg=r.WeightKg;p.HeightCm=r.HeightCm;p.Bmi=bmi;p.DateOfBirth=r.DateOfBirth;p.Goal=r.Goal;p.ActivityLevel=r.ActivityLevel;p.Diet=r.Diet;p.UpdatedAtUtc=DateTime.UtcNow;
-        await profiles.AddOrUpdateAsync(p);
-        await customerAllergies.ReplaceAsync(id,requested);
+        await unitOfWork.ExecuteAsync(async () =>
+        {
+            await profiles.AddOrUpdateAsync(p);
+            await customerAllergies.ReplaceAsync(id,requested);
+        });
         p=await profiles.GetAsync(id)??p;
         return await Map(p,id);
     }
@@ -203,6 +207,9 @@ public sealed class CustomerAddressService(
         if (current.UserId is not Guid id)
             return [];
 
+        if (current.OutletId is not Guid customerOutletId || customerOutletId != outletId)
+            throw new UnauthorizedAccessException("The current customer is not associated with the selected outlet.");
+
         var result = new List<DeliveryQuoteDto>();
         foreach (var address in await addresses.GetByCustomerAsync(id))
         {
@@ -322,14 +329,24 @@ public sealed class PaymentService(ICurrentUser current,IPaymentTransactionRepos
         if(string.IsNullOrWhiteSpace(r.IdempotencyKey))throw new ArgumentException("Idempotency key is required.");
         var s=await subscriptions.GetAsync(r.SubscriptionId)??throw new KeyNotFoundException("Subscription not found.");
         if(s.CustomerId!=id)throw new UnauthorizedAccessException();
+        if(current.OutletId is not Guid customerOutletId || customerOutletId != s.OutletId)
+            throw new UnauthorizedAccessException("The current customer is not associated with the subscription outlet.");
+        if(s.PackageStatus=="PendingOutletReview")
+            throw new InvalidOperationException("This package is awaiting outlet confirmation before payment.");
         if(s.IsOutletCreated&&s.PackageStatus!="PaymentPending")
             throw new InvalidOperationException("Accept the outlet-created package before making payment.");
+
         var existing=await payments.GetByIdempotencyKeyAsync(r.IdempotencyKey);
-        if(existing is not null)return Map(existing);
+        if(existing is not null)
+        {
+            if(existing.CustomerId != id)
+                throw new InvalidOperationException("The payment idempotency key is already in use.");
+            return Map(existing);
+        }
         var now=DateTime.UtcNow;
         var p=new PaymentTransaction{Id=Guid.NewGuid(),CustomerId=id,SubscriptionId=s.Id,Provider=r.Provider,ProviderPaymentId=$"mock_{Guid.NewGuid():N}",IdempotencyKey=r.IdempotencyKey,Amount=s.TotalCharged,Currency="INR",Status="Paid",CreatedAtUtc=now,PaidAtUtc=now};
         await payments.AddAsync(p);
-        if(s.IsOutletCreated)
+        if(s.PackageStatus=="PaymentPending")
         {
             await outletPackageActivation.ActivateAsync(s.Id,"Online",id);
         }
@@ -340,7 +357,22 @@ public sealed class PaymentService(ICurrentUser current,IPaymentTransactionRepos
         }
         return Map(p);
     }
-    public async Task<PaymentDto?> GetAsync(Guid id){if(current.UserId is not Guid uid)return null;var p=await payments.GetAsync(id);return p is null||p.CustomerId!=uid?null:Map(p);}
+    public async Task<PaymentDto?> GetAsync(Guid id)
+    {
+        if(current.UserId is not Guid uid) return null;
+
+        var p = await payments.GetAsync(id);
+        if(p is null || p.CustomerId != uid) return null;
+
+        if(current.OutletId is not Guid customerOutletId) return null;
+        if(p.SubscriptionId is not Guid subscriptionId) return null;
+
+        var subscription = await subscriptions.GetAsync(subscriptionId);
+        if(subscription is null || subscription.CustomerId != uid || subscription.OutletId != customerOutletId)
+            return null;
+
+        return Map(p);
+    }
     private static PaymentDto Map(PaymentTransaction p)=>new(p.Id,p.SubscriptionId,p.Provider,p.ProviderPaymentId,p.Amount,p.Currency,p.Status,p.CreatedAtUtc,p.PaidAtUtc);
 }
 
@@ -405,7 +437,7 @@ public sealed class DeliveryLabelService(
 
             foreach(var meal in mealRows)
             {
-                var recipe=await recipes.GetAsync(meal.RecipeId);
+                var recipe=await recipes.GetForOutletAsync(meal.RecipeId, id);
                 var slot=GetMealSlotInfo(delivery.MealSlot);
 
                 result.Add(new DeliveryLabelDto(
@@ -416,7 +448,7 @@ public sealed class DeliveryLabelService(
                     slot.Name,
                     slot.Window,
                     outlet.Name,
-                    outlet.LogoUrl,
+                    string.IsNullOrWhiteSpace(outlet.Branding?.LogoUrl) ? outlet.LogoUrl : outlet.Branding.LogoUrl,
                     customer is null
                         ? delivery.CustomerName
                         : $"{customer.FirstName} {customer.LastName}".Trim(),

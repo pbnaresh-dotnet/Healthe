@@ -11,13 +11,459 @@ public static class DatabaseInitializer
         // The checked-in demo package is self-contained. A production deployment should
         // replace EnsureCreatedAsync with EF Core MigrateAsync after generating migrations.
         await db.Database.EnsureCreatedAsync(cancellationToken);
+
+        // Add the column in its own batch first. SQL Server compiles a batch
+        // before executing it, so referencing MobileNumber later in the same batch
+        // can fail when this is an existing database being upgraded.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Users','MobileNumber') IS NULL
+    ALTER TABLE dbo.Users ADD MobileNumber nvarchar(20) NULL;
+", cancellationToken);
+
+        // Tenant-scoped unique mobile number. Keep this in a separate batch so the
+        // newly-added column is visible to SQL Server when the index is created.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name='IX_Users_MobileNumber' AND object_id=OBJECT_ID('dbo.Users')
+)
+    CREATE UNIQUE INDEX IX_Users_MobileNumber
+    ON dbo.Users(MobileNumber, OutletId)
+    WHERE MobileNumber IS NOT NULL AND MobileNumber <> '';
+", cancellationToken);
+
+
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.OutletBrandings','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OutletBrandings
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_OutletBrandings PRIMARY KEY,
+        OutletId uniqueidentifier NOT NULL,
+        BrandName nvarchar(200) NOT NULL CONSTRAINT DF_OutletBrandings_BrandName DEFAULT '',
+        Tagline nvarchar(300) NOT NULL CONSTRAINT DF_OutletBrandings_Tagline DEFAULT '',
+        LogoUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletBrandings_LogoUrl DEFAULT '',
+        HeroImageUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletBrandings_HeroImageUrl DEFAULT '',
+        FaviconUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletBrandings_FaviconUrl DEFAULT '',
+        PrimaryColor nvarchar(20) NOT NULL CONSTRAINT DF_OutletBrandings_PrimaryColor DEFAULT '#14532d',
+        SecondaryColor nvarchar(20) NOT NULL CONSTRAINT DF_OutletBrandings_SecondaryColor DEFAULT '#166534',
+        HealthHighlights nvarchar(2000) NOT NULL CONSTRAINT DF_OutletBrandings_HealthHighlights DEFAULT '',
+        About nvarchar(4000) NOT NULL CONSTRAINT DF_OutletBrandings_About DEFAULT '',
+        FooterText nvarchar(1000) NOT NULL CONSTRAINT DF_OutletBrandings_FooterText DEFAULT '',
+        UpdatedAtUtc datetime2 NOT NULL CONSTRAINT DF_OutletBrandings_UpdatedAtUtc DEFAULT SYSUTCDATETIME()
+    );
+END;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletBrandings_OutletId' AND object_id=OBJECT_ID('dbo.OutletBrandings'))
+    CREATE UNIQUE INDEX IX_OutletBrandings_OutletId ON dbo.OutletBrandings(OutletId);
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_OutletBrandings_Outlets' AND parent_object_id=OBJECT_ID('dbo.OutletBrandings'))
+    ALTER TABLE dbo.OutletBrandings ADD CONSTRAINT FK_OutletBrandings_Outlets FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+", cancellationToken);
+
+        // Existing databases may still have the pre-SaaS globally-unique email index.
+        // Replace it with a global-null index plus a tenant-scoped email index.
+        await db.Database.ExecuteSqlRawAsync(@" 
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Users_Email' AND object_id = OBJECT_ID('dbo.Users'))
+    DROP INDEX IX_Users_Email ON dbo.Users;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Users_Email_Global' AND object_id = OBJECT_ID('dbo.Users'))
+    CREATE UNIQUE INDEX IX_Users_Email_Global ON dbo.Users(Email) WHERE OutletId IS NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Users_OutletId_Email' AND object_id = OBJECT_ID('dbo.Users'))
+    CREATE UNIQUE INDEX IX_Users_OutletId_Email ON dbo.Users(OutletId, Email) WHERE OutletId IS NOT NULL;
+IF NOT EXISTS (
+    SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Users') AND referenced_object_id = OBJECT_ID('dbo.Outlets')
+)
+    ALTER TABLE dbo.Users ADD CONSTRAINT FK_Users_Outlets_OutletId FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.OutletSubscriptions') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.OutletSubscriptions ADD CONSTRAINT FK_OutletSubscriptions_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.PlatformTransactions') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.PlatformTransactions ADD CONSTRAINT FK_PlatformTransactions_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.MealPlans') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.MealPlans ADD CONSTRAINT FK_MealPlans_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Recipes') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.Recipes ADD CONSTRAINT FK_Recipes_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.OutletMenuItems') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.OutletMenuItems ADD CONSTRAINT FK_OutletMenuItems_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Subscriptions') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.Subscriptions ADD CONSTRAINT FK_Subscriptions_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Orders') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.Orders ADD CONSTRAINT FK_Orders_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Deliveries') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.DeliveryRoutes') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.DeliveryRoutes ADD CONSTRAINT FK_DeliveryRoutes_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.OutletDeliveryAreas') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.OutletDeliveryAreas ADD CONSTRAINT FK_OutletDeliveryAreas_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.DeliveryPricingRules') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.DeliveryPricingRules ADD CONSTRAINT FK_DeliveryPricingRules_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.SubscriptionDiscountTiers') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.SubscriptionDiscountTiers ADD CONSTRAINT FK_SubscriptionDiscountTiers_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.DiscountCodes') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.DiscountCodes ADD CONSTRAINT FK_DiscountCodes_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.CustomerAddresses') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.CustomerAddresses ADD CONSTRAINT FK_CustomerAddresses_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.CustomerCreditTransactions') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.CustomerCreditTransactions ADD CONSTRAINT FK_CustomerCreditTransactions_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Subscriptions') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.Subscriptions ADD CONSTRAINT FK_Subscriptions_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Orders') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.Orders ADD CONSTRAINT FK_Orders_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.PaymentTransactions') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.PaymentTransactions ADD CONSTRAINT FK_PaymentTransactions_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.PlatformTransactions') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.PlatformTransactions ADD CONSTRAINT FK_PlatformTransactions_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.Deliveries') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_Users FOREIGN KEY (CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.OutletOnboardingApplications') AND referenced_object_id = OBJECT_ID('dbo.Outlets'))
+    ALTER TABLE dbo.OutletOnboardingApplications ADD CONSTRAINT FK_OutletOnboardingApplications_Outlets FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('dbo.OutletOnboardingApplications') AND referenced_object_id = OBJECT_ID('dbo.Users'))
+    ALTER TABLE dbo.OutletOnboardingApplications ADD CONSTRAINT FK_OutletOnboardingApplications_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+", cancellationToken);
+
+        // Add the column in its own SQL batch. SQL Server may compile the whole batch
+        // before executing the ALTER TABLE, which makes a same-batch UPDATE reference
+        // to the newly-added column fail with "Invalid column name".
         await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.Outlets','DeliveryDays') IS NULL
     ALTER TABLE dbo.Outlets ADD DeliveryDays nvarchar(200) NULL;
+IF COL_LENGTH('dbo.Outlets','DeliveryCoverageMode') IS NULL
+    ALTER TABLE dbo.Outlets ADD DeliveryCoverageMode int NOT NULL CONSTRAINT DF_Outlets_DeliveryCoverageMode DEFAULT 1;
+
+IF OBJECT_ID('dbo.OutletBrandings','U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('dbo.OutletBrandings','FontFamily') IS NULL
+        ALTER TABLE dbo.OutletBrandings ADD FontFamily nvarchar(40) NOT NULL CONSTRAINT DF_OutletBrandings_FontFamily DEFAULT 'Inter' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletBrandings','ThemeStyle') IS NULL
+        ALTER TABLE dbo.OutletBrandings ADD ThemeStyle nvarchar(40) NOT NULL CONSTRAINT DF_OutletBrandings_ThemeStyle DEFAULT 'Fresh' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletBrandings','ButtonStyle') IS NULL
+        ALTER TABLE dbo.OutletBrandings ADD ButtonStyle nvarchar(40) NOT NULL CONSTRAINT DF_OutletBrandings_ButtonStyle DEFAULT 'Rounded' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletBrandings','CardStyle') IS NULL
+        ALTER TABLE dbo.OutletBrandings ADD CardStyle nvarchar(40) NOT NULL CONSTRAINT DF_OutletBrandings_CardStyle DEFAULT 'Soft' WITH VALUES;
+END
+", cancellationToken);
+
+        // Customer legal policies live on the outlet because each standalone outlet owns
+        // its customer-facing commercial terms and privacy notice.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Outlets','CustomerTermsAndConditions') IS NULL
+    ALTER TABLE dbo.Outlets ADD CustomerTermsAndConditions nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','CustomerPrivacyPolicy') IS NULL
+    ALTER TABLE dbo.Outlets ADD CustomerPrivacyPolicy nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','CancellationRefundPolicy') IS NULL
+    ALTER TABLE dbo.Outlets ADD CancellationRefundPolicy nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','MealSkipReschedulePolicy') IS NULL
+    ALTER TABLE dbo.Outlets ADD MealSkipReschedulePolicy nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','DeliveryPolicy') IS NULL
+    ALTER TABLE dbo.Outlets ADD DeliveryPolicy nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','AllergenDietaryDisclaimer') IS NULL
+    ALTER TABLE dbo.Outlets ADD AllergenDietaryDisclaimer nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','PaymentPricingPromotionalTerms') IS NULL
+    ALTER TABLE dbo.Outlets ADD PaymentPricingPromotionalTerms nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Outlets','LegalVersion') IS NULL
+    ALTER TABLE dbo.Outlets ADD LegalVersion nvarchar(40) NULL;
+IF COL_LENGTH('dbo.Outlets','LegalEffectiveDateUtc') IS NULL
+    ALTER TABLE dbo.Outlets ADD LegalEffectiveDateUtc datetime2 NULL;
+IF COL_LENGTH('dbo.Outlets','LegalPoliciesPublished') IS NULL
+    ALTER TABLE dbo.Outlets ADD LegalPoliciesPublished bit NOT NULL CONSTRAINT DF_Outlets_LegalPoliciesPublished DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Outlets','CustomPackagePricingMode') IS NULL
+    ALTER TABLE dbo.Outlets ADD CustomPackagePricingMode nvarchar(30) NOT NULL CONSTRAINT DF_Outlets_CustomPackagePricingMode DEFAULT 'Calculated' WITH VALUES;
+IF COL_LENGTH('dbo.Outlets','ShowPackagePriceToCustomer') IS NULL
+    ALTER TABLE dbo.Outlets ADD ShowPackagePriceToCustomer bit NOT NULL CONSTRAINT DF_Outlets_ShowPackagePriceToCustomer DEFAULT 1 WITH VALUES;
+IF COL_LENGTH('dbo.Outlets','ShowDeliveryFeeToCustomer') IS NULL
+    ALTER TABLE dbo.Outlets ADD ShowDeliveryFeeToCustomer bit NOT NULL CONSTRAINT DF_Outlets_ShowDeliveryFeeToCustomer DEFAULT 1 WITH VALUES;
+", cancellationToken);
+
+        // Existing databases also need the new immutable legal-history and customer-acceptance tables.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.OutletLegalPolicyVersions','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OutletLegalPolicyVersions
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_OutletLegalPolicyVersions PRIMARY KEY,
+        OutletId uniqueidentifier NOT NULL,
+        Version nvarchar(40) NOT NULL,
+        CustomerTermsAndConditions nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Terms DEFAULT '',
+        CustomerPrivacyPolicy nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Privacy DEFAULT '',
+        CancellationRefundPolicy nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Cancellation DEFAULT '',
+        MealSkipReschedulePolicy nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Skip DEFAULT '',
+        DeliveryPolicy nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Delivery DEFAULT '',
+        AllergenDietaryDisclaimer nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Allergen DEFAULT '',
+        PaymentPricingPromotionalTerms nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Payment DEFAULT '',
+        ContentHash nvarchar(64) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Hash DEFAULT '',
+        EffectiveDateUtc datetime2 NOT NULL,
+        CreatedAtUtc datetime2 NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Created DEFAULT SYSUTCDATETIME(),
+        PublishedAtUtc datetime2 NULL,
+        CreatedByUserId uniqueidentifier NULL,
+        IsPublished bit NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Published DEFAULT 0
+    );
+END;
+IF OBJECT_ID('dbo.CustomerLegalAcceptances','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.CustomerLegalAcceptances
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_CustomerLegalAcceptances PRIMARY KEY,
+        CustomerId uniqueidentifier NOT NULL,
+        OutletId uniqueidentifier NOT NULL,
+        LegalPolicyVersionId uniqueidentifier NOT NULL,
+        TermsAccepted bit NOT NULL,
+        PrivacyAccepted bit NOT NULL,
+        CommercialPoliciesAccepted bit NOT NULL,
+        AcceptedAtUtc datetime2 NOT NULL CONSTRAINT DF_CustomerLegalAcceptances_Accepted DEFAULT SYSUTCDATETIME(),
+        IpAddress nvarchar(64) NULL,
+        UserAgent nvarchar(1000) NULL
+    );
+END;
+", cancellationToken);
+
+        // Production schema reconciliation for legal history. Existing databases may have been
+        // created by an earlier release, so never assume a pre-existing legal table has every
+        // current column. Add missing columns first, then reconcile indexes/data, then backfill.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.OutletLegalPolicyVersions','U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','Version') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD Version nvarchar(40) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Version_Compat DEFAULT '1.0' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','CustomerTermsAndConditions') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD CustomerTermsAndConditions nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Terms_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','CustomerPrivacyPolicy') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD CustomerPrivacyPolicy nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Privacy_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','CancellationRefundPolicy') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD CancellationRefundPolicy nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Cancellation_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','MealSkipReschedulePolicy') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD MealSkipReschedulePolicy nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Skip_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','DeliveryPolicy') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD DeliveryPolicy nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Delivery_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','AllergenDietaryDisclaimer') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD AllergenDietaryDisclaimer nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Allergen_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','PaymentPricingPromotionalTerms') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD PaymentPricingPromotionalTerms nvarchar(max) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Payment_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','ContentHash') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD ContentHash nvarchar(64) NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Hash_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','EffectiveDateUtc') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD EffectiveDateUtc datetime2 NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Effective_Compat DEFAULT SYSUTCDATETIME() WITH VALUES;
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','CreatedAtUtc') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD CreatedAtUtc datetime2 NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Created_Compat DEFAULT SYSUTCDATETIME() WITH VALUES;
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','PublishedAtUtc') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD PublishedAtUtc datetime2 NULL;
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','CreatedByUserId') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD CreatedByUserId uniqueidentifier NULL;
+    IF COL_LENGTH('dbo.OutletLegalPolicyVersions','IsPublished') IS NULL
+        ALTER TABLE dbo.OutletLegalPolicyVersions ADD IsPublished bit NOT NULL CONSTRAINT DF_OutletLegalPolicyVersions_Published_Compat DEFAULT 0 WITH VALUES;
+END;
+
+IF OBJECT_ID('dbo.CustomerLegalAcceptances','U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('dbo.CustomerLegalAcceptances','TermsAccepted') IS NULL
+        ALTER TABLE dbo.CustomerLegalAcceptances ADD TermsAccepted bit NOT NULL CONSTRAINT DF_CustomerLegalAcceptances_Terms_Compat DEFAULT 0 WITH VALUES;
+    IF COL_LENGTH('dbo.CustomerLegalAcceptances','PrivacyAccepted') IS NULL
+        ALTER TABLE dbo.CustomerLegalAcceptances ADD PrivacyAccepted bit NOT NULL CONSTRAINT DF_CustomerLegalAcceptances_Privacy_Compat DEFAULT 0 WITH VALUES;
+    IF COL_LENGTH('dbo.CustomerLegalAcceptances','CommercialPoliciesAccepted') IS NULL
+        ALTER TABLE dbo.CustomerLegalAcceptances ADD CommercialPoliciesAccepted bit NOT NULL CONSTRAINT DF_CustomerLegalAcceptances_Commercial_Compat DEFAULT 0 WITH VALUES;
+    IF COL_LENGTH('dbo.CustomerLegalAcceptances','AcceptedAtUtc') IS NULL
+        ALTER TABLE dbo.CustomerLegalAcceptances ADD AcceptedAtUtc datetime2 NOT NULL CONSTRAINT DF_CustomerLegalAcceptances_Accepted_Compat DEFAULT SYSUTCDATETIME() WITH VALUES;
+    IF COL_LENGTH('dbo.CustomerLegalAcceptances','IpAddress') IS NULL
+        ALTER TABLE dbo.CustomerLegalAcceptances ADD IpAddress nvarchar(64) NULL;
+    IF COL_LENGTH('dbo.CustomerLegalAcceptances','UserAgent') IS NULL
+        ALTER TABLE dbo.CustomerLegalAcceptances ADD UserAgent nvarchar(1000) NULL;
+END
+", cancellationToken);
+
+        // Reconcile legal-history uniqueness before any legacy insert. Older partial deployments
+        // may have created one or more of these indexes already, so make the operation rerunnable.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_OutletLegalPolicyVersions_Current' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
+    DROP INDEX UX_OutletLegalPolicyVersions_Current ON dbo.OutletLegalPolicyVersions;
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_OutletLegalPolicyVersions_Outlet_Version' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
+    DROP INDEX UX_OutletLegalPolicyVersions_Outlet_Version ON dbo.OutletLegalPolicyVersions;
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletLegalPolicyVersions_Outlet_Published' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
+    DROP INDEX IX_OutletLegalPolicyVersions_Outlet_Published ON dbo.OutletLegalPolicyVersions;
+
+IF EXISTS (SELECT 1 FROM dbo.OutletLegalPolicyVersions)
+BEGIN
+    WITH ranked AS
+    (
+        SELECT Id,
+               ROW_NUMBER() OVER
+               (
+                   PARTITION BY OutletId
+                   ORDER BY ISNULL(PublishedAtUtc, CreatedAtUtc) DESC, CreatedAtUtc DESC, Id DESC
+               ) AS rn
+        FROM dbo.OutletLegalPolicyVersions
+        WHERE IsPublished = 1
+    )
+    UPDATE v
+    SET IsPublished = 0
+    FROM dbo.OutletLegalPolicyVersions v
+    INNER JOIN ranked r ON r.Id=v.Id
+    WHERE r.rn > 1;
+
+    WITH duplicates AS
+    (
+        SELECT Id, OutletId, Version,
+               ROW_NUMBER() OVER
+               (
+                   PARTITION BY OutletId, Version
+                   ORDER BY ISNULL(PublishedAtUtc, CreatedAtUtc) DESC, CreatedAtUtc DESC, Id DESC
+               ) AS rn
+        FROM dbo.OutletLegalPolicyVersions
+    )
+    UPDATE v
+    SET Version = N'legacy-' + REPLACE(CONVERT(varchar(36), v.Id),'-','')
+    FROM dbo.OutletLegalPolicyVersions v
+    INNER JOIN duplicates d ON d.Id=v.Id
+    WHERE d.rn > 1;
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_OutletLegalPolicyVersions_Outlet_Version' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
+    CREATE UNIQUE INDEX UX_OutletLegalPolicyVersions_Outlet_Version ON dbo.OutletLegalPolicyVersions(OutletId, Version);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_CustomerLegalAcceptances_Customer_Outlet_Version' AND object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
+    CREATE UNIQUE INDEX UX_CustomerLegalAcceptances_Customer_Outlet_Version ON dbo.CustomerLegalAcceptances(CustomerId, OutletId, LegalPolicyVersionId);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_CustomerLegalAcceptances_Customer_Outlet_Date' AND object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
+    CREATE INDEX IX_CustomerLegalAcceptances_Customer_Outlet_Date ON dbo.CustomerLegalAcceptances(CustomerId, OutletId, AcceptedAtUtc);
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_OutletLegalPolicyVersions_Outlets' AND parent_object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
+    ALTER TABLE dbo.OutletLegalPolicyVersions ADD CONSTRAINT FK_OutletLegalPolicyVersions_Outlets FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_CustomerLegalAcceptances_Users' AND parent_object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
+    ALTER TABLE dbo.CustomerLegalAcceptances ADD CONSTRAINT FK_CustomerLegalAcceptances_Users FOREIGN KEY(CustomerId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_CustomerLegalAcceptances_Outlets' AND parent_object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
+    ALTER TABLE dbo.CustomerLegalAcceptances ADD CONSTRAINT FK_CustomerLegalAcceptances_Outlets FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_CustomerLegalAcceptances_Versions' AND parent_object_id=OBJECT_ID('dbo.CustomerLegalAcceptances'))
+    ALTER TABLE dbo.CustomerLegalAcceptances ADD CONSTRAINT FK_CustomerLegalAcceptances_Versions FOREIGN KEY(LegalPolicyVersionId) REFERENCES dbo.OutletLegalPolicyVersions(Id) ON DELETE NO ACTION;
+", cancellationToken);
+
+        // Backward compatibility: if an older release marked outlet policies as published
+        // in the mutable Outlet fields, snapshot the complete policy set into immutable version 1.x
+        // before production versioned publishing is enforced.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.OutletLegalPolicyVersions','U') IS NOT NULL
+BEGIN
+    INSERT INTO dbo.OutletLegalPolicyVersions
+    (
+        Id, OutletId, Version, CustomerTermsAndConditions, CustomerPrivacyPolicy,
+        CancellationRefundPolicy, MealSkipReschedulePolicy, DeliveryPolicy,
+        AllergenDietaryDisclaimer, PaymentPricingPromotionalTerms, ContentHash,
+        EffectiveDateUtc, CreatedAtUtc, PublishedAtUtc, CreatedByUserId, IsPublished
+    )
+    SELECT
+        NEWID(),
+        o.Id,
+        CASE
+            WHEN LEN(LTRIM(RTRIM(COALESCE(o.LegalVersion,'')))) BETWEEN 1 AND 40
+                THEN LTRIM(RTRIM(o.LegalVersion))
+            WHEN LEN(LTRIM(RTRIM(COALESCE(o.LegalVersion,'')))) = 0
+                THEN N'1.0'
+            ELSE N'legacy-' + REPLACE(CONVERT(varchar(36), o.Id),'-','')
+        END,
+        o.CustomerTermsAndConditions,
+        o.CustomerPrivacyPolicy,
+        o.CancellationRefundPolicy,
+        o.MealSkipReschedulePolicy,
+        o.DeliveryPolicy,
+        o.AllergenDietaryDisclaimer,
+        o.PaymentPricingPromotionalTerms,
+        CONVERT(varchar(64), HASHBYTES(
+            'SHA2_256',
+            CONVERT(nvarchar(max),
+                CONCAT(
+                    o.CustomerTermsAndConditions, NCHAR(10), N'---', NCHAR(10),
+                    o.CustomerPrivacyPolicy, NCHAR(10), N'---', NCHAR(10),
+                    o.CancellationRefundPolicy, NCHAR(10), N'---', NCHAR(10),
+                    o.MealSkipReschedulePolicy, NCHAR(10), N'---', NCHAR(10),
+                    o.DeliveryPolicy, NCHAR(10), N'---', NCHAR(10),
+                    o.AllergenDietaryDisclaimer, NCHAR(10), N'---', NCHAR(10),
+                    o.PaymentPricingPromotionalTerms
+                )
+            )
+        ), 2),
+        COALESCE(o.LegalEffectiveDateUtc,SYSUTCDATETIME()),
+        SYSUTCDATETIME(),
+        COALESCE(o.LegalEffectiveDateUtc,SYSUTCDATETIME()),
+        NULL,
+        1
+    FROM dbo.Outlets o
+    CROSS APPLY
+    (
+        SELECT CASE
+            WHEN LEN(LTRIM(RTRIM(COALESCE(o.LegalVersion,'')))) BETWEEN 1 AND 40
+                THEN LTRIM(RTRIM(o.LegalVersion))
+            WHEN LEN(LTRIM(RTRIM(COALESCE(o.LegalVersion,'')))) = 0
+                THEN N'1.0'
+            ELSE N'legacy-' + REPLACE(CONVERT(varchar(36), o.Id),'-','')
+        END AS TargetVersion
+    ) targetVersion
+    WHERE o.LegalPoliciesPublished = 1
+      AND NULLIF(o.CustomerTermsAndConditions,'') IS NOT NULL
+      AND NULLIF(o.CustomerPrivacyPolicy,'') IS NOT NULL
+      AND NULLIF(o.CancellationRefundPolicy,'') IS NOT NULL
+      AND NULLIF(o.MealSkipReschedulePolicy,'') IS NOT NULL
+      AND NULLIF(o.DeliveryPolicy,'') IS NOT NULL
+      AND NULLIF(o.AllergenDietaryDisclaimer,'') IS NOT NULL
+      AND NULLIF(o.PaymentPricingPromotionalTerms,'') IS NOT NULL
+      AND NOT EXISTS
+      (
+          SELECT 1 FROM dbo.OutletLegalPolicyVersions v
+          WHERE v.OutletId = o.Id
+            AND v.Version = targetVersion.TargetVersion
+      )
+      AND NOT EXISTS
+      (
+          SELECT 1 FROM dbo.OutletLegalPolicyVersions v
+          WHERE v.OutletId = o.Id
+            AND v.IsPublished = 1
+      );
+
+    UPDATE o
+    SET LegalPoliciesPublished = 0
+    FROM dbo.Outlets o
+    WHERE o.LegalPoliciesPublished = 1
+      AND NOT EXISTS
+      (
+          SELECT 1 FROM dbo.OutletLegalPolicyVersions v
+          WHERE v.OutletId = o.Id
+            AND v.IsPublished = 1
+      );
+END;
+", cancellationToken);
+
+        // Recreate the filtered unique current-version index only after legacy backfill and
+        // all duplicate cleanup have completed.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_OutletLegalPolicyVersions_Current' AND object_id=OBJECT_ID('dbo.OutletLegalPolicyVersions'))
+    CREATE UNIQUE INDEX UX_OutletLegalPolicyVersions_Current ON dbo.OutletLegalPolicyVersions(OutletId) WHERE IsPublished = 1;
+", cancellationToken);
+
+        // Existing databases may receive nullable columns first. Populate safe defaults
+        // before EF reads them as required string properties.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Outlets','CustomerTermsAndConditions') IS NOT NULL UPDATE dbo.Outlets SET CustomerTermsAndConditions=ISNULL(CustomerTermsAndConditions,'');
+IF COL_LENGTH('dbo.Outlets','CustomerPrivacyPolicy') IS NOT NULL UPDATE dbo.Outlets SET CustomerPrivacyPolicy=ISNULL(CustomerPrivacyPolicy,'');
+IF COL_LENGTH('dbo.Outlets','CancellationRefundPolicy') IS NOT NULL UPDATE dbo.Outlets SET CancellationRefundPolicy=ISNULL(CancellationRefundPolicy,'');
+IF COL_LENGTH('dbo.Outlets','MealSkipReschedulePolicy') IS NOT NULL UPDATE dbo.Outlets SET MealSkipReschedulePolicy=ISNULL(MealSkipReschedulePolicy,'');
+IF COL_LENGTH('dbo.Outlets','DeliveryPolicy') IS NOT NULL UPDATE dbo.Outlets SET DeliveryPolicy=ISNULL(DeliveryPolicy,'');
+IF COL_LENGTH('dbo.Outlets','AllergenDietaryDisclaimer') IS NOT NULL UPDATE dbo.Outlets SET AllergenDietaryDisclaimer=ISNULL(AllergenDietaryDisclaimer,'');
+IF COL_LENGTH('dbo.Outlets','PaymentPricingPromotionalTerms') IS NOT NULL UPDATE dbo.Outlets SET PaymentPricingPromotionalTerms=ISNULL(PaymentPricingPromotionalTerms,'');
+IF COL_LENGTH('dbo.Outlets','LegalVersion') IS NOT NULL UPDATE dbo.Outlets SET LegalVersion=ISNULL(NULLIF(LegalVersion,''),'1.0');
+", cancellationToken);
+
+        // Run updates only after the ALTER TABLE batch has completed.
+        await db.Database.ExecuteSqlRawAsync(@"
 IF EXISTS (SELECT 1 FROM dbo.Outlets WHERE Slug='fitfood')
-    UPDATE dbo.Outlets SET Status=3, DeliveryDays=CASE WHEN ISNULL(DeliveryDays,'')='' THEN 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday' ELSE DeliveryDays END WHERE Slug='fitfood';
+    UPDATE dbo.Outlets
+    SET Status=3,
+        DeliveryDays=CASE
+            WHEN ISNULL(DeliveryDays,'')='' THEN 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday'
+            ELSE DeliveryDays
+        END
+    WHERE Slug='fitfood';
+
 IF EXISTS (SELECT 1 FROM dbo.Outlets WHERE Slug='abc')
-    UPDATE dbo.Outlets SET Status=3, DeliveryDays=CASE WHEN ISNULL(DeliveryDays,'')='' THEN 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday' ELSE DeliveryDays END WHERE Slug='abc';
+    UPDATE dbo.Outlets
+    SET Status=3,
+        DeliveryDays=CASE
+            WHEN ISNULL(DeliveryDays,'')='' THEN 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday'
+            ELSE DeliveryDays
+        END
+    WHERE Slug='abc';
 ", cancellationToken);
         await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.Users','IsDemo') IS NULL
@@ -58,14 +504,18 @@ BEGIN
         OwnerPhone nvarchar(40) NOT NULL CONSTRAINT DF_OutletOnboarding_OwnerPhone DEFAULT '',
         AadhaarNumber nvarchar(20) NOT NULL CONSTRAINT DF_OutletOnboarding_AadhaarNumber DEFAULT '',
         AadhaarCardUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_AadhaarCardUrl DEFAULT '',
+        AadhaarCardKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_AadhaarCardKey DEFAULT '',
         AadhaarCardFileName nvarchar(255) NOT NULL CONSTRAINT DF_OutletOnboarding_AadhaarCardFileName DEFAULT '',
         BusinessRegistrationUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessRegistrationUrl DEFAULT '',
+        BusinessRegistrationKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessRegistrationKey DEFAULT '',
         BusinessRegistrationFileName nvarchar(255) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessRegistrationFileName DEFAULT '',
         BusinessPan nvarchar(20) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessPan DEFAULT '',
         BusinessPanDocumentUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessPanDocumentUrl DEFAULT '',
+        BusinessPanDocumentKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessPanDocumentKey DEFAULT '',
         BusinessPanDocumentFileName nvarchar(255) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessPanDocumentFileName DEFAULT '',
         GstNumber nvarchar(30) NOT NULL CONSTRAINT DF_OutletOnboarding_GstNumber DEFAULT '',
         GstCertificateUrl nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_GstCertificateUrl DEFAULT '',
+        GstCertificateKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_GstCertificateKey DEFAULT '',
         GstCertificateFileName nvarchar(255) NOT NULL CONSTRAINT DF_OutletOnboarding_GstCertificateFileName DEFAULT '',
         VerificationNotes nvarchar(2000) NOT NULL CONSTRAINT DF_OutletOnboarding_VerificationNotes DEFAULT '',
         CreatedAtUtc datetime2 NOT NULL CONSTRAINT DF_OutletOnboarding_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
@@ -78,6 +528,14 @@ BEGIN
     CREATE INDEX IX_OutletOnboarding_Status ON dbo.OutletOnboardingApplications(Status);
     CREATE INDEX IX_OutletOnboarding_Email ON dbo.OutletOnboardingApplications(Email);
 END;
+IF COL_LENGTH('dbo.OutletOnboardingApplications','AadhaarCardKey') IS NULL
+    ALTER TABLE dbo.OutletOnboardingApplications ADD AadhaarCardKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_AadhaarCardKey_Compat DEFAULT '';
+IF COL_LENGTH('dbo.OutletOnboardingApplications','BusinessRegistrationKey') IS NULL
+    ALTER TABLE dbo.OutletOnboardingApplications ADD BusinessRegistrationKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessRegistrationKey_Compat DEFAULT '';
+IF COL_LENGTH('dbo.OutletOnboardingApplications','BusinessPanDocumentKey') IS NULL
+    ALTER TABLE dbo.OutletOnboardingApplications ADD BusinessPanDocumentKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessPanDocumentKey_Compat DEFAULT '';
+IF COL_LENGTH('dbo.OutletOnboardingApplications','GstCertificateKey') IS NULL
+    ALTER TABLE dbo.OutletOnboardingApplications ADD GstCertificateKey nvarchar(1000) NOT NULL CONSTRAINT DF_OutletOnboarding_GstCertificateKey_Compat DEFAULT '';
 IF OBJECT_ID('dbo.ServiceCities','U') IS NULL
 BEGIN
     CREATE TABLE dbo.ServiceCities(
@@ -265,6 +723,43 @@ IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRout
 IF COL_LENGTH('dbo.Subscriptions','DeliveryCity') IS NULL
     ALTER TABLE dbo.Subscriptions ADD DeliveryCity nvarchar(100) NULL;
 
+IF OBJECT_ID('dbo.OutletDomains', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OutletDomains
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_OutletDomains PRIMARY KEY,
+        OutletId uniqueidentifier NOT NULL,
+        Hostname nvarchar(253) NOT NULL,
+        VerificationToken nvarchar(128) NOT NULL CONSTRAINT DF_OutletDomains_VerificationToken DEFAULT '',
+        VerificationRecordName nvarchar(253) NOT NULL CONSTRAINT DF_OutletDomains_VerificationRecordName DEFAULT '',
+        Status int NOT NULL CONSTRAINT DF_OutletDomains_Status DEFAULT 0,
+        IsPrimary bit NOT NULL CONSTRAINT DF_OutletDomains_IsPrimary DEFAULT 0,
+        CreatedAtUtc datetime2 NOT NULL CONSTRAINT DF_OutletDomains_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
+        VerifiedAtUtc datetime2 NULL
+    );
+END;
+
+IF COL_LENGTH('dbo.OutletDomains','VerificationToken') IS NULL
+    ALTER TABLE dbo.OutletDomains ADD VerificationToken nvarchar(128) NOT NULL CONSTRAINT DF_OutletDomains_VerificationToken_Compat DEFAULT '';
+IF COL_LENGTH('dbo.OutletDomains','VerificationRecordName') IS NULL
+    ALTER TABLE dbo.OutletDomains ADD VerificationRecordName nvarchar(253) NOT NULL CONSTRAINT DF_OutletDomains_VerificationRecordName_Compat DEFAULT '';
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletDomains_Hostname' AND object_id=OBJECT_ID('dbo.OutletDomains'))
+    CREATE UNIQUE INDEX IX_OutletDomains_Hostname ON dbo.OutletDomains(Hostname);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletDomains_OutletId_Status' AND object_id=OBJECT_ID('dbo.OutletDomains'))
+    CREATE INDEX IX_OutletDomains_OutletId_Status ON dbo.OutletDomains(OutletId, Status);
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name='FK_OutletDomains_Outlets'
+      AND parent_object_id=OBJECT_ID('dbo.OutletDomains')
+)
+    ALTER TABLE dbo.OutletDomains
+        ADD CONSTRAINT FK_OutletDomains_Outlets
+        FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+
 IF COL_LENGTH('dbo.Outlets','HeroImageUrl') IS NULL
     ALTER TABLE dbo.Outlets ADD HeroImageUrl nvarchar(1000) NULL;
 IF COL_LENGTH('dbo.Outlets','HealthHighlights') IS NULL
@@ -369,6 +864,19 @@ END;
         // non-nullable C# strings. EF Core materializes those columns with GetString(), which
         // results in SqlNullValueException. Normalize legacy NULLs before any repository query runs.
         await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Users','OutletId') IS NOT NULL
+   AND EXISTS (SELECT 1 FROM dbo.Outlets WHERE Slug='fitfood')
+BEGIN
+    UPDATE u
+    SET OutletId = o.Id
+    FROM dbo.Users u
+    CROSS JOIN dbo.Outlets o
+    WHERE u.Email = 'customer@healthapp.test'
+      AND u.Role = 0
+      AND u.OutletId IS NULL
+      AND o.Slug = 'fitfood';
+END;
+
 IF COL_LENGTH('dbo.Users','Email') IS NOT NULL UPDATE dbo.Users SET Email = COALESCE(Email,'');
 IF COL_LENGTH('dbo.Users','PasswordHash') IS NOT NULL UPDATE dbo.Users SET PasswordHash = COALESCE(PasswordHash,'');
 IF COL_LENGTH('dbo.Users','FirstName') IS NOT NULL UPDATE dbo.Users SET FirstName = COALESCE(FirstName,'');
@@ -380,6 +888,7 @@ IF COL_LENGTH('dbo.Outlets','Subdomain') IS NOT NULL UPDATE dbo.Outlets SET Subd
 IF COL_LENGTH('dbo.Outlets','City') IS NOT NULL UPDATE dbo.Outlets SET City = COALESCE(City,'');
 IF COL_LENGTH('dbo.Outlets','State') IS NOT NULL UPDATE dbo.Outlets SET State = COALESCE(State,'');
 IF COL_LENGTH('dbo.Outlets','Pincode') IS NOT NULL UPDATE dbo.Outlets SET Pincode = COALESCE(Pincode,'');
+IF COL_LENGTH('dbo.Outlets','DeliveryDays') IS NOT NULL UPDATE dbo.Outlets SET DeliveryDays = COALESCE(DeliveryDays,'');
 IF COL_LENGTH('dbo.Outlets','LogoUrl') IS NOT NULL UPDATE dbo.Outlets SET LogoUrl = COALESCE(LogoUrl,'');
 IF COL_LENGTH('dbo.Outlets','HeroImageUrl') IS NOT NULL UPDATE dbo.Outlets SET HeroImageUrl = COALESCE(HeroImageUrl,'');
 IF COL_LENGTH('dbo.Outlets','HealthHighlights') IS NOT NULL UPDATE dbo.Outlets SET HealthHighlights = COALESCE(HealthHighlights,'');
@@ -414,10 +923,32 @@ IF COL_LENGTH('dbo.Subscriptions','Frequency') IS NOT NULL UPDATE dbo.Subscripti
 IF COL_LENGTH('dbo.Subscriptions','DiscountCode') IS NOT NULL UPDATE dbo.Subscriptions SET DiscountCode = COALESCE(DiscountCode,'');
 
 IF COL_LENGTH('dbo.Recipes','Name') IS NOT NULL UPDATE dbo.Recipes SET Name = COALESCE(Name,'');
+
+-- Customer package configuration for existing databases.
+IF COL_LENGTH('dbo.MealPlans','IsPreplanned') IS NULL
+    ALTER TABLE dbo.MealPlans ADD IsPreplanned bit NOT NULL CONSTRAINT DF_MealPlans_IsPreplanned DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.MealPlans','AvailableCity') IS NULL
+    ALTER TABLE dbo.MealPlans ADD AvailableCity nvarchar(100) NOT NULL CONSTRAINT DF_MealPlans_AvailableCity DEFAULT '' WITH VALUES;
+IF COL_LENGTH('dbo.MealPlans','DurationDays') IS NULL
+    ALTER TABLE dbo.MealPlans ADD DurationDays int NOT NULL CONSTRAINT DF_MealPlans_DurationDays DEFAULT 7 WITH VALUES;
+IF COL_LENGTH('dbo.OutletMenuItems','OptionGroup') IS NULL
+    ALTER TABLE dbo.OutletMenuItems ADD OptionGroup nvarchar(50) NOT NULL CONSTRAINT DF_OutletMenuItems_OptionGroup DEFAULT 'Main' WITH VALUES;
+IF COL_LENGTH('dbo.OutletMenuItems','IsRequired') IS NULL
+    ALTER TABLE dbo.OutletMenuItems ADD IsRequired bit NOT NULL CONSTRAINT DF_OutletMenuItems_IsRequired DEFAULT 1 WITH VALUES;
+IF COL_LENGTH('dbo.OutletMenuItems','MaxSelections') IS NULL
+    ALTER TABLE dbo.OutletMenuItems ADD MaxSelections int NOT NULL CONSTRAINT DF_OutletMenuItems_MaxSelections DEFAULT 1 WITH VALUES;
+IF COL_LENGTH('dbo.Subscriptions','IsPreplanned') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD IsPreplanned bit NOT NULL CONSTRAINT DF_Subscriptions_IsPreplanned DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Subscriptions','PricingMode') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PricingMode nvarchar(30) NOT NULL CONSTRAINT DF_Subscriptions_PricingMode DEFAULT 'Calculated' WITH VALUES;
+IF COL_LENGTH('dbo.Subscriptions','PriceVisibleToCustomer') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PriceVisibleToCustomer bit NOT NULL CONSTRAINT DF_Subscriptions_PriceVisibleToCustomer DEFAULT 1 WITH VALUES;
+IF COL_LENGTH('dbo.Subscriptions','DeliveryFeeVisibleToCustomer') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD DeliveryFeeVisibleToCustomer bit NOT NULL CONSTRAINT DF_Subscriptions_DeliveryFeeVisibleToCustomer DEFAULT 1 WITH VALUES;
 IF COL_LENGTH('dbo.Recipes','Description') IS NOT NULL UPDATE dbo.Recipes SET Description = COALESCE(Description,'');
 IF COL_LENGTH('dbo.Recipes','ImageUrl') IS NOT NULL UPDATE dbo.Recipes SET ImageUrl = COALESCE(ImageUrl,'');
 IF COL_LENGTH('dbo.Recipes','Tags') IS NOT NULL UPDATE dbo.Recipes SET Tags = COALESCE(Tags,'');
-IF COL_LENGTH('dbo.Recipes','Allergens') IS NOT NULL UPDATE dbo.Recipes SET Allergens = COALESCE(Allergens,'');
+-- Recipe allergens are normalized in RecipeAllergens; the legacy Recipes.Allergens column is optional and is not updated.
 
 IF COL_LENGTH('dbo.Ingredients','Name') IS NOT NULL UPDATE dbo.Ingredients SET Name = COALESCE(Name,'');
 IF COL_LENGTH('dbo.Ingredients','DefaultUnit') IS NOT NULL UPDATE dbo.Ingredients SET DefaultUnit = COALESCE(DefaultUnit,'g');
@@ -449,7 +980,47 @@ IF COL_LENGTH('dbo.PaymentTransactions','Status') IS NOT NULL UPDATE dbo.Payment
 IF COL_LENGTH('dbo.DiscountCodes','Code') IS NOT NULL UPDATE dbo.DiscountCodes SET Code = COALESCE(Code,'');
 ", cancellationToken);
 
+        // ServiceCities can pre-date the current non-nullable C# string model. Normalize
+        // legacy NULL text values before DatabaseSeeder queries ServiceCities.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.ServiceCities','City') IS NOT NULL
+    UPDATE dbo.ServiceCities SET City = COALESCE(City,'');
+IF COL_LENGTH('dbo.ServiceCities','State') IS NOT NULL
+    UPDATE dbo.ServiceCities SET State = COALESCE(State,'');
+IF COL_LENGTH('dbo.ServiceCities','Country') IS NOT NULL
+    UPDATE dbo.ServiceCities SET Country = COALESCE(Country,'India');
+", cancellationToken);
+
+        // CityAreas are also queried by the seeder using non-nullable C# strings. Legacy
+        // databases can contain NULLs here, which EF materializes with GetString() and fails.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.CityAreas','City') IS NOT NULL
+    UPDATE dbo.CityAreas SET City = COALESCE(City,'');
+IF COL_LENGTH('dbo.CityAreas','State') IS NOT NULL
+    UPDATE dbo.CityAreas SET State = COALESCE(State,'');
+IF COL_LENGTH('dbo.CityAreas','Name') IS NOT NULL
+    UPDATE dbo.CityAreas SET Name = COALESCE(Name,'');
+IF COL_LENGTH('dbo.CityAreas','Pincode') IS NOT NULL
+    UPDATE dbo.CityAreas SET Pincode = COALESCE(Pincode,'');
+", cancellationToken);
+
         // Keep the old text columns harmless for older databases; normalized values are now authoritative.
         await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(), cancellationToken);
+
+        await db.Database.ExecuteSqlRawAsync(@"
+INSERT INTO dbo.OutletBrandings
+(
+    Id, OutletId, BrandName, Tagline, LogoUrl, HeroImageUrl, FaviconUrl,
+    PrimaryColor, SecondaryColor, HealthHighlights, About, FooterText, UpdatedAtUtc
+)
+SELECT
+    NEWID(), o.Id, o.Name, '', COALESCE(o.LogoUrl,''), COALESCE(o.HeroImageUrl,''), '',
+    COALESCE(NULLIF(o.PrimaryColor,''),'#14532d'), '#166534',
+    COALESCE(o.HealthHighlights,''), COALESCE(o.About,''), '', SYSUTCDATETIME()
+FROM dbo.Outlets o
+WHERE NOT EXISTS (SELECT 1 FROM dbo.OutletBrandings b WHERE b.OutletId=o.Id);
+", cancellationToken);
+
+
     }
 }

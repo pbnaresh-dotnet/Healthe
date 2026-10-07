@@ -3,7 +3,7 @@ using HealthApp.Shared.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace HealthApp.Api.Controllers;
-[ApiController,Route("api/outlets/me/discount-codes"),Authorize(Roles="OutletAdmin")]
+[ApiController,Route("api/outlets/me/discount-codes"),Authorize(Roles="OutletAdmin,OutletManager")]
 
 public sealed class OutletDiscountCodeController(IOutletDiscountCodeService service):ControllerBase
 {

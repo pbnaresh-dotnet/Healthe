@@ -1,9 +1,11 @@
 using System.Text;
 using HealthApp.Api.Middleware;
+using HealthApp.Application.Abstractions;
 using HealthApp.Infrastructure;
 using HealthApp.Infrastructure.Authentication;
 using HealthApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
@@ -35,13 +37,78 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
     { ValidateIssuer=true, ValidIssuer=jwt.Issuer, ValidateAudience=true, ValidAudience=jwt.Audience, ValidateIssuerSigningKey=true, IssuerSigningKey=key, ValidateLifetime=true, ClockSkew=TimeSpan.FromSeconds(30) };
 });
 builder.Services.AddAuthorization();
-builder.Services.AddCors(options => options.AddPolicy("WebApps", policy => policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("auth", limiter =>
+    {
+        limiter.PermitLimit = 10;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+    });
+});
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+var tenantDomainSettings = builder.Configuration.GetSection("TenantDomains").Get<TenantDomainSettings>() ?? new TenantDomainSettings();
+var platformBaseDomain = tenantDomainSettings.PlatformBaseDomain.Trim().TrimEnd('.').ToLowerInvariant();
+
+builder.Services.AddCors(options => options.AddPolicy("WebApps", policy =>
+{
+    // Local development can use different Vite ports/hostnames. Keep CORS
+    // intentionally permissive only in Development. Production continues to use
+    // the explicit tenant-domain allow-list below.
+    if (builder.Environment.IsDevelopment())
+    {
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        return;
+    }
+
+    policy
+        .SetIsOriginAllowed(origin =>
+        {
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri) ||
+                !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (allowedOrigins.Any(x => string.Equals(x, origin, StringComparison.OrdinalIgnoreCase)))
+                return true;
+
+            var originHost = uri.Host.TrimEnd('.').ToLowerInvariant();
+            return !string.IsNullOrWhiteSpace(platformBaseDomain) &&
+                   originHost.EndsWith("." + platformBaseDomain);
+        })
+        .AllowAnyHeader()
+        .AllowAnyMethod();
+}));
 
 var app = builder.Build();
 await DatabaseInitializer.InitializeAsync(app.Services);
-app.UseMiddleware<ExceptionMiddleware>();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "geolocation=(self), camera=(), microphone=()";
+    await next();
+});
 app.UseStaticFiles();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
-app.UseCors("WebApps"); app.UseAuthentication(); app.UseMiddleware<OutletActivationMiddleware>(); app.UseAuthorization(); app.MapControllers();
+app.UseRouting();
+
+// CORS must wrap exception handling so 4xx/5xx API responses still include
+// Access-Control-Allow-Origin. Otherwise browser clients can report a real
+// server error as a misleading CORS error.
+app.UseCors("WebApps");
+app.UseMiddleware<ExceptionMiddleware>();
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseMiddleware<TenantContextMiddleware>();
+app.UseMiddleware<OutletActivationMiddleware>();
+app.UseAuthorization();
+app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status="ok", service="HealthApp.Api", framework=".NET 10", database="SQL Server / EF Core 10.0.12", time=DateTime.UtcNow }));
 app.Run();

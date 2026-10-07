@@ -73,7 +73,7 @@ public static class DatabaseSeeder
         });
         db.Users.AddRange(
         new User {
-            Id=customerId, Email="customer@healthapp.test", PasswordHash=passwords.Hash("demo"), FirstName="Demo", LastName="Customer", Role=UserRole.Customer
+            Id=customerId, Email="customer@healthapp.test", PasswordHash=passwords.Hash("demo"), FirstName="Demo", LastName="Customer", Role=UserRole.Customer, OutletId=fitId
         },
         new User {
             Id=fitAdminId, Email="admin@fitfood.test", PasswordHash=passwords.Hash("demo"), FirstName="FitFood", LastName="Admin", Role=UserRole.OutletAdmin, OutletId=fitId
@@ -352,15 +352,15 @@ public static class DatabaseSeeder
         db.CustomerAddresses.Add(new CustomerAddress {
             Id=Guid.NewGuid(),CustomerId=customerId,CityAreaId=areas.First(x=>x.Name=="Indiranagar").Id,City="Bengaluru",State="Karnataka",Pincode="560038",Locality="Indiranagar",Label="Home",AddressLine1="100 12th Main Road",AddressLine2="Indiranagar",ContactName="Demo Customer",ContactPhone="9999999999",Latitude=12.9784,Longitude=77.6408,IsDefault=true
         });
-        var demoCustomer=await db.Users.FirstAsync(x=>x.Email=="customer@healthapp.test",ct);
+        var demoCustomerId = customerId;
         foreach(var name in new[] {
             "Milk","Shellfish"
         })
         {
             var a=alg[name];
-            if(!await db.CustomerAllergies.AnyAsync(x=>x.CustomerId==demoCustomer.Id&&x.AllergenId==a.Id,ct))
+            if(!await db.CustomerAllergies.AnyAsync(x=>x.CustomerId==demoCustomerId&&x.AllergenId==a.Id,ct))
             db.CustomerAllergies.Add(new CustomerAllergy {
-                Id=Guid.NewGuid(),CustomerId=demoCustomer.Id,AllergenId=a.Id
+                Id=Guid.NewGuid(),CustomerId=demoCustomerId,AllergenId=a.Id
             });
         }
         await db.SaveChangesAsync(ct);
@@ -1080,7 +1080,7 @@ public static class DatabaseSeeder
             ("Chili Sauce","g")
         };
         var ingredients=await db.Ingredients.ToListAsync(ct);
-        foreach(var item in ingredientNames)
+        foreach(var item in ingredientNames.GroupBy(x=>x.Item1,StringComparer.OrdinalIgnoreCase).Select(g=>g.First()))
         if(!ingredients.Any(x=>x.Name.Equals(item.Item1,StringComparison.OrdinalIgnoreCase)))
         db.Ingredients.Add(new Ingredient {
             Id=Guid.NewGuid(),Name=item.Item1,DefaultUnit=item.Item2

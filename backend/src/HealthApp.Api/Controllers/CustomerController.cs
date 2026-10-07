@@ -10,12 +10,19 @@ public sealed class CustomerController(ICustomerService service, IOutletPackageS
 {
     [HttpGet("profile")] public async Task<IActionResult> Profile() => Ok(await service.GetProfileAsync());
     [HttpPost("packages/{subscriptionId:guid}/accept")]
-    public async Task<IActionResult> AcceptOutletPackage(Guid subscriptionId)
-        => Ok(await outletPackages.AcceptAsync(subscriptionId));
+    public async Task<IActionResult> AcceptOutletPackage(Guid subscriptionId, AcceptOutletPackageRequest request)
+        => Ok(await outletPackages.AcceptAsync(subscriptionId, request,
+            new LegalAcceptanceContext(HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString())));
+    [HttpPatch("marketing-preference")] public async Task<IActionResult> MarketingPreference(UpdateMarketingPreferenceRequest request) => Ok(await service.UpdateMarketingPreferenceAsync(request));
+    [HttpGet("legal-status")] public async Task<IActionResult> LegalStatus() => Ok(await service.GetLegalStatusAsync());
+    [HttpPost("legal-acceptance")] public async Task<IActionResult> AcceptLegal(AcceptCustomerLegalRequest request)
+        => Ok(await service.AcceptLegalAsync(request,
+            new LegalAcceptanceContext(HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString())));
     [HttpGet("dashboard")] public async Task<IActionResult> Dashboard() => Ok(await service.GetDashboardAsync());
     [HttpGet("subscriptions")] public async Task<IActionResult> Subscriptions() => Ok(await service.GetSubscriptionsAsync());
     [HttpPost("subscriptions/quote")] public async Task<IActionResult> Quote(SubscriptionQuoteRequest request) => Ok(await service.QuoteAsync(request));
-    [HttpPost("subscriptions")] public async Task<IActionResult> Subscribe(CreateSubscriptionRequest request) => Ok(await service.SubscribeAsync(request));
+    [HttpPost("subscriptions")] public async Task<IActionResult> Subscribe(CreateSubscriptionRequest request)
+    => Ok(await service.SubscribeAsync(request, new LegalAcceptanceContext(HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString())));
     [HttpGet("subscriptions/{subscriptionId:guid}/recipes")] public async Task<IActionResult> SubscriptionRecipes(Guid subscriptionId, [FromQuery] string? category) => Ok(await service.GetSubscriptionRecipesAsync(subscriptionId, category));
     [HttpGet("subscriptions/{subscriptionId:guid}/menu")] public async Task<IActionResult> SubscriptionMenu(Guid subscriptionId) => Ok(await service.GetSubscriptionMenuAsync(subscriptionId));
     [HttpGet("subscriptions/{subscriptionId:guid}/meal-selections")] public async Task<IActionResult> MealSelections(Guid subscriptionId, [FromQuery] DateTime? weekStart) => Ok(await service.GetMealSelectionsAsync(subscriptionId, weekStart));

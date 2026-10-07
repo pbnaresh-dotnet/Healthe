@@ -33,7 +33,10 @@ public static class DependencyInjection
 
         services.Configure<JwtOptions>(config.GetSection("Jwt"));
         services.Configure<StorageOptions>(config.GetSection("Storage"));
+        services.Configure<MediaOptions>(config.GetSection("Media"));
         services.Configure<GeocodingOptions>(config.GetSection("Geocoding"));
+        services.Configure<TenantDomainSettings>(config.GetSection("TenantDomains"));
+        services.Configure<CloudflarePagesSettings>(config.GetSection("CloudflarePages"));
         services.Configure<SmtpEmailOptions>(config.GetSection("Email"));
 
         var storageProvider = (config["Storage:Provider"] ?? "Local").Trim().ToLowerInvariant();
@@ -67,11 +70,24 @@ public static class DependencyInjection
         {
             throw new InvalidOperationException($"Unsupported Geocoding:Provider '{geocodingProvider}'.");
         }
+        services.AddSingleton<IMediaService, ImageMediaService>();
         services.AddSingleton<IPasswordService, PasswordService>();
         services.AddSingleton<ITokenService, JwtTokenService>();
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IOutletRepository, OutletRepository>();
+        services.AddScoped<IOutletLegalPolicyRepository, OutletLegalPolicyRepository>();
+        services.AddScoped<IOutletBrandingRepository, OutletBrandingRepository>();
+        services.AddScoped<IOutletDomainRepository, OutletDomainRepository>();
+        services.AddHttpClient<ICloudflarePagesService, CloudflarePagesService>((sp, client) =>
+        {
+            var options = sp.GetRequiredService<IOptions<CloudflarePagesSettings>>().Value;
+            client.BaseAddress = new Uri("https://api.cloudflare.com/client/v4");
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiToken);
+        });
+        services.AddScoped<ITenantHostResolver, TenantHostResolver>();
         services.AddScoped<ISaaSPlanRepository, SaaSPlanRepository>();
         services.AddScoped<IOutletOnboardingRepository, OutletOnboardingRepository>();
         services.AddScoped<IEmailService, SmtpEmailService>();
@@ -115,6 +131,8 @@ public static class DependencyInjection
         services.AddScoped<IMultiDriverRoutePlanningService, OrToolsMultiDriverRoutePlanningService>();
 
         services.AddScoped<ICurrentUser, CurrentUser>();
+        services.AddScoped<TenantContext>();
+        services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
         services.AddScoped<IDomainEventHandler<MealSkippedEvent>, LateSkipFeeRevenueHandler>();
@@ -150,6 +168,7 @@ public static class DependencyInjection
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IDeliveryLabelService, DeliveryLabelService>();
         services.AddScoped<IDeliveryRouteService, DeliveryRouteService>();
+        services.AddScoped<IOutletStaffService, OutletStaffService>();
         services.AddScoped<IOutletDiscountCodeService, OutletDiscountCodeService>();
         return services;
     }

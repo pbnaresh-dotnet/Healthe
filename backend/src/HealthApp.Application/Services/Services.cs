@@ -7,40 +7,126 @@ using HealthApp.Domain.Enums;
 using HealthApp.Domain.Events;
 using HealthApp.Shared.DTOs;
 namespace HealthApp.Application.Services;
-public sealed class AuthService(IUserRepository users, ITokenService tokens, IPasswordService passwords) : IAuthService
+public sealed class AuthService(IUserRepository users, ITokenService tokens, IPasswordService passwords, IOutletRepository outlets, IOutletLegalPolicyRepository legalPolicies, IUnitOfWork unitOfWork) : IAuthService
 {
     public async Task<AuthResponse?> LoginAsync(LoginRequest r)
     {
-        var user = await users.FindByEmailAsync(r.Email);
+        Guid? outletId = null;
+        if (!string.IsNullOrWhiteSpace(r.OutletSlug))
+        {
+            var outlet = await outlets.GetBySlugAsync(r.OutletSlug.Trim().ToLowerInvariant());
+            if (outlet is null || outlet.Status != OutletStatus.Live)
+                return null;
+
+            outletId = outlet.Id;
+        }
+
+        User? user;
+        if (outletId.HasValue)
+        {
+            user = await users.FindByEmailAsync(r.Email, outletId.Value);
+        }
+        else
+        {
+            var tenantMatches = await users.FindTenantUsersByEmailAsync(r.Email);
+            if (tenantMatches.Count > 1)
+                throw new ArgumentException("This email is registered with multiple outlets. Select the outlet before signing in.");
+            user = tenantMatches.FirstOrDefault() ?? await users.FindByEmailAsync(r.Email);
+        }
+
         if (user is null || !user.IsActive || !passwords.Verify(r.Password, user.PasswordHash))
+            return null;
+        if (user.Role == UserRole.Customer && !user.OutletId.HasValue)
             return null;
         if (user.IsDemo && user.DemoExpiresAtUtc.HasValue && user.DemoExpiresAtUtc.Value <= DateTime.UtcNow)
             throw new UnauthorizedAccessException("Your 7-day demo has expired. Request a new demo account to continue exploring HealthApp.");
         return tokens.CreateToken(user);
     }
-    public async Task<AuthResponse> RegisterAsync(RegisterRequest r)
+    public async Task<AuthResponse> RegisterAsync(RegisterRequest r, LegalAcceptanceContext? acceptanceContext = null)
     {
-        if (string.IsNullOrWhiteSpace(r.Password) || r.Password.Length < 6) throw new ArgumentException("Password must be at least 6 characters.");
-        if (await users.FindByEmailAsync(r.Email) is not null) throw new InvalidOperationException("Email is already registered.");
+        if (string.IsNullOrWhiteSpace(r.Password) || r.Password.Length < 8) throw new ArgumentException("Password must be at least 8 characters.");
+        var mobileDigits = new string((r.MobileNumber ?? string.Empty).Where(char.IsDigit).ToArray());
+        if (mobileDigits.StartsWith("91") && mobileDigits.Length == 12) mobileDigits = mobileDigits[2..];
+        if (!System.Text.RegularExpressions.Regex.IsMatch(mobileDigits, "^[6-9]\\d{9}$"))
+            throw new ArgumentException("Enter a valid 10-digit Indian mobile number.");
+        var normalizedMobile = "+91" + mobileDigits;
         var role = Enum.TryParse<UserRole>(r.Role, true, out var parsed) ? parsed : UserRole.Customer;
-        if (role is UserRole.SuperAdmin or UserRole.Driver) throw new UnauthorizedAccessException("This role cannot be self-registered.");
+        if (role is UserRole.SuperAdmin or UserRole.Driver or UserRole.OutletManager or UserRole.KitchenStaff) throw new UnauthorizedAccessException("This role cannot be self-registered.");
         if (role == UserRole.OutletAdmin)
             throw new UnauthorizedAccessException("Outlet administrators must complete outlet onboarding and verification before an account is activated.");
+
         Guid? outletId = null;
+        if (role == UserRole.Customer)
+        {
+            if (string.IsNullOrWhiteSpace(r.OutletSlug))
+                throw new ArgumentException("OutletSlug is required for customer registration.");
+
+            var outlet = await outlets.GetBySlugAsync(r.OutletSlug.Trim().ToLowerInvariant());
+            if (outlet is null || outlet.Status != OutletStatus.Live)
+                throw new KeyNotFoundException("The selected outlet is not available for customer registration.");
+
+            outletId = outlet.Id;
+
+            var publishedLegal = await legalPolicies.GetPublishedAsync(outlet.Id);
+            if (publishedLegal is null)
+                throw new InvalidOperationException("This outlet is not ready for customer registration because its customer legal policies have not been published.");
+            if (!r.LegalAccepted || r.LegalPolicyVersionId != publishedLegal.Id)
+                throw new InvalidOperationException("Please review and accept the latest customer Terms & Privacy Policy before creating your account.");
+        }
+
+        if (outletId.HasValue)
+        {
+            if (await users.FindByEmailAsync(r.Email, outletId.Value) is not null)
+                throw new InvalidOperationException("Email is already registered for this outlet.");
+        }
+        else if (await users.FindByEmailAsync(r.Email) is not null)
+        {
+            throw new InvalidOperationException("Email is already registered.");
+        }
+
+        if (await users.FindByMobileAsync(normalizedMobile, outletId) is not null)
+            throw new InvalidOperationException("Mobile number is already registered for this outlet.");
+
         var user = new User {
             Id = Guid.NewGuid(),
             Email = r.Email.Trim().ToLowerInvariant(),
             FirstName = r.FirstName.Trim(),
             LastName = r.LastName.Trim(),
+            MobileNumber = normalizedMobile,
+            MarketingOptIn = role == UserRole.Customer && r.MarketingOptIn,
+            MarketingOptInAtUtc = role == UserRole.Customer && r.MarketingOptIn ? DateTime.UtcNow : null,
             Role = role,
             OutletId = outletId,
             PasswordHash = passwords.Hash(r.Password)
         };
-        await users.AddAsync(user);
+        await unitOfWork.ExecuteAsync(async () =>
+        {
+            await users.AddAsync(user);
+            if (role == UserRole.Customer && outletId is Guid customerOutletId)
+            {
+                var version = await legalPolicies.GetPublishedAsync(customerOutletId)
+                    ?? throw new InvalidOperationException("The outlet legal policy is no longer published. Please refresh and try again.");
+                if (r.LegalPolicyVersionId != version.Id)
+                    throw new InvalidOperationException("The customer legal policy changed while registering. Please review the latest version and try again.");
+                await legalPolicies.AddAcceptanceAsync(new CustomerLegalAcceptance
+                {
+                    Id = Guid.NewGuid(),
+                    CustomerId = user.Id,
+                    OutletId = customerOutletId,
+                    LegalPolicyVersionId = version.Id,
+                    TermsAccepted = true,
+                    PrivacyAccepted = true,
+                    CommercialPoliciesAccepted = true,
+                    AcceptedAtUtc = DateTime.UtcNow,
+                    IpAddress = acceptanceContext?.IpAddress,
+                    UserAgent = acceptanceContext?.UserAgent
+                });
+            }
+        });
         return tokens.CreateToken(user);
     }
 }
-public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepository plans, IRecipeRepository recipes, IOutletMenuRepository menu, ISaaSPlanRepository saasPlans, IServiceCityRepository serviceCities) : IMarketplaceService
+public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepository plans, IRecipeRepository recipes, IOutletMenuRepository menu, ISaaSPlanRepository saasPlans, IServiceCityRepository serviceCities, ITenantContext tenant, IOutletSubscriptionRepository outletSubscriptions, IOutletLegalPolicyRepository legalPolicyRepository) : IMarketplaceService
 {
     public async Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync() => (await saasPlans.GetActiveAsync()).Select(Map).ToList();
     public async Task<AvailabilityResponse> GetAvailabilityAsync(double latitude, double longitude, string? city = null)
@@ -56,9 +142,16 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
                 return new(false, $"{city.Trim()} is not currently supported by HealthApp.", []);
         }
 
-        var result = (await outlets.GetAllAsync())
+        var candidateOutlets = (await outlets.GetAllAsync())
             .Where(x => x.Status == OutletStatus.Live)
+            .Where(x => tenant.OutletId is not Guid tenantOutletId || x.Id == tenantOutletId)
             .Where(x => string.IsNullOrWhiteSpace(city) || x.City.Equals(city.Trim(), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var activeOutletIds = await outletSubscriptions.GetActiveOutletIdsAsync();
+
+        var result = candidateOutlets
+            .Where(x => activeOutletIds.Contains(x.Id))
             .Select(x => (outlet: x, distance: Distance(latitude, longitude, x.Latitude, x.Longitude)))
             .Where(x => x.distance <= x.outlet.ServiceRadiusKm)
             .Select(x => ToDto(x.outlet, x.distance))
@@ -74,7 +167,19 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
     }
     public async Task<IReadOnlyList<CityDto>> GetCitiesAsync()
     {
-        return (await serviceCities.GetEnabledAsync())
+        var cities = await serviceCities.GetEnabledAsync();
+        if (tenant.OutletId is Guid tenantOutletId)
+        {
+            var outlet = await outlets.GetByIdAsync(tenantOutletId);
+            if (outlet is null)
+                return [];
+
+            cities = cities
+                .Where(x => x.City.Equals(outlet.City, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        return cities
             .Select(x => new CityDto(x.City, x.State, 0))
             .OrderBy(x => x.City)
             .ToList();
@@ -82,37 +187,111 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
     public async Task<IReadOnlyList<OutletDto>> GetAllOutletsAsync(string? city = null)
     {
         var rows = (await outlets.GetAllAsync()).Where(x => x.Status == OutletStatus.Live);
+        if (tenant.OutletId is Guid tenantOutletId)
+            rows = rows.Where(x => x.Id == tenantOutletId);
         if (!string.IsNullOrWhiteSpace(city))
             rows = rows.Where(x => x.City.Equals(city.Trim(), StringComparison.OrdinalIgnoreCase));
-        return rows.Select(x => ToDto(x, 0)).ToList();
+
+        var activeOutletIds = await outletSubscriptions.GetActiveOutletIdsAsync();
+        return rows.Where(x => activeOutletIds.Contains(x.Id)).Select(x => ToDto(x, 0)).ToList();
     }
     public async Task<OutletDto?> GetOutletAsync(string slug) {
         var x = await outlets.GetBySlugAsync(slug);
-        return x is null || x.Status != OutletStatus.Live ? null : ToDto(x, 0);
+        if (x is null || x.Status != OutletStatus.Live)
+            return null;
+        if (tenant.OutletId is Guid tenantOutletId && x.Id != tenantOutletId)
+            return null;
+        if (await outletSubscriptions.GetByOutletAsync(x.Id) is null)
+            return null;
+        return ToDto(x, 0);
     }
-    public async Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(Guid outletId) {
+    public async Task<OutletLegalPoliciesDto?> GetOutletLegalAsync(string slug)
+    {
+        var x = await outlets.GetBySlugAsync(slug);
+        if (x is null || x.Status != OutletStatus.Live)
+            return null;
+        if (tenant.OutletId is Guid tenantOutletId && x.Id != tenantOutletId)
+            return null;
+        if (await outletSubscriptions.GetByOutletAsync(x.Id) is null)
+            return null;
+        if (!x.LegalPoliciesPublished || string.IsNullOrWhiteSpace(x.CustomerTermsAndConditions) || string.IsNullOrWhiteSpace(x.CustomerPrivacyPolicy))
+            return null;
+        var publishedLegal = await legalPolicyRepository.GetPublishedAsync(x.Id);
+        if (publishedLegal is null)
+            return null;
+        return new(
+            x.Id,
+            x.Name,
+            publishedLegal.CustomerTermsAndConditions,
+            publishedLegal.CustomerPrivacyPolicy,
+            publishedLegal.CancellationRefundPolicy,
+            publishedLegal.MealSkipReschedulePolicy,
+            publishedLegal.DeliveryPolicy,
+            publishedLegal.AllergenDietaryDisclaimer,
+            publishedLegal.PaymentPricingPromotionalTerms,
+            publishedLegal.Version,
+            publishedLegal.EffectiveDateUtc,
+            true,
+            publishedLegal.Id,
+            publishedLegal.Version,
+            publishedLegal.EffectiveDateUtc);
+    }
+
+    public async Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(Guid outletId, string? city = null) {
+        if (tenant.OutletId is Guid tenantOutletId && tenantOutletId != outletId)
+            return [];
+
         var outlet = await outlets.GetByIdAsync(outletId);
-        return outlet is null || outlet.Status != OutletStatus.Live ? [] : (await plans.GetByOutletAsync(outletId)).Where(x => x.IsActive).Select(Map).ToList();
+        if (outlet is null || outlet.Status != OutletStatus.Live || await outletSubscriptions.GetByOutletAsync(outletId) is null)
+            return [];
+        var requestedCity = string.IsNullOrWhiteSpace(city) ? outlet.City : city.Trim();
+        if (!requestedCity.Equals(outlet.City, StringComparison.OrdinalIgnoreCase)) return [];
+        return (await plans.GetByOutletAsync(outletId)).Where(x => x.IsActive)
+            .Where(x => !x.IsPreplanned || string.IsNullOrWhiteSpace(x.AvailableCity) || x.AvailableCity.Equals(requestedCity, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.IsPreplanned).ThenBy(x => x.Name).Select(Map).ToList();
     }
     public async Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(Guid outletId, string? category) {
+        if (tenant.OutletId is Guid tenantOutletId && tenantOutletId != outletId)
+            return [];
+
         var outlet = await outlets.GetByIdAsync(outletId);
-        return outlet is null || outlet.Status != OutletStatus.Live ? [] : (await recipes.GetByOutletAndCategoryAsync(outletId, category)).Where(x => x.IsActive).Select(Map).ToList();
+        return outlet is null || outlet.Status != OutletStatus.Live || await outletSubscriptions.GetByOutletAsync(outletId) is null
+            ? []
+            : (await recipes.GetByOutletAndCategoryAsync(outletId, category)).Where(x => x.IsActive).Select(Map).ToList();
     }
     public async Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(Guid outletId) {
+        if (tenant.OutletId is Guid tenantOutletId && tenantOutletId != outletId)
+            return [];
+
         var outlet = await outlets.GetByIdAsync(outletId);
-        return outlet is null || outlet.Status != OutletStatus.Live ? [] : await MapMenu(outletId, await menu.GetByOutletAsync(outletId));
+        return outlet is null || outlet.Status != OutletStatus.Live || await outletSubscriptions.GetByOutletAsync(outletId) is null
+            ? []
+            : await MapMenu(outletId, await menu.GetByOutletAsync(outletId));
     }
     private async Task<IReadOnlyList<MenuItemDto>> MapMenu(Guid outletId, IReadOnlyList<OutletMenuItem> items)
     {
         var rs = (await recipes.GetByOutletAsync(outletId)).ToDictionary(x => x.Id);
-        return items.Where(x => x.IsAvailable).Select(x => rs.TryGetValue(x.RecipeId, out var r) ? new MenuItemDto(x.Id, x.OutletId, x.RecipeId, r.Name, x.DayOfWeek, x.MealSlot.ToString(), (int)x.MealSlot, r.PricePerMeal, r.LargePricePerMeal, r.Calories, r.ProteinGrams, r.Category.ToString(), r.ImageUrl, x.IsAvailable, x.DisplayOrder, r.CarbsGrams, r.FatGrams, r.FiberGrams) : null).Where(x => x is not null).Cast<MenuItemDto>().ToList();
+        return items.Where(x => x.IsAvailable).Select(x => rs.TryGetValue(x.RecipeId, out var r) ? new MenuItemDto(x.Id, x.OutletId, x.RecipeId, r.Name, x.DayOfWeek, x.MealSlot.ToString(), (int)x.MealSlot, r.PricePerMeal, r.LargePricePerMeal, r.Calories, r.ProteinGrams, r.Category.ToString(), r.ImageUrl, x.IsAvailable, x.DisplayOrder, r.CarbsGrams, r.FatGrams, r.FiberGrams, x.OptionGroup, x.IsRequired, x.MaxSelections) : null).Where(x => x is not null).Cast<MenuItemDto>().ToList();
     }
     private static SaaSPlanDto Map(SaaSPlan x) => new(x.Id, x.Name, x.MonthlyFee, x.AnnualFee, x.IncludedActiveCustomers, x.AdditionalCustomerFee, x.CustomerTransactionFeePercent, x.Description, x.IsActive);
-    private static MealPlanDto Map(MealPlan x) => new(x.Id, x.OutletId, x.Name, x.Frequency, x.MealsPerDay, x.MealsPerWeek, x.Price, x.Currency, x.Description, x.IsActive);
+    private static MealPlanDto Map(MealPlan x) => new(x.Id, x.OutletId, x.Name, x.Frequency, x.MealsPerDay, x.MealsPerWeek, x.Price, x.Currency, x.Description, x.IsActive, x.IsPreplanned, x.AvailableCity, x.DurationDays);
     private static RecipeDto Map(Recipe x) => new(x.Id,x.OutletId,x.Name,x.Calories,x.ProteinGrams,x.CarbsGrams,x.FatGrams,x.Category.ToString(),x.PricePerMeal,x.LargePricePerMeal,x.Description,x.ImageUrl,x.Tags,x.IsActive,
     x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId,i.Ingredient.Name,i.Quantity,i.Unit,i.Ingredient.Allergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).OrderBy(a=>a.Name).ToList())).ToList(),
     x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams);
-    private static OutletDto ToDto(Outlet x, double distance) => new(x.Id, x.Name, x.Slug, x.Subdomain, x.City, x.State, x.Pincode, x.Status.ToString(), x.BillingPlan.ToString(), x.LogoUrl, x.HeroImageUrl, (x.HealthHighlights??string.Empty).Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToList(), x.PrimaryColor, x.Status == OutletStatus.Live, Math.Round(distance, 1), x.Rating, x.ReviewCount, x.About, x.Latitude, x.Longitude);
+    private static OutletDto ToDto(Outlet x, double distance)
+    {
+        var b = x.Branding;
+        var brandName = string.IsNullOrWhiteSpace(b?.BrandName) ? x.Name : b.BrandName;
+        var logo = string.IsNullOrWhiteSpace(b?.LogoUrl) ? x.LogoUrl : b.LogoUrl;
+        var hero = string.IsNullOrWhiteSpace(b?.HeroImageUrl) ? x.HeroImageUrl : b.HeroImageUrl;
+        var highlights = (string.IsNullOrWhiteSpace(b?.HealthHighlights) ? x.HealthHighlights : b!.HealthHighlights ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        var primary = string.IsNullOrWhiteSpace(b?.PrimaryColor) ? x.PrimaryColor : b.PrimaryColor;
+        var secondary = b?.SecondaryColor ?? string.Empty;
+        var about = string.IsNullOrWhiteSpace(b?.About) ? x.About : b.About;
+        return new(x.Id, brandName, x.Slug, x.Subdomain, x.City, x.State, x.Pincode, x.Status.ToString(), x.BillingPlan.ToString(), logo, hero, highlights, primary, x.Status == OutletStatus.Live, Math.Round(distance, 1), x.Rating, x.ReviewCount, about, x.Latitude, x.Longitude, b?.Tagline ?? string.Empty, secondary, b?.FaviconUrl ?? string.Empty, x.DeliveryCoverageMode.ToString(), x.ServiceRadiusKm, b?.FontFamily ?? "Inter", b?.ThemeStyle ?? "Fresh", b?.ButtonStyle ?? "Rounded", b?.CardStyle ?? "Soft", x.CustomPackagePricingMode, x.ShowPackagePriceToCustomer, x.ShowDeliveryFeeToCustomer);
+    }
     private static double Distance(double lat1,double lon1,double lat2,double lon2) {
         const double R=6371d;
         var p1=lat1*Math.PI/180d;
@@ -131,14 +310,79 @@ IPlatformServiceFeeStrategy platformFee, ITaxStrategy taxStrategy, IPackageDisco
 IDeliveryModeStrategyFactory deliveryModeFactory, IMealPriceStrategy mealPrice, ILateSkipFeePolicy lateSkipPolicy,
 IPlatformTransactionRepository transactions, IDomainEventDispatcher events, IUnitOfWork unitOfWork,
 ICustomerAddressRepository addresses, ISubscriptionDiscountTierRepository discountTiers, IMealSelectionHistoryRepository selectionHistory,
-IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments) : ICustomerService
+IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments, IOutletLegalPolicyRepository legalPolicies) : ICustomerService
 {
     public async Task<UserDto?> GetProfileAsync()
     {
         if (current.UserId is not Guid id) return null;
         var x = await users.FindByIdAsync(id);
-        return x is null ? null : new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId);
+        return x is null ? null : new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId, false, null, x.MobileNumber, x.MarketingOptIn, x.MarketingOptInAtUtc);
     }
+
+    public async Task<UserDto?> UpdateMarketingPreferenceAsync(UpdateMarketingPreferenceRequest request)
+    {
+        if (current.UserId is not Guid id) return null;
+        var x = await users.FindByIdAsync(id) ?? throw new KeyNotFoundException("Customer not found.");
+        if (x.Role != UserRole.Customer)
+            throw new UnauthorizedAccessException("Only customer accounts can change marketing preferences.");
+
+        x.MarketingOptIn = request.MarketingOptIn;
+        x.MarketingOptInAtUtc = request.MarketingOptIn ? DateTime.UtcNow : null;
+        await users.UpdateAsync(x);
+        return new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId, x.IsDemo, x.DemoExpiresAtUtc, x.MobileNumber, x.MarketingOptIn, x.MarketingOptInAtUtc);
+    }
+    public async Task<CustomerLegalStatusDto?> GetLegalStatusAsync()
+    {
+        if (current.UserId is not Guid customerId) return null;
+        var customer = await users.FindByIdAsync(customerId);
+        if (customer is null || customer.Role != UserRole.Customer || customer.OutletId is not Guid outletId)
+            return null;
+
+        var outlet = await outlets.GetByIdAsync(outletId);
+        var published = await legalPolicies.GetPublishedAsync(outletId);
+        if (outlet is null || published is null)
+            return null;
+
+        var accepted = await legalPolicies.HasAcceptedVersionAsync(customerId, outletId, published.Id);
+        return new CustomerLegalStatusDto(outletId, outlet.Name, published.Id, published.Version, published.EffectiveDateUtc, accepted);
+    }
+
+    public async Task<CustomerLegalStatusDto?> AcceptLegalAsync(AcceptCustomerLegalRequest request, LegalAcceptanceContext? acceptanceContext = null)
+    {
+        if (current.UserId is not Guid customerId) return null;
+        var customer = await users.FindByIdAsync(customerId);
+        if (customer is null || customer.Role != UserRole.Customer || customer.OutletId is not Guid outletId)
+            throw new UnauthorizedAccessException("Only customer accounts can accept customer legal policies.");
+
+        if (!request.TermsAccepted || !request.PrivacyAccepted || !request.CommercialPoliciesAccepted)
+            throw new ArgumentException("All required customer legal policies must be accepted.");
+
+        var published = await legalPolicies.GetPublishedAsync(outletId)
+            ?? throw new InvalidOperationException("The outlet has no published customer legal policy.");
+
+        if (request.LegalPolicyVersionId != published.Id)
+            throw new InvalidOperationException("The selected legal policy is no longer current. Please review the latest version.");
+
+        if (!await legalPolicies.HasAcceptedVersionAsync(customerId, outletId, published.Id))
+        {
+            await legalPolicies.AddAcceptanceAsync(new CustomerLegalAcceptance
+            {
+                Id = Guid.NewGuid(),
+                CustomerId = customerId,
+                OutletId = outletId,
+                LegalPolicyVersionId = published.Id,
+                TermsAccepted = true,
+                PrivacyAccepted = true,
+                CommercialPoliciesAccepted = true,
+                AcceptedAtUtc = DateTime.UtcNow,
+                IpAddress = acceptanceContext?.IpAddress,
+                UserAgent = acceptanceContext?.UserAgent
+            });
+        }
+
+        return new CustomerLegalStatusDto(outletId, $"{customer.FirstName} {customer.LastName}".Trim(), published.Id, published.Version, published.EffectiveDateUtc, true);
+    }
+
     public async Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync()
     {
         if (current.UserId is not Guid id) return [];
@@ -296,7 +540,17 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var duration = Parse<SubscriptionDuration>(r.Duration, "duration");
         var outlet = await outlets.GetByIdAsync(r.OutletId) ?? throw new KeyNotFoundException("Outlet not found.");
         if (outlet.Status != OutletStatus.Live) throw new InvalidOperationException("Outlet is not live yet.");
+        if (await outletSubscriptions.GetByOutletAsync(outlet.Id) is null)
+            throw new InvalidOperationException("This outlet does not have an active SaaS subscription.");
+        EnsureCustomerOutletAccess(outlet.Id);
+
+        var publishedLegal = await legalPolicies.GetPublishedAsync(outlet.Id);
+        if (publishedLegal is null)
+            throw new InvalidOperationException("This outlet is not ready for customer orders because its customer legal policies are not published.");
         var deliveryCity = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
+        var selectedPlan = await ResolvePreplannedPlanAsync(outlet.Id, r.MealPlanId, deliveryCity, duration);
+        var isPreplanned = selectedPlan is not null;
+        var pricingMode = isPreplanned ? "Fixed" : outlet.CustomPackagePricingMode;
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var menuItems = await menu.GetByOutletAsync(outlet.Id);
         var meals = BuildSelections(r.Selections, outlet.Id, menuItems, rs);
@@ -306,11 +560,10 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var selectedRecipes = meals.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
         var allergyWarnings = await allergySafety.GetWarningsAsync(customerId, selectedRecipes);
         await ValidateDeliveryAddressesAsync(customerId, deliveryCity, meals);
-        var tiers = await discountTiers.GetByOutletAsync(outlet.Id);
-        var packageDiscount = discountStrategy.Calculate(new(duration, meals), tiers);
-        var gross = Math.Round(meals.Sum(x => x.MealPrice), 2);
+        var gross = isPreplanned ? selectedPlan!.Price : Math.Round(meals.Sum(x => x.MealPrice), 2);
+        var packageDiscountAmount = isPreplanned ? 0m : discountStrategy.Calculate(new(duration, meals), await discountTiers.GetByOutletAsync(outlet.Id)).Amount;
         var codeAmount = await CalculateDiscountCodeAmountAsync(outlet.Id, gross, r.DiscountCode);
-        var totalDiscount = Math.Min(gross, packageDiscount.Amount + codeAmount);
+        var totalDiscount = Math.Min(gross, packageDiscountAmount + codeAmount);
         var discountedMealAmount = Math.Round(gross - totalDiscount, 2);
         var delivery = await CalculateDeliveryAsync(outlet.Id, deliveryMode, meals, customerId);
         var taxes = taxStrategy.Calculate(discountedMealAmount, 0m, outlet.RestaurantGstRate, outlet.RestaurantGstMode);
@@ -321,10 +574,11 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var commission = Math.Round(net * commissionRate, 2);
         var quotes = new List<DeliveryQuoteDto>();
         foreach (var addressId in meals.Select(x => x.AddressId!.Value).Distinct()) quotes.Add(await deliveryCalculator.QuoteAsync(outlet.Id, customerId, addressId));
-        var payable = net + taxes.RestaurantAmount + delivery + service + taxes.PlatformAmount;
-        return new(gross, gross == 0 ? 0 : Math.Round(totalDiscount / gross * 100m, 4), totalDiscount, net, taxes.RestaurantAmount, delivery, service, taxes.PlatformAmount, payable, commissionRate, commission, service + commission, quotes, allergyWarnings, allergyWarnings.Count>0 && !allergyWarnings.All(x=>(r.ConfirmedAllergyRecipeIds??[]).Contains(x.RecipeId)), taxes.RestaurantTaxableAmount, taxes.RestaurantRate, taxes.RestaurantMode.ToString());
+        var payable = Math.Round(net + taxes.RestaurantAmount + delivery + service + taxes.PlatformAmount, 2);
+        var requiresReview = !isPreplanned && pricingMode.Equals("ReviewRequired", StringComparison.OrdinalIgnoreCase);
+        return new(gross, gross == 0 ? 0 : Math.Round(totalDiscount / gross * 100m, 4), totalDiscount, net, taxes.RestaurantAmount, delivery, service, taxes.PlatformAmount, payable, commissionRate, commission, service + commission, quotes, allergyWarnings, allergyWarnings.Count > 0 && !allergyWarnings.All(x => (r.ConfirmedAllergyRecipeIds ?? []).Contains(x.RecipeId)), taxes.RestaurantTaxableAmount, taxes.RestaurantRate, taxes.RestaurantMode.ToString(), isPreplanned, pricingMode, outlet.ShowPackagePriceToCustomer, outlet.ShowDeliveryFeeToCustomer, requiresReview, selectedPlan?.Id);
     }
-    public async Task<SubscriptionDto?> SubscribeAsync(CreateSubscriptionRequest r)
+    public async Task<SubscriptionDto?> SubscribeAsync(CreateSubscriptionRequest r, LegalAcceptanceContext? acceptanceContext = null)
     {
         if (current.UserId is not Guid customerId) return null;
         var deliveryMode = Parse<SubscriptionDeliveryMode>(r.DeliveryMode, "delivery mode");
@@ -333,7 +587,18 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if (r.Selections is null || r.Selections.Count == 0) throw new ArgumentException("Add at least one meal to your package.");
         var outlet = await outlets.GetByIdAsync(r.OutletId) ?? throw new KeyNotFoundException("Outlet not found or unavailable.");
         if (outlet.Status != OutletStatus.Live) throw new KeyNotFoundException("Outlet not found or unavailable.");
+        if (await outletSubscriptions.GetByOutletAsync(outlet.Id) is null)
+            throw new KeyNotFoundException("Outlet not found or unavailable.");
+        EnsureCustomerOutletAccess(outlet.Id);
+        var publishedLegal = await legalPolicies.GetPublishedAsync(outlet.Id)
+            ?? throw new InvalidOperationException("This outlet is not ready for customer orders because its customer legal policies are not published.");
+        if (!r.LegalAccepted || r.LegalPolicyVersionId != publishedLegal.Id)
+            throw new InvalidOperationException("Please review and accept the latest outlet Terms & Privacy Policy before completing your package.");
+        var alreadyAccepted = await legalPolicies.HasAcceptedVersionAsync(customerId, outlet.Id, publishedLegal.Id);
         var deliveryCity = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
+        var selectedPlan = await ResolvePreplannedPlanAsync(outlet.Id, r.MealPlanId, deliveryCity, duration);
+        var isPreplanned = selectedPlan is not null;
+        var pricingMode = isPreplanned ? "Fixed" : outlet.CustomPackagePricingMode;
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var mealEntities = BuildSelections(r.Selections, outlet.Id, await menu.GetByOutletAsync(outlet.Id), rs);
         ValidateDeliveryMode(deliveryMode, mealEntities);
@@ -342,10 +607,10 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var selectedRecipes = mealEntities.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
         await allergySafety.EnsureConfirmedAsync(customerId, selectedRecipes, r.ConfirmedAllergyRecipeIds);
         await ValidateDeliveryAddressesAsync(customerId, deliveryCity, mealEntities);
-        var discount = discountStrategy.Calculate(new(duration, mealEntities), await discountTiers.GetByOutletAsync(outlet.Id));
-        var gross = Math.Round(mealEntities.Sum(x => x.MealPrice), 2);
+        var gross = isPreplanned ? selectedPlan!.Price : Math.Round(mealEntities.Sum(x => x.MealPrice), 2);
+        var packageDiscountAmount = isPreplanned ? 0m : discountStrategy.Calculate(new(duration, mealEntities), await discountTiers.GetByOutletAsync(outlet.Id)).Amount;
         var discountCodeResult = await CalculateDiscountCodeAsync(outlet.Id, gross, r.DiscountCode);
-        var totalDiscount = Math.Min(gross, discount.Amount + discountCodeResult.Amount);
+        var totalDiscount = Math.Min(gross, packageDiscountAmount + discountCodeResult.Amount);
         var discountedMealAmount = Math.Round(gross - totalDiscount, 2);
         var delivery = await CalculateDeliveryAsync(outlet.Id, deliveryMode, mealEntities, customerId);
         var taxes = taxStrategy.Calculate(discountedMealAmount, 0m, outlet.RestaurantGstRate, outlet.RestaurantGstMode);
@@ -364,16 +629,10 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             SubscriptionDuration.OneMonth => start.AddDays(27),
             _ => start
         };
-        var plan = (await mealPlans.GetByOutletAsync(outlet.Id)).FirstOrDefault(x => x.IsActive) ?? new MealPlan {
-            Id=Guid.NewGuid(),
-            OutletId=outlet.Id,
-            Name="Custom Meal Package",
-            Frequency=duration.ToString(),
-            MealsPerDay=0,
-            MealsPerWeek=mealEntities.Count,
-            Price=0,
-            Currency="INR",
-            Description="Custom package"
+        var plan = selectedPlan ?? (await mealPlans.GetByOutletAsync(outlet.Id)).FirstOrDefault(x => x.IsActive && !x.IsPreplanned) ?? new MealPlan {
+            Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Custom Meal Package", Frequency=duration.ToString(),
+            MealsPerDay=0, MealsPerWeek=mealEntities.Count, Price=0, Currency="INR", Description="Custom package",
+            IsPreplanned=false, DurationDays=DurationDays(duration)
         };
         if (plan.Price == 0 && plan.Name == "Custom Meal Package") await mealPlans.AddAsync(plan);
         var subscription = new Subscription
@@ -413,9 +672,14 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             DiscountCodeAmount=discountCodeResult.Amount,
             TotalMealCount=mealEntities.Count,
             Frequency=string.IsNullOrWhiteSpace(r.Frequency)?"Weekly":r.Frequency.Trim(),
-            MealsPerDay=0,
+            MealsPerDay=isPreplanned ? plan.MealsPerDay : 0,
             MealsPerWeek=mealEntities.Count,
-            Status=SubscriptionStatus.Active,
+            Status=SubscriptionStatus.Pending,
+            PackageStatus=(!isPreplanned && pricingMode.Equals("ReviewRequired", StringComparison.OrdinalIgnoreCase)) ? "PendingOutletReview" : "PaymentPending",
+            IsPreplanned=isPreplanned,
+            PricingMode=pricingMode,
+            PriceVisibleToCustomer=outlet.ShowPackagePriceToCustomer,
+            DeliveryFeeVisibleToCustomer=outlet.ShowDeliveryFeeToCustomer,
             NextDeliveryDate=start
         };
         foreach (var x in mealEntities) x.SubscriptionId = subscription.Id;
@@ -427,19 +691,38 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 Id=Guid.NewGuid(),CustomerId=customerId,OutletId=outlet.Id,SubscriptionId=subscription.Id,Total=subscription.TotalCharged,Status=OrderStatus.Pending,DeliveryDate=start,Address="Multiple scheduled delivery addresses"
             };
             await orders.AddAsync(order);
+            if (!alreadyAccepted)
+            {
+                await legalPolicies.AddAcceptanceAsync(new CustomerLegalAcceptance
+                {
+                    Id = Guid.NewGuid(),
+                    CustomerId = customerId,
+                    OutletId = outlet.Id,
+                    LegalPolicyVersionId = publishedLegal.Id,
+                    TermsAccepted = true,
+                    PrivacyAccepted = true,
+                    CommercialPoliciesAccepted = true,
+                    AcceptedAtUtc = DateTime.UtcNow,
+                    IpAddress = acceptanceContext?.IpAddress,
+                    UserAgent = acceptanceContext?.UserAgent
+                });
+            }
+
             await orderFinancials.AddAsync(new OrderFinancialBreakdown {
                 Id=Guid.NewGuid(),OrderId=order.Id,GrossMealAmount=gross,DiscountAmount=totalDiscount,NetMealAmount=net,DeliveryAmount=delivery,PlatformServiceFee=serviceFee,PlatformServiceGst=taxes.PlatformAmount,RestaurantGstRate=taxes.RestaurantRate,RestaurantGstMode=taxes.RestaurantMode,RestaurantTaxableAmount=taxes.RestaurantTaxableAmount,RestaurantGstAmount=taxes.RestaurantAmount,LateSkipFee=0,CustomerPayable=subscription.TotalCharged,OutletCommission=commission,OutletCommissionGst=0,OutletSettlementAmount=subscription.OutletAmount,HealthAppRevenue=serviceFee+commission
             });
-            var customer = await users.FindByIdAsync(customerId);
-            var groups = deliveryMode == SubscriptionDeliveryMode.OneDeliveryPerDay ? mealEntities.GroupBy(x=>x.MealDate.Date).Select(g=>(IEnumerable<SubscriptionMealSelection>)g) : mealEntities.Select(x=>(IEnumerable<SubscriptionMealSelection>)new[] {
-                x
-            });
-            foreach (var group in groups)
+            if (subscription.Status == SubscriptionStatus.Active)
             {
-                var first = group.First();  var address = await addresses.GetAsync(customerId, first.AddressId!.Value) ?? throw new InvalidOperationException("Delivery address could not be resolved.");
-                await deliveries.AddAsync(new Delivery {
-                    Id=Guid.NewGuid(),OrderId=order.Id,SubscriptionId=subscription.Id,OutletId=outlet.Id,CustomerId=customerId,DeliveryAddressId=address.Id,ScheduledDate=first.MealDate,MealSlot=deliveryMode==SubscriptionDeliveryMode.OneDeliveryPerDay?MealSlot.Afternoon:first.MealSlot,CustomerName=customer is null?"":$"{customer.FirstName} {customer.LastName}".Trim(),Address=$"{address.AddressLine1}, {address.AddressLine2}, {address.ContactPhone}".Trim(' ',','),DeliveryFee=first.DeliveryFee,Status=DeliveryStatus.Scheduled
-                });
+                var customer = await users.FindByIdAsync(customerId);
+                var groups = deliveryMode == SubscriptionDeliveryMode.OneDeliveryPerDay ? mealEntities.GroupBy(x=>x.MealDate.Date).Select(g=>(IEnumerable<SubscriptionMealSelection>)g) : mealEntities.Select(x=>(IEnumerable<SubscriptionMealSelection>)new[] { x });
+                foreach (var group in groups)
+                {
+                    var first = group.First();
+                    var address = await addresses.GetAsync(customerId, first.AddressId!.Value) ?? throw new InvalidOperationException("Delivery address could not be resolved.");
+                    await deliveries.AddAsync(new Delivery {
+                        Id=Guid.NewGuid(),OrderId=order.Id,SubscriptionId=subscription.Id,OutletId=outlet.Id,CustomerId=customerId,DeliveryAddressId=address.Id,ScheduledDate=first.MealDate,MealSlot=deliveryMode==SubscriptionDeliveryMode.OneDeliveryPerDay?MealSlot.Afternoon:first.MealSlot,CustomerName=customer is null?"":$"{customer.FirstName} {customer.LastName}".Trim(),Address=$"{address.AddressLine1}, {address.AddressLine2}, {address.ContactPhone}".Trim(' ',','),DeliveryFee=first.DeliveryFee,Status=DeliveryStatus.Scheduled
+                    });
+                }
             }
             await transactions.AddAsync(new PlatformTransaction {
                 Id=Guid.NewGuid(),CustomerId=customerId,OutletId=outlet.Id,SubscriptionId=subscription.Id,Type="CustomerSubscription",GrossAmount=subscription.TotalCharged,PlatformFee=serviceFee,OutletAmount=subscription.OutletAmount,FeePercent=platformFee.Percent,Currency="INR",Status="Pending"
@@ -464,7 +747,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     public async Task<IReadOnlyList<MealSelectionDto>> GetMealSelectionsAsync(Guid subscriptionId,DateTime? weekStart) {
         var s=await GetOwnedSubscription(subscriptionId);
         var from=(weekStart??s.StartDate).Date;
-        return await MapSelections(await selections.GetBySubscriptionAndDateRangeAsync(s.Id,from,from.AddDays(7)));
+        return await MapSelections(s.OutletId, await selections.GetBySubscriptionAndDateRangeAsync(s.Id,from,from.AddDays(7)));
     }
     public async Task<IReadOnlyList<MealSelectionDto>> SaveMealSelectionsAsync(Guid subscriptionId,SaveMealSelectionsRequest r)
     {
@@ -486,7 +769,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         await unitOfWork.ExecuteAsync(async()=> {
             await selections.DeleteBySubscriptionAndDateRangeAsync(s.Id,from,to); await selections.AddRangeAsync(newRows);
         });
-        return await MapSelections(await selections.GetBySubscriptionAndDateRangeAsync(s.Id,from,to));
+        return await MapSelections(s.OutletId, await selections.GetBySubscriptionAndDateRangeAsync(s.Id,from,to));
     }
     public async Task<MealSelectionDto?> SkipMealAsync(Guid subscriptionId,Guid selectionId,SkipMealRequest r)
     {
@@ -513,7 +796,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 Id=Guid.NewGuid(),MealSelectionId=item.Id,SubscriptionId=s.Id,Action="Skipped",OccurredAtUtc=now,FromMealDate=item.MealDate,Reason=r.Reason,Amount=fee
             }); if(late)await events.PublishAsync(new MealSkippedEvent(s.Id,item.Id,s.CustomerId,s.OutletId,item.MealPrice,item.DeliveryFee,true,fee,r.Reason));
         });
-        return (await MapSelections(new[] {
+        return (await MapSelections(s.OutletId, new[] {
             item
         })).FirstOrDefault();
     }
@@ -533,7 +816,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 d.Status=DeliveryStatus.Skipped; await deliveries.UpdateAsync(d);
             }
         });
-        return await MapSelections(items);
+        return await MapSelections(s.OutletId, items);
     }
     public async Task<MealSelectionDto?> RescheduleMealAsync(Guid subscriptionId,Guid selectionId,RescheduleMealRequest r)
     {
@@ -575,7 +858,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 Id=Guid.NewGuid(),OrderId=existing.FirstOrDefault()?.OrderId??Guid.Empty,SubscriptionId=s.Id,OutletId=s.OutletId,CustomerId=s.CustomerId,DeliveryAddressId=address.Id,ScheduledDate=newDate,MealSlot=s.DeliveryMode==SubscriptionDeliveryMode.OneDeliveryPerDay?MealSlot.Afternoon:(MealSlot)r.NewMealSlot,CustomerName=customer is null?"":$"{customer.FirstName} {customer.LastName}".Trim(),Address=$"{address.AddressLine1}, {address.AddressLine2}, {address.ContactPhone}".Trim(' ',','),DeliveryFee=q.DeliveryFee,Status=DeliveryStatus.Scheduled
             }); await events.PublishAsync(new MealRescheduledEvent(s.Id,replacement.Id,oldDate,newDate,s.CustomerId,s.OutletId));
         });
-        return (await MapSelections(new[] {
+        return (await MapSelections(s.OutletId, new[] {
             replacement
         })).FirstOrDefault();
     }
@@ -602,9 +885,19 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 throw new ArgumentException($"The package is for {deliveryCity}, but address {address.Label} is in {address.City}. Add or select an address in {deliveryCity}.");
         }
     }
+    private void EnsureCustomerOutletAccess(Guid outletId)
+    {
+        if (current.OutletId is not Guid customerOutletId)
+            throw new UnauthorizedAccessException("The current customer is not associated with an outlet.");
+        if (customerOutletId != outletId)
+            throw new UnauthorizedAccessException("The current customer is not associated with the selected outlet.");
+    }
+
     private async Task<Subscription> GetOwnedSubscription(Guid id) {
         var s=await subs.GetAsync(id)??throw new KeyNotFoundException("Subscription not found.");
         if(current.UserId is not Guid uid||s.CustomerId!=uid)throw new UnauthorizedAccessException("Subscription does not belong to the current customer.");
+        if(current.OutletId is not Guid outletId || s.OutletId != outletId)
+            throw new UnauthorizedAccessException("Subscription does not belong to the current outlet.");
         return s;
     }
     private async Task<SubscriptionDto> ToDto(Subscription x)
@@ -612,10 +905,10 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var payment=await payments.GetLatestBySubscriptionAsync(x.Id);
         return new(x.Id,x.CustomerId,x.OutletId,x.MealPlanId,x.PlanName,x.DeliveryMode.ToString(),x.Price,x.DeliveryFee,x.CustomerTransactionFeePercent,x.TransactionFee,x.TotalCharged,x.OutletAmount,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Status.ToString(),x.NextDeliveryDate,await credits.GetBalanceAsync(x.CustomerId),payment?.Status??"Pending",x.DeliveryCity,x.GrossMealAmount,x.SubscriptionDiscountAmount,x.RestaurantTaxableAmount,x.RestaurantGstAmount,x.RestaurantGstRate,x.RestaurantGstMode.ToString(),x.PlatformServiceFee,x.PlatformServiceGst,x.PackageStatus,x.IsOutletCreated,x.OutletDiscountType.ToString(),x.OutletDiscountValue,x.OutletDiscountReason);
     }
-    private async Task<IReadOnlyList<MealSelectionDto>> MapSelections(IEnumerable<SubscriptionMealSelection> rows) {
+    private async Task<IReadOnlyList<MealSelectionDto>> MapSelections(Guid outletId, IEnumerable<SubscriptionMealSelection> rows) {
         var result=new List<MealSelectionDto>();
         foreach(var x in rows) {
-            var r=await recipes.GetAsync(x.RecipeId);
+            var r=await recipes.GetForOutletAsync(x.RecipeId, outletId);
             result.Add(new(x.Id,x.SubscriptionId,x.MealDate,(int)x.MealSlot,x.RecipeId,r?.Name??"",r?.Category.ToString()??"",(int)x.PortionSize,x.Status.ToString(),x.MealPrice,x.DeliveryFee,x.LateSkipFee,x.SkippedAtUtc,x.RescheduledAtUtc));
         }
         return result;
@@ -630,14 +923,49 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             if(!rs.TryGetValue(item.RecipeId,out var recipe))throw new ArgumentException("One or more selected meals are not available from this outlet.");
             if(!Enum.IsDefined(typeof(MealSlot),item.MealSlot))throw new ArgumentException("Invalid meal slot.");
             var slot=(MealSlot)item.MealSlot;
-            if(!outletMenu.Any(x=>x.DayOfWeek==item.MealDate.DayOfWeek&&x.MealSlot==slot&&x.RecipeId==item.RecipeId&&x.IsAvailable))throw new ArgumentException($"{recipe.Name} is not available on {item.MealDate:dddd} at the selected slot.");
+            var configured=outletMenu.FirstOrDefault(x=>x.DayOfWeek==item.MealDate.DayOfWeek&&x.MealSlot==slot&&x.RecipeId==item.RecipeId&&x.IsAvailable);
+            if(configured is null)throw new ArgumentException($"{recipe.Name} is not available on {item.MealDate:dddd} at the selected slot.");
             var portion=Enum.IsDefined(typeof(MealPortionSize),item.PortionSize)?(MealPortionSize)item.PortionSize:MealPortionSize.Regular;
-            result.Add(new SubscriptionMealSelection {
-                Id=Guid.NewGuid(),SubscriptionId=subscriptionId??Guid.Empty,MealDate=item.MealDate.Date,MealSlot=slot,RecipeId=item.RecipeId,PortionSize=portion,Status=MealSelectionStatus.Scheduled,MealPrice=mealPrice.GetPrice(recipe,portion),AddressId=item.AddressId
-            });
+            result.Add(new SubscriptionMealSelection { Id=Guid.NewGuid(),SubscriptionId=subscriptionId??Guid.Empty,MealDate=item.MealDate.Date,MealSlot=slot,RecipeId=item.RecipeId,PortionSize=portion,Status=MealSelectionStatus.Scheduled,MealPrice=mealPrice.GetPrice(recipe,portion),AddressId=item.AddressId });
+        }
+
+        foreach(var slotGroup in result.GroupBy(x=>new { Date=x.MealDate.Date, Slot=x.MealSlot })) {
+            var configuredGroups=outletMenu.Where(x=>x.DayOfWeek==slotGroup.Key.Date.DayOfWeek&&x.MealSlot==slotGroup.Key.Slot&&x.IsAvailable)
+                .GroupBy(x=>string.IsNullOrWhiteSpace(x.OptionGroup)?"Main":x.OptionGroup.Trim(),StringComparer.OrdinalIgnoreCase);
+            foreach(var optionGroup in configuredGroups) {
+                var selectedCount=slotGroup.Count(x=>optionGroup.Any(m=>m.RecipeId==x.RecipeId));
+                var maxSelections=Math.Max(1,optionGroup.Max(x=>x.MaxSelections));
+                if(selectedCount>maxSelections)throw new ArgumentException($"Select at most {maxSelections} option(s) from {optionGroup.Key} for {slotGroup.Key.Slot} on {slotGroup.Key.Date:dddd}.");
+                if(optionGroup.Any(x=>x.IsRequired)&&selectedCount==0)throw new ArgumentException($"Select at least one {optionGroup.Key} option for {slotGroup.Key.Slot} on {slotGroup.Key.Date:dddd}.");
+            }
         }
         return result;
     }
+
+    private async Task<MealPlan?> ResolvePreplannedPlanAsync(Guid outletId,Guid? mealPlanId,string deliveryCity,SubscriptionDuration duration)
+    {
+        if(!mealPlanId.HasValue)return null;
+        var plan=(await mealPlans.GetByOutletAsync(outletId)).FirstOrDefault(x=>x.Id==mealPlanId.Value&&x.IsActive);
+        if(plan is null)throw new KeyNotFoundException("The selected package is no longer available.");
+        if(!plan.IsPreplanned)throw new InvalidOperationException("The selected meal plan is not a customer-recommended package.");
+        if(plan.Price<=0m)throw new InvalidOperationException("The selected package does not have a valid fixed price.");
+        if(!string.IsNullOrWhiteSpace(plan.AvailableCity)&&!plan.AvailableCity.Equals(deliveryCity,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("This recommended package is not available in the selected delivery city.");
+        if(plan.DurationDays!=DurationDays(duration))
+            throw new InvalidOperationException($"Select the {plan.DurationDays}-day duration for this recommended package.");
+        return plan;
+    }
+
+    private static int DurationDays(SubscriptionDuration duration)=>duration switch
+    {
+        SubscriptionDuration.ThreeDays=>3,
+        SubscriptionDuration.FiveDays=>5,
+        SubscriptionDuration.OneWeek=>7,
+        SubscriptionDuration.TwoWeeks=>14,
+        SubscriptionDuration.OneMonth=>28,
+        _=>7
+    };
+
     private static void ValidateSelectionWindow(SubscriptionDuration duration,IReadOnlyList<SubscriptionMealSelection> meals) {
         if(meals.Count==0)throw new ArgumentException("At least one meal is required.");
         var start=meals.Min(x=>x.MealDate).Date;
@@ -859,7 +1187,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
 
         foreach(var row in rows)
         {
-            var recipe=await recipes.GetAsync(row.RecipeId);
+            var recipe=await recipes.GetForOutletAsync(row.RecipeId, subscription.OutletId);
             var address=row.AddressId.HasValue
                 ? await addresses.GetAsync(subscription.CustomerId,row.AddressId.Value)
                 : null;
@@ -990,13 +1318,22 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
         var x=new MealPlan {
             Id=Guid.NewGuid(),
             OutletId=id,
-            Name=r.Name,
-            Frequency=r.Frequency,
-            MealsPerDay=r.MealsPerDay,
-            MealsPerWeek=r.MealsPerDay*7,
-            Price=r.Price,
-            Description=r.Description
+            Name=r.Name.Trim(),
+            Frequency=r.Frequency.Trim(),
+            MealsPerDay=Math.Max(1,r.MealsPerDay),
+            MealsPerWeek=Math.Max(1,r.MealsPerDay*7),
+            Price=Math.Max(0m,r.Price),
+            Description=r.Description?.Trim()??"",
+            IsPreplanned=r.IsPreplanned,
+            AvailableCity=string.IsNullOrWhiteSpace(r.AvailableCity) ? "" : r.AvailableCity.Trim(),
+            DurationDays=r.DurationDays.HasValue ? Math.Max(1,r.DurationDays.Value) : 7
         };
+        if (x.IsPreplanned && x.Price <= 0m) throw new ArgumentException("A preplanned package must have a fixed package price greater than zero.");
+        if (x.IsPreplanned && !string.IsNullOrWhiteSpace(x.AvailableCity)) {
+            var outlet=await outlets.GetByIdAsync(id);
+            if (outlet is null || !x.AvailableCity.Equals(outlet.City,StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("The preplanned package city must match this outlet's city.");
+        }
         await plans.AddAsync(x);
         return new(x.Id,x.OutletId,x.Name,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Price,x.Currency,x.Description,x.IsActive);
     }
@@ -1035,14 +1372,14 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             RecipeId=x.Id,AllergenId=a
         });
         await recipes.AddAsync(x);
-        return (await recipes.GetAsync(x.Id)) is { } saved
+        return (await recipes.GetForOutletAsync(x.Id, id)) is { } saved
             ? Map(saved)
             : Map(x);
     }
     public async Task<RecipeDto?> UpdateRecipeAsync(Guid id,UpdateRecipeRequest r) {
         if(current.OutletId is not Guid outletId)return null;
-        var x=await recipes.GetAsync(id);
-        if(x is null||x.OutletId!=outletId)return null;
+        var x=await recipes.GetForOutletAsync(id, outletId);
+        if(x is null)return null;
         var ingredientIds=(r.Ingredients??[]).Select(v=>v.IngredientId).Distinct().ToList();
         var allergenIds=(r.AllergenIds??[]).Distinct().ToList();
         var validIngredients=await ingredients.GetByIdsAsync(ingredientIds);
@@ -1071,15 +1408,13 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             RecipeId=x.Id,AllergenId=a
         });
         await recipes.UpdateAsync(x);
-        return (await recipes.GetAsync(x.Id)) is { } saved
+        return (await recipes.GetForOutletAsync(x.Id, outletId)) is { } saved
             ? Map(saved)
             : Map(x);
     }
     public async Task<bool> DeleteRecipeAsync(Guid id) {
         if(current.OutletId is not Guid outletId)return false;
-        if(!(await recipes.GetByOutletAsync(outletId)).Any(x=>x.Id==id))return false;
-        await recipes.DeleteAsync(id);
-        return true;
+        return await recipes.DeleteAsync(id, outletId);
     }
     public async Task<IReadOnlyList<MenuItemDto>> GetMenuAsync() {
         if(current.OutletId is not Guid id)return[];
@@ -1091,16 +1426,21 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
         var valid=(await recipes.GetByOutletAsync(id)).Select(x=>x.Id).ToHashSet();
         if(r.Items.Any(x=>!valid.Contains(x.RecipeId)))throw new ArgumentException("One or more meals do not belong to this outlet.");
         await menu.ReplaceAsync(id,r.Items.Select(x=>new OutletMenuItem {
-            Id=Guid.NewGuid(),OutletId=id,RecipeId=x.RecipeId,DayOfWeek=x.DayOfWeek,MealSlot=(MealSlot)x.MealSlot,IsAvailable=x.IsAvailable,DisplayOrder=x.DisplayOrder
+            Id=Guid.NewGuid(),OutletId=id,RecipeId=x.RecipeId,DayOfWeek=x.DayOfWeek,MealSlot=(MealSlot)x.MealSlot,IsAvailable=x.IsAvailable,DisplayOrder=x.DisplayOrder,
+            OptionGroup=string.IsNullOrWhiteSpace(x.OptionGroup)?"Main":x.OptionGroup.Trim(),IsRequired=x.IsRequired,MaxSelections=Math.Clamp(x.MaxSelections,1,20)
         }));
         return await GetMenuAsync();
     }
     public async Task<IReadOnlyList<UserDto>> GetCustomersAsync() {
         if(current.OutletId is not Guid id)return[];
-        var customerIds=(await subscriptions.GetByOutletAsync(id)).Select(x=>x.CustomerId).ToHashSet();
-        return(await users.GetAllAsync()).Where(x=>customerIds.Contains(x.Id)).Select(x=>new UserDto(x.Id,x.Email,x.FirstName,x.LastName,x.Role.ToString(),x.OutletId)).ToList();
+        return(await users.GetAllAsync())
+            .Where(x=>x.Role==UserRole.Customer && x.OutletId==id)
+            .OrderBy(x=>x.FirstName)
+            .ThenBy(x=>x.LastName)
+            .Select(x=>new UserDto(x.Id,x.Email,x.FirstName,x.LastName,x.Role.ToString(),x.OutletId))
+            .ToList();
     }
-    public async Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync()=>current.OutletId is not Guid id?[]:(await subscriptions.GetByOutletAsync(id)).Select(x=>new SubscriptionDto(x.Id,x.CustomerId,x.OutletId,x.MealPlanId,x.PlanName,x.DeliveryMode.ToString(),x.Price,x.DeliveryFee,x.CustomerTransactionFeePercent,x.TransactionFee,x.TotalCharged,x.OutletAmount,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Status.ToString(),x.NextDeliveryDate,0,GetPaymentStatus(x),x.DeliveryCity,x.GrossMealAmount,x.SubscriptionDiscountAmount,x.RestaurantTaxableAmount,x.RestaurantGstAmount,x.RestaurantGstRate,x.RestaurantGstMode.ToString(),x.PlatformServiceFee,x.PlatformServiceGst,x.PackageStatus,x.IsOutletCreated,x.OutletDiscountType.ToString(),x.OutletDiscountValue,x.OutletDiscountReason)).ToList();
+    public async Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync()=>current.OutletId is not Guid id?[]:(await subscriptions.GetByOutletAsync(id)).Select(x=>new SubscriptionDto(x.Id,x.CustomerId,x.OutletId,x.MealPlanId,x.PlanName,x.DeliveryMode.ToString(),x.Price,x.DeliveryFee,x.CustomerTransactionFeePercent,x.TransactionFee,x.TotalCharged,x.OutletAmount,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Status.ToString(),x.NextDeliveryDate,0,GetPaymentStatus(x),x.DeliveryCity,x.GrossMealAmount,x.SubscriptionDiscountAmount,x.RestaurantTaxableAmount,x.RestaurantGstAmount,x.RestaurantGstRate,x.RestaurantGstMode.ToString(),x.PlatformServiceFee,x.PlatformServiceGst,x.PackageStatus,x.IsOutletCreated,x.OutletDiscountType.ToString(),x.OutletDiscountValue,x.OutletDiscountReason,x.IsPreplanned,x.PricingMode,x.PriceVisibleToCustomer,x.DeliveryFeeVisibleToCustomer,x.PackageStatus=="PendingOutletReview")).ToList();
     private static string GetPaymentStatus(Subscription x)=>x.IsOutletCreated&&x.PackageStatus=="Active"?"Paid":"Pending";
     public async Task<IReadOnlyList<OrderDto>> GetOrdersAsync()=>current.OutletId is not Guid id?[]:(await orders.GetByOutletAsync(id)).Select(x=>new OrderDto(x.Id,x.CustomerId,x.OutletId,x.Total,x.Status.ToString(),x.DeliveryDate,x.Address)).ToList();
     public async Task<IReadOnlyList<DeliveryDto>> GetDeliveriesAsync()=>current.OutletId is not Guid id?[]:(await deliveries.GetByOutletAsync(id)).Select(x=>new DeliveryDto(x.Id,x.OrderId,x.OutletId,x.CustomerName,x.Address,x.ScheduledDate,x.MealSlot.ToString(),x.DeliveryFee,x.Status.ToString())).ToList();
@@ -1108,7 +1448,13 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId, i.Ingredient.Name, i.Quantity, i.Unit, i.Ingredient.Allergens.Select(a => new AllergenDto(a.AllergenId, a.Allergen.Name)).OrderBy(a => a.Name).ToList())).ToList(),
     x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList());
 }
-public sealed class AdminService(IOutletRepository outlets,IUserRepository users,IPlatformTransactionRepository transactions) : IAdminService
+public sealed class AdminService(
+    IOutletRepository outlets,
+    IUserRepository users,
+    IPlatformTransactionRepository transactions,
+    IOutletDomainRepository domains,
+    IOutletSubscriptionRepository outletSubscriptions,
+    ICloudflarePagesService cloudflarePages) : IAdminService
 {
     public async Task<IReadOnlyList<OutletDto>> GetOutletsAsync()=>(await outlets.GetAllAsync()).Select(x=>new OutletDto(x.Id,x.Name,x.Slug,x.Subdomain,x.City,x.State,x.Pincode,x.Status.ToString(),x.BillingPlan.ToString(),x.LogoUrl??string.Empty,x.HeroImageUrl??string.Empty,(x.HealthHighlights??string.Empty).Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToList(),x.PrimaryColor,x.Status==OutletStatus.Active,0,x.Rating,x.ReviewCount,x.About)).ToList();
     public async Task<IReadOnlyList<UserDto>> GetUsersAsync()=>(await users.GetAllAsync()).Select(x=>new UserDto(x.Id,x.Email,x.FirstName,x.LastName,x.Role.ToString(),x.OutletId)).ToList();
@@ -1125,4 +1471,87 @@ public sealed class AdminService(IOutletRepository outlets,IUserRepository users
         var commission=tx.Where(x=>x.Type=="OutletCommission").Sum(x=>x.GrossAmount);
         return new(outlet,service,outlet+service+late+commission,late,service,commission);
     }
+
+    public async Task<IReadOnlyList<OutletDomainDto>> GetOutletDomainsAsync() =>
+        (await domains.GetAllAsync()).Select(x => MapDomain(x)).ToList();
+
+    public async Task<OutletDomainDto> SetOutletDomainStatusAsync(Guid domainId, OutletDomainStatus status)
+    {
+        if (status is not (OutletDomainStatus.Pending or OutletDomainStatus.Verified or OutletDomainStatus.Active or OutletDomainStatus.Disabled))
+            throw new ArgumentException("Unsupported outlet domain status.");
+
+        var domain = await domains.GetAsync(domainId)
+            ?? throw new KeyNotFoundException("Outlet domain not found.");
+
+        if (domain.Outlet is null)
+            throw new InvalidOperationException("The outlet assigned to this domain no longer exists.");
+
+        CloudflarePagesDomainState? providerState = null;
+        if (status is OutletDomainStatus.Verified or OutletDomainStatus.Active)
+        {
+            if (cloudflarePages.IsEnabled)
+            {
+                providerState = await cloudflarePages.GetDomainAsync(domain.Hostname)
+                    ?? throw new InvalidOperationException("Cloudflare Pages has not attached this domain yet.");
+
+                if (!IsCloudflareActive(providerState))
+                    providerState = await cloudflarePages.RetryValidationAsync(domain.Hostname) ?? providerState;
+
+                if (!IsCloudflareActive(providerState))
+                    throw new InvalidOperationException(
+                        providerState.ValidationError ??
+                        providerState.VerificationError ??
+                        "Cloudflare has not verified this domain yet. Complete the DNS validation and try again.");
+
+                domain.VerificationRecordName = providerState.TxtName ?? domain.VerificationRecordName;
+                domain.VerificationToken = providerState.TxtValue ?? domain.VerificationToken;
+            }
+            else
+            {
+                throw new InvalidOperationException("Cloudflare Pages integration is not enabled, so DNS verification cannot be confirmed.");
+            }
+        }
+
+        if (status == OutletDomainStatus.Active)
+        {
+            if (domain.Outlet.Status != OutletStatus.Live)
+                throw new InvalidOperationException("The outlet must be Live before a custom domain can be activated.");
+
+            if (await outletSubscriptions.GetByOutletAsync(domain.OutletId) is not { Status: "Active" })
+                throw new InvalidOperationException("The outlet SaaS subscription must be active before a custom domain can be activated.");
+        }
+
+        domain.Status = status;
+        if (status is OutletDomainStatus.Verified or OutletDomainStatus.Active)
+            domain.VerifiedAtUtc ??= DateTime.UtcNow;
+        if (status == OutletDomainStatus.Pending)
+            domain.VerifiedAtUtc = null;
+
+        await domains.UpdateAsync(domain);
+        return MapDomain(domain, providerState);
+    }
+
+    private static bool IsCloudflareActive(CloudflarePagesDomainState state) =>
+        string.Equals(state.Status, "active", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(state.ValidationStatus, "active", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(state.VerificationStatus, "active", StringComparison.OrdinalIgnoreCase);
+
+    private static OutletDomainDto MapDomain(OutletDomain x, CloudflarePagesDomainState? providerState = null) =>
+        new(
+            x.Id,
+            x.OutletId,
+            x.Outlet?.Name ?? "",
+            x.Hostname,
+            "Custom",
+            x.Status.ToString(),
+            x.IsPrimary,
+            x.CreatedAtUtc,
+            x.VerifiedAtUtc,
+            providerState?.ValidationMethod ?? "TXT",
+            x.VerificationRecordName,
+            x.VerificationToken,
+            "Cloudflare Pages",
+            providerState?.Status ?? "not_checked",
+            providerState?.ValidationStatus ?? "not_checked",
+            providerState?.ValidationError ?? providerState?.VerificationError);
 }

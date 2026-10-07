@@ -123,6 +123,30 @@ jobs:
             throw "Health check failed after 6 attempts. The deployed application did not return HTTP 200."
           }
 
+      - name: Validate production CORS
+        shell: pwsh
+        run: |
+          $apiBase = "https://api.broccoly.in"
+          $origin = "https://fitfood.broccoly.in"
+
+          Write-Host "Testing CORS preflight..."
+          $preflight = Invoke-WebRequest `
+            -Uri "$apiBase/api/auth/login" `
+            -Method Options `
+            -Headers @{ Origin = $origin; "Access-Control-Request-Method" = "POST"; "Access-Control-Request-Headers" = "content-type" } `
+            -UseBasicParsing `
+            -SkipHttpErrorCheck `
+            -TimeoutSec 20
+
+          Write-Host "Preflight status: $($preflight.StatusCode)"
+          Write-Host "Allow-Origin: $($preflight.Headers["Access-Control-Allow-Origin"])"
+          if ($preflight.StatusCode -ne 204) {
+            throw "Expected HTTP 204 for CORS preflight but received HTTP $($preflight.StatusCode)."
+          }
+          if ($preflight.Headers["Access-Control-Allow-Origin"] -ne $origin) {
+            throw "CORS preflight did not return Access-Control-Allow-Origin for $origin."
+          }
+
       - name: Show application URL
         shell: pwsh
         run: |
