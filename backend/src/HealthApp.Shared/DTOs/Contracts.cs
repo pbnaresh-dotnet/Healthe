@@ -89,8 +89,7 @@ public record UpdateOutletLegalPoliciesRequest(
     string PaymentPricingPromotionalTerms,
     string LegalVersion = "1.0",
     DateTime? LegalEffectiveDateUtc = null,
-    bool LegalPoliciesPublished = false,
-    bool CreateNewVersion = false);
+    bool LegalPoliciesPublished = false);
 
 
 
