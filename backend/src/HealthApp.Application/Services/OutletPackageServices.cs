@@ -1,4 +1,5 @@
 using HealthApp.Application.Abstractions;
+using Microsoft.Extensions.Configuration;
 using HealthApp.Application.Orchestration;
 using HealthApp.Application.Strategies;
 using HealthApp.Domain.Entities;
