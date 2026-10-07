@@ -992,7 +992,12 @@ public sealed class OutletPackageService(
             x.IsOutletCreated,
             x.OutletDiscountType.ToString(),
             x.OutletDiscountValue,
-            x.OutletDiscountReason);
+            x.OutletDiscountReason,
+            x.IsPreplanned,
+            x.PricingMode,
+            x.PriceVisibleToCustomer,
+            x.DeliveryFeeVisibleToCustomer,
+            x.PackageStatus=="PendingOutletReview");
     }
 
     private static UserDto MapUser(User x)
