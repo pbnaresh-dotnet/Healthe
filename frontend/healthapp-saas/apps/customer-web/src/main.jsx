@@ -74,6 +74,12 @@ const cityMapCenter=city=>{
 function LoadingIndicator({active,label='Loading'}){return active?<div className="appLoadingIndicator" role="status" aria-live="polite"><div className="appLoadingBar"><span/></div><div className="appLoadingPill"><span className="appLoadingSpinner"/><b>{label}</b><i>Working…</i></div></div>:null}
 
 function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setError}){
+ const brandName=useMemo(()=>{
+   try{
+     const slug=(new URLSearchParams(window.location.search).get('outlet')||'').trim().toLowerCase();
+     return slug==='fitfood' ? 'FitFood' : 'HealthApp';
+   }catch{return 'HealthApp'}
+ },[]);
  const[showAuth,setShowAuth]=useState(false);
  const[showLocationExplorer,setShowLocationExplorer]=useState(false);
  const[publicCities,setPublicCities]=useState([]);
@@ -250,11 +256,80 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
   ['5','🚚','Outlet delivers','Your selected outlet prepares and delivers your meals.']
  ];
 
- if(showAuth) return <div className="publicAuthShell">
-   <button className="publicBackBtn" type="button" onClick={()=>setShowAuth(false)}>← Back to HealthApp</button>
-   <div className="publicAuthIntro"><span className="eyebrow">CUSTOMER PORTAL</span><h1>{authMode==='login'?'Welcome back':'Start your healthy journey'}</h1><p>{authMode==='login'?'Sign in to manage your meals and deliveries.':'Create your account to explore healthy outlets, meal plans and subscriptions.'}</p>{locationHint&&<div className="publicLocationNote">📍 {locationHint}</div>}</div>
-   <form className="authCard publicAuthCard" onSubmit={doAuth}><div className="eyebrow">{authMode==='login'?'SIGN IN':'CREATE YOUR ACCOUNT'}</div><h2>{authMode==='login'?'Welcome back':'Create your account'}</h2><p>{authMode==='login'?'Sign in to manage your meals and deliveries.':'Start with your health profile and build your first package.'}</p>{authMode==='register'&&<div className="twoCol"><label>First name<input value={authForm.firstName} onChange={e=>setAuthForm({...authForm,firstName:e.target.value})}/></label><label>Last name<input value={authForm.lastName} onChange={e=>setAuthForm({...authForm,lastName:e.target.value})}/></label></div>}<label>Email<input type="email" value={authForm.email} onChange={e=>setAuthForm({...authForm,email:e.target.value})}/></label><label>Password<input type="password" value={authForm.password} onChange={e=>setAuthForm({...authForm,password:e.target.value})}/></label><button className="primary big">{authMode==='login'?'Sign in':'Create account'}</button>{error&&<div className="error">{error}</div>}<div className="authSwitch">{authMode==='login'?'New to HealthApp?':'Already have an account?'} <button type="button" className="linkBtn" onClick={()=>setAuthMode(authMode==='login'?'register':'login')}>{authMode==='login'?'Create account':'Sign in'}</button></div>{authMode==='login'&&<small>Demo: customer@healthapp.test / demo</small>}</form>
- </div>;
+ if(showAuth) {
+   const isRegister=authMode==='register';
+   const password=String(authForm.password||'');
+   const passwordChecks=[
+     [password.length>=8,'At least 8 characters'],
+     [/[A-Za-z]/.test(password),'Includes a letter'],
+     [/\d/.test(password),'Includes a number'],
+     [/[!@#$%^&*(),.?":{}|<>_\-\\/\[\]]/.test(password),'Use a symbol for a stronger password']
+   ];
+   const passwordScore=passwordChecks.filter(([ok])=>ok).length;
+   return <div className="publicAuthShell">
+     <div className="authDecor authDecorOne" aria-hidden="true"/>
+     <div className="authDecor authDecorTwo" aria-hidden="true"/>
+     <header className="publicAuthTop">
+       <button className="publicBackBtn" type="button" onClick={()=>setShowAuth(false)}>← Back to Home</button>
+       <div className="authBrand">
+         <span className="authBrandLogo" aria-hidden="true">F</span>
+         <span><b>{brandName}</b><small>Healthy Meals, Happier You</small></span>
+       </div>
+     </header>
+     <main className="publicAuthLayout">
+       <section className="publicAuthStory">
+         <span className="publicAuthKicker">HEALTHY MEALS, MADE EASY</span>
+         <h1>Start your <em>healthy journey</em> today</h1>
+         <p>Create your account to explore healthy outlets, build your meal plan and get nutritious meals delivered to your doorstep.</p>
+         <div className="authBenefitGrid">
+           <div><span>♨</span><b>Healthy &<br/>Tasty Meals</b></div>
+           <div><span>◈</span><b>Personalized<br/>Nutrition</b></div>
+           <div><span>▰</span><b>Convenient<br/>Home Delivery</b></div>
+           <div><span>♡</span><b>A Healthier<br/>You</b></div>
+         </div>
+         <div className="authStoryImage">
+           <img src={IMAGE_FALLBACKS.hero} alt="Healthy meal bowl"/>
+           <div><b>Nutritious.<br/>Delicious.<br/>Delivered.</b><span>Good food. Brighter days.</span></div>
+         </div>
+       </section>
+       <form className="authCard publicAuthCard" onSubmit={doAuth}>
+         <div className="authCardHeader">
+           <div>
+             <span className="eyebrow">{isRegister?'CREATE YOUR ACCOUNT':'SIGN IN'}</span>
+             <h2>{isRegister?'Join '+brandName:'Welcome back'}</h2>
+             <p>{isRegister?'Quick and easy sign up to get started.':'Sign in to manage your meals and deliveries.'}</p>
+           </div>
+           {isRegister&&<div className="authStepper" aria-label="Registration progress">
+             <div className="active"><span>1</span><b>Account<br/>Details</b></div><i/><div><span>2</span><b>Your Profile</b></div><i/><div><span>3</span><b>Get Started</b></div>
+           </div>}
+         </div>
+         {isRegister ? <>
+           <div className="authFormGrid">
+             <label><span>First name <b>*</b></span><div className="authInputWrap"><i>◯</i><input value={authForm.firstName} onChange={e=>setAuthForm({...authForm,firstName:e.target.value})} required/></div></label>
+             <label><span>Last name <b>*</b></span><div className="authInputWrap"><i>◯</i><input value={authForm.lastName} onChange={e=>setAuthForm({...authForm,lastName:e.target.value})} required/></div></label>
+             <label className="authSpan2"><span>Email address <b>*</b></span><div className="authInputWrap"><i>✉</i><input type="email" value={authForm.email} onChange={e=>setAuthForm({...authForm,email:e.target.value.toLowerCase()})} required/></div></label>
+             <label className="authSpan2"><span>Mobile number <b>*</b></span><div className="authPhoneWrap"><span className="authPhonePrefix"><span>🇮🇳</span><b>+91</b></span><input inputMode="numeric" autoComplete="tel-national" maxLength="10" pattern="[6-9][0-9]{9}" value={authForm.mobileNumber} onChange={e=>setAuthForm({...authForm,mobileNumber:e.target.value.replace(/\D/g,'').slice(0,10)})} placeholder="98765 43210" required/></div></label>
+             <label><span>Password <b>*</b></span><div className="authInputWrap authPasswordWrap"><i>▣</i><input type="password" autoComplete="new-password" value={authForm.password} onChange={e=>setAuthForm({...authForm,password:e.target.value})} minLength="8" required/><button type="button" className="authPasswordToggle" onClick={e=>{const input=e.currentTarget.parentElement?.querySelector('input');if(input)input.type=input.type==='password'?'text':'password'}}>◉</button></div><div className="authPasswordMeter"><span style={{width:(Math.max(1,passwordScore)/4*100)+'%'}}/></div><small className={passwordScore>=3?'valid':'invalid'}>{passwordScore>=3?'Strong password':'Build a stronger password'}</small></label>
+             <label><span>Confirm password <b>*</b></span><div className="authInputWrap authPasswordWrap"><i>▣</i><input type="password" autoComplete="new-password" value={authForm.confirmPassword} onChange={e=>setAuthForm({...authForm,confirmPassword:e.target.value})} minLength="8" required/><button type="button" className="authPasswordToggle" onClick={e=>{const input=e.currentTarget.parentElement?.querySelector('input');if(input)input.type=input.type==='password'?'text':'password'}}>◉</button></div><small className={authForm.confirmPassword&&authForm.password===authForm.confirmPassword?'valid':'invalid'}>{authForm.confirmPassword&&authForm.password===authForm.confirmPassword?'Passwords match':'Re-enter your password'}</small></label>
+           </div>
+           <div className="authPasswordRules">{passwordChecks.map(([ok,text])=><span className={ok?'valid':''} key={text}><b>{ok?'✓':'○'}</b>{text}</span>)}</div>
+           <div className="authConsent">
+             <label><input type="checkbox" checked={authForm.agreeTerms} onChange={e=>setAuthForm({...authForm,agreeTerms:e.target.checked})} required/><span>I agree to the <a href="/terms" onClick={e=>e.preventDefault()}>Terms of Service</a> and <a href="/privacy" onClick={e=>e.preventDefault()}>Privacy Policy</a></span></label>
+             <label><input type="checkbox" checked={authForm.marketingOptIn} onChange={e=>setAuthForm({...authForm,marketingOptIn:e.target.checked})}/><span>Send me updates on new meals, offers and health tips</span></label>
+           </div>
+           <button className="primary big authSubmit">Create account <span>→</span></button>
+         </> : <>
+           <label className="authLoginField"><span>Email address</span><div className="authInputWrap"><i>✉</i><input type="email" value={authForm.email} onChange={e=>setAuthForm({...authForm,email:e.target.value})} required/></div></label>
+           <label className="authLoginField"><span>Password</span><div className="authInputWrap authPasswordWrap"><i>▣</i><input type="password" value={authForm.password} onChange={e=>setAuthForm({...authForm,password:e.target.value})} required/><button type="button" className="authPasswordToggle" onClick={e=>{const input=e.currentTarget.parentElement?.querySelector('input');if(input)input.type=input.type==='password'?'text':'password'}}>◉</button></div></label>
+           <button className="primary big authSubmit">Sign in <span>→</span></button>
+         </>}
+         {error&&<div className="error authFormError">{error}</div>}
+         <div className="authSwitch">{isRegister?'Already have an account?':'New to '+brandName+'?'} <button type="button" className="linkBtn" onClick={()=>{setError('');setAuthMode(isRegister?'login':'register')}}>{isRegister?'Sign in':'Create account'}</button></div>
+         {!isRegister&&<small className="authDemo">Demo: customer@healthapp.test / demo</small>}
+       </form>
+     </main>
+   </div>;
+ }
 
  if(publicOutlet&&!guestBuilderOpen) return <PublicOutletHome outlet={publicOutlet} menu={publicOutletMenu} busy={publicOutletBusy} error={publicOutletError} onBack={()=>setPublicOutlet(null)} onBuild={openGuestBuilder}/>;
 
@@ -435,7 +510,7 @@ function App(){
  const[selectedAddressId,setSelectedAddressId]=useState('');
  const[pendingBuilderOutlet,setPendingBuilderOutlet]=useState(null);
  const[authMode,setAuthMode]=useState('login');
- const[authForm,setAuthForm]=useState({email:'customer@healthapp.test',password:'demo',firstName:'Demo',lastName:'Customer'});
+ const[authForm,setAuthForm]=useState({email:'customer@healthapp.test',password:'demo',firstName:'Demo',lastName:'Customer',mobileNumber:'9876543210',confirmPassword:'demo',agreeTerms:false,marketingOptIn:false});
  const[profileForm,setProfileForm]=useState({weightKg:'',heightCm:'',dateOfBirth:'',goal:'WeightLoss',activityLevel:'Moderate',allergyIds:[],diet:'Veg'});
  const[addressModal,setAddressModal]=useState(null);
  const[mapBusy,setMapBusy]=useState(false);
@@ -541,10 +616,18 @@ function App(){
    }finally{setLoading(false)}
  };
 
- const doAuth=async e=>{e.preventDefault();await run(async()=>{
+ const doAuth=async e=>{e.preventDefault();
+   if(authMode==='register'){
+     const digits=String(authForm.mobileNumber||'').replace(/\D/g,'');
+     if(!/^[6-9]\d{9}$/.test(digits)){setError('Enter a valid 10-digit Indian mobile number.');return;}
+     if(String(authForm.password||'').length<8){setError('Password must be at least 8 characters.');return;}
+     if(authForm.password!==authForm.confirmPassword){setError('Passwords do not match.');return;}
+     if(!authForm.agreeTerms){setError('Please accept the Terms of Service and Privacy Policy.');return;}
+   }
+   await run(async()=>{
    const x=authMode==='login'
      ?await auth.login({email:authForm.email,password:authForm.password})
-     :await auth.register({firstName:authForm.firstName,lastName:authForm.lastName,email:authForm.email,password:authForm.password,role:'Customer'});
+     :await auth.register({firstName:authForm.firstName,lastName:authForm.lastName,email:authForm.email,password:authForm.password,mobileNumber:'+91'+String(authForm.mobileNumber||'').replace(/\D/g,''),role:'Customer'});
    setUser(x.user);
    const draftRaw=(()=>{try{return sessionStorage.getItem('healthapp.guestPackageDraft')||localStorage.getItem('healthapp.savedPackageDraft')}catch{return null}})();
    const draft=draftRaw?(()=>{try{return JSON.parse(draftRaw)}catch{return null}})():null;
