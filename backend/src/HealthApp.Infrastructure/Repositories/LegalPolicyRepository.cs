@@ -34,7 +34,6 @@ public sealed class OutletLegalPolicyRepository(HealthAppDbContext db) : EfRepos
 
     public async Task PublishVersionAsync(OutletLegalPolicyVersion version)
     {
-        await using var tx = await Context.Database.BeginTransactionAsync();
         var published = await Context.OutletLegalPolicyVersions
             .Where(x => x.OutletId == version.OutletId && x.IsPublished)
             .ToListAsync();
@@ -42,8 +41,6 @@ public sealed class OutletLegalPolicyRepository(HealthAppDbContext db) : EfRepos
             row.IsPublished = false;
 
         Context.OutletLegalPolicyVersions.Add(version);
-        await SaveAsync();
-        await tx.CommitAsync();
     }
 
     public async Task UnpublishOthersAsync(Guid outletId, string publishedVersion)
