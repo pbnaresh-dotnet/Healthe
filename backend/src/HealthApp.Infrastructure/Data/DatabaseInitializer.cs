@@ -305,15 +305,7 @@ BEGIN
         FROM dbo.OutletLegalPolicyVersions
     )
     UPDATE v
-    SET Version =
-        LEFT(
-            CASE
-                WHEN LEN(LTRIM(RTRIM(v.Version))) BETWEEN 1 AND 30
-                    THEN LTRIM(RTRIM(v.Version)) + N'-legacy-' + LEFT(REPLACE(CONVERT(varchar(36), v.Id),'-',''),8)
-                ELSE N'legacy-' + LEFT(REPLACE(CONVERT(varchar(36), v.Id),'-',''),8)
-            END,
-            40
-        )
+    SET Version = N'legacy-' + REPLACE(CONVERT(varchar(36), v.Id),'-','')
     FROM dbo.OutletLegalPolicyVersions v
     INNER JOIN duplicates d ON d.Id=v.Id
     WHERE d.rn > 1;
@@ -698,100 +690,3 @@ IF COL_LENGTH('dbo.Deliveries','RouteSequence') IS NULL
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_Deliveries_RouteId' AND object_id=OBJECT_ID('dbo.Deliveries'))
     CREATE INDEX IX_Deliveries_RouteId ON dbo.Deliveries(RouteId);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_Deliveries_RouteStopId' AND object_id=OBJECT_ID('dbo.Deliveries'))
-    CREATE INDEX IX_Deliveries_RouteStopId ON dbo.Deliveries(RouteStopId);
-IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id=OBJECT_ID('dbo.Deliveries') AND referenced_object_id=OBJECT_ID('dbo.DeliveryRoutes'))
-    ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_Routes FOREIGN KEY(RouteId) REFERENCES dbo.DeliveryRoutes(Id) ON DELETE SET NULL;
-IF EXISTS (
-    SELECT 1
-    FROM sys.foreign_keys
-    WHERE name='FK_Deliveries_RouteStops'
-      AND parent_object_id=OBJECT_ID('dbo.Deliveries')
-      AND referenced_object_id=OBJECT_ID('dbo.DeliveryRouteStops')
-      AND delete_referential_action_desc <> 'NO_ACTION'
-)
-    ALTER TABLE dbo.Deliveries DROP CONSTRAINT FK_Deliveries_RouteStops;
-IF NOT EXISTS (
-    SELECT 1
-    FROM sys.foreign_keys
-    WHERE parent_object_id=OBJECT_ID('dbo.Deliveries')
-      AND referenced_object_id=OBJECT_ID('dbo.DeliveryRouteStops')
-)
-    ALTER TABLE dbo.Deliveries ADD CONSTRAINT FK_Deliveries_RouteStops FOREIGN KEY(RouteStopId) REFERENCES dbo.DeliveryRouteStops(Id) ON DELETE NO ACTION;
-IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRoutes') AND name='TotalDistanceKm' AND system_type_id=59)
-    ALTER TABLE dbo.DeliveryRoutes ALTER COLUMN TotalDistanceKm float NOT NULL;
-IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRoutes') AND name='TotalDurationMinutes' AND system_type_id=59)
-    ALTER TABLE dbo.DeliveryRoutes ALTER COLUMN TotalDurationMinutes float NOT NULL;
-IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRouteStops') AND name='Latitude' AND system_type_id=59)
-    ALTER TABLE dbo.DeliveryRouteStops ALTER COLUMN Latitude float NOT NULL;
-IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.DeliveryRouteStops') AND name='Longitude' AND system_type_id=59)
-    ALTER TABLE dbo.DeliveryRouteStops ALTER COLUMN Longitude float NOT NULL;
-IF COL_LENGTH('dbo.Subscriptions','DeliveryCity') IS NULL
-    ALTER TABLE dbo.Subscriptions ADD DeliveryCity nvarchar(100) NULL;
-
-IF OBJECT_ID('dbo.OutletDomains', 'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.OutletDomains
-    (
-        Id uniqueidentifier NOT NULL CONSTRAINT PK_OutletDomains PRIMARY KEY,
-        OutletId uniqueidentifier NOT NULL,
-        Hostname nvarchar(253) NOT NULL,
-        VerificationToken nvarchar(128) NOT NULL CONSTRAINT DF_OutletDomains_VerificationToken DEFAULT '',
-        VerificationRecordName nvarchar(253) NOT NULL CONSTRAINT DF_OutletDomains_VerificationRecordName DEFAULT '',
-        Status int NOT NULL CONSTRAINT DF_OutletDomains_Status DEFAULT 0,
-        IsPrimary bit NOT NULL CONSTRAINT DF_OutletDomains_IsPrimary DEFAULT 0,
-        CreatedAtUtc datetime2 NOT NULL CONSTRAINT DF_OutletDomains_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
-        VerifiedAtUtc datetime2 NULL
-    );
-END;
-
-IF COL_LENGTH('dbo.OutletDomains','VerificationToken') IS NULL
-    ALTER TABLE dbo.OutletDomains ADD VerificationToken nvarchar(128) NOT NULL CONSTRAINT DF_OutletDomains_VerificationToken_Compat DEFAULT '';
-IF COL_LENGTH('dbo.OutletDomains','VerificationRecordName') IS NULL
-    ALTER TABLE dbo.OutletDomains ADD VerificationRecordName nvarchar(253) NOT NULL CONSTRAINT DF_OutletDomains_VerificationRecordName_Compat DEFAULT '';
-
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletDomains_Hostname' AND object_id=OBJECT_ID('dbo.OutletDomains'))
-    CREATE UNIQUE INDEX IX_OutletDomains_Hostname ON dbo.OutletDomains(Hostname);
-
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletDomains_OutletId_Status' AND object_id=OBJECT_ID('dbo.OutletDomains'))
-    CREATE INDEX IX_OutletDomains_OutletId_Status ON dbo.OutletDomains(OutletId, Status);
-
-IF NOT EXISTS (
-    SELECT 1
-    FROM sys.foreign_keys
-    WHERE name='FK_OutletDomains_Outlets'
-      AND parent_object_id=OBJECT_ID('dbo.OutletDomains')
-)
-    ALTER TABLE dbo.OutletDomains
-        ADD CONSTRAINT FK_OutletDomains_Outlets
-        FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
-
-IF COL_LENGTH('dbo.Outlets','HeroImageUrl') IS NULL
-    ALTER TABLE dbo.Outlets ADD HeroImageUrl nvarchar(1000) NULL;
-IF COL_LENGTH('dbo.Outlets','HealthHighlights') IS NULL
-    ALTER TABLE dbo.Outlets ADD HealthHighlights nvarchar(2000) NULL;
-IF COL_LENGTH('dbo.Outlets','Rating') IS NULL
-    ALTER TABLE dbo.Outlets ADD Rating float NOT NULL CONSTRAINT DF_Outlets_Rating DEFAULT 4.8;
-IF COL_LENGTH('dbo.Outlets','ReviewCount') IS NULL
-    ALTER TABLE dbo.Outlets ADD ReviewCount int NOT NULL CONSTRAINT DF_Outlets_ReviewCount DEFAULT 0;
-IF COL_LENGTH('dbo.Outlets','About') IS NULL
-    ALTER TABLE dbo.Outlets ADD About nvarchar(2000) NULL;
-IF COL_LENGTH('dbo.Outlets','RestaurantGstRate') IS NULL
-    ALTER TABLE dbo.Outlets ADD RestaurantGstRate decimal(9,4) NOT NULL CONSTRAINT DF_Outlets_RestaurantGstRate DEFAULT 5;
-IF COL_LENGTH('dbo.Outlets','RestaurantGstMode') IS NULL
-    ALTER TABLE dbo.Outlets ADD RestaurantGstMode int NOT NULL CONSTRAINT DF_Outlets_RestaurantGstMode DEFAULT 0;
-IF COL_LENGTH('dbo.Subscriptions','RestaurantGstMode') IS NULL
-    ALTER TABLE dbo.Subscriptions ADD RestaurantGstMode int NOT NULL CONSTRAINT DF_Subscriptions_RestaurantGstMode DEFAULT 0;
-IF COL_LENGTH('dbo.Subscriptions','RestaurantTaxableAmount') IS NULL
-    ALTER TABLE dbo.Subscriptions ADD RestaurantTaxableAmount decimal(18,2) NOT NULL CONSTRAINT DF_Subscriptions_RestaurantTaxableAmount DEFAULT 0;
-IF COL_LENGTH('dbo.Subscriptions','PackageStatus') IS NULL
-    ALTER TABLE dbo.Subscriptions ADD PackageStatus nvarchar(40) NOT NULL CONSTRAINT DF_Subscriptions_PackageStatus DEFAULT 'Active';
-IF COL_LENGTH('dbo.Subscriptions','IsOutletCreated') IS NULL
-    ALTER TABLE dbo.Subscriptions ADD IsOutletCreated bit NOT NULL CONSTRAINT DF_Subscriptions_IsOutletCreated DEFAULT 0;
-IF COL_LENGTH('dbo.Subscriptions','CreatedByOutletUserId') IS NULL
-    ALTER TABLE dbo.Subscriptions ADD CreatedByOutletUserId uniqueidentifier NULL;
-IF COL_LENGTH('dbo.Subscriptions','OutletDiscountType') IS NULL
-    ALTER TABLE dbo.Subscriptions ADD OutletDiscountType int NOT NULL CONSTRAINT DF_Subscriptions_OutletDiscountType DEFAULT 0;
-IF COL_LENGTH('dbo.Subscriptions','OutletDiscountValue') IS NULL
-    ALTER TABLE dbo.Subscriptions ADD OutletDiscountValue decimal(18,2) NOT NULL CONSTRAINT DF_Subscriptions_OutletDiscountValue DEFAULT 0;
-IF COL_LENGTH('dbo.Subscriptions','OutletDiscountReason') IS NULL
-    ALTER TABLE dbo.Subscriptions ADD OutletDiscountReason nvarchar(500) NOT NULL CONSTRAINT DF_Subscriptions_OutletDiscountReason DEFAULT '';
