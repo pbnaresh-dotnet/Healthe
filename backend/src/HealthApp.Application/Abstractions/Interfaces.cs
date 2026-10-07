@@ -129,7 +129,7 @@ public interface IOutletSettingsService
 }
 
 public record CreateOutletStaffRequest(string FirstName, string LastName, string Email, string Password, string Role);
-public record UpdateOutletStaffRequest(string Role, bool IsActive);
+public record UpdateOutletStaffRequest(string FirstName, string LastName, string Email, string Role, bool IsActive, string? Password = null);
 public record OutletStaffDto(Guid Id, string Name, string Email, string Role, bool IsActive);
 
 public interface IOutletStaffService
