@@ -1428,7 +1428,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     public async Task<IReadOnlyList<MenuItemDto>> GetMenuAsync() {
         if(current.OutletId is not Guid id)return[];
         var rs=(await recipes.GetByOutletAsync(id)).ToDictionary(x=>x.Id);
-        return(await menu.GetByOutletAsync(id)).Select(x=>rs.TryGetValue(x.RecipeId,out var r)?new MenuItemDto(x.Id,x.OutletId,x.RecipeId,r.Name,x.DayOfWeek,x.MealSlot.ToString(),(int)x.MealSlot,r.PricePerMeal,r.LargePricePerMeal,r.Calories,r.ProteinGrams,r.Category.ToString(),r.ImageUrl,x.IsAvailable,x.DisplayOrder):null).Where(x=>x is not null).Cast<MenuItemDto>().ToList();
+        return(await menu.GetByOutletAsync(id)).Select(x=>rs.TryGetValue(x.RecipeId,out var r)?new MenuItemDto(x.Id,x.OutletId,x.RecipeId,r.Name,x.DayOfWeek,x.MealSlot.ToString(),(int)x.MealSlot,r.PricePerMeal,r.LargePricePerMeal,r.Calories,r.ProteinGrams,r.Category.ToString(),r.ImageUrl,x.IsAvailable,x.DisplayOrder,r.CarbsGrams,r.FatGrams,r.FiberGrams,x.OptionGroup,x.IsRequired,x.MaxSelections,r.MealType):null).Where(x=>x is not null).Cast<MenuItemDto>().ToList();
     }
     public async Task<IReadOnlyList<MenuItemDto>> SaveMenuAsync(BulkMenuRequest r) {
         if(current.OutletId is not Guid id)return[];
