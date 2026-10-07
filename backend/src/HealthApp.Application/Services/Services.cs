@@ -548,6 +548,9 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if (publishedLegal is null)
             throw new InvalidOperationException("This outlet is not ready for customer orders because its customer legal policies are not published.");
         var deliveryCity = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
+        var selectedPlan = await ResolvePreplannedPlanAsync(outlet.Id, r.MealPlanId, deliveryCity, duration);
+        var isPreplanned = selectedPlan is not null;
+        var pricingMode = isPreplanned ? "Fixed" : outlet.CustomPackagePricingMode;
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var menuItems = await menu.GetByOutletAsync(outlet.Id);
         var meals = BuildSelections(r.Selections, outlet.Id, menuItems, rs);
@@ -557,11 +560,10 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var selectedRecipes = meals.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
         var allergyWarnings = await allergySafety.GetWarningsAsync(customerId, selectedRecipes);
         await ValidateDeliveryAddressesAsync(customerId, deliveryCity, meals);
-        var tiers = await discountTiers.GetByOutletAsync(outlet.Id);
-        var packageDiscount = discountStrategy.Calculate(new(duration, meals), tiers);
-        var gross = Math.Round(meals.Sum(x => x.MealPrice), 2);
+        var gross = isPreplanned ? selectedPlan!.Price : Math.Round(meals.Sum(x => x.MealPrice), 2);
+        var packageDiscountAmount = isPreplanned ? 0m : discountStrategy.Calculate(new(duration, meals), await discountTiers.GetByOutletAsync(outlet.Id)).Amount;
         var codeAmount = await CalculateDiscountCodeAmountAsync(outlet.Id, gross, r.DiscountCode);
-        var totalDiscount = Math.Min(gross, packageDiscount.Amount + codeAmount);
+        var totalDiscount = Math.Min(gross, packageDiscountAmount + codeAmount);
         var discountedMealAmount = Math.Round(gross - totalDiscount, 2);
         var delivery = await CalculateDeliveryAsync(outlet.Id, deliveryMode, meals, customerId);
         var taxes = taxStrategy.Calculate(discountedMealAmount, 0m, outlet.RestaurantGstRate, outlet.RestaurantGstMode);
@@ -572,8 +574,9 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var commission = Math.Round(net * commissionRate, 2);
         var quotes = new List<DeliveryQuoteDto>();
         foreach (var addressId in meals.Select(x => x.AddressId!.Value).Distinct()) quotes.Add(await deliveryCalculator.QuoteAsync(outlet.Id, customerId, addressId));
-        var payable = net + taxes.RestaurantAmount + delivery + service + taxes.PlatformAmount;
-        return new(gross, gross == 0 ? 0 : Math.Round(totalDiscount / gross * 100m, 4), totalDiscount, net, taxes.RestaurantAmount, delivery, service, taxes.PlatformAmount, payable, commissionRate, commission, service + commission, quotes, allergyWarnings, allergyWarnings.Count>0 && !allergyWarnings.All(x=>(r.ConfirmedAllergyRecipeIds??[]).Contains(x.RecipeId)), taxes.RestaurantTaxableAmount, taxes.RestaurantRate, taxes.RestaurantMode.ToString());
+        var payable = Math.Round(net + taxes.RestaurantAmount + delivery + service + taxes.PlatformAmount, 2);
+        var requiresReview = !isPreplanned && pricingMode.Equals("ReviewRequired", StringComparison.OrdinalIgnoreCase);
+        return new(gross, gross == 0 ? 0 : Math.Round(totalDiscount / gross * 100m, 4), totalDiscount, net, taxes.RestaurantAmount, delivery, service, taxes.PlatformAmount, payable, commissionRate, commission, service + commission, quotes, allergyWarnings, allergyWarnings.Count > 0 && !allergyWarnings.All(x => (r.ConfirmedAllergyRecipeIds ?? []).Contains(x.RecipeId)), taxes.RestaurantTaxableAmount, taxes.RestaurantRate, taxes.RestaurantMode.ToString(), isPreplanned, pricingMode, outlet.ShowPackagePriceToCustomer, outlet.ShowDeliveryFeeToCustomer, requiresReview, selectedPlan?.Id);
     }
     public async Task<SubscriptionDto?> SubscribeAsync(CreateSubscriptionRequest r, LegalAcceptanceContext? acceptanceContext = null)
     {
@@ -593,6 +596,9 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             throw new InvalidOperationException("Please review and accept the latest outlet Terms & Privacy Policy before completing your package.");
         var alreadyAccepted = await legalPolicies.HasAcceptedVersionAsync(customerId, outlet.Id, publishedLegal.Id);
         var deliveryCity = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
+        var selectedPlan = await ResolvePreplannedPlanAsync(outlet.Id, r.MealPlanId, deliveryCity, duration);
+        var isPreplanned = selectedPlan is not null;
+        var pricingMode = isPreplanned ? "Fixed" : outlet.CustomPackagePricingMode;
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var mealEntities = BuildSelections(r.Selections, outlet.Id, await menu.GetByOutletAsync(outlet.Id), rs);
         ValidateDeliveryMode(deliveryMode, mealEntities);
@@ -601,10 +607,10 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var selectedRecipes = mealEntities.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
         await allergySafety.EnsureConfirmedAsync(customerId, selectedRecipes, r.ConfirmedAllergyRecipeIds);
         await ValidateDeliveryAddressesAsync(customerId, deliveryCity, mealEntities);
-        var discount = discountStrategy.Calculate(new(duration, mealEntities), await discountTiers.GetByOutletAsync(outlet.Id));
-        var gross = Math.Round(mealEntities.Sum(x => x.MealPrice), 2);
+        var gross = isPreplanned ? selectedPlan!.Price : Math.Round(mealEntities.Sum(x => x.MealPrice), 2);
+        var packageDiscountAmount = isPreplanned ? 0m : discountStrategy.Calculate(new(duration, mealEntities), await discountTiers.GetByOutletAsync(outlet.Id)).Amount;
         var discountCodeResult = await CalculateDiscountCodeAsync(outlet.Id, gross, r.DiscountCode);
-        var totalDiscount = Math.Min(gross, discount.Amount + discountCodeResult.Amount);
+        var totalDiscount = Math.Min(gross, packageDiscountAmount + discountCodeResult.Amount);
         var discountedMealAmount = Math.Round(gross - totalDiscount, 2);
         var delivery = await CalculateDeliveryAsync(outlet.Id, deliveryMode, mealEntities, customerId);
         var taxes = taxStrategy.Calculate(discountedMealAmount, 0m, outlet.RestaurantGstRate, outlet.RestaurantGstMode);
@@ -623,16 +629,10 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             SubscriptionDuration.OneMonth => start.AddDays(27),
             _ => start
         };
-        var plan = (await mealPlans.GetByOutletAsync(outlet.Id)).FirstOrDefault(x => x.IsActive) ?? new MealPlan {
-            Id=Guid.NewGuid(),
-            OutletId=outlet.Id,
-            Name="Custom Meal Package",
-            Frequency=duration.ToString(),
-            MealsPerDay=0,
-            MealsPerWeek=mealEntities.Count,
-            Price=0,
-            Currency="INR",
-            Description="Custom package"
+        var plan = selectedPlan ?? (await mealPlans.GetByOutletAsync(outlet.Id)).FirstOrDefault(x => x.IsActive && !x.IsPreplanned) ?? new MealPlan {
+            Id=Guid.NewGuid(), OutletId=outlet.Id, Name="Custom Meal Package", Frequency=duration.ToString(),
+            MealsPerDay=0, MealsPerWeek=mealEntities.Count, Price=0, Currency="INR", Description="Custom package",
+            IsPreplanned=false, DurationDays=DurationDays(duration)
         };
         if (plan.Price == 0 && plan.Name == "Custom Meal Package") await mealPlans.AddAsync(plan);
         var subscription = new Subscription
@@ -672,9 +672,14 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             DiscountCodeAmount=discountCodeResult.Amount,
             TotalMealCount=mealEntities.Count,
             Frequency=string.IsNullOrWhiteSpace(r.Frequency)?"Weekly":r.Frequency.Trim(),
-            MealsPerDay=0,
+            MealsPerDay=isPreplanned ? plan.MealsPerDay : 0,
             MealsPerWeek=mealEntities.Count,
-            Status=SubscriptionStatus.Active,
+            Status=SubscriptionStatus.Pending,
+            PackageStatus=(!isPreplanned && pricingMode.Equals("ReviewRequired", StringComparison.OrdinalIgnoreCase)) ? "PendingOutletReview" : "PaymentPending",
+            IsPreplanned=isPreplanned,
+            PricingMode=pricingMode,
+            PriceVisibleToCustomer=outlet.ShowPackagePriceToCustomer,
+            DeliveryFeeVisibleToCustomer=outlet.ShowDeliveryFeeToCustomer,
             NextDeliveryDate=start
         };
         foreach (var x in mealEntities) x.SubscriptionId = subscription.Id;
@@ -706,16 +711,18 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             await orderFinancials.AddAsync(new OrderFinancialBreakdown {
                 Id=Guid.NewGuid(),OrderId=order.Id,GrossMealAmount=gross,DiscountAmount=totalDiscount,NetMealAmount=net,DeliveryAmount=delivery,PlatformServiceFee=serviceFee,PlatformServiceGst=taxes.PlatformAmount,RestaurantGstRate=taxes.RestaurantRate,RestaurantGstMode=taxes.RestaurantMode,RestaurantTaxableAmount=taxes.RestaurantTaxableAmount,RestaurantGstAmount=taxes.RestaurantAmount,LateSkipFee=0,CustomerPayable=subscription.TotalCharged,OutletCommission=commission,OutletCommissionGst=0,OutletSettlementAmount=subscription.OutletAmount,HealthAppRevenue=serviceFee+commission
             });
-            var customer = await users.FindByIdAsync(customerId);
-            var groups = deliveryMode == SubscriptionDeliveryMode.OneDeliveryPerDay ? mealEntities.GroupBy(x=>x.MealDate.Date).Select(g=>(IEnumerable<SubscriptionMealSelection>)g) : mealEntities.Select(x=>(IEnumerable<SubscriptionMealSelection>)new[] {
-                x
-            });
-            foreach (var group in groups)
+            if (subscription.Status == SubscriptionStatus.Active)
             {
-                var first = group.First();  var address = await addresses.GetAsync(customerId, first.AddressId!.Value) ?? throw new InvalidOperationException("Delivery address could not be resolved.");
-                await deliveries.AddAsync(new Delivery {
-                    Id=Guid.NewGuid(),OrderId=order.Id,SubscriptionId=subscription.Id,OutletId=outlet.Id,CustomerId=customerId,DeliveryAddressId=address.Id,ScheduledDate=first.MealDate,MealSlot=deliveryMode==SubscriptionDeliveryMode.OneDeliveryPerDay?MealSlot.Afternoon:first.MealSlot,CustomerName=customer is null?"":$"{customer.FirstName} {customer.LastName}".Trim(),Address=$"{address.AddressLine1}, {address.AddressLine2}, {address.ContactPhone}".Trim(' ',','),DeliveryFee=first.DeliveryFee,Status=DeliveryStatus.Scheduled
-                });
+                var customer = await users.FindByIdAsync(customerId);
+                var groups = deliveryMode == SubscriptionDeliveryMode.OneDeliveryPerDay ? mealEntities.GroupBy(x=>x.MealDate.Date).Select(g=>(IEnumerable<SubscriptionMealSelection>)g) : mealEntities.Select(x=>(IEnumerable<SubscriptionMealSelection>)new[] { x });
+                foreach (var group in groups)
+                {
+                    var first = group.First();
+                    var address = await addresses.GetAsync(customerId, first.AddressId!.Value) ?? throw new InvalidOperationException("Delivery address could not be resolved.");
+                    await deliveries.AddAsync(new Delivery {
+                        Id=Guid.NewGuid(),OrderId=order.Id,SubscriptionId=subscription.Id,OutletId=outlet.Id,CustomerId=customerId,DeliveryAddressId=address.Id,ScheduledDate=first.MealDate,MealSlot=deliveryMode==SubscriptionDeliveryMode.OneDeliveryPerDay?MealSlot.Afternoon:first.MealSlot,CustomerName=customer is null?"":$"{customer.FirstName} {customer.LastName}".Trim(),Address=$"{address.AddressLine1}, {address.AddressLine2}, {address.ContactPhone}".Trim(' ',','),DeliveryFee=first.DeliveryFee,Status=DeliveryStatus.Scheduled
+                    });
+                }
             }
             await transactions.AddAsync(new PlatformTransaction {
                 Id=Guid.NewGuid(),CustomerId=customerId,OutletId=outlet.Id,SubscriptionId=subscription.Id,Type="CustomerSubscription",GrossAmount=subscription.TotalCharged,PlatformFee=serviceFee,OutletAmount=subscription.OutletAmount,FeePercent=platformFee.Percent,Currency="INR",Status="Pending"
@@ -916,14 +923,49 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             if(!rs.TryGetValue(item.RecipeId,out var recipe))throw new ArgumentException("One or more selected meals are not available from this outlet.");
             if(!Enum.IsDefined(typeof(MealSlot),item.MealSlot))throw new ArgumentException("Invalid meal slot.");
             var slot=(MealSlot)item.MealSlot;
-            if(!outletMenu.Any(x=>x.DayOfWeek==item.MealDate.DayOfWeek&&x.MealSlot==slot&&x.RecipeId==item.RecipeId&&x.IsAvailable))throw new ArgumentException($"{recipe.Name} is not available on {item.MealDate:dddd} at the selected slot.");
+            var configured=outletMenu.FirstOrDefault(x=>x.DayOfWeek==item.MealDate.DayOfWeek&&x.MealSlot==slot&&x.RecipeId==item.RecipeId&&x.IsAvailable);
+            if(configured is null)throw new ArgumentException($"{recipe.Name} is not available on {item.MealDate:dddd} at the selected slot.");
             var portion=Enum.IsDefined(typeof(MealPortionSize),item.PortionSize)?(MealPortionSize)item.PortionSize:MealPortionSize.Regular;
-            result.Add(new SubscriptionMealSelection {
-                Id=Guid.NewGuid(),SubscriptionId=subscriptionId??Guid.Empty,MealDate=item.MealDate.Date,MealSlot=slot,RecipeId=item.RecipeId,PortionSize=portion,Status=MealSelectionStatus.Scheduled,MealPrice=mealPrice.GetPrice(recipe,portion),AddressId=item.AddressId
-            });
+            result.Add(new SubscriptionMealSelection { Id=Guid.NewGuid(),SubscriptionId=subscriptionId??Guid.Empty,MealDate=item.MealDate.Date,MealSlot=slot,RecipeId=item.RecipeId,PortionSize=portion,Status=MealSelectionStatus.Scheduled,MealPrice=mealPrice.GetPrice(recipe,portion),AddressId=item.AddressId });
+        }
+
+        foreach(var slotGroup in result.GroupBy(x=>new { Date=x.MealDate.Date, Slot=x.MealSlot })) {
+            var configuredGroups=outletMenu.Where(x=>x.DayOfWeek==slotGroup.Key.Date.DayOfWeek&&x.MealSlot==slotGroup.Key.Slot&&x.IsAvailable)
+                .GroupBy(x=>string.IsNullOrWhiteSpace(x.OptionGroup)?"Main":x.OptionGroup.Trim(),StringComparer.OrdinalIgnoreCase);
+            foreach(var optionGroup in configuredGroups) {
+                var selectedCount=slotGroup.Count(x=>optionGroup.Any(m=>m.RecipeId==x.RecipeId));
+                var maxSelections=Math.Max(1,optionGroup.Max(x=>x.MaxSelections));
+                if(selectedCount>maxSelections)throw new ArgumentException($"Select at most {maxSelections} option(s) from {optionGroup.Key} for {slotGroup.Key.Slot} on {slotGroup.Key.Date:dddd}.");
+                if(optionGroup.Any(x=>x.IsRequired)&&selectedCount==0)throw new ArgumentException($"Select at least one {optionGroup.Key} option for {slotGroup.Key.Slot} on {slotGroup.Key.Date:dddd}.");
+            }
         }
         return result;
     }
+
+    private async Task<MealPlan?> ResolvePreplannedPlanAsync(Guid outletId,Guid? mealPlanId,string deliveryCity,SubscriptionDuration duration)
+    {
+        if(!mealPlanId.HasValue)return null;
+        var plan=(await mealPlans.GetByOutletAsync(outletId)).FirstOrDefault(x=>x.Id==mealPlanId.Value&&x.IsActive);
+        if(plan is null)throw new KeyNotFoundException("The selected package is no longer available.");
+        if(!plan.IsPreplanned)throw new InvalidOperationException("The selected meal plan is not a customer-recommended package.");
+        if(plan.Price<=0m)throw new InvalidOperationException("The selected package does not have a valid fixed price.");
+        if(!string.IsNullOrWhiteSpace(plan.AvailableCity)&&!plan.AvailableCity.Equals(deliveryCity,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("This recommended package is not available in the selected delivery city.");
+        if(plan.DurationDays!=DurationDays(duration))
+            throw new InvalidOperationException($"Select the {plan.DurationDays}-day duration for this recommended package.");
+        return plan;
+    }
+
+    private static int DurationDays(SubscriptionDuration duration)=>duration switch
+    {
+        SubscriptionDuration.ThreeDays=>3,
+        SubscriptionDuration.FiveDays=>5,
+        SubscriptionDuration.OneWeek=>7,
+        SubscriptionDuration.TwoWeeks=>14,
+        SubscriptionDuration.OneMonth=>28,
+        _=>7
+    };
+
     private static void ValidateSelectionWindow(SubscriptionDuration duration,IReadOnlyList<SubscriptionMealSelection> meals) {
         if(meals.Count==0)throw new ArgumentException("At least one meal is required.");
         var start=meals.Min(x=>x.MealDate).Date;
