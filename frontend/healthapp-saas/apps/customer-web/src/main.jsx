@@ -54,6 +54,20 @@ const key=(date,slot)=>date+'_'+slot;
 const IMAGE_FALLBACKS={hero:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1400&q=85',logo:'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=240&q=85',veg:'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=85',nonveg:'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=85',vegan:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=85'};
 const getImg=u=>u?((u.startsWith('http://')||u.startsWith('https://'))?u:(API_URL?(new URL(API_URL).origin+u):null)):null;
 const fallbackImg=(category='')=>{const k=String(category).toLowerCase();return k.includes('vegan')?IMAGE_FALLBACKS.vegan:k.includes('non')?IMAGE_FALLBACKS.nonveg:IMAGE_FALLBACKS.veg};
+const BRAND_FONT_URLS={
+ Inter:'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap',
+ Poppins:'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap',
+ 'DM Sans':'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap',
+ Nunito:'https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap',
+ Manrope:'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap'
+};
+const BRAND_FONT_STACKS={
+ Inter:'Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+ Poppins:'Poppins,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+ 'DM Sans':'"DM Sans",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+ Nunito:'Nunito,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+ Manrope:'Manrope,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
+};
 const MAP_TILE_URL=import.meta.env.VITE_MAP_TILE_URL||'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const MAP_ATTRIBUTION=import.meta.env.VITE_MAP_ATTRIBUTION||'&copy; OpenStreetMap contributors';
 const INDIA_MAP_CENTER=[20.5937,78.9629];
@@ -351,7 +365,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
       <div className="publicOutletGrid">{outletsFeatured.map(o=><article className="publicOutletCard" key={o.name}><img src={o.image} alt=""/><div><b>{o.name}</b><span>{o.city}</span><small>{o.copy}</small></div></article>)}</div>
     </section>}
 
-    <section className="publicStory"><div className="publicStoryImage"><img src={tenantOutlet?.heroImageUrl?getImg(tenantOutlet.heroImageUrl):IMAGE_FALLBACKS.nonveg} alt={tenantOutlet?.name||'Prepared healthy meal'} onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.nonveg}}/></div><div><span className="publicEyebrow">{tenantOutlet?'BUILT FOR YOU':'BUILT FOR EVERYDAY LIFE'}</span><h2>{tenantOutlet?tenantOutlet.name+' — healthy meals built around your routine.':'One place to discover, subscribe and manage healthy meals.'}</h2><p>Set your delivery location, choose an outlet, build a package around your preferred meals and manage addresses, meal calendars, skips and credits from one customer account.</p><button className="primary" onClick={()=>openAuth('register')}>Create account →</button></div></section>
+    <section className="publicStory"><div className="publicStoryImage"><img src={tenantOutlet?.heroImageUrl?getImg(tenantOutlet.heroImageUrl):IMAGE_FALLBACKS.nonveg} alt={tenantOutlet?.name||'Prepared healthy meal'} onError={e=>{e.currentTarget.src=IMAGE_FALLBACKS.nonveg}}/></div><div><span className="publicEyebrow">{tenantOutlet?'WHY {outletName.toUpperCase()}':'BUILT FOR EVERYDAY LIFE'}</span><h2>{tenantOutlet?tenantOutlet.name+' — healthy meals built around your routine.':'One place to discover, subscribe and manage healthy meals.'}</h2><p>Set your delivery location, choose an outlet, build a package around your preferred meals and manage addresses, meal calendars, skips and credits from one customer account.</p><button className="primary" onClick={()=>openAuth('register')}>Create account →</button></div></section>
 
     <section className="publicCta"><div><span className="publicEyebrow">READY TO GET STARTED?</span><h2>Find healthy meals that fit your life.</h2><p>Create an account and start exploring outlets and meal subscriptions in your supported city.</p></div><button className="primary big" onClick={()=>openAuth('register')}>Create account</button></section>
    </main>
@@ -388,8 +402,21 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
 
 function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild,standalone=false,onSignIn,onRegister}){
  const[slot,setSlot]=useState(1),[mobileMenuOpen,setMobileMenuOpen]=useState(false);
- const[filter,setFilter]=useState('All');
+ const [filter,setFilter]=useState('All');
+ useEffect(()=>{
+   const font=outlet?.fontFamily||'Inter';
+   const href=BRAND_FONT_URLS[font]||BRAND_FONT_URLS.Inter;
+   let link=document.querySelector('link[data-outlet-brand-font]');
+   let created=false;
+   if(!link){link=document.createElement('link');link.rel='stylesheet';link.dataset.outletBrandFont='true';document.head.appendChild(link);created=true;}
+   link.href=href;
+   return()=>{if(link&&created)link.remove();};
+ },[outlet?.fontFamily]);
  const healthy=(outlet?.healthHighlights||[]).filter(Boolean);
+ const theme=String(outlet?.themeStyle||'Fresh').toLowerCase();
+ const buttonShape=String(outlet?.buttonStyle||'Rounded').toLowerCase();
+ const cardStyle=String(outlet?.cardStyle||'Soft').toLowerCase();
+ const fontFamily=BRAND_FONT_STACKS[outlet?.fontFamily||'Inter']||BRAND_FONT_STACKS.Inter;
  const primary=outlet?.primaryColor||'#14532d';
  const secondary=outlet?.secondaryColor||primary;
  const outletName=outlet?.name||'Healthy Meals';
@@ -422,7 +449,7 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild,standalone=fals
    ['3','📅','Build your plan','Select days, portions and delivery preferences.'],
    ['4','🚚','We deliver','Your meals arrive fresh according to your schedule.']
  ];
- return <><LoadingIndicator active={busy} label={'Loading '+outletName+' menu'}/><div className="outletLanding" data-standalone={standalone?'true':'false'} style={{'--brand-primary':primary,'--brand-secondary':secondary}}>
+ return <><LoadingIndicator active={busy} label={'Loading '+outletName+' menu'}/><div className={`outletLanding theme-${theme} buttons-${buttonShape} cards-${cardStyle}`} data-standalone={standalone?'true':'false'} style={{'--brand-primary':primary,'--brand-secondary':secondary,'--brand-font':fontFamily}}>
    <header className="outletLandingNav">
      <button type="button" className="outletLandingBrand" onClick={()=>scrollTo('outlet-top')}>
        <span className="outletLandingLogo">{outlet?.logoUrl?<img src={getImg(outlet.logoUrl)} alt={outletName+' logo'}/>:<b>{outletName.slice(0,1).toUpperCase()}</b>}</span>
@@ -444,9 +471,9 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild,standalone=fals
    <main id="outlet-top">
      <section className="outletLandingHero">
        <div className="outletLandingHeroCopy">
-         <span className="outletLandingKicker">FRESH · LOCAL · MADE FOR {city.toUpperCase()}</span>
-         <h1>Healthy meals<br/>made for {city}.</h1>
-         <p>{outlet?.tagline||outlet?.about||'Freshly prepared meals, balanced portions and flexible delivery from your local meal team.'}</p>
+         <span className="outletLandingKicker">{outletName.toUpperCase()} · FRESH · LOCAL</span>
+         <h1>{outlet?.tagline||<>Healthy meals<br/>made for {city}.</>}</h1>
+         <p>{outlet?.about||'Freshly prepared meals, balanced portions and flexible delivery from your local meal team.'}</p>
          <div className="outletLandingHeroActions">
            <button className="primary outletLandingCta" onClick={onBuild}>Build your meal plan →</button>
            <button className="secondary outletLandingMenuBtn" onClick={()=>scrollTo('outlet-menu')}>Explore menu</button>
@@ -463,7 +490,7 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild,standalone=fals
 
      <section className="outletLandingMenu" id="outlet-menu">
        <div className="outletLandingSectionHead">
-         <div><span className="outletLandingKicker">OUR MENU</span><h2>Meals from {outletName}</h2><p>Browse what is published today. Nutrition and pricing come directly from the outlet.</p></div>
+         <div><span className="outletLandingKicker">MENU FROM {outletName.toUpperCase()}</span><h2>Meals made for your routine</h2><p>Browse what is published today. Nutrition and pricing come directly from the outlet.</p></div>
          <button className="linkBtn" onClick={onBuild}>Build with these meals →</button>
        </div>
        <div className="outletLandingSlotGrid">{slotInfo.map(([id,icon,label,time])=><button key={id} className={slot===id?'active':''} onClick={()=>setSlot(id)}><span>{icon}</span><b>{label}</b><small>{time}</small></button>)}</div>
@@ -473,7 +500,7 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild,standalone=fals
      </section>
 
      <section className="outletLandingHow" id="outlet-how">
-       <div className="outletLandingSectionHead centered"><div><span className="outletLandingKicker">SIMPLE FROM START TO FINISH</span><h2>How it works</h2><p>Everything stays focused on {outletName} — no marketplace hopping.</p></div></div>
+       <div className="outletLandingSectionHead centered"><div><span className="outletLandingKicker">SIMPLE FROM START TO FINISH</span><h2>How it works</h2><p>A simple customer journey designed around {outletName}.</p></div></div>
        <div className="outletLandingSteps">{steps.map(([n,icon,title,copy])=><article className="outletLandingStep" key={n}><div className="outletLandingStepNumber">{n}</div><div className="outletLandingStepIcon">{icon}</div><h3>{title}</h3><p>{copy}</p></article>)}</div>
      </section>
 
