@@ -165,6 +165,12 @@ IF COL_LENGTH('dbo.Outlets','LegalEffectiveDateUtc') IS NULL
     ALTER TABLE dbo.Outlets ADD LegalEffectiveDateUtc datetime2 NULL;
 IF COL_LENGTH('dbo.Outlets','LegalPoliciesPublished') IS NULL
     ALTER TABLE dbo.Outlets ADD LegalPoliciesPublished bit NOT NULL CONSTRAINT DF_Outlets_LegalPoliciesPublished DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Outlets','CustomPackagePricingMode') IS NULL
+    ALTER TABLE dbo.Outlets ADD CustomPackagePricingMode nvarchar(30) NOT NULL CONSTRAINT DF_Outlets_CustomPackagePricingMode DEFAULT 'Calculated' WITH VALUES;
+IF COL_LENGTH('dbo.Outlets','ShowPackagePriceToCustomer') IS NULL
+    ALTER TABLE dbo.Outlets ADD ShowPackagePriceToCustomer bit NOT NULL CONSTRAINT DF_Outlets_ShowPackagePriceToCustomer DEFAULT 1 WITH VALUES;
+IF COL_LENGTH('dbo.Outlets','ShowDeliveryFeeToCustomer') IS NULL
+    ALTER TABLE dbo.Outlets ADD ShowDeliveryFeeToCustomer bit NOT NULL CONSTRAINT DF_Outlets_ShowDeliveryFeeToCustomer DEFAULT 1 WITH VALUES;
 ", cancellationToken);
 
         // Existing databases also need the new immutable legal-history and customer-acceptance tables.
@@ -917,6 +923,28 @@ IF COL_LENGTH('dbo.Subscriptions','Frequency') IS NOT NULL UPDATE dbo.Subscripti
 IF COL_LENGTH('dbo.Subscriptions','DiscountCode') IS NOT NULL UPDATE dbo.Subscriptions SET DiscountCode = COALESCE(DiscountCode,'');
 
 IF COL_LENGTH('dbo.Recipes','Name') IS NOT NULL UPDATE dbo.Recipes SET Name = COALESCE(Name,'');
+
+-- Customer package configuration for existing databases.
+IF COL_LENGTH('dbo.MealPlans','IsPreplanned') IS NULL
+    ALTER TABLE dbo.MealPlans ADD IsPreplanned bit NOT NULL CONSTRAINT DF_MealPlans_IsPreplanned DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.MealPlans','AvailableCity') IS NULL
+    ALTER TABLE dbo.MealPlans ADD AvailableCity nvarchar(100) NOT NULL CONSTRAINT DF_MealPlans_AvailableCity DEFAULT '' WITH VALUES;
+IF COL_LENGTH('dbo.MealPlans','DurationDays') IS NULL
+    ALTER TABLE dbo.MealPlans ADD DurationDays int NOT NULL CONSTRAINT DF_MealPlans_DurationDays DEFAULT 7 WITH VALUES;
+IF COL_LENGTH('dbo.OutletMenuItems','OptionGroup') IS NULL
+    ALTER TABLE dbo.OutletMenuItems ADD OptionGroup nvarchar(50) NOT NULL CONSTRAINT DF_OutletMenuItems_OptionGroup DEFAULT 'Main' WITH VALUES;
+IF COL_LENGTH('dbo.OutletMenuItems','IsRequired') IS NULL
+    ALTER TABLE dbo.OutletMenuItems ADD IsRequired bit NOT NULL CONSTRAINT DF_OutletMenuItems_IsRequired DEFAULT 1 WITH VALUES;
+IF COL_LENGTH('dbo.OutletMenuItems','MaxSelections') IS NULL
+    ALTER TABLE dbo.OutletMenuItems ADD MaxSelections int NOT NULL CONSTRAINT DF_OutletMenuItems_MaxSelections DEFAULT 1 WITH VALUES;
+IF COL_LENGTH('dbo.Subscriptions','IsPreplanned') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD IsPreplanned bit NOT NULL CONSTRAINT DF_Subscriptions_IsPreplanned DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Subscriptions','PricingMode') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PricingMode nvarchar(30) NOT NULL CONSTRAINT DF_Subscriptions_PricingMode DEFAULT 'Calculated' WITH VALUES;
+IF COL_LENGTH('dbo.Subscriptions','PriceVisibleToCustomer') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD PriceVisibleToCustomer bit NOT NULL CONSTRAINT DF_Subscriptions_PriceVisibleToCustomer DEFAULT 1 WITH VALUES;
+IF COL_LENGTH('dbo.Subscriptions','DeliveryFeeVisibleToCustomer') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD DeliveryFeeVisibleToCustomer bit NOT NULL CONSTRAINT DF_Subscriptions_DeliveryFeeVisibleToCustomer DEFAULT 1 WITH VALUES;
 IF COL_LENGTH('dbo.Recipes','Description') IS NOT NULL UPDATE dbo.Recipes SET Description = COALESCE(Description,'');
 IF COL_LENGTH('dbo.Recipes','ImageUrl') IS NOT NULL UPDATE dbo.Recipes SET ImageUrl = COALESCE(ImageUrl,'');
 IF COL_LENGTH('dbo.Recipes','Tags') IS NOT NULL UPDATE dbo.Recipes SET Tags = COALESCE(Tags,'');
