@@ -41,7 +41,8 @@ public record OutletSettingsDto(
     string DeliveryCoverageMode = "Radius",
     double ServiceRadiusKm = 20,
     double Latitude = 0,
-    double Longitude = 0);
+    double Longitude = 0,
+    string OutletSlug = "");
 
 public record UpdateOutletSettingsRequest(string DeliveryDays, string DeliveryCoverageMode = "Radius", double? ServiceRadiusKm = null);
 
