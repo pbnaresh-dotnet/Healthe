@@ -20,7 +20,9 @@ public sealed class OutletOnboardingService(
     IPasswordService passwords,
     IUnitOfWork unitOfWork,
     IPaymentTransactionRepository payments,
-    IPaymentGateway paymentGateway) : IOutletOnboardingService
+    IPaymentGateway paymentGateway,
+    ITransactionalEmailService emails,
+    IConfiguration configuration) : IOutletOnboardingService
 {
     private const decimal SetupFee = 5000m;
 
@@ -235,6 +237,23 @@ public sealed class OutletOnboardingService(
         x.VerifiedAtUtc = null;
         x.VerificationNotes = "";
         await applications.UpdateAsync(x);
+
+        var adminAddress = configuration["Email:AdminNotificationAddress"]?.Trim();
+        if (!string.IsNullOrWhiteSpace(adminAddress))
+        {
+            await emails.TrySendAsync(
+                EmailTemplateId.OutletVerificationSubmitted,
+                adminAddress,
+                new Dictionary<string, string?>
+                {
+                    ["OutletName"] = x.OutletName,
+                    ["OwnerName"] = x.OwnerName,
+                    ["Email"] = x.Email,
+                    ["PlanName"] = x.PlanName,
+                    ["SubmittedAtUtc"] = x.SubmittedAtUtc?.ToString("dd MMM yyyy HH:mm") + " UTC"
+                });
+        }
+
         return ToDto(x);
     }
 
