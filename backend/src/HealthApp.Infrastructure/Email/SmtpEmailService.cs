@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Text;
 using HealthApp.Application.Abstractions;
-using MailKit.Net.Smtp;
+using MailKitSmtpClient = MailKit.Net.Smtp.SmtpClient;
 using MailKit.Security;
 using MimeKit;
 using Microsoft.Extensions.Options;
@@ -85,7 +85,7 @@ public sealed class SmtpEmailService(IOptions<SmtpEmailOptions> options) : IEmai
         };
         email.Body = bodyBuilder.ToMessageBody();
 
-        using var client = new SmtpClient();
+        using var client = new MailKitSmtpClient();
         client.Timeout = Math.Clamp(o.TimeoutSeconds, 5, 120) * 1000;
 
         var secureSocketOptions = o.Port == 465 && o.EnableSsl
