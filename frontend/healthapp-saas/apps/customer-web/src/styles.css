@@ -1680,3 +1680,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .reviewLegalCheck a{color:#21683a;font-weight:800}
 .reviewLegalCheck input:disabled+span{opacity:.62}
 .reviewLegalMissing{margin-top:8px;padding:9px 11px;border-radius:9px;background:#fff8e8;border:1px solid #ead39c;color:#8a6d2e;font-size:8px;line-height:1.45}
+
+/* Production communication consent */
+.profileCommunicationCard{margin-top:14px;padding:13px;border:1px solid #dce8df;border-radius:11px;background:#f8fbf8;display:flex;justify-content:space-between;gap:14px;align-items:center}
+.profileCommunicationCard>div{min-width:0}.profileCommunicationCard .fieldCaption{display:block;margin-bottom:3px}.profileCommunicationCard>div>b{display:block;font-size:10px;color:#214d2e}.profileCommunicationCard p{margin:4px 0 0;color:#738078;font-size:8px;line-height:1.45}
+.profileConsentToggle{display:flex!important;align-items:center;gap:8px;margin:0!important;padding:8px 10px;border:1px solid #d7e4da;border-radius:9px;background:#fff;cursor:pointer;flex:0 0 auto}
+.profileConsentToggle input{margin:0}.profileConsentToggle span{display:grid;gap:2px}.profileConsentToggle span b{font-size:9px;color:#21683a}.profileConsentToggle small{font-size:7px;color:#718078}
+@media(max-width:700px){.profileCommunicationCard{align-items:flex-start;flex-direction:column}.profileConsentToggle{width:100%;justify-content:flex-start}}
+
