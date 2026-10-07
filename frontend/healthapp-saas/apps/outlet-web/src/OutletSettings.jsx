@@ -89,7 +89,7 @@ export default function OutletSettings({onNavigate}){
       <div className="settingsDataRow"><div><b>Favicon</b><span>Browser tab icon for the customer portal.</span></div><div className="settingsRowActions">{branding.faviconUrl&&<img src={branding.faviconUrl} alt="" style={{width:32,height:32,objectFit:'contain',borderRadius:7,border:'1px solid #dfe8e1'}}/>}<label className="secondary">Upload<input type="file" accept=".png,.ico,.jpg,.jpeg,.webp" style={{display:'none'}} onChange={e=>uploadBranding('favicon',e.target.files?.[0])}/></label></div></div>
       {brandingUploading&&<div className="settingsToolbar">Uploading {brandingUploading}…</div>}
     </div>
-   </section>
+   </section>}
    {section==='domains'&&<section className="settingsSection">
     <div className="settingsSectionHead">
       <div><span className="eyebrow">CUSTOMER PORTAL DOMAINS</span><h2>Connect your customer website</h2><p>Every outlet gets a HealthApp platform address automatically. You can also request your own domain such as <b>www.fitfood.com</b>.</p></div>
