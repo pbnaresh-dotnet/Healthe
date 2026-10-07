@@ -148,7 +148,8 @@ public sealed class OutletPackageActivationService(
                     ["PackageName"] = subscription.PlanName,
                     ["Total"] = $"₹{subscription.TotalCharged:N2}",
                     ["PaymentMethod"] = subscription.PaymentMethod,
-                    ["StartDate"] = subscription.StartDate.ToString("dd MMM yyyy")
+                    ["StartDate"] = subscription.StartDate.ToString("dd MMM yyyy"),
+                    ["StorefrontUrl"] = await outletUrls.GetStorefrontUrlAsync(outlet.Id)
                 });
         }
 
