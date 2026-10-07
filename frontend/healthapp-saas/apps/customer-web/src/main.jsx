@@ -399,7 +399,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
            </div>
            <div className="authPasswordRules">{passwordChecks.map(([ok,text])=><span className={ok?'valid':''} key={text}><b>{ok?'✓':'○'}</b>{text}</span>)}</div>
            <div className="authConsent">
-             <label><input type="checkbox" checked={authForm.agreeTerms} onChange={e=>setAuthForm({...authForm,agreeTerms:e.target.checked})} required/><span>I agree to the <a href={'?outlet='+(encodeURIComponent(TENANT_OUTLET_SLUG||'fitfood'))+'&legal=terms'}>Customer Terms & Conditions</a> and <a href={'?outlet='+(encodeURIComponent(TENANT_OUTLET_SLUG||'fitfood'))+'&legal=privacy'}>Privacy Policy</a>, including the outlet's published customer policies.</span></label>
+             <label><input type="checkbox" checked={authForm.agreeTerms} onChange={e=>setAuthForm({...authForm,agreeTerms:e.target.checked})} required/><span>I agree to the <a href={'?outlet='+(encodeURIComponent(resolvedStandaloneSlug||TENANT_OUTLET_SLUG||''))+'&legal=terms'}>Customer Terms & Conditions</a> and <a href={'?outlet='+(encodeURIComponent(resolvedStandaloneSlug||TENANT_OUTLET_SLUG||''))+'&legal=privacy'}>Privacy Policy</a>, including the outlet's published customer policies.</span></label>
              <label><input type="checkbox" checked={authForm.marketingOptIn} onChange={e=>setAuthForm({...authForm,marketingOptIn:e.target.checked})}/><span>Send me updates on new meals, offers and health tips</span></label>
            </div>
            <button className="primary big authSubmit">Create account <span>→</span></button>
