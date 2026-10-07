@@ -815,8 +815,6 @@ IF COL_LENGTH('dbo.Recipes','FiberGrams') IS NULL
     ALTER TABLE dbo.Recipes ADD FiberGrams int NOT NULL CONSTRAINT DF_Recipes_FiberGrams DEFAULT 0;
 IF COL_LENGTH('dbo.Recipes','MealType') IS NULL
     ALTER TABLE dbo.Recipes ADD MealType nvarchar(50) NOT NULL CONSTRAINT DF_Recipes_MealType DEFAULT 'Meal' WITH VALUES;
-IF COL_LENGTH('dbo.Recipes','MealType') IS NOT NULL
-    UPDATE dbo.Recipes SET MealType = 'Meal' WHERE MealType IS NULL OR LTRIM(RTRIM(MealType)) = '';
 IF COL_LENGTH('dbo.Recipes','Allergens') IS NOT NULL
     ALTER TABLE dbo.Recipes ALTER COLUMN Allergens nvarchar(max) NULL;
 ", cancellationToken);
@@ -833,6 +831,17 @@ WHERE (ca.City IS NULL OR ca.City = '')
    OR (ca.State IS NULL OR ca.State = '')
    OR (ca.Pincode IS NULL OR ca.Pincode = '')
    OR (ca.Locality IS NULL OR ca.Locality = '');
+", cancellationToken);
+
+        // Recipe MealType is added above in a schema batch. Keep its data backfill in a separate
+        // batch because SQL Server can compile references to a newly-added column before ALTER TABLE runs.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Recipes','MealType') IS NOT NULL
+BEGIN
+    UPDATE dbo.Recipes
+    SET MealType = 'Meal'
+    WHERE MealType IS NULL OR LTRIM(RTRIM(MealType)) = '';
+END;
 ", cancellationToken);
 
         // Run data updates in separate SQL batches so SQL Server compiles the UPDATE statements
