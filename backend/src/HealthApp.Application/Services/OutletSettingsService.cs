@@ -37,7 +37,7 @@ public sealed class OutletSettingsService(
             outlet.Id, outlet.Name, outlet.City, outlet.State, outlet.Pincode,
             outlet.DeliveryDays, outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString(),
             await BuildReadinessAsync(outlet), MapBranding(branding),
-            outlet.DeliveryCoverageMode.ToString(), outlet.ServiceRadiusKm, outlet.Latitude, outlet.Longitude);
+            outlet.DeliveryCoverageMode.ToString(), outlet.ServiceRadiusKm, outlet.Latitude, outlet.Longitude, outlet.Slug);
     }
 
     public async Task<IReadOnlyList<OutletDomainDto>> GetDomainsAsync()
