@@ -335,7 +335,9 @@ public sealed class PaymentService(
     IOutletRepository outlets,
     IOutletDomainRepository outletDomains,
     IOptions<TenantDomainSettings> tenantDomainSettings,
-    IPaymentGateway gateway) : IPaymentService
+    IPaymentGateway gateway,
+    ITransactionalEmailService emails,
+    IConfiguration configuration) : IPaymentService
 {
     public async Task<PaymentCheckoutDto?> CreateAsync(
         CreatePaymentRequest request,
@@ -623,6 +625,26 @@ public sealed class PaymentService(
         }
 
         await onboardingApplications.UpdateAsync(application);
+
+        var outlet = application.OutletId is Guid outletId
+            ? await outlets.GetByIdAsync(outletId)
+            : null;
+        if (outlet is not null)
+        {
+            await emails.TrySendAsync(
+                EmailTemplateId.OutletOnboardingPaymentConfirmed,
+                application.Email,
+                new Dictionary<string, string?>
+                {
+                    ["OwnerName"] = application.OwnerName,
+                    ["OutletName"] = application.OutletName,
+                    ["PlanName"] = application.PlanName,
+                    ["BillingCycle"] = application.BillingCycle,
+                    ["SetupFee"] = $"₹{application.SetupFee:N2}",
+                    ["PaymentReference"] = application.PaymentReference,
+                    ["OutletAdminUrl"] = configuration["Email:OutletAdminUrl"] ?? "https://outlet.broccoly.in"
+                });
+        }
     }
 
     private async Task CompleteCustomerPaymentAsync(Guid paymentId)
