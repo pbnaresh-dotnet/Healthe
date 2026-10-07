@@ -36,7 +36,8 @@ public sealed class OutletSettingsService(
         return new(
             outlet.Id, outlet.Name, outlet.City, outlet.State, outlet.Pincode,
             outlet.DeliveryDays, outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString(),
-            await BuildReadinessAsync(outlet), MapBranding(branding));
+            await BuildReadinessAsync(outlet), MapBranding(branding),
+            outlet.DeliveryCoverageMode.ToString(), outlet.ServiceRadiusKm, outlet.Latitude, outlet.Longitude);
     }
 
     public async Task<IReadOnlyList<OutletDomainDto>> GetDomainsAsync()
@@ -365,6 +366,19 @@ public sealed class OutletSettingsService(
             .Where(days.Contains)
             .Select(x => x.ToString()));
 
+        if (!string.IsNullOrWhiteSpace(request.DeliveryCoverageMode))
+        {
+            if (!Enum.TryParse<DeliveryCoverageMode>(request.DeliveryCoverageMode, true, out var coverageMode))
+                throw new ArgumentException("Delivery coverage mode must be Radius or Areas.");
+            outlet.DeliveryCoverageMode = coverageMode;
+        }
+        if (request.ServiceRadiusKm.HasValue)
+        {
+            if (request.ServiceRadiusKm.Value < 1 || request.ServiceRadiusKm.Value > 100)
+                throw new ArgumentException("Delivery radius must be between 1 and 100 km.");
+            outlet.ServiceRadiusKm = request.ServiceRadiusKm.Value;
+        }
+
         await outlets.UpdateAsync(outlet);
         return await GetAsync();
     }
@@ -421,6 +435,9 @@ public sealed class OutletSettingsService(
             (!x.IsDemo || !x.DemoExpiresAtUtc.HasValue || x.DemoExpiresAtUtc.Value > DateTime.UtcNow));
         var selectedAreas = (await deliveryAreas.GetByOutletAsync(outletId)).Count;
         var pricingRules = (await pricing.GetByOutletAsync(outletId)).Count;
+        var coverageReady = outlet.DeliveryCoverageMode == DeliveryCoverageMode.Radius
+            ? outlet.ServiceRadiusKm >= 1
+            : selectedAreas > 0;
         var deliveryDays = ParseDays(outlet.DeliveryDays);
 
         var menuDaysReady = deliveryDays.Count > 0
@@ -442,8 +459,8 @@ public sealed class OutletSettingsService(
                 deliveryDays.Count > 0 && menuDaysReady == deliveryDays.Count, menuDaysReady, Math.Max(1, deliveryDays.Count), "menu"),
             new("drivers", "Drivers", "Add at least one active delivery driver.",
                 activeDrivers > 0, activeDrivers, 1, "drivers"),
-            new("delivery-areas", "Delivery areas", "Select at least one approved city delivery area.",
-                selectedAreas > 0, selectedAreas, 1, "delivery-areas"),
+            new("delivery-areas", "Delivery coverage", "Choose an outlet service radius on the map or select approved city areas.",
+                coverageReady, outlet.DeliveryCoverageMode == DeliveryCoverageMode.Radius ? 1 : selectedAreas, 1, "delivery-areas"),
             new("delivery-pricing", "Delivery pricing", "Configure at least one distance-based delivery fee.",
                 pricingRules > 0, pricingRules, 1, "pricing"),
             new("tax", "Tax settings", "Confirm the restaurant GST rate for customer pricing.",
