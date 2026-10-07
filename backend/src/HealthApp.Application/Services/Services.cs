@@ -507,7 +507,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var payable = net + taxes.RestaurantAmount + delivery + service + taxes.PlatformAmount;
         return new(gross, gross == 0 ? 0 : Math.Round(totalDiscount / gross * 100m, 4), totalDiscount, net, taxes.RestaurantAmount, delivery, service, taxes.PlatformAmount, payable, commissionRate, commission, service + commission, quotes, allergyWarnings, allergyWarnings.Count>0 && !allergyWarnings.All(x=>(r.ConfirmedAllergyRecipeIds??[]).Contains(x.RecipeId)), taxes.RestaurantTaxableAmount, taxes.RestaurantRate, taxes.RestaurantMode.ToString());
     }
-    public async Task<SubscriptionDto?> SubscribeAsync(CreateSubscriptionRequest r)
+    public async Task<SubscriptionDto?> SubscribeAsync(CreateSubscriptionRequest r, LegalAcceptanceContext? acceptanceContext = null)
     {
         if (current.UserId is not Guid customerId) return null;
         var deliveryMode = Parse<SubscriptionDeliveryMode>(r.DeliveryMode, "delivery mode");
@@ -624,7 +624,9 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                     TermsAccepted = true,
                     PrivacyAccepted = true,
                     CommercialPoliciesAccepted = true,
-                    AcceptedAtUtc = DateTime.UtcNow
+                    AcceptedAtUtc = DateTime.UtcNow,
+                    IpAddress = acceptanceContext?.IpAddress,
+                    UserAgent = acceptanceContext?.UserAgent
                 });
             }
 
