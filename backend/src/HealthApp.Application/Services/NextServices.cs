@@ -331,8 +331,11 @@ public sealed class PaymentService(ICurrentUser current,IPaymentTransactionRepos
         if(s.CustomerId!=id)throw new UnauthorizedAccessException();
         if(current.OutletId is not Guid customerOutletId || customerOutletId != s.OutletId)
             throw new UnauthorizedAccessException("The current customer is not associated with the subscription outlet.");
+        if(s.PackageStatus=="PendingOutletReview")
+            throw new InvalidOperationException("This package is awaiting outlet confirmation before payment.");
         if(s.IsOutletCreated&&s.PackageStatus!="PaymentPending")
             throw new InvalidOperationException("Accept the outlet-created package before making payment.");
+
         var existing=await payments.GetByIdempotencyKeyAsync(r.IdempotencyKey);
         if(existing is not null)
         {
@@ -343,7 +346,7 @@ public sealed class PaymentService(ICurrentUser current,IPaymentTransactionRepos
         var now=DateTime.UtcNow;
         var p=new PaymentTransaction{Id=Guid.NewGuid(),CustomerId=id,SubscriptionId=s.Id,Provider=r.Provider,ProviderPaymentId=$"mock_{Guid.NewGuid():N}",IdempotencyKey=r.IdempotencyKey,Amount=s.TotalCharged,Currency="INR",Status="Paid",CreatedAtUtc=now,PaidAtUtc=now};
         await payments.AddAsync(p);
-        if(s.IsOutletCreated)
+        if(s.PackageStatus=="PaymentPending")
         {
             await outletPackageActivation.ActivateAsync(s.Id,"Online",id);
         }
