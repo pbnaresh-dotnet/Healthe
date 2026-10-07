@@ -166,7 +166,19 @@ public record ChangeOutletSubscriptionRequest(Guid SaaSPlanId, string BillingCyc
 public record RequestOutletDemoRequest(string Email, string? BusinessName = null);
 public record OutletDemoRequestDto(bool Created, string Message, DateTime DemoExpiresAtUtc);
 public record OutletOnboardingPaymentRequest(Guid SaaSPlanId, string BillingCycle, string BusinessType, string OutletName, string City, string State, string Pincode, string AddressLine1, string AddressLine2, string OwnerName, string Email, string OwnerPhone, string Password);
-public record OutletOnboardingSessionDto(Guid Id, string AccessKey, string Status, string PaymentStatus, string PlanName, string BillingCycle, decimal SubscriptionFee, decimal SetupFee, DateTime? SubmittedAtUtc);
+public record OutletOnboardingSessionDto(
+    Guid Id,
+    string AccessKey,
+    string Status,
+    string PaymentStatus,
+    string PlanName,
+    string BillingCycle,
+    decimal SubscriptionFee,
+    decimal SetupFee,
+    DateTime? SubmittedAtUtc,
+    Guid? PaymentId = null,
+    string ProviderOrderId = "",
+    string PaymentSessionId = "");
 public record SaveOutletOnboardingDetailsRequest(string BusinessType, string OutletName, string Description, string City, string State, string Pincode, string AddressLine1, string AddressLine2, string OwnerName, string OwnerEmail, string OwnerPhone, string AadhaarNumber, string BusinessPan, string GstNumber);
 public record OutletOnboardingDocumentDto(string DocumentType, string Url, string FileName, DateTime UploadedAtUtc);
 public record OutletOnboardingDto(Guid Id, string Status, string PaymentStatus, string PlanName, string BillingCycle, decimal SubscriptionFee, decimal SetupFee, string BusinessType, string OutletName, string Description, string City, string State, string Pincode, string AddressLine1, string AddressLine2, string OwnerName, string OwnerEmail, string OwnerPhone, string AadhaarNumber, string BusinessPan, string GstNumber, IReadOnlyList<OutletOnboardingDocumentDto> Documents, DateTime? SubmittedAtUtc, DateTime? VerifiedAtUtc, string VerificationNotes, Guid? UserId = null, Guid? OutletId = null);
