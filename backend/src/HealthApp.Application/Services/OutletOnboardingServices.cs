@@ -133,7 +133,7 @@ public sealed class OutletOnboardingService(
         var payment = new PaymentTransaction
         {
             Id = Guid.NewGuid(),
-            CustomerId = user.Id,
+            CustomerId = null,
             OutletId = outlet.Id,
             OutletOnboardingApplicationId = application.Id,
             PaymentType = "OutletOnboarding",
