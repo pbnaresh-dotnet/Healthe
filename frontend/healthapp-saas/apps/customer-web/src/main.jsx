@@ -916,7 +916,7 @@ function App(){
    const requestOutletSlug=draftOutletSlug||TENANT_OUTLET_SLUG||(()=>{try{return new URLSearchParams(window.location.search).get('outlet')||''}catch{return''}})();
    const x=authMode==='login'
      ?await auth.login({email:authForm.email,password:authForm.password,outletSlug:requestOutletSlug||undefined})
-     :await auth.register({firstName:authForm.firstName,lastName:authForm.lastName,email:authForm.email,password:authForm.password,mobileNumber:'+91'+normalizeIndianMobile(authForm.mobileNumber),role:'Customer',outletSlug:draftOutletSlug||undefined,legalPolicyVersionId:authForm.legalPolicyVersionId||undefined,legalAccepted:Boolean(authForm.agreeTerms)});
+     :await auth.register({firstName:authForm.firstName,lastName:authForm.lastName,email:authForm.email,password:authForm.password,mobileNumber:'+91'+normalizeIndianMobile(authForm.mobileNumber),role:'Customer',outletSlug:draftOutletSlug||undefined,legalPolicyVersionId:authForm.legalPolicyVersionId||undefined,legalAccepted:Boolean(authForm.agreeTerms),marketingOptIn:Boolean(authForm.marketingOptIn)});
    setUser(x.user);
    if(draft&&(!draft.customerId||draft.customerId===x.user.id)){
      await restoreSavedPackage(draft);
