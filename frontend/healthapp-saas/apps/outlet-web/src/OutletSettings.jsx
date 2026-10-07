@@ -150,7 +150,7 @@ export default function OutletSettings({onNavigate}){
       <button className="primary" disabled={saving}>Create package</button>
     </form>
     <div className="settingsDataList">{mealPlans.map(p=><div className="settingsDataRow" key={p.id}><div><b>{p.name} {p.isPreplanned&&<span className="pill green">Recommended</span>}</b><span>{p.frequency} · {p.durationDays||7} days · {p.mealsPerDay} meals/day{p.isPreplanned&&p.availableCity?' · '+p.availableCity:''}</span></div><strong>{money(p.price)}</strong></div>)}{!mealPlans.length&&<div className="settingsEmpty">Create your first customer package.</div>}</div>
-   </section>
+   </section>}
 
    {section==='tax'&&<section className="settingsSection"><div className="settingsSectionHead"><div><span className="eyebrow">TAX & GST</span><h2>Customer tax treatment</h2><p>Used in customer package quotes and financial reporting.</p></div><button className="primary" onClick={saveTax} disabled={saving}>Save tax settings</button></div><div className="settingsTaxGrid"><label className="field"><span>Restaurant GST %</span><input type="number" min="0" max="100" step=".01" value={tax.restaurantGstRate} onChange={e=>setTax({...tax,restaurantGstRate:e.target.value})}/></label><div className="taxModeCards"><button type="button" className={tax.restaurantGstMode==='Exclusive'?'taxModeCard selected':'taxModeCard'} onClick={()=>setTax({...tax,restaurantGstMode:'Exclusive'})}><b>GST Exclusive</b><span>GST is added at checkout.</span></button><button type="button" className={tax.restaurantGstMode==='Inclusive'?'taxModeCard selected':'taxModeCard'} onClick={()=>setTax({...tax,restaurantGstMode:'Inclusive'})}><b>GST Inclusive</b><span>GST is extracted from the displayed price.</span></button></div></div></section>}
 
