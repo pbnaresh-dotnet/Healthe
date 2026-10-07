@@ -158,7 +158,10 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.CreatedByUserId);
         e.Property(x => x.IsPublished).IsRequired();
         e.HasIndex(x => new { x.OutletId, x.Version }).IsUnique();
-        e.HasIndex(x => new { x.OutletId, x.IsPublished });
+        e.HasIndex(x => x.OutletId)
+            .IsUnique()
+            .HasFilter("[IsPublished] = 1")
+            .HasDatabaseName("UX_OutletLegalPolicyVersions_Current");
         e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
     }
 
