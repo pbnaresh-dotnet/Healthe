@@ -13,7 +13,7 @@ public sealed class MarketplaceController(IMarketplaceService service, ICityArea
     [HttpGet("outlets")] public async Task<IActionResult> Outlets([FromQuery]string? city)=>Ok(await service.GetAllOutletsAsync(city));
     [HttpGet("outlets/{slug}")] public async Task<IActionResult> Outlet(string slug){var x=await service.GetOutletAsync(slug);return x is null?NotFound():Ok(x);}
     [HttpGet("outlets/{slug}/legal")] public async Task<IActionResult> Legal(string slug){var x=await service.GetOutletLegalAsync(slug);return x is null?NotFound():Ok(x);}
-    [HttpGet("outlets/{outletId:guid}/meal-plans")] public async Task<IActionResult> Plans(Guid outletId)=>Ok(await service.GetPlansAsync(outletId));
+    [HttpGet("outlets/{outletId:guid}/meal-plans")] public async Task<IActionResult> Plans(Guid outletId,[FromQuery]string? city)=>Ok(await service.GetPlansAsync(outletId,city));
     [HttpGet("outlets/{outletId:guid}/recipes")] public async Task<IActionResult> Recipes(Guid outletId,[FromQuery]string? category)=>Ok(await service.GetRecipesAsync(outletId,category));
     [HttpGet("outlets/{outletId:guid}/menu")] public async Task<IActionResult> Menu(Guid outletId)=>Ok(await service.GetMenuAsync(outletId));
     [HttpGet("city-areas")] public async Task<IActionResult> CityAreas([FromQuery]string? city)=>Ok((await areas.GetActiveAsync(city)).Select(x=>new CityAreaDto(x.Id,x.City,x.State,x.Name,x.Pincode,x.Latitude,x.Longitude,x.IsActive)));
