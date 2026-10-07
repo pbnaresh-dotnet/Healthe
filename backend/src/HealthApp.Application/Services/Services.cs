@@ -426,6 +426,8 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             var recipeLookup = (await recipes.GetByOutletAsync(subscription.OutletId))
                 .Where(x => x.IsActive)
                 .ToDictionary(x => x.Id);
+            var outlet = await outlets.GetByIdAsync(subscription.OutletId);
+            var showMealPrice = outlet?.ShowMealPriceToCustomer != false;
             var deliveryRows = await deliveries.GetBySubscriptionAsync(subscription.Id);
 
             subscriptionSavings += subscription.SubscriptionDiscountAmount;
@@ -468,7 +470,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                     recipe.Calories,
                     recipe.ProteinGrams,
                     selection.Status.ToString(),
-                    selection.MealPrice,
+                    showMealPrice ? selection.MealPrice : 0m,
                     delivery?.Id));
             }
 
@@ -752,9 +754,18 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     }
     public async Task<IReadOnlyList<RecipeDto>> GetSubscriptionRecipesAsync(Guid subscriptionId,string? category) {
         var s=await GetOwnedSubscription(subscriptionId);
-        return(await recipes.GetByOutletAndCategoryAsync(s.OutletId,category)).Where(x=>x.IsActive).Select(MapRecipe).ToList();
+        var outlet=await outlets.GetByIdAsync(s.OutletId)??throw new KeyNotFoundException("Outlet not found.");
+        return(await recipes.GetByOutletAndCategoryAsync(s.OutletId,category))
+            .Where(x=>x.IsActive)
+            .Select(x=>MapRecipe(x,outlet.ShowMealPriceToCustomer))
+            .ToList();
     }
-    public async Task<IReadOnlyList<MenuItemDto>> GetSubscriptionMenuAsync(Guid subscriptionId)=>await MapMenu((await GetOwnedSubscription(subscriptionId)).OutletId);
+    public async Task<IReadOnlyList<MenuItemDto>> GetSubscriptionMenuAsync(Guid subscriptionId)
+    {
+        var s=await GetOwnedSubscription(subscriptionId);
+        var outlet=await outlets.GetByIdAsync(s.OutletId)??throw new KeyNotFoundException("Outlet not found.");
+        return await MapMenu(s.OutletId,outlet.ShowMealPriceToCustomer);
+    }
     public async Task<IReadOnlyList<MealSelectionDto>> GetMealSelectionsAsync(Guid subscriptionId,DateTime? weekStart) {
         var s=await GetOwnedSubscription(subscriptionId);
         var from=(weekStart??s.StartDate).Date;
@@ -914,19 +925,21 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     private async Task<SubscriptionDto> ToDto(Subscription x)
     {
         var payment=await payments.GetLatestBySubscriptionAsync(x.Id);
-        return new(x.Id,x.CustomerId,x.OutletId,x.MealPlanId,x.PlanName,x.DeliveryMode.ToString(),x.Price,x.DeliveryFee,x.CustomerTransactionFeePercent,x.TransactionFee,x.TotalCharged,x.OutletAmount,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Status.ToString(),x.NextDeliveryDate,await credits.GetBalanceAsync(x.CustomerId),payment?.Status??"Pending",x.DeliveryCity,x.GrossMealAmount,x.SubscriptionDiscountAmount,x.RestaurantTaxableAmount,x.RestaurantGstAmount,x.RestaurantGstRate,x.RestaurantGstMode.ToString(),x.PlatformServiceFee,x.PlatformServiceGst,x.PackageStatus,x.IsOutletCreated,x.OutletDiscountType.ToString(),x.OutletDiscountValue,x.OutletDiscountReason);
+        return new(x.Id,x.CustomerId,x.OutletId,x.MealPlanId,x.PlanName,x.DeliveryMode.ToString(),x.Price,x.DeliveryFee,x.CustomerTransactionFeePercent,x.TransactionFee,x.TotalCharged,x.OutletAmount,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Status.ToString(),x.NextDeliveryDate,await credits.GetBalanceAsync(x.CustomerId),payment?.Status??"Pending",x.DeliveryCity,x.GrossMealAmount,x.SubscriptionDiscountAmount,x.RestaurantTaxableAmount,x.RestaurantGstAmount,x.RestaurantGstRate,x.RestaurantGstMode.ToString(),x.PlatformServiceFee,x.PlatformServiceGst,x.PackageStatus,x.IsOutletCreated,x.OutletDiscountType.ToString(),x.OutletDiscountValue,x.OutletDiscountReason,x.IsPreplanned,x.PricingMode,x.PriceVisibleToCustomer,x.DeliveryFeeVisibleToCustomer,x.PackageStatus=="PendingOutletReview");
     }
     private async Task<IReadOnlyList<MealSelectionDto>> MapSelections(Guid outletId, IEnumerable<SubscriptionMealSelection> rows) {
+        var outlet=await outlets.GetByIdAsync(outletId);
+        var showMealPrice=outlet?.ShowMealPriceToCustomer != false;
         var result=new List<MealSelectionDto>();
         foreach(var x in rows) {
             var r=await recipes.GetForOutletAsync(x.RecipeId, outletId);
-            result.Add(new(x.Id,x.SubscriptionId,x.MealDate,(int)x.MealSlot,x.RecipeId,r?.Name??"",r?.Category.ToString()??"",(int)x.PortionSize,x.Status.ToString(),x.MealPrice,x.DeliveryFee,x.LateSkipFee,x.SkippedAtUtc,x.RescheduledAtUtc));
+            result.Add(new(x.Id,x.SubscriptionId,x.MealDate,(int)x.MealSlot,x.RecipeId,r?.Name??"",r?.Category.ToString()??"",(int)x.PortionSize,x.Status.ToString(),showMealPrice?x.MealPrice:0m,x.DeliveryFee,x.LateSkipFee,x.SkippedAtUtc,x.RescheduledAtUtc));
         }
         return result;
     }
-    private async Task<IReadOnlyList<MenuItemDto>> MapMenu(Guid outletId) {
+    private async Task<IReadOnlyList<MenuItemDto>> MapMenu(Guid outletId,bool showMealPrice) {
         var rs=(await recipes.GetByOutletAsync(outletId)).ToDictionary(x=>x.Id);
-        return(await menu.GetByOutletAsync(outletId)).Where(x=>x.IsAvailable).Select(x=>rs.TryGetValue(x.RecipeId,out var r)?new MenuItemDto(x.Id,x.OutletId,x.RecipeId,r.Name,x.DayOfWeek,x.MealSlot.ToString(),(int)x.MealSlot,r.PricePerMeal,r.LargePricePerMeal,r.Calories,r.ProteinGrams,r.Category.ToString(),r.ImageUrl,x.IsAvailable,x.DisplayOrder,r.CarbsGrams,r.FatGrams,r.FiberGrams):null).Where(x=>x is not null).Cast<MenuItemDto>().ToList();
+        return(await menu.GetByOutletAsync(outletId)).Where(x=>x.IsAvailable).Select(x=>rs.TryGetValue(x.RecipeId,out var r)?new MenuItemDto(x.Id,x.OutletId,x.RecipeId,r.Name,x.DayOfWeek,x.MealSlot.ToString(),(int)x.MealSlot,showMealPrice?r.PricePerMeal:0m,showMealPrice?r.LargePricePerMeal:0m,r.Calories,r.ProteinGrams,r.Category.ToString(),r.ImageUrl,x.IsAvailable,x.DisplayOrder,r.CarbsGrams,r.FatGrams,r.FiberGrams,x.OptionGroup,x.IsRequired,x.MaxSelections,r.MealType):null).Where(x=>x is not null).Cast<MenuItemDto>().ToList();
     }
     private List<SubscriptionMealSelection> BuildSelections(IReadOnlyList<MealSelectionItem> items,Guid outletId,IReadOnlyList<OutletMenuItem> outletMenu,IReadOnlyDictionary<Guid,Recipe> rs,Guid? subscriptionId=null) {
         var result=new List<SubscriptionMealSelection>();
