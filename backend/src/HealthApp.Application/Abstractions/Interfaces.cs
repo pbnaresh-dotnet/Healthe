@@ -239,7 +239,7 @@ public interface IOutletPackageService
     Task<OutletPackageQuoteDto?> QuoteAsync(OutletPackageQuoteRequest request);
     Task<SubscriptionDto?> CreateAsync(CreateOutletPackageRequest request);
     Task<SubscriptionDto?> MarkPaidAsync(Guid subscriptionId, MarkOutletPackagePaidRequest request);
-    Task<SubscriptionDto?> AcceptAsync(Guid subscriptionId);
+    Task<SubscriptionDto?> AcceptAsync(Guid subscriptionId, AcceptOutletPackageRequest request, LegalAcceptanceContext? acceptanceContext = null);
 }
 
 public interface IOutletPackageActivationService
