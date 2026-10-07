@@ -152,6 +152,8 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
         services.AddScoped<IDomainEventHandler<MealSkippedEvent>, LateSkipFeeRevenueHandler>();
+        services.AddScoped<IDomainEventHandler<MealSkippedEvent>, CustomerMealSkippedEmailHandler>();
+        services.AddScoped<IDomainEventHandler<MealRescheduledEvent>, CustomerMealRescheduledEmailHandler>();
 
         services.AddSingleton<IPackageDiscountStrategy, DurationAndVolumeDiscountStrategy>();
         services.AddSingleton<IMealPriceStrategy, RecipeMealPriceStrategy>();
