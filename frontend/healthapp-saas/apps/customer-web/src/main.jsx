@@ -85,7 +85,10 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  const[trackingLocation,setTrackingLocation]=useState(false);
  const[publicOutlet,setPublicOutlet]=useState(null);
  const[tenantOutlet,setTenantOutlet]=useState(null);
- const standaloneMode=Boolean(TENANT_OUTLET_SLUG||tenantOutlet?.id);
+ const hostTenantSlug=(()=>{const host=typeof window!=='undefined'?window.location.hostname.toLowerCase():'';const parts=host.split('.');if(parts.length===3&&parts[1]==='broccoly'&&parts[2]==='in'&&!['api','outlet','admin','www'].includes(parts[0]))return parts[0];return '';})();
+ const previewTenantSlug=typeof window!=='undefined'?new URLSearchParams(window.location.search).get('outlet')?.trim().toLowerCase()||'':'';
+ const resolvedStandaloneSlug=previewTenantSlug||TENANT_OUTLET_SLUG||hostTenantSlug;
+ const standaloneMode=Boolean(resolvedStandaloneSlug||tenantOutlet?.id);
  useEffect(()=>{
    if(!tenantOutlet)return;
    if(tenantOutlet.faviconUrl){
@@ -116,8 +119,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    let disposed=false;
    const loadTenant=async()=>{
      try{
-       const queryOutletSlug=new URLSearchParams(window.location.search).get('outlet')?.trim().toLowerCase()||'';
-       const resolvedSlug=queryOutletSlug||TENANT_OUTLET_SLUG;
+       const resolvedSlug=resolvedStandaloneSlug;
        const outlet=resolvedSlug
          ?await outlets.get(resolvedSlug)
          :await resolveTenantFromHost();
@@ -304,8 +306,11 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    <form className="authCard publicAuthCard" onSubmit={doAuth}><div className="eyebrow">{authMode==='login'?'SIGN IN':'CREATE YOUR ACCOUNT'}</div><h2>{authMode==='login'?'Welcome back':'Create your account'}</h2><p>{authMode==='login'?'Sign in to manage your meals and deliveries.':'Start with your health profile and build your first package.'}</p>{authMode==='register'&&<div className="twoCol"><label>First name<input value={authForm.firstName} onChange={e=>setAuthForm({...authForm,firstName:e.target.value})}/></label><label>Last name<input value={authForm.lastName} onChange={e=>setAuthForm({...authForm,lastName:e.target.value})}/></label></div>}<label>Email<input type="email" value={authForm.email} onChange={e=>setAuthForm({...authForm,email:e.target.value})}/></label><label>Password<input type="password" value={authForm.password} onChange={e=>setAuthForm({...authForm,password:e.target.value})}/></label><button className="primary big">{authMode==='login'?'Sign in':'Create account'}</button>{error&&<div className="error">{error}</div>}<div className="authSwitch">{authMode==='login'?'New to HealthApp?':'Already have an account?'} <button type="button" className="linkBtn" onClick={()=>setAuthMode(authMode==='login'?'register':'login')}>{authMode==='login'?'Create account':'Sign in'}</button></div>{authMode==='login'&&<small>Demo: customer@healthapp.test / demo</small>}</form>
  </div>;
 
- if(publicOutlet&&!guestBuilderOpen) return <PublicOutletHome outlet={publicOutlet} menu={publicOutletMenu} busy={publicOutletBusy} error={publicOutletError} onBack={()=>setPublicOutlet(null)} onBuild={openGuestBuilder}/>;
- if(standaloneMode&&tenantOutlet&&!guestBuilderOpen) return <PublicOutletHome standalone outlet={tenantOutlet} menu={publicOutletMenu} busy={false} error={publicMapError} onBack={()=>{}} onBuild={()=>openGuestBuilder(tenantOutlet)} onSignIn={()=>openAuth('login')} onRegister={()=>openAuth('register')}/>;
+ if(publicOutlet&&!standaloneMode&&!guestBuilderOpen) return <PublicOutletHome outlet={publicOutlet} menu={publicOutletMenu} busy={publicOutletBusy} error={publicOutletError} onBack={()=>setPublicOutlet(null)} onBuild={openGuestBuilder}/>;
+ if(standaloneMode){
+   if(!tenantOutlet&&!guestBuilderOpen) return <div className="tenantLoadingShell"><LoadingIndicator active label="Loading outlet website"/><div><span className="publicEyebrow">OUTLET WEBSITE</span><h1>Loading your outlet…</h1><p>Preparing the latest menu, branding and delivery information.</p></div></div>;
+   if(tenantOutlet&&!guestBuilderOpen) return <PublicOutletHome standalone outlet={tenantOutlet} menu={publicOutletMenu} busy={false} error={publicMapError} onBack={()=>{}} onBuild={()=>openGuestBuilder(tenantOutlet)} onSignIn={()=>openAuth('login')} onRegister={()=>openAuth('register')}/>;
+ }
 
  return <><LoadingIndicator active={publicMapBusy||publicOutletBusy} label={publicOutletBusy?'Loading outlet menu':'Finding outlets'}/><div className="publicHome" data-public-tenant-root={standaloneMode?'1':undefined} style={standaloneMode?{'--brand-primary':tenantOutlet?.primaryColor||'#14532d','--brand-secondary':tenantOutlet?.secondaryColor||'#166534'}:undefined}>
    <header className="publicNav">
