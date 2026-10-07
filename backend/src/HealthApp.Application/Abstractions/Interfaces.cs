@@ -206,7 +206,6 @@ public sealed record PaymentGatewayTransactionStatus(
 public interface IPaymentGateway
 {
     string Provider { get; }
-    string CustomerReturnUrl { get; }
     string OutletReturnUrl { get; }
     string WebhookUrl { get; }
     Task<PaymentGatewayCheckoutSession> CreateOrderAsync(PaymentGatewayCreateOrderRequest request, CancellationToken cancellationToken = default);
