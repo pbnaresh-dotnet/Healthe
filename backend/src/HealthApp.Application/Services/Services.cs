@@ -376,7 +376,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             });
         }
 
-        return new CustomerLegalStatusDto(outletId, customer.Name, published.Id, published.Version, published.EffectiveDateUtc, true);
+        return new CustomerLegalStatusDto(outletId, $"{customer.FirstName} {customer.LastName}".Trim(), published.Id, published.Version, published.EffectiveDateUtc, true);
     }
 
     public async Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync()
