@@ -14,6 +14,9 @@ public sealed class CashfreePaymentGateway(
     private readonly CashfreeOptions options = configuredOptions.Value;
 
     public string Provider => "Cashfree";
+    public string CustomerReturnUrl => options.CustomerReturnUrl;
+    public string OutletReturnUrl => options.OutletReturnUrl;
+    public string WebhookUrl => options.WebhookUrl;
 
     public async Task<PaymentGatewayCheckoutSession> CreateOrderAsync(
         PaymentGatewayCreateOrderRequest request,
