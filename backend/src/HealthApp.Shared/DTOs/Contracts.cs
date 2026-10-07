@@ -1,9 +1,9 @@
 namespace HealthApp.Shared.DTOs;
 
 public record LoginRequest(string Email, string Password);
-public record RegisterRequest(string FirstName, string LastName, string Email, string Password, string Role = "Customer", string? OutletSlug = null);
+public record RegisterRequest(string FirstName, string LastName, string Email, string Password, string Role = "Customer", string? OutletSlug = null, string? MobileNumber = null);
 public record AuthResponse(string AccessToken, DateTime ExpiresAt, UserDto User);
-public record UserDto(Guid Id, string Email, string FirstName, string LastName, string Role, Guid? OutletId, bool IsDemo = false, DateTime? DemoExpiresAtUtc = null);
+public record UserDto(Guid Id, string Email, string FirstName, string LastName, string Role, Guid? OutletId, bool IsDemo = false, DateTime? DemoExpiresAtUtc = null, string? MobileNumber = null);
 public record OutletDto(Guid Id, string Name, string Slug, string Subdomain, string City, string State, string Pincode, string Status, string BillingPlan, string LogoUrl, string HeroImageUrl, IReadOnlyList<string> HealthHighlights, string PrimaryColor, bool IsAvailable, double DistanceKm, double Rating = 4.8, int ReviewCount = 0, string About = "Fresh, healthy meals prepared with quality ingredients.", double Latitude = 0, double Longitude = 0);
 public record SaaSPlanDto(Guid Id, string Name, decimal MonthlyFee, decimal AnnualFee, int IncludedActiveCustomers, decimal AdditionalCustomerFee, decimal CustomerTransactionFeePercent, string Description, bool IsActive);
 public record OutletSettingsDto(
