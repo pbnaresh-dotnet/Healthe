@@ -746,7 +746,7 @@ function App(){
  const[pendingBuilderAddressTarget,setPendingBuilderAddressTarget]=useState(null);
  const[mapBusy,setMapBusy]=useState(false);
  const[addressForm,setAddressForm]=useState({id:null,city:'',pincode:'',locality:'',cityAreaId:null,label:'Home',addressLine1:'',addressLine2:'',contactName:'',contactPhone:'',latitude:'',longitude:'',isDefault:false});
- const[builder,setBuilder]=useState({outlet:null,deliveryCity:'',duration:'OneWeek',deliveryMode:'OneDeliveryPerDay',startDate:nextMonday(),weeks:1,weekActiveDays:defaultWeekActiveDays(nextMonday(),'OneWeek'),selections:{},allergyAcknowledged:{},dayAddresses:{},discountCode:'',legalPolicyVersionId:'',quote:null,step:1});
+ const[builder,setBuilder]=useState({outlet:null,deliveryCity:'',duration:'OneWeek',deliveryMode:'OneDeliveryPerDay',startDate:nextMonday(),weeks:1,weekActiveDays:defaultWeekActiveDays(nextMonday(),'OneWeek'),selections:{},allergyAcknowledged:{},dayAddresses:{},discountCode:'',legalPolicyVersionId:'',legalPolicyVersion:'',quote:null,step:1});
  const[picker,setPicker]=useState(null);
  const[subs,setSubs]=useState([]);
  const[selectedSubId,setSelectedSubId]=useState('');
