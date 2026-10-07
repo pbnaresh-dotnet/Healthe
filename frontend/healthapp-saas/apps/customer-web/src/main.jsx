@@ -747,7 +747,7 @@ function App(){
  const[pendingBuilderAddressTarget,setPendingBuilderAddressTarget]=useState(null);
  const[mapBusy,setMapBusy]=useState(false);
  const[addressForm,setAddressForm]=useState({id:null,city:'',pincode:'',locality:'',cityAreaId:null,label:'Home',addressLine1:'',addressLine2:'',contactName:'',contactPhone:'',latitude:'',longitude:'',isDefault:false});
- const[builder,setBuilder]=useState({outlet:null,deliveryCity:'',duration:'OneWeek',deliveryMode:'OneDeliveryPerDay',startDate:nextMonday(),weeks:1,weekActiveDays:defaultWeekActiveDays(nextMonday(),'OneWeek'),selections:{},allergyAcknowledged:{},dayAddresses:{},discountCode:'',legalPolicyVersionId:'',legalPolicyVersion:'',quote:null,step:1});
+ const[builder,setBuilder]=useState({outlet:null,deliveryCity:'',duration:'OneWeek',deliveryMode:'OneDeliveryPerDay',startDate:nextMonday(),weeks:1,weekActiveDays:defaultWeekActiveDays(nextMonday(),'OneWeek'),recommendedPlans:[],selectedPlanId:'',selections:{},allergyAcknowledged:{},dayAddresses:{},discountCode:'',legalPolicyVersionId:'',legalPolicyVersion:'',quote:null,step:1});
  const[picker,setPicker]=useState(null);
  const[subs,setSubs]=useState([]);
  const[selectedSubId,setSelectedSubId]=useState('');
@@ -954,7 +954,7 @@ function App(){
  const changeDiscoveryCity=city=>{setCityFilter(city);setSelectedOutlet(null);setOutletMenu([]);setOutletRecipes([]);setOutletCategory('All');setSelectedAddressId('')};
  const openOutlet=async o=>{setSelectedOutlet(o);setOutletMenu([]);setOutletRecipes([]);setOutletCategory('All');setActive('discover');setError('');try{setLoading(true);const[m,rs]=await Promise.all([menu.outlet(o.id),recipes.list(o.id)]);setOutletMenu(m||[]);setOutletRecipes(rs||[])}catch(e){setError(e.message||'Unable to load outlet menu.')}finally{setLoading(false)}};
  const openAddressForCity=async(city,reason=true)=>{setCityFilter(city);setAddressModal('new');setAddressForm({id:null,city,pincode:'',locality:'',cityAreaId:null,label:'Home',addressLine1:'',addressLine2:'',contactName:(user.firstName+' '+user.lastName).trim(),contactPhone:'',latitude:'',longitude:'',isDefault:global.addresses.length===0});if(reason)notify('Set the exact delivery pin anywhere in '+city+'. We will check outlet availability from this location.','info')};
- const startBuilder=async(o,preferredAddress=null)=>{setGuestPackageReady(false);setPackageDraftSaved(false);setPackageDraftSavedAt('');try{localStorage.removeItem('healthapp.savedPackageDraft')}catch{}const city=o.city||'';const cityAddress=preferredAddress?.id?preferredAddress:(selectedAddressId?global.addresses.find(a=>a.id===selectedAddressId&&a.city?.toLowerCase()===city.toLowerCase()):null)||global.addresses.find(a=>a.city?.toLowerCase()===city.toLowerCase()&&a.isDefault)||global.addresses.find(a=>a.city?.toLowerCase()===city.toLowerCase());if(!cityAddress){setPendingBuilderOutlet(o);await openAddressForCity(city,true);return}setPendingBuilderOutlet(null);const d=DURATIONS.find(x=>x.id==='OneWeek')||DURATIONS[2];const start=nextMonday();const dayAddresses={};for(let i=0;i<d.days;i++)dayAddresses[addDays(start,i)]=cityAddress.id;setSelectedOutlet(o);setError('');setActive('builder');try{setLoading(true);const[m,rs,legal]=await Promise.all([menu.outlet(o.id),recipes.list(o.id),outlets.legal(o.slug)]);setOutletMenu(m||[]);setOutletRecipes(rs||[]);setBuilder({outlet:o,deliveryCity:city,duration:'OneWeek',deliveryMode:'OneDeliveryPerDay',startDate:start,weeks:d.weeks,weekActiveDays:defaultWeekActiveDays(start,'OneWeek'),selections:{},allergyAcknowledged:{},dayAddresses,discountCode:'',legalPolicyVersionId:legal?.publishedVersionId||'',legalPolicyVersion:legal?.publishedVersion||'',quote:null,step:1})}catch(e){setError(e.message||'Unable to load outlet menu.')}finally{setLoading(false)}};
+ const startBuilder=async(o,preferredAddress=null)=>{setGuestPackageReady(false);setPackageDraftSaved(false);setPackageDraftSavedAt('');try{localStorage.removeItem('healthapp.savedPackageDraft')}catch{}const city=o.city||'';const cityAddress=preferredAddress?.id?preferredAddress:(selectedAddressId?global.addresses.find(a=>a.id===selectedAddressId&&a.city?.toLowerCase()===city.toLowerCase()):null)||global.addresses.find(a=>a.city?.toLowerCase()===city.toLowerCase()&&a.isDefault)||global.addresses.find(a=>a.city?.toLowerCase()===city.toLowerCase());if(!cityAddress){setPendingBuilderOutlet(o);await openAddressForCity(city,true);return}setPendingBuilderOutlet(null);const d=DURATIONS.find(x=>x.id==='OneWeek')||DURATIONS[2];const start=nextMonday();const dayAddresses={};for(let i=0;i<d.days;i++)dayAddresses[addDays(start,i)]=cityAddress.id;setSelectedOutlet(o);setError('');setActive('builder');try{setLoading(true);const[m,rs,legal,plans]=await Promise.all([menu.outlet(o.id),recipes.list(o.id),outlets.legal(o.slug),outlets.plans(o.id,city)]);setOutletMenu(m||[]);setOutletRecipes(rs||[]);setBuilder({outlet:o,deliveryCity:city,duration:'OneWeek',deliveryMode:'OneDeliveryPerDay',startDate:start,weeks:d.weeks,weekActiveDays:defaultWeekActiveDays(start,'OneWeek'),recommendedPlans:(plans||[]).filter(x=>x.isPreplanned),selectedPlanId:'',selections:{},allergyAcknowledged:{},dayAddresses,discountCode:'',legalPolicyVersionId:legal?.publishedVersionId||'',legalPolicyVersion:legal?.publishedVersion||'',quote:null,step:1})}catch(e){setError(e.message||'Unable to load outlet package options.')}finally{setLoading(false)}};
 
  const filteredRecipes=useMemo(()=>outletCategory==='All'?outletRecipes:outletRecipes.filter(r=>r.category===outletCategory),[outletRecipes,outletCategory]);
 
@@ -989,18 +989,28 @@ function App(){
  const executeDeleteAddress=async a=>run(async()=>{await customer.deleteAddress(a.id);const next=global.addresses.filter(x=>x.id!==a.id);setGlobal(g=>({...g,addresses:next}));setSelectedAddressId(next[0]?.id||'');notify('Address deleted')});
  const deleteAddress=a=>setSkipConfirm({type:'delete',address:a,variant:'danger',title:'Delete this address?',message:'This saved delivery address will be removed from your account. This cannot be undone.',confirmLabel:'Delete address'});
 
- const setBuilderDuration=value=>{const d=DURATIONS.find(x=>x.id===value)||DURATIONS[0];setBuilder(b=>{const nextWeekActiveDays=defaultWeekActiveDays(b.startDate,value);const city=(b.deliveryCity||b.outlet?.city||'').toLowerCase();const defaultAddress=global.addresses.find(a=>a.city?.toLowerCase()===city);const nextAddresses={...b.dayAddresses};for(let i=0;i<d.days;i++){const date=addDays(b.startDate,i);if(defaultAddress&&!nextAddresses[date])nextAddresses[date]=defaultAddress.id}return{...b,duration:value,weeks:d.weeks,weekActiveDays:nextWeekActiveDays,dayAddresses:nextAddresses,selections:Object.fromEntries(Object.entries(b.selections).filter(([k,v])=>{if(!v?.date)return false;return builderDateIndex(v.date,b.startDate)<d.days})),quote:null}})};
+ const setBuilderDuration=value=>{const d=DURATIONS.find(x=>x.id===value)||DURATIONS[0];setBuilder(b=>{const nextWeekActiveDays=defaultWeekActiveDays(b.startDate,value);const city=(b.deliveryCity||b.outlet?.city||'').toLowerCase();const defaultAddress=global.addresses.find(a=>a.city?.toLowerCase()===city);const nextAddresses={...b.dayAddresses};for(let i=0;i<d.days;i++){const date=addDays(b.startDate,i);if(defaultAddress&&!nextAddresses[date])nextAddresses[date]=defaultAddress.id}return{...b,duration:value,weeks:d.weeks,weekActiveDays:nextWeekActiveDays,dayAddresses:nextAddresses,selections:Object.fromEntries(Object.entries(b.selections).map(([k,v])=>[k,Array.isArray(v)?v.map(x=>({...x})):v?[{...v}]:[]]).filter(([,arr])=>arr.some(v=>v?.date&&builderDateIndex(v.date,b.startDate)<d.days))),quote:null}})};
  const builderDateIndex=(date,start)=>{const a=dateObj(start),b=dateObj(date);return Math.round((b.getTime()-a.getTime())/86400000)};
  const builderDays=useMemo(()=>Array.from({length:builder.weeks*7},(_,i)=>({date:addDays(builder.startDate,i),index:i,week:Math.floor(i/7)+1})),[builder.startDate,builder.weeks]);
  const menuMap=useMemo(()=>{const m={};for(const x of outletMenu){const k=key(x.dayOfWeek,x.mealSlotValue);(m[k]??=[]).push(x)}return m},[outletMenu]);
  const isActiveDay=(week,date)=>Boolean(builder.weekActiveDays[week]?.includes(dayId(date)));
- const builderSelections=useMemo(()=>Object.values(builder.selections).filter(Boolean).filter(x=>{const d=builderDays.find(y=>y.date===x.date);return d?isActiveDay(d.week,x.date):true}),[builder.selections,builderDays,builder.weekActiveDays]);
+ const normalizeSelectionValue=value=>Array.isArray(value)?value.filter(Boolean):(value?[value]:[]);
+ const builderSelections=useMemo(()=>Object.values(builder.selections).flatMap(normalizeSelectionValue).filter(x=>{const d=builderDays.find(y=>y.date===x.date);return d?isActiveDay(d.week,x.date):true}),[builder.selections,builderDays,builder.weekActiveDays]);
  const selectedCount=builderSelections.length;
- const setSelection=(date,slot,recipeId,portion=1,allergyConfirmed=false)=>setBuilder(b=>({...b,selections:{...b.selections,[key(date,slot)]:recipeId?{date,slot,recipeId,portion}:undefined},allergyAcknowledged:allergyConfirmed&&recipeId?{...b.allergyAcknowledged,[recipeId]:true}:b.allergyAcknowledged,quote:null}));
+ const setSelection=(date,slot,recipeId,portion=1,allergyConfirmed=false)=>{
+   const items=Array.isArray(recipeId)?recipeId:[{recipeId,portion}];
+   setBuilder(b=>{
+     const next=items.filter(x=>x?.recipeId).map(x=>({date,slot:Number(slot),recipeId:x.recipeId,portion:Number(x.portion||1)}));
+     const acknowledgement={...b.allergyAcknowledged};
+     if(allergyConfirmed&&recipeId&&!Array.isArray(recipeId))acknowledgement[recipeId]=true;
+     next.forEach(x=>{if(x.allergyConfirmed)acknowledgement[x.recipeId]=true});
+     return {...b,selections:{...b.selections,[key(date,slot)]:next},allergyAcknowledged:acknowledgement,quote:null};
+   });
+ };
  const setDayAddress=(date,id)=>setBuilder(b=>({...b,dayAddresses:{...b.dayAddresses,[date]:id},quote:null}));
  const setMealAddress=(date,slot,id)=>setBuilder(b=>({...b,dayAddresses:{...b.dayAddresses,[key(date,slot)]:id},quote:null}));
  const toggleDay=(week,id)=>setBuilder(b=>({...b,weekActiveDays:{...b.weekActiveDays,[week]:(b.weekActiveDays[week]||[]).includes(id)?(b.weekActiveDays[week]||[]).filter(x=>x!==id):[...(b.weekActiveDays[week]||[]),id]},quote:null}));
- const copyWeek=fromWeek=>setBuilder(b=>{const nextSel={...b.selections};const source=builderDays.filter(x=>x.week===fromWeek);for(let w=1;w<=b.weeks;w++){if(w===fromWeek)continue;for(const d of source){const target=builderDays.find(x=>x.week===w&&x.index%7===d.index%7);if(!target)continue;for(const s of SLOT){const v=nextSel[key(d.date,s.id)];nextSel[key(target.date,s.id)]=v?{...v,date:target.date}:undefined}}}const base=b.weekActiveDays[fromWeek]||[];const wa={...b.weekActiveDays};for(let w=1;w<=b.weeks;w++)if(w!==fromWeek)wa[w]=[...base];return{...b,selections:nextSel,weekActiveDays:wa,quote:null}});
+ const copyWeek=fromWeek=>setBuilder(b=>{const nextSel={};for(const [k,v] of Object.entries(b.selections))nextSel[k]=normalizeSelectionValue(v);const source=builderDays.filter(x=>x.week===fromWeek);for(let w=1;w<=b.weeks;w++){if(w===fromWeek)continue;for(const d of source){const target=builderDays.find(x=>x.week===w&&x.index%7===d.index%7);if(!target)continue;for(const s of SLOT){const v=normalizeSelectionValue(b.selections[key(d.date,s.id)]);nextSel[key(target.date,s.id)]=v.map(x=>({...x,date:target.date}));}}}const base=b.weekActiveDays[fromWeek]||[];const wa={...b.weekActiveDays};for(let w=1;w<=b.weeks;w++)if(w!==fromWeek)wa[w]=[...base];return{...b,selections:nextSel,weekActiveDays:wa,quote:null}});
  const selectionPayload=useMemo(()=>builderSelections.map(x=>({mealDate:x.date,mealSlot:x.slot,recipeId:x.recipeId,portionSize:x.portion,addressId:builder.deliveryMode==='OneDeliveryPerDay'?(builder.dayAddresses[x.date]||null):(builder.dayAddresses[key(x.date,x.slot)]||builder.dayAddresses[x.date]||null)})),[builderSelections,builder.dayAddresses,builder.deliveryMode]);
  const confirmedAllergyRecipeIds=useMemo(()=>Object.keys(builder.allergyAcknowledged).filter(id=>builderSelections.some(x=>x.recipeId===id)),[builder.allergyAcknowledged,builderSelections]);
  const openReviewStep=()=>{setActive('builder');if(builder.quote)return;quoteBuilder()};
@@ -1018,7 +1028,7 @@ function App(){
      startDate:builder.startDate,
      weeks:builder.weeks,
      weekActiveDays:builder.weekActiveDays,
-     selections:Object.values(builder.selections).filter(Boolean),
+     selections:Object.values(builder.selections).flatMap(normalizeSelectionValue),
      dayAddresses:builder.dayAddresses,
      discountCode:builder.discountCode||'',
      customerId:currentUser()?.id||null,
@@ -1048,7 +1058,7 @@ function App(){
      startDate:builder.startDate,
      weeks:builder.weeks,
      weekActiveDays:builder.weekActiveDays,
-     selections:Object.values(builder.selections).filter(Boolean),
+     selections:Object.values(builder.selections).flatMap(normalizeSelectionValue),
      dayAddresses:builder.dayAddresses,
      discountCode:builder.discountCode||'',
      customerId:currentUser()?.id||null,
