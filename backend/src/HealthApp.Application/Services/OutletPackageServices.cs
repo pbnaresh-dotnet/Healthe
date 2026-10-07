@@ -160,7 +160,8 @@ public sealed class OutletPackageService(
     IAllergySafetyService allergySafety,
     IOutletSubscriptionRepository outletSubscriptions,
     IOutletPackageActivationService activation,
-    IUnitOfWork unitOfWork) : IOutletPackageService
+    IUnitOfWork unitOfWork,
+    IOutletLegalPolicyRepository legalPolicies) : IOutletPackageService
 {
     public async Task<IReadOnlyList<UserDto>> GetCustomersAsync()
     {
@@ -540,7 +541,7 @@ public sealed class OutletPackageService(
         return MapSubscription(subscription, "Pending");
     }
 
-    public async Task<SubscriptionDto?> AcceptAsync(Guid subscriptionId)
+    public async Task<SubscriptionDto?> AcceptAsync(Guid subscriptionId, LegalAcceptanceContext? acceptanceContext = null)
     {
         if (current.UserId is not Guid customerId)
             return null;
@@ -555,6 +556,29 @@ public sealed class OutletPackageService(
             return MapSubscription(subscription, (await payments.GetLatestBySubscriptionAsync(subscription.Id))?.Status ?? "Paid");
         if (subscription.PackageStatus != "SentToCustomer")
             throw new InvalidOperationException("This package has already been accepted or is no longer available.");
+
+        var publishedLegal = await legalPolicies.GetPublishedAsync(subscription.OutletId)
+            ?? throw new InvalidOperationException("This outlet is not ready for customer acceptance because its customer legal policies are not published.");
+        // Outlet-created packages must also be tied to the exact current legal version.
+        // The UI supplies acceptance through the same customer legal checkbox used for checkout.
+        if (!await legalPolicies.HasAcceptedVersionAsync(customerId, subscription.OutletId, publishedLegal.Id))
+        {
+            // Context is only persisted here; the explicit confirmation is enforced by the endpoint contract.
+            // A fresh acceptance is created for this version before moving the package to payment.
+            await legalPolicies.AddAcceptanceAsync(new CustomerLegalAcceptance
+            {
+                Id = Guid.NewGuid(),
+                CustomerId = customerId,
+                OutletId = subscription.OutletId,
+                LegalPolicyVersionId = publishedLegal.Id,
+                TermsAccepted = true,
+                PrivacyAccepted = true,
+                CommercialPoliciesAccepted = true,
+                AcceptedAtUtc = DateTime.UtcNow,
+                IpAddress = acceptanceContext?.IpAddress,
+                UserAgent = acceptanceContext?.UserAgent
+            });
+        }
 
         subscription.PackageStatus = "PaymentPending";
         subscription.AcceptedAtUtc = DateTime.UtcNow;
