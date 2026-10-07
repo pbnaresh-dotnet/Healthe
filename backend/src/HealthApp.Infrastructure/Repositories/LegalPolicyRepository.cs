@@ -31,10 +31,17 @@ public sealed class OutletLegalPolicyRepository(HealthAppDbContext db) : EfRepos
         var published = await Context.OutletLegalPolicyVersions
             .Where(x => x.OutletId == version.OutletId && x.IsPublished)
             .ToListAsync();
+
         foreach (var row in published)
             row.IsPublished = false;
 
+        // Flush the old published row first so the filtered unique index can never
+        // observe two published versions for the same outlet during the insert.
+        if (published.Count > 0)
+            await SaveAsync();
+
         Context.OutletLegalPolicyVersions.Add(version);
+        await SaveAsync();
     }
 
     public Task<bool> HasAcceptedVersionAsync(Guid customerId, Guid outletId, Guid versionId)
