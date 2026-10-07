@@ -92,17 +92,7 @@ public record UpdateOutletLegalPoliciesRequest(
     bool LegalPoliciesPublished = false,
     bool CreateNewVersion = false);
 
-public record UpdateOutletLegalPoliciesRequest(
-    string CustomerTermsAndConditions,
-    string CustomerPrivacyPolicy,
-    string CancellationRefundPolicy,
-    string MealSkipReschedulePolicy,
-    string DeliveryPolicy,
-    string AllergenDietaryDisclaimer,
-    string PaymentPricingPromotionalTerms,
-    string LegalVersion = "1.0",
-    DateTime? LegalEffectiveDateUtc = null,
-    bool LegalPoliciesPublished = false);
+
 
 public record UpdateOutletSettingsRequest(string DeliveryDays, string DeliveryCoverageMode = "Radius", double? ServiceRadiusKm = null);
 
