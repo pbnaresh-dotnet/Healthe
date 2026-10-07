@@ -70,7 +70,7 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
             var publishedLegal = await legalPolicies.GetPublishedAsync(outlet.Id);
             if (publishedLegal is null)
                 throw new InvalidOperationException("This outlet is not ready for customer registration because its customer legal policies have not been published.");
-            if (r.LegalPolicyVersionId != publishedLegal.Id)
+            if (!r.LegalAccepted || r.LegalPolicyVersionId != publishedLegal.Id)
                 throw new InvalidOperationException("Please review and accept the latest customer Terms & Privacy Policy before creating your account.");
         }
 
