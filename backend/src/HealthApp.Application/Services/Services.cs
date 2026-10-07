@@ -327,6 +327,58 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         await users.UpdateAsync(x);
         return new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId, x.IsDemo, x.DemoExpiresAtUtc, x.MobileNumber, x.MarketingOptIn, x.MarketingOptInAtUtc);
     }
+    public async Task<CustomerLegalStatusDto?> GetLegalStatusAsync()
+    {
+        if (current.UserId is not Guid customerId) return null;
+        var customer = await users.FindByIdAsync(customerId);
+        if (customer is null || customer.Role != UserRole.Customer || customer.OutletId is not Guid outletId)
+            return null;
+
+        var outlet = await outlets.GetByIdAsync(outletId);
+        var published = await legalPolicies.GetPublishedAsync(outletId);
+        if (outlet is null || published is null)
+            return null;
+
+        var accepted = await legalPolicies.HasAcceptedVersionAsync(customerId, outletId, published.Id);
+        return new CustomerLegalStatusDto(outletId, outlet.Name, published.Id, published.Version, published.EffectiveDateUtc, accepted);
+    }
+
+    public async Task<CustomerLegalStatusDto?> AcceptLegalAsync(AcceptCustomerLegalRequest request, LegalAcceptanceContext? acceptanceContext = null)
+    {
+        if (current.UserId is not Guid customerId) return null;
+        var customer = await users.FindByIdAsync(customerId);
+        if (customer is null || customer.Role != UserRole.Customer || customer.OutletId is not Guid outletId)
+            throw new UnauthorizedAccessException("Only customer accounts can accept customer legal policies.");
+
+        if (!request.TermsAccepted || !request.PrivacyAccepted || !request.CommercialPoliciesAccepted)
+            throw new ArgumentException("All required customer legal policies must be accepted.");
+
+        var published = await legalPolicies.GetPublishedAsync(outletId)
+            ?? throw new InvalidOperationException("The outlet has no published customer legal policy.");
+
+        if (request.LegalPolicyVersionId != published.Id)
+            throw new InvalidOperationException("The selected legal policy is no longer current. Please review the latest version.");
+
+        if (!await legalPolicies.HasAcceptedVersionAsync(customerId, outletId, published.Id))
+        {
+            await legalPolicies.AddAcceptanceAsync(new CustomerLegalAcceptance
+            {
+                Id = Guid.NewGuid(),
+                CustomerId = customerId,
+                OutletId = outletId,
+                LegalPolicyVersionId = published.Id,
+                TermsAccepted = true,
+                PrivacyAccepted = true,
+                CommercialPoliciesAccepted = true,
+                AcceptedAtUtc = DateTime.UtcNow,
+                IpAddress = acceptanceContext?.IpAddress,
+                UserAgent = acceptanceContext?.UserAgent
+            });
+        }
+
+        return new CustomerLegalStatusDto(outletId, customer.Name, published.Id, published.Version, published.EffectiveDateUtc, true);
+    }
+
     public async Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync()
     {
         if (current.UserId is not Guid id) return [];
