@@ -298,7 +298,7 @@ IPlatformServiceFeeStrategy platformFee, ITaxStrategy taxStrategy, IPackageDisco
 IDeliveryModeStrategyFactory deliveryModeFactory, IMealPriceStrategy mealPrice, ILateSkipFeePolicy lateSkipPolicy,
 IPlatformTransactionRepository transactions, IDomainEventDispatcher events, IUnitOfWork unitOfWork,
 ICustomerAddressRepository addresses, ISubscriptionDiscountTierRepository discountTiers, IMealSelectionHistoryRepository selectionHistory,
-IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments) : ICustomerService
+IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments, IOutletLegalPolicyRepository legalPolicies) : ICustomerService
 {
     public async Task<UserDto?> GetProfileAsync()
     {
@@ -466,6 +466,13 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if (await outletSubscriptions.GetByOutletAsync(outlet.Id) is null)
             throw new InvalidOperationException("This outlet does not have an active SaaS subscription.");
         EnsureCustomerOutletAccess(outlet.Id);
+
+        var publishedLegal = await legalPolicies.GetPublishedAsync(outlet.Id);
+        if (publishedLegal is null)
+            throw new InvalidOperationException("This outlet is not ready for customer orders because its customer legal policies are not published.");
+        if (!r.LegalAccepted || r.LegalPolicyVersionId != publishedLegal.Id)
+            throw new InvalidOperationException("Please review and accept the latest outlet Terms & Privacy Policy before completing your package.");
+        var alreadyAccepted = await legalPolicies.HasAcceptedVersionAsync(customerId, outlet.Id, publishedLegal.Id);
         var deliveryCity = ValidateDeliveryCity(r.DeliveryCity, outlet.City);
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var menuItems = await menu.GetByOutletAsync(outlet.Id);
@@ -600,6 +607,21 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 Id=Guid.NewGuid(),CustomerId=customerId,OutletId=outlet.Id,SubscriptionId=subscription.Id,Total=subscription.TotalCharged,Status=OrderStatus.Pending,DeliveryDate=start,Address="Multiple scheduled delivery addresses"
             };
             await orders.AddAsync(order);
+            if (!alreadyAccepted)
+            {
+                await legalPolicies.AddAcceptanceAsync(new CustomerLegalAcceptance
+                {
+                    Id = Guid.NewGuid(),
+                    CustomerId = customerId,
+                    OutletId = outlet.Id,
+                    LegalPolicyVersionId = publishedLegal.Id,
+                    TermsAccepted = true,
+                    PrivacyAccepted = true,
+                    CommercialPoliciesAccepted = true,
+                    AcceptedAtUtc = DateTime.UtcNow
+                });
+            }
+
             await orderFinancials.AddAsync(new OrderFinancialBreakdown {
                 Id=Guid.NewGuid(),OrderId=order.Id,GrossMealAmount=gross,DiscountAmount=totalDiscount,NetMealAmount=net,DeliveryAmount=delivery,PlatformServiceFee=serviceFee,PlatformServiceGst=taxes.PlatformAmount,RestaurantGstRate=taxes.RestaurantRate,RestaurantGstMode=taxes.RestaurantMode,RestaurantTaxableAmount=taxes.RestaurantTaxableAmount,RestaurantGstAmount=taxes.RestaurantAmount,LateSkipFee=0,CustomerPayable=subscription.TotalCharged,OutletCommission=commission,OutletCommissionGst=0,OutletSettlementAmount=subscription.OutletAmount,HealthAppRevenue=serviceFee+commission
             });
