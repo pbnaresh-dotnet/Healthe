@@ -252,6 +252,89 @@ IF COL_LENGTH('dbo.Users','MarketingOptInAtUtc') IS NULL
     ALTER TABLE dbo.Users ADD MarketingOptInAtUtc datetime2 NULL;
 ", cancellationToken);
 
+        // Backward compatibility: if an older release marked outlet policies as published
+        // in the mutable Outlet fields, snapshot the complete policy set into immutable version 1.x
+        // before production versioned publishing is enforced. Incomplete legacy policies are not
+        // auto-published and will remain a go-live blocker until the outlet publishes a complete set.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.OutletLegalPolicyVersions','U') IS NOT NULL
+BEGIN
+    INSERT INTO dbo.OutletLegalPolicyVersions
+    (
+        Id, OutletId, Version, CustomerTermsAndConditions, CustomerPrivacyPolicy,
+        CancellationRefundPolicy, MealSkipReschedulePolicy, DeliveryPolicy,
+        AllergenDietaryDisclaimer, PaymentPricingPromotionalTerms, ContentHash,
+        EffectiveDateUtc, CreatedAtUtc, PublishedAtUtc, CreatedByUserId, IsPublished
+    )
+    SELECT
+        NEWID(),
+        o.Id,
+        COALESCE(NULLIF(o.LegalVersion,''),'1.0'),
+        o.CustomerTermsAndConditions,
+        o.CustomerPrivacyPolicy,
+        o.CancellationRefundPolicy,
+        o.MealSkipReschedulePolicy,
+        o.DeliveryPolicy,
+        o.AllergenDietaryDisclaimer,
+        o.PaymentPricingPromotionalTerms,
+        CONVERT(varchar(64), HASHBYTES(
+            'SHA2_256',
+            CONVERT(nvarchar(max),
+                CONCAT(
+                    o.CustomerTermsAndConditions, NCHAR(10), N'---', NCHAR(10),
+                    o.CustomerPrivacyPolicy, NCHAR(10), N'---', NCHAR(10),
+                    o.CancellationRefundPolicy, NCHAR(10), N'---', NCHAR(10),
+                    o.MealSkipReschedulePolicy, NCHAR(10), N'---', NCHAR(10),
+                    o.DeliveryPolicy, NCHAR(10), N'---', NCHAR(10),
+                    o.AllergenDietaryDisclaimer, NCHAR(10), N'---', NCHAR(10),
+                    o.PaymentPricingPromotionalTerms
+                )
+            )
+        ), 2),
+        COALESCE(o.LegalEffectiveDateUtc,SYSUTCDATETIME()),
+        SYSUTCDATETIME(),
+        COALESCE(o.LegalEffectiveDateUtc,SYSUTCDATETIME()),
+        NULL,
+        NULL,
+        1
+    FROM dbo.Outlets o
+    WHERE o.LegalPoliciesPublished = 1
+      AND NULLIF(o.CustomerTermsAndConditions,'') IS NOT NULL
+      AND NULLIF(o.CustomerPrivacyPolicy,'') IS NOT NULL
+      AND NULLIF(o.CancellationRefundPolicy,'') IS NOT NULL
+      AND NULLIF(o.MealSkipReschedulePolicy,'') IS NOT NULL
+      AND NULLIF(o.DeliveryPolicy,'') IS NOT NULL
+      AND NULLIF(o.AllergenDietaryDisclaimer,'') IS NOT NULL
+      AND NULLIF(o.PaymentPricingPromotionalTerms,'') IS NOT NULL
+      AND NOT EXISTS
+      (
+          SELECT 1 FROM dbo.OutletLegalPolicyVersions v
+          WHERE v.OutletId = o.Id
+            AND v.Version = COALESCE(NULLIF(o.LegalVersion,''),'1.0')
+      );
+
+    UPDATE o
+    SET LegalPoliciesPublished = 0
+    FROM dbo.Outlets o
+    WHERE o.LegalPoliciesPublished = 1
+      AND NOT EXISTS
+      (
+          SELECT 1 FROM dbo.OutletLegalPolicyVersions v
+          WHERE v.OutletId = o.Id
+            AND v.IsPublished = 1
+      )
+      AND (
+          NULLIF(o.CustomerTermsAndConditions,'') IS NULL
+          OR NULLIF(o.CustomerPrivacyPolicy,'') IS NULL
+          OR NULLIF(o.CancellationRefundPolicy,'') IS NULL
+          OR NULLIF(o.MealSkipReschedulePolicy,'') IS NULL
+          OR NULLIF(o.DeliveryPolicy,'') IS NULL
+          OR NULLIF(o.AllergenDietaryDisclaimer,'') IS NULL
+          OR NULLIF(o.PaymentPricingPromotionalTerms,'') IS NULL
+      );
+END;
+", cancellationToken);
+
         // Existing databases may receive nullable columns first. Populate safe defaults
         // before EF reads them as required string properties.
         await db.Database.ExecuteSqlRawAsync(@"
