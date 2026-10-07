@@ -2,3 +2,27 @@
 /* Outlet verification */
 .verificationCount{padding:7px 10px;border-radius:999px;background:#e7f5ea;color:#25733e;font-size:8px;font-weight:900}.verificationList{display:grid}.verificationRow{display:grid;grid-template-columns:1.2fr .9fr auto;gap:15px;align-items:center;padding:13px 16px;border-top:1px solid #edf1ed}.verificationRow:first-child{border-top:0}.verificationRow>div b,.verificationRow>div span{display:block}.verificationRow b{font-size:10px}.verificationRow span{margin-top:3px;color:#758178;font-size:8px;line-height:1.4}.verificationRow button{border:1px solid #afd2b9;background:#f1faf3;color:#216f3c;border-radius:9px;padding:8px 11px;font-size:8px;font-weight:900;cursor:pointer}.verificationRow button:hover{background:#e3f5e8}.verifyBackdrop{position:fixed;inset:0;z-index:1000;background:rgba(10,28,16,.62);backdrop-filter:blur(4px);display:grid;place-items:center;padding:20px}.verifyModal{width:min(900px,95vw);max-height:90vh;overflow:auto;background:#fff;border:1px solid #dce7df;border-radius:18px;box-shadow:0 30px 90px rgba(9,30,17,.28);padding:20px}.verifyModalHead{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding-bottom:14px;border-bottom:1px solid #edf1ed}.verifyModalHead h2{margin:5px 0 4px;font-size:18px}.verifyModalHead p{margin:0;color:#76827a;font-size:8px}.verifyModalHead>button{border:0;background:#f4f7f4;border-radius:8px;width:28px;height:28px;font-size:18px;color:#637169;cursor:pointer}.verifyGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.verifyGrid section{border:1px solid #e1e9e3;border-radius:12px;padding:13px;background:#fbfdfb}.verifyGrid section h3{margin:0 0 10px;font-size:10px}.verifyFacts{display:grid;grid-template-columns:100px 1fr;gap:7px 10px}.verifyFacts span{font-size:8px;color:#77837a}.verifyFacts b{font-size:8px;overflow-wrap:anywhere}.verifyDocs{grid-column:span 2}.verifyDocList{display:grid;grid-template-columns:1fr 1fr;gap:8px}.verifyDocList a{display:flex;align-items:center;gap:7px;padding:9px;border:1px solid #dce7df;border-radius:9px;background:#fff;color:#236e3b;text-decoration:none;font-size:8px;font-weight:850}.verifyDocList a>span{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#e3f4e7}.verifyDocList small{margin-left:auto;color:#7a867e;font-size:7px}.verifyGrid textarea{width:100%;min-height:115px;resize:vertical;padding:10px;border:1px solid #dbe6de;border-radius:9px;font:inherit;font-size:9px;outline:none;background:#fff}.verifyGrid textarea:focus{border-color:#77af8a;box-shadow:0 0 0 3px rgba(62,145,83,.08)}.verifyActions{display:flex;justify-content:flex-end;gap:7px;margin-top:10px}.approveBtn,.rejectBtn{border-radius:9px;padding:9px 13px;font-size:8px;font-weight:900;cursor:pointer}.approveBtn{border:1px solid #20854b;background:#20854b;color:#fff}.rejectBtn{border:1px solid #dfbcbc;background:#fff5f5;color:#ad4444}.approveBtn:disabled,.rejectBtn:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:700px){.verificationRow{grid-template-columns:1fr}.verificationRow button{width:max-content}.verifyGrid{grid-template-columns:1fr}.verifyDocs{grid-column:auto}.verifyDocList{grid-template-columns:1fr}.verifyFacts{grid-template-columns:90px 1fr}.verifyModal{padding:14px;border-radius:14px}}
+
+
+/* HealthApp unified design baseline */
+:root{
+  --ha-font:"Inter","Segoe UI",Arial,sans-serif;
+  --ha-ink:#142117;
+  --ha-muted:#6d7b72;
+  --ha-green:#176534;
+  --ha-green-hover:#11552b;
+  --ha-border:#dfe8e1;
+  --ha-surface:#fff;
+  --ha-page:#f4f7f4;
+  --ha-radius:12px;
+}
+html{font-family:var(--ha-font);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body,button,input,select,textarea{font-family:var(--ha-font)}
+button,input,select,textarea{font-size:13px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(23,101,52,.16);outline-offset:1px}
+.pageHead h1,.hero h1{font-size:30px;line-height:1.08;letter-spacing:-.035em}
+.pageHead p,.hero p{font-size:13px;line-height:1.55}
+.panelHead h2{font-size:18px}
+.panelHead h3{font-size:16px}
+.field,.formGrid label{font-size:11px}
+.primary,.secondary,.linkBtn{font-size:13px}
