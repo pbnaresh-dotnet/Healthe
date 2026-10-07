@@ -16,7 +16,11 @@ public record OutletBrandingDto(
     string SecondaryColor,
     IReadOnlyList<string> HealthHighlights,
     string About,
-    string FooterText);
+    string FooterText,
+    string FontFamily = "Inter",
+    string ThemeStyle = "Fresh",
+    string ButtonStyle = "Rounded",
+    string CardStyle = "Soft");
 
 public record UpdateOutletBrandingRequest(
     string BrandName,
@@ -25,7 +29,11 @@ public record UpdateOutletBrandingRequest(
     string SecondaryColor,
     string HealthHighlights,
     string About,
-    string FooterText);
+    string FooterText,
+    string FontFamily = "Inter",
+    string ThemeStyle = "Fresh",
+    string ButtonStyle = "Rounded",
+    string CardStyle = "Soft");
 
 public record OutletSettingsDto(
     Guid OutletId,
