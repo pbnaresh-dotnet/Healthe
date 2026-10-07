@@ -37,9 +37,11 @@ public record OutletSettingsDto(
     decimal RestaurantGstRate,
     string RestaurantGstMode,
     OutletReadinessDto Readiness,
-    OutletBrandingDto? Branding = null);
+    OutletBrandingDto? Branding = null,
+    string DeliveryCoverageMode = "Radius",
+    double ServiceRadiusKm = 20);
 
-public record UpdateOutletSettingsRequest(string DeliveryDays);
+public record UpdateOutletSettingsRequest(string DeliveryDays, string DeliveryCoverageMode = "Radius", double ServiceRadiusKm = 20);
 
 public record OutletReadinessItemDto(
     string Key,
