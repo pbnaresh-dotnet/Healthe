@@ -107,6 +107,18 @@ IF COL_LENGTH('dbo.Outlets','DeliveryDays') IS NULL
     ALTER TABLE dbo.Outlets ADD DeliveryDays nvarchar(200) NULL;
 IF COL_LENGTH('dbo.Outlets','DeliveryCoverageMode') IS NULL
     ALTER TABLE dbo.Outlets ADD DeliveryCoverageMode int NOT NULL CONSTRAINT DF_Outlets_DeliveryCoverageMode DEFAULT 1;
+
+IF OBJECT_ID('dbo.OutletBrandings','U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('dbo.OutletBrandings','FontFamily') IS NULL
+        ALTER TABLE dbo.OutletBrandings ADD FontFamily nvarchar(40) NOT NULL CONSTRAINT DF_OutletBrandings_FontFamily DEFAULT 'Inter' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletBrandings','ThemeStyle') IS NULL
+        ALTER TABLE dbo.OutletBrandings ADD ThemeStyle nvarchar(40) NOT NULL CONSTRAINT DF_OutletBrandings_ThemeStyle DEFAULT 'Fresh' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletBrandings','ButtonStyle') IS NULL
+        ALTER TABLE dbo.OutletBrandings ADD ButtonStyle nvarchar(40) NOT NULL CONSTRAINT DF_OutletBrandings_ButtonStyle DEFAULT 'Rounded' WITH VALUES;
+    IF COL_LENGTH('dbo.OutletBrandings','CardStyle') IS NULL
+        ALTER TABLE dbo.OutletBrandings ADD CardStyle nvarchar(40) NOT NULL CONSTRAINT DF_OutletBrandings_CardStyle DEFAULT 'Soft' WITH VALUES;
+END
 ", cancellationToken);
 
         // Run updates only after the ALTER TABLE batch has completed.
