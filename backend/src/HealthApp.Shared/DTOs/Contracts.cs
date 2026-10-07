@@ -244,6 +244,7 @@ public record PaymentDto(
     string Currency,
     string Status,
     string PaymentMethod,
+    string FailureReason,
     DateTime CreatedAtUtc,
     DateTime? PaidAtUtc);
 public record PaymentCheckoutDto(
