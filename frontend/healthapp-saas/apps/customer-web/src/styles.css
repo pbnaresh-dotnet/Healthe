@@ -1979,3 +1979,21 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .outletLandingFooterLocation{font-size:10px}
   .outletLandingLegalLinks a{font-size:11px}
 }
+
+
+/* Guest package builder loading state */
+.publicGuestLoading{min-height:300px;display:grid;place-items:center;align-content:center;gap:14px;padding:36px 24px;text-align:center;background:#fbfdfb;border-top:1px solid #e7eee8;border-bottom:1px solid #e7eee8}
+.publicGuestLoadingSpinner{width:42px;height:42px;border:4px solid #dfeae2;border-top-color:#277a45;border-radius:50%;animation:publicGuestSpin .8s linear infinite}
+.publicGuestLoadingCopy{display:grid;gap:5px;max-width:460px}
+.publicGuestLoadingCopy b{font-size:15px;color:#183a24}
+.publicGuestLoadingCopy span{font-size:11px;line-height:1.5;color:#718078}
+.publicGuestProgress{width:min(360px,82vw);height:7px;border-radius:999px;background:#e7eee8;overflow:hidden}
+.publicGuestProgress span{display:block;width:42%;height:100%;border-radius:inherit;background:#2b7f48;animation:publicGuestProgress 1.2s ease-in-out infinite}
+.publicGuestLoading>small{font-size:9px;color:#819087;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+@keyframes publicGuestSpin{to{transform:rotate(360deg)}}
+@keyframes publicGuestProgress{0%{transform:translateX(-120%)}50%{transform:translateX(110%)}100%{transform:translateX(260%)}}
+@media(max-width:560px){
+  .publicGuestLoading{min-height:240px;padding:28px 16px}
+  .publicGuestLoadingCopy b{font-size:13px}
+  .publicGuestLoadingCopy span{font-size:9px}
+}
