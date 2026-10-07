@@ -606,6 +606,7 @@ public sealed class Outlet
         get;
         set;
     }
+    public DeliveryCoverageMode DeliveryCoverageMode { get; set; } = DeliveryCoverageMode.Radius;
     public OutletStatus Status {
         get;
         set;
