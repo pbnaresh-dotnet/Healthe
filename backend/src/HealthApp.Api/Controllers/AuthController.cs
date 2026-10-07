@@ -11,7 +11,12 @@ namespace HealthApp.Api.Controllers;
             message="Invalid email or password."
         }):Ok(x);
     }
-    [HttpPost("register"), EnableRateLimiting("auth")] public async Task<ActionResult<AuthResponse>> Register(RegisterRequest r)=>Ok(await auth.RegisterAsync(r));
+    [HttpPost("register"), EnableRateLimiting("auth")] public async Task<ActionResult<AuthResponse>> Register(RegisterRequest r)
+{
+    var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+    var userAgent = Request.Headers.UserAgent.ToString();
+    return Ok(await auth.RegisterAsync(r, new LegalAcceptanceContext(ip, userAgent)));
+}
     [Authorize,HttpGet("me")] public ActionResult Me()=>Ok(new {
         authenticated=true,userId=User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,role=User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
     });
