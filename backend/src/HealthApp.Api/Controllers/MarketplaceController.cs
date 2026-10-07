@@ -12,6 +12,7 @@ public sealed class MarketplaceController(IMarketplaceService service, ICityArea
     [HttpGet("cities")] public async Task<IActionResult> Cities()=>Ok(await service.GetCitiesAsync());
     [HttpGet("outlets")] public async Task<IActionResult> Outlets([FromQuery]string? city)=>Ok(await service.GetAllOutletsAsync(city));
     [HttpGet("outlets/{slug}")] public async Task<IActionResult> Outlet(string slug){var x=await service.GetOutletAsync(slug);return x is null?NotFound():Ok(x);}
+    [HttpGet("outlets/{slug}/legal")] public async Task<IActionResult> Legal(string slug){var x=await service.GetOutletLegalAsync(slug);return x is null?NotFound():Ok(x);}
     [HttpGet("outlets/{outletId:guid}/meal-plans")] public async Task<IActionResult> Plans(Guid outletId)=>Ok(await service.GetPlansAsync(outletId));
     [HttpGet("outlets/{outletId:guid}/recipes")] public async Task<IActionResult> Recipes(Guid outletId,[FromQuery]string? category)=>Ok(await service.GetRecipesAsync(outletId,category));
     [HttpGet("outlets/{outletId:guid}/menu")] public async Task<IActionResult> Menu(Guid outletId)=>Ok(await service.GetMenuAsync(outletId));
