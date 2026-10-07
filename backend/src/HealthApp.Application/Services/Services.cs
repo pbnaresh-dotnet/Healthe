@@ -7,7 +7,7 @@ using HealthApp.Domain.Enums;
 using HealthApp.Domain.Events;
 using HealthApp.Shared.DTOs;
 namespace HealthApp.Application.Services;
-public sealed class AuthService(IUserRepository users, ITokenService tokens, IPasswordService passwords, IOutletRepository outlets, IOutletLegalPolicyRepository legalPolicies, IUnitOfWork unitOfWork) : IAuthService
+public sealed class AuthService(IUserRepository users, ITokenService tokens, IPasswordService passwords, IOutletRepository outlets, IOutletLegalPolicyRepository legalPolicies, IUnitOfWork unitOfWork, ITransactionalEmailService emails, IOutletUrlService outletUrls) : IAuthService
 {
     public async Task<AuthResponse?> LoginAsync(LoginRequest r)
     {
@@ -123,6 +123,24 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
                 });
             }
         });
+
+        if (role == UserRole.Customer && outletId is Guid customerOutletId)
+        {
+            var outlet = await outlets.GetByIdAsync(customerOutletId);
+            if (outlet is not null)
+            {
+                await emails.TrySendAsync(
+                    EmailTemplateId.CustomerWelcome,
+                    user.Email,
+                    new Dictionary<string, string?>
+                    {
+                        ["FirstName"] = user.FirstName,
+                        ["OutletName"] = outlet.Name,
+                        ["StorefrontUrl"] = await outletUrls.GetStorefrontUrlAsync(outlet.Id)
+                    });
+            }
+        }
+
         return tokens.CreateToken(user);
     }
 }
