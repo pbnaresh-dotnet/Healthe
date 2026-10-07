@@ -465,6 +465,8 @@ public sealed class OutletSettingsService(
 
             if (!request.LegalEffectiveDateUtc.HasValue)
                 throw new ArgumentException("An effective date is required before publishing.");
+            if (request.LegalEffectiveDateUtc.Value > DateTime.UtcNow.AddMinutes(1))
+                throw new ArgumentException("The effective date cannot be in the future because publishing is immediate.");
 
             if (published is not null && published.Version == version)
             {
