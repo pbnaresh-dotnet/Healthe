@@ -578,8 +578,17 @@ public sealed class OutletPackageService(
             OutletPackageDiscountType.Fixed => Math.Min(gross, discountValue),
             _ => 0m
         };
-        var totalDiscount = Math.Min(gross, baseDiscount + outletDiscount);
-        var discountedMealAmount = Math.Round(gross - totalDiscount, 2);
+        var calculatedTotalDiscount = Math.Min(gross, baseDiscount + outletDiscount);
+        var discountedMealAmount = Math.Round(gross - calculatedTotalDiscount, 2);
+        if (request.FinalMealAmount.HasValue)
+        {
+            var finalMealAmount = Math.Round(request.FinalMealAmount.Value, 2);
+            if (finalMealAmount < 0m || finalMealAmount > gross)
+                throw new ArgumentException("Final meal amount must be between ₹0 and the package gross meal amount.");
+            discountedMealAmount = finalMealAmount;
+        }
+        var totalDiscount = Math.Round(gross - discountedMealAmount, 2);
+        var additionalOutletDiscount = Math.Max(0m, totalDiscount - baseDiscount);
         var serviceFee = platformFee.Calculate(discountedMealAmount);
         var taxes = taxStrategy.Calculate(discountedMealAmount, serviceFee, outlet.RestaurantGstRate, outlet.RestaurantGstMode);
         var net = taxes.RestaurantTaxableAmount;
@@ -608,8 +617,8 @@ public sealed class OutletPackageService(
             subscription.TotalCharged = totalCharged;
             subscription.OutletAmount = outletAmount;
             subscription.OutletCommissionAmount = commission;
-            subscription.OutletDiscountType = discountType;
-            subscription.OutletDiscountValue = discountValue;
+            subscription.OutletDiscountType = request.FinalMealAmount.HasValue ? OutletPackageDiscountType.Fixed : discountType;
+            subscription.OutletDiscountValue = request.FinalMealAmount.HasValue ? additionalOutletDiscount : discountValue;
             subscription.OutletDiscountReason = request.DiscountReason?.Trim() ?? "";
             subscription.PackageStatus = "PaymentPending";
             subscription.Status = SubscriptionStatus.Pending;
