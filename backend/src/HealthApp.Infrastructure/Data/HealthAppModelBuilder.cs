@@ -329,6 +329,7 @@ internal static class HealthAppModelBuilder
         e.HasKey(x => x.Id);
         e.Property(x => x.Name).HasMaxLength(200).IsRequired();
         e.Property(x => x.Category).HasConversion<int>();
+        e.Property(x => x.MealType).HasMaxLength(50).IsRequired();
         e.Property(x => x.PricePerMeal).HasPrecision(18,2);
         e.Property(x => x.LargePricePerMeal).HasPrecision(18,2);
         e.Property(x => x.Description).HasMaxLength(2000);

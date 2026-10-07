@@ -813,6 +813,10 @@ IF COL_LENGTH('dbo.CustomerProfiles','Allergies') IS NOT NULL
 -- Legacy column retained for older databases; normalized RecipeAllergens/IngredientAllergens are authoritative.
 IF COL_LENGTH('dbo.Recipes','FiberGrams') IS NULL
     ALTER TABLE dbo.Recipes ADD FiberGrams int NOT NULL CONSTRAINT DF_Recipes_FiberGrams DEFAULT 0;
+IF COL_LENGTH('dbo.Recipes','MealType') IS NULL
+    ALTER TABLE dbo.Recipes ADD MealType nvarchar(50) NOT NULL CONSTRAINT DF_Recipes_MealType DEFAULT 'Meal' WITH VALUES;
+IF COL_LENGTH('dbo.Recipes','MealType') IS NOT NULL
+    UPDATE dbo.Recipes SET MealType = 'Meal' WHERE MealType IS NULL OR LTRIM(RTRIM(MealType)) = '';
 IF COL_LENGTH('dbo.Recipes','Allergens') IS NOT NULL
     ALTER TABLE dbo.Recipes ALTER COLUMN Allergens nvarchar(max) NULL;
 ", cancellationToken);

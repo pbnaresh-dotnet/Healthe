@@ -951,6 +951,7 @@ public sealed class Recipe
         get;
         set;
     }
+    public string MealType { get; set; } = "Meal";
     public decimal PricePerMeal {
         get;
         set;

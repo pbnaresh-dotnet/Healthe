@@ -271,13 +271,13 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
     private async Task<IReadOnlyList<MenuItemDto>> MapMenu(Guid outletId, IReadOnlyList<OutletMenuItem> items)
     {
         var rs = (await recipes.GetByOutletAsync(outletId)).ToDictionary(x => x.Id);
-        return items.Where(x => x.IsAvailable).Select(x => rs.TryGetValue(x.RecipeId, out var r) ? new MenuItemDto(x.Id, x.OutletId, x.RecipeId, r.Name, x.DayOfWeek, x.MealSlot.ToString(), (int)x.MealSlot, r.PricePerMeal, r.LargePricePerMeal, r.Calories, r.ProteinGrams, r.Category.ToString(), r.ImageUrl, x.IsAvailable, x.DisplayOrder, r.CarbsGrams, r.FatGrams, r.FiberGrams, x.OptionGroup, x.IsRequired, x.MaxSelections) : null).Where(x => x is not null).Cast<MenuItemDto>().ToList();
+        return items.Where(x => x.IsAvailable).Select(x => rs.TryGetValue(x.RecipeId, out var r) ? new MenuItemDto(x.Id, x.OutletId, x.RecipeId, r.Name, x.DayOfWeek, x.MealSlot.ToString(), (int)x.MealSlot, r.PricePerMeal, r.LargePricePerMeal, r.Calories, r.ProteinGrams, r.Category.ToString(), r.ImageUrl, x.IsAvailable, x.DisplayOrder, r.CarbsGrams, r.FatGrams, r.FiberGrams, x.OptionGroup, x.IsRequired, x.MaxSelections, r.MealType) : null).Where(x => x is not null).Cast<MenuItemDto>().ToList();
     }
     private static SaaSPlanDto Map(SaaSPlan x) => new(x.Id, x.Name, x.MonthlyFee, x.AnnualFee, x.IncludedActiveCustomers, x.AdditionalCustomerFee, x.CustomerTransactionFeePercent, x.Description, x.IsActive);
     private static MealPlanDto Map(MealPlan x) => new(x.Id, x.OutletId, x.Name, x.Frequency, x.MealsPerDay, x.MealsPerWeek, x.Price, x.Currency, x.Description, x.IsActive, x.IsPreplanned, x.AvailableCity, x.DurationDays);
     private static RecipeDto Map(Recipe x) => new(x.Id,x.OutletId,x.Name,x.Calories,x.ProteinGrams,x.CarbsGrams,x.FatGrams,x.Category.ToString(),x.PricePerMeal,x.LargePricePerMeal,x.Description,x.ImageUrl,x.Tags,x.IsActive,
     x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId,i.Ingredient.Name,i.Quantity,i.Unit,i.Ingredient.Allergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).OrderBy(a=>a.Name).ToList())).ToList(),
-    x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams);
+    x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams, string.IsNullOrWhiteSpace(x.MealType)?"Meal":x.MealType);
     private static OutletDto ToDto(Outlet x, double distance)
     {
         var b = x.Branding;
@@ -1036,10 +1036,17 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     }
     private static RecipeDto MapRecipe(Recipe x)=>new(x.Id,x.OutletId,x.Name,x.Calories,x.ProteinGrams,x.CarbsGrams,x.FatGrams,x.Category.ToString(),x.PricePerMeal,x.LargePricePerMeal,x.Description,x.ImageUrl,x.Tags,x.IsActive,
     x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId, i.Ingredient.Name, i.Quantity, i.Unit, i.Ingredient.Allergens.Select(a => new AllergenDto(a.AllergenId, a.Allergen.Name)).OrderBy(a => a.Name).ToList())).ToList(),
-    x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList());
+    x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams, string.IsNullOrWhiteSpace(x.MealType)?"Meal":x.MealType);
 }
 public sealed class OutletService(ICurrentUser current,IOutletRepository outlets,IOutletSubscriptionRepository outletSubs,ISaaSPlanRepository saasPlans,IMealPlanRepository plans,IRecipeRepository recipes,IOutletMenuRepository menu,IUserRepository users,ISubscriptionRepository subscriptions,IOrderRepository orders,IDeliveryRepository deliveries,IIngredientRepository ingredients,IAllergenRepository allergens,ISubscriptionMealSelectionRepository selections,ICustomerAddressRepository addresses,ICityAreaRepository areas,IDeliveryLabelService deliveryLabels) : IOutletService
 {
+    private static string NormalizeMealType(string? value)
+    {
+        var normalized = (value ?? "").Trim();
+        var allowed = new[] { "Meal", "Starter", "Side", "Add-on", "Juice", "Snack", "Soup", "Salad", "Dessert", "Drink", "Other" };
+        return allowed.FirstOrDefault(x => x.Equals(normalized, StringComparison.OrdinalIgnoreCase)) ?? "Meal";
+    }
+
     public async Task<OutletTaxSettingsDto?> GetTaxSettingsAsync()
     {
         if (current.OutletId is not Guid id) return null;
@@ -1354,6 +1361,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             OutletId=id,
             Name=r.Name.Trim(),
             Category=cat,
+            MealType=NormalizeMealType(r.MealType),
             Calories=r.Calories,
             ProteinGrams=r.ProteinGrams,
             CarbsGrams=r.CarbsGrams,
@@ -1388,6 +1396,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
         if(validAllergens.Count!=allergenIds.Count)throw new ArgumentException("One or more allergens are invalid.");
         x.Name=r.Name.Trim();
         x.Category=Enum.TryParse<RecipeCategory>(r.Category,true,out var c)?c:x.Category;
+        x.MealType=NormalizeMealType(r.MealType);
         x.Calories=r.Calories;
         x.ProteinGrams=r.ProteinGrams;
         x.CarbsGrams=r.CarbsGrams;
@@ -1419,7 +1428,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     public async Task<IReadOnlyList<MenuItemDto>> GetMenuAsync() {
         if(current.OutletId is not Guid id)return[];
         var rs=(await recipes.GetByOutletAsync(id)).ToDictionary(x=>x.Id);
-        return(await menu.GetByOutletAsync(id)).Select(x=>rs.TryGetValue(x.RecipeId,out var r)?new MenuItemDto(x.Id,x.OutletId,x.RecipeId,r.Name,x.DayOfWeek,x.MealSlot.ToString(),(int)x.MealSlot,r.PricePerMeal,r.LargePricePerMeal,r.Calories,r.ProteinGrams,r.Category.ToString(),r.ImageUrl,x.IsAvailable,x.DisplayOrder):null).Where(x=>x is not null).Cast<MenuItemDto>().ToList();
+        return(await menu.GetByOutletAsync(id)).Select(x=>rs.TryGetValue(x.RecipeId,out var r)?new MenuItemDto(x.Id,x.OutletId,x.RecipeId,r.Name,x.DayOfWeek,x.MealSlot.ToString(),(int)x.MealSlot,r.PricePerMeal,r.LargePricePerMeal,r.Calories,r.ProteinGrams,r.Category.ToString(),r.ImageUrl,x.IsAvailable,x.DisplayOrder,r.CarbsGrams,r.FatGrams,r.FiberGrams,x.OptionGroup,x.IsRequired,x.MaxSelections,r.MealType):null).Where(x=>x is not null).Cast<MenuItemDto>().ToList();
     }
     public async Task<IReadOnlyList<MenuItemDto>> SaveMenuAsync(BulkMenuRequest r) {
         if(current.OutletId is not Guid id)return[];
