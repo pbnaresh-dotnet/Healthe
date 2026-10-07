@@ -8,6 +8,7 @@ import'./styles.css';
 import OutletOnboarding from'./OutletOnboarding.jsx';
 import OutletVerificationCenter from'./OutletVerificationCenter.jsx';
 import OutletSettings from'./OutletSettings.jsx';
+import OutletLegalDocuments from'./OutletLegalDocuments.jsx';
 
 const ORIGIN=API_URL.replace(/\/api\/?$/,'');
 const img=u=>u?(u.startsWith('http')?u:ORIGIN+u):'';
@@ -104,6 +105,7 @@ function LandingPage({onLogin,onRegister,onDemo}){
 
 
 function App(){
+ const legalDoc=(()=>{try{return new URLSearchParams(window.location.search).get('legal')||''}catch{return ''}})();
  const[user,setUser]=useState(currentUser()),[demoOpen,setDemoOpen]=useState(false),[login,setLogin]=useState({email:'admin@fitfood.test',password:'demo'}),[active,setActive]=useState('dashboard'),[dash,setDash]=useState(null),[showOnboarding,setShowOnboarding]=useState(false),[showLogin,setShowLogin]=useState(false),[verificationApp,setVerificationApp]=useState(null),[verificationLoading,setVerificationLoading]=useState(false);
  const[recipes,setRecipes]=useState([]),[ingredients,setIngredients]=useState([]),[allergens,setAllergens]=useState([]),[pricing,setPricing]=useState([]),[areas,setAreas]=useState([]),[selectedAreas,setSelectedAreas]=useState([]),[tiers,setTiers]=useState([]);
  const[customers,setCustomers]=useState([]),[subs,setSubs]=useState([]),[orders,setOrders]=useState([]),[deliveries,setDeliveries]=useState([]),[menu,setMenu]=useState([]),[billing,setBilling]=useState(null),[selectedSub,setSelectedSub]=useState(null),[kitchen,setKitchen]=useState(null),[kitchenDate,setKitchenDate]=useState(new Date().toISOString().slice(0,10));
@@ -200,7 +202,8 @@ function App(){
  if(!user&&showOnboarding)return <OutletOnboarding onBack={()=>setShowOnboarding(false)} onLogin={()=>{setShowOnboarding(false);setShowLogin(true)}}/>;
  if(user&&!verificationLoading&&verificationApp&&verificationApp.status!=='Approved')return <OutletVerificationCenter user={user} onLogout={()=>{auth.logout();setUser(null);setVerificationApp(null)}}/>;
  if(!user&&showLogin)return <div className="loginPage"><div className="loginCard"><div className="brand"><span className="brandMark">H</span><div><b>HealthApp</b><small>Outlet management</small></div></div><button type="button" className="linkBtn landingBackHome" onClick={()=>{setError('');setShowLogin(false)}}>← Back to home</button><h1>Welcome back</h1><p>Run your meal business from one workspace.</p><form onSubmit={signIn}><Field label="Email"><input value={login.email} onChange={e=>setLogin({...login,email:e.target.value})}/></Field><Field label="Password"><input type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})}/></Field><button className="primary full">Sign in</button>{error&&<div className="error">{error}</div>}<small className="demo">Demo: admin@fitfood.test / demo</small><div className="registerPrompt"><span>New to HealthApp?</span><button type="button" className="linkBtn" onClick={()=>{setError('');setShowLogin(false);setShowOnboarding(true)}}>Register your outlet →</button></div></form></div></div>;
- if(!user)return <><LandingPage onLogin={()=>{setError('');setShowLogin(true)}} onRegister={()=>{setError('');setShowOnboarding(true)}} onDemo={()=>setDemoOpen(true)}/>{demoOpen&&<DemoRequestModal onClose={()=>setDemoOpen(false)}/>}</>;
+ if(legalDoc&&['saas-terms','dpa','acceptable-use'].includes(legalDoc))return <OutletLegalDocuments documentId={legalDoc} outletName={dash?.outlet?.name||'Your outlet'} onBack={()=>{window.location.href=window.location.pathname}}/>;
+  if(!user)return <><LandingPage onLogin={()=>{setError('');setShowLogin(true)}} onRegister={()=>{setError('');setShowOnboarding(true)}} onDemo={()=>setDemoOpen(true)}/>{demoOpen&&<DemoRequestModal onClose={()=>setDemoOpen(false)}/>}</>;
 
  const navs=[['dashboard','⌂','Dashboard'],['kitchen','▦','Kitchen'],['recipes','◈','Recipes'],['menu','☷','Weekly Menu'],['customers','♙','Customers'],['team','♟','Team'],['packages','✚','Create Package'],['subscriptions','◫','Subscriptions'],['orders','▤','Orders'],['deliveries','⌁','Deliveries'],['routes','⇢','Delivery Routes'],['settings','⚙','Settings']];
  const outletRole=String(user?.role||'OutletAdmin');
