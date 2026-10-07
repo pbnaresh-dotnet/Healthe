@@ -240,7 +240,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     {
         if (current.UserId is not Guid id) return null;
         var x = await users.FindByIdAsync(id);
-        return x is null ? null : new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId);
+        return x is null ? null : new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId, false, null, x.MobileNumber);
     }
     public async Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync()
     {
