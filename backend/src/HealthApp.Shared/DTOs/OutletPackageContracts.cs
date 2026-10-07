@@ -79,4 +79,4 @@ public record OutletPackageAddressRequest(
     Guid? CityAreaId = null,
     bool IsDefault = false);
 
-public record ConfirmCustomerPackageRequest(string DiscountType = "None", decimal DiscountValue = 0m, string DiscountReason = "");
+public record ConfirmCustomerPackageRequest(string DiscountType = "None", decimal DiscountValue = 0m, string DiscountReason = "", decimal? FinalMealAmount = null);
