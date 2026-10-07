@@ -569,7 +569,7 @@ BEGIN
         BillingCycle nvarchar(30) NOT NULL CONSTRAINT DF_OutletOnboarding_BillingCycle DEFAULT 'Monthly',
         SubscriptionFee decimal(18,2) NOT NULL CONSTRAINT DF_OutletOnboarding_SubscriptionFee DEFAULT 0,
         SetupFee decimal(18,2) NOT NULL CONSTRAINT DF_OutletOnboarding_SetupFee DEFAULT 5000,
-        PaymentStatus nvarchar(30) NOT NULL CONSTRAINT DF_OutletOnboarding_PaymentStatus DEFAULT 'Paid',
+        PaymentStatus nvarchar(30) NOT NULL CONSTRAINT DF_OutletOnboarding_PaymentStatus DEFAULT 'Pending',
         PaymentReference nvarchar(100) NOT NULL,
         Status nvarchar(40) NOT NULL CONSTRAINT DF_OutletOnboarding_Status DEFAULT 'Onboarding',
         BusinessType nvarchar(40) NOT NULL CONSTRAINT DF_OutletOnboarding_BusinessType DEFAULT 'Individual',
