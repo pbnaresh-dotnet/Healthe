@@ -81,12 +81,15 @@ public sealed class SmtpEmailService(IOptions<SmtpEmailOptions> options) : IEmai
         using var client = new SmtpClient(o.Host, o.Port)
         {
             EnableSsl = o.EnableSsl,
+            UseDefaultCredentials = false,
             DeliveryMethod = SmtpDeliveryMethod.Network,
             Timeout = Math.Clamp(o.TimeoutSeconds, 5, 120) * 1000
         };
 
-        if (!string.IsNullOrWhiteSpace(o.Username))
-            client.Credentials = new NetworkCredential(o.Username, o.Password);
+        if (string.IsNullOrWhiteSpace(o.Username))
+            throw new InvalidOperationException("Email SMTP username is not configured.");
+
+        client.Credentials = new NetworkCredential(o.Username.Trim(), o.Password ?? string.Empty);
 
         cancellationToken.ThrowIfCancellationRequested();
         await client.SendMailAsync(mail);
