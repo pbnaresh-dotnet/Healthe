@@ -11,7 +11,7 @@ Set these application settings on the API server:
 - Cashfree__ClientId=<Cashfree app ID>
 - Cashfree__ClientSecret=<Cashfree secret key>
 - Cashfree__ApiVersion=2025-01-01
-- Cashfree__CustomerReturnUrl=https://app.broccoly.in/payment
+- Customer payment return URLs are generated server-side from the outlet storefront domain (primary active custom domain, otherwise `<subdomain>.broccoly.in`)
 - Cashfree__OutletReturnUrl=https://broccoly.in/payment
 - Cashfree__WebhookUrl=https://api.broccoly.in/api/payments/cashfree/webhook
 
