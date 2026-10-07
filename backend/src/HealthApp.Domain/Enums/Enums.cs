@@ -12,6 +12,7 @@ public enum CreditTransactionType { Credit = 1, Debit = 2, Adjustment = 3, Refun
 public enum OrderStatus { Pending, Confirmed, Preparing, OutForDelivery, Delivered, Cancelled }
 public enum DeliveryStatus { Scheduled, Preparing, OutForDelivery, Delivered, Failed, Skipped }
 public enum RouteStatus { Planned, InProgress, Completed, Cancelled, Dispatched }
+public enum DeliveryCoverageMode { Radius = 1, Areas = 2 }
 public enum BillingPlan { Starter, Growth, Scale }
 public enum GstMode { Exclusive = 0, Inclusive = 1 }
 public enum OutletPackageDiscountType { None = 0, Percent = 1, Fixed = 2 }
