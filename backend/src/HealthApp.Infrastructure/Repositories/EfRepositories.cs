@@ -13,53 +13,53 @@ public abstract class EfRepository(HealthAppDbContext Db)
 
 public sealed class UserRepository(HealthAppDbContext db) : EfRepository(db), IUserRepository
 {
-    public Task<User?> FindByEmailAsync(string email) => db.Users.FirstOrDefaultAsync(x => x.Email == email.Trim().ToLower());
-    public Task<User?> FindByEmailAsync(string email, Guid outletId) => db.Users.FirstOrDefaultAsync(x => x.Email == email.Trim().ToLower() && x.OutletId == outletId);
-    public async Task<IReadOnlyList<User>> FindTenantUsersByEmailAsync(string email) => await db.Users.AsNoTracking().Where(x => x.Email == email.Trim().ToLower() && x.OutletId != null).OrderBy(x => x.OutletId).ThenBy(x => x.Role).ToListAsync();
-    public Task<User?> FindByIdAsync(Guid id) => db.Users.FirstOrDefaultAsync(x => x.Id == id);
+    public Task<User?> FindByEmailAsync(string email) => Context.Users.FirstOrDefaultAsync(x => x.Email == email.Trim().ToLower());
+    public Task<User?> FindByEmailAsync(string email, Guid outletId) => Context.Users.FirstOrDefaultAsync(x => x.Email == email.Trim().ToLower() && x.OutletId == outletId);
+    public async Task<IReadOnlyList<User>> FindTenantUsersByEmailAsync(string email) => await Context.Users.AsNoTracking().Where(x => x.Email == email.Trim().ToLower() && x.OutletId != null).OrderBy(x => x.OutletId).ThenBy(x => x.Role).ToListAsync();
+    public Task<User?> FindByIdAsync(Guid id) => Context.Users.FirstOrDefaultAsync(x => x.Id == id);
     public async Task AddAsync(User user) {
-        db.Users.Add(user);
+        Context.Users.Add(user);
         await SaveAsync();
     }
     public async Task UpdateAsync(User user) {
-        db.Users.Update(user);
+        Context.Users.Update(user);
         await SaveAsync();
     }
-    public async Task<IReadOnlyList<User>> GetAllAsync() => await db.Users.AsNoTracking().OrderBy(x => x.Email).ToListAsync();
+    public async Task<IReadOnlyList<User>> GetAllAsync() => await Context.Users.AsNoTracking().OrderBy(x => x.Email).ToListAsync();
 }
 
 public sealed class OutletRepository(HealthAppDbContext db) : EfRepository(db), IOutletRepository
 {
-    public async Task<IReadOnlyList<Outlet>> GetAllAsync() => await db.Outlets.AsNoTracking().Include(x => x.Branding).OrderBy(x => x.Name).ToListAsync();
-    public Task<Outlet?> GetByIdAsync(Guid id) => db.Outlets.Include(x => x.Branding).FirstOrDefaultAsync(x => x.Id == id);
-    public Task<Outlet?> GetBySlugAsync(string slug) => db.Outlets.Include(x => x.Branding).FirstOrDefaultAsync(x => x.Slug == slug.Trim().ToLower());
-    public Task<Outlet?> GetBySubdomainAsync(string subdomain) => db.Outlets.Include(x => x.Branding).FirstOrDefaultAsync(x => x.Subdomain == subdomain.Trim().ToLower());
+    public async Task<IReadOnlyList<Outlet>> GetAllAsync() => await Context.Outlets.AsNoTracking().Include(x => x.Branding).OrderBy(x => x.Name).ToListAsync();
+    public Task<Outlet?> GetByIdAsync(Guid id) => Context.Outlets.Include(x => x.Branding).FirstOrDefaultAsync(x => x.Id == id);
+    public Task<Outlet?> GetBySlugAsync(string slug) => Context.Outlets.Include(x => x.Branding).FirstOrDefaultAsync(x => x.Slug == slug.Trim().ToLower());
+    public Task<Outlet?> GetBySubdomainAsync(string subdomain) => Context.Outlets.Include(x => x.Branding).FirstOrDefaultAsync(x => x.Subdomain == subdomain.Trim().ToLower());
     public async Task AddAsync(Outlet outlet) {
-        db.Outlets.Add(outlet);
+        Context.Outlets.Add(outlet);
         await SaveAsync();
     }
     public async Task UpdateAsync(Outlet outlet) {
-        db.Outlets.Update(outlet);
+        Context.Outlets.Update(outlet);
         await SaveAsync();
     }
 }
 
 public sealed class OutletBrandingRepository(HealthAppDbContext db) : EfRepository(db), IOutletBrandingRepository
 {
-    public Task<OutletBranding?> GetByOutletAsync(Guid outletId) => db.OutletBrandings.FirstOrDefaultAsync(x => x.OutletId == outletId);
-    public async Task AddAsync(OutletBranding branding) { db.OutletBrandings.Add(branding); await SaveAsync(); }
-    public async Task UpdateAsync(OutletBranding branding) { db.OutletBrandings.Update(branding); await SaveAsync(); }
+    public Task<OutletBranding?> GetByOutletAsync(Guid outletId) => Context.OutletBrandings.FirstOrDefaultAsync(x => x.OutletId == outletId);
+    public async Task AddAsync(OutletBranding branding) { Context.OutletBrandings.Add(branding); await SaveAsync(); }
+    public async Task UpdateAsync(OutletBranding branding) { Context.OutletBrandings.Update(branding); await SaveAsync(); }
 }
 
 public sealed class OutletDomainRepository(HealthAppDbContext db) : EfRepository(db), IOutletDomainRepository
 {
     public Task<OutletDomain?> GetAsync(Guid id) =>
-        db.OutletDomains.Include(x => x.Outlet).FirstOrDefaultAsync(x => x.Id == id);
+        Context.OutletDomains.Include(x => x.Outlet).FirstOrDefaultAsync(x => x.Id == id);
 
     public Task<OutletDomain?> GetActiveByHostnameAsync(string hostname)
     {
         var value = hostname.Trim().TrimEnd('.').ToLowerInvariant();
-        return db.OutletDomains.AsNoTracking()
+        return Context.OutletDomains.AsNoTracking()
             .Include(x => x.Outlet)
             .ThenInclude(x => x.Branding)
             .FirstOrDefaultAsync(x => x.Hostname == value && x.Status == OutletDomainStatus.Active);
@@ -68,47 +68,47 @@ public sealed class OutletDomainRepository(HealthAppDbContext db) : EfRepository
     public Task<OutletDomain?> GetByHostnameAsync(string hostname)
     {
         var value = hostname.Trim().TrimEnd('.').ToLowerInvariant();
-        return db.OutletDomains.Include(x => x.Outlet).FirstOrDefaultAsync(x => x.Hostname == value);
+        return Context.OutletDomains.Include(x => x.Outlet).FirstOrDefaultAsync(x => x.Hostname == value);
     }
 
     public async Task<IReadOnlyList<OutletDomain>> GetByOutletAsync(Guid outletId) =>
-        await db.OutletDomains.AsNoTracking()
+        await Context.OutletDomains.AsNoTracking()
             .Where(x => x.OutletId == outletId)
             .OrderByDescending(x => x.IsPrimary)
             .ThenBy(x => x.Hostname)
             .ToListAsync();
 
     public async Task<IReadOnlyList<OutletDomain>> GetAllAsync() =>
-        await db.OutletDomains.AsNoTracking()
+        await Context.OutletDomains.AsNoTracking()
             .Include(x => x.Outlet)
             .OrderByDescending(x => x.CreatedAtUtc)
             .ToListAsync();
 
-    public async Task AddAsync(OutletDomain domain) { db.OutletDomains.Add(domain); await SaveAsync(); }
-    public async Task UpdateAsync(OutletDomain domain) { db.OutletDomains.Update(domain); await SaveAsync(); }
+    public async Task AddAsync(OutletDomain domain) { Context.OutletDomains.Add(domain); await SaveAsync(); }
+    public async Task UpdateAsync(OutletDomain domain) { Context.OutletDomains.Update(domain); await SaveAsync(); }
 }
 
 public sealed class SaaSPlanRepository(HealthAppDbContext db) : EfRepository(db), ISaaSPlanRepository
 {
-    public async Task<IReadOnlyList<SaaSPlan>> GetActiveAsync() => await db.SaaSPlans.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.MonthlyFee).ToListAsync();
-    public Task<SaaSPlan?> GetAsync(Guid id) => db.SaaSPlans.FirstOrDefaultAsync(x => x.Id == id);
+    public async Task<IReadOnlyList<SaaSPlan>> GetActiveAsync() => await Context.SaaSPlans.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.MonthlyFee).ToListAsync();
+    public Task<SaaSPlan?> GetAsync(Guid id) => Context.SaaSPlans.FirstOrDefaultAsync(x => x.Id == id);
 }
 
 public sealed class OutletSubscriptionRepository(HealthAppDbContext db) : EfRepository(db), IOutletSubscriptionRepository
 {
-    public Task<OutletSubscription?> GetByOutletAsync(Guid outletId) => db.OutletSubscriptions.FirstOrDefaultAsync(x => x.OutletId == outletId && x.Status == "Active");
+    public Task<OutletSubscription?> GetByOutletAsync(Guid outletId) => Context.OutletSubscriptions.FirstOrDefaultAsync(x => x.OutletId == outletId && x.Status == "Active");
     public async Task<IReadOnlySet<Guid>> GetActiveOutletIdsAsync() =>
-        (await db.OutletSubscriptions.AsNoTracking()
+        (await Context.OutletSubscriptions.AsNoTracking()
             .Where(x => x.Status == "Active")
             .Select(x => x.OutletId)
             .ToListAsync())
             .ToHashSet();
     public async Task AddAsync(OutletSubscription subscription) {
-        db.OutletSubscriptions.Add(subscription);
+        Context.OutletSubscriptions.Add(subscription);
         await SaveAsync();
     }
     public async Task UpdateAsync(OutletSubscription subscription) {
-        db.OutletSubscriptions.Update(subscription);
+        Context.OutletSubscriptions.Update(subscription);
         await SaveAsync();
     }
 }
@@ -116,19 +116,19 @@ public sealed class OutletSubscriptionRepository(HealthAppDbContext db) : EfRepo
 public sealed class PlatformTransactionRepository(HealthAppDbContext db) : EfRepository(db), IPlatformTransactionRepository
 {
     public async Task AddAsync(PlatformTransaction transaction) {
-        db.PlatformTransactions.Add(transaction);
+        Context.PlatformTransactions.Add(transaction);
         await SaveAsync();
     }
-    public async Task<IReadOnlyList<PlatformTransaction>> GetAllAsync() => await db.PlatformTransactions.AsNoTracking().OrderByDescending(x => x.CreatedAt).ToListAsync();
-    public Task<bool> ExistsByReferenceAsync(string referenceId) => db.PlatformTransactions.AnyAsync(x => x.ReferenceId == referenceId);
+    public async Task<IReadOnlyList<PlatformTransaction>> GetAllAsync() => await Context.PlatformTransactions.AsNoTracking().OrderByDescending(x => x.CreatedAt).ToListAsync();
+    public Task<bool> ExistsByReferenceAsync(string referenceId) => Context.PlatformTransactions.AnyAsync(x => x.ReferenceId == referenceId);
 }
 
 public sealed class MealPlanRepository(HealthAppDbContext db) : EfRepository(db), IMealPlanRepository
 {
-    public async Task<IReadOnlyList<MealPlan>> GetByOutletAsync(Guid outletId) => await db.MealPlans.AsNoTracking().Where(x => x.OutletId == outletId).OrderBy(x => x.Name).ToListAsync();
-    public Task<MealPlan?> GetAsync(Guid id) => db.MealPlans.FirstOrDefaultAsync(x => x.Id == id);
+    public async Task<IReadOnlyList<MealPlan>> GetByOutletAsync(Guid outletId) => await Context.MealPlans.AsNoTracking().Where(x => x.OutletId == outletId).OrderBy(x => x.Name).ToListAsync();
+    public Task<MealPlan?> GetAsync(Guid id) => Context.MealPlans.FirstOrDefaultAsync(x => x.Id == id);
     public async Task AddAsync(MealPlan plan) {
-        db.MealPlans.Add(plan);
+        Context.MealPlans.Add(plan);
         await SaveAsync();
     }
 }
@@ -138,38 +138,38 @@ public sealed class RecipeRepository(HealthAppDbContext db) : EfRepository(db), 
     private IQueryable<Recipe> Details(IQueryable<Recipe> query) => query
     .Include(x => x.RecipeIngredients).ThenInclude(x => x.Ingredient).ThenInclude(x => x.Allergens).ThenInclude(x => x.Allergen)
     .Include(x => x.RecipeAllergens).ThenInclude(x => x.Allergen);
-    public async Task<IReadOnlyList<Recipe>> GetByOutletAsync(Guid outletId) => await Details(db.Recipes.AsNoTracking().Where(x => x.OutletId == outletId)).OrderBy(x => x.Name).ToListAsync();
+    public async Task<IReadOnlyList<Recipe>> GetByOutletAsync(Guid outletId) => await Details(Context.Recipes.AsNoTracking().Where(x => x.OutletId == outletId)).OrderBy(x => x.Name).ToListAsync();
     public async Task<IReadOnlyList<Recipe>> GetByOutletAndCategoryAsync(Guid outletId, string? category)
     {
-        var q = Details(db.Recipes.AsNoTracking().Where(x => x.OutletId == outletId));
+        var q = Details(Context.Recipes.AsNoTracking().Where(x => x.OutletId == outletId));
         if (!string.IsNullOrWhiteSpace(category) && Enum.TryParse<RecipeCategory>(category, true, out var parsed)) q = q.Where(x => x.Category == parsed);
         return await q.OrderBy(x => x.Name).ToListAsync();
     }
-    public async Task<IReadOnlyList<Recipe>> GetByIdsAsync(IEnumerable<Guid> ids) => await Details(db.Recipes.AsNoTracking().Where(x => ids.Contains(x.Id))).ToListAsync();
-    public async Task<IReadOnlyList<Recipe>> GetByIdsForOutletAsync(IEnumerable<Guid> ids, Guid outletId) => await Details(db.Recipes.AsNoTracking().Where(x => ids.Contains(x.Id) && x.OutletId == outletId)).ToListAsync();
-    public Task<Recipe?> GetAsync(Guid id) => Details(db.Recipes.Where(x => x.Id == id)).FirstOrDefaultAsync();
-    public Task<Recipe?> GetForOutletAsync(Guid id, Guid outletId) => Details(db.Recipes.Where(x => x.Id == id && x.OutletId == outletId)).FirstOrDefaultAsync();
+    public async Task<IReadOnlyList<Recipe>> GetByIdsAsync(IEnumerable<Guid> ids) => await Details(Context.Recipes.AsNoTracking().Where(x => ids.Contains(x.Id))).ToListAsync();
+    public async Task<IReadOnlyList<Recipe>> GetByIdsForOutletAsync(IEnumerable<Guid> ids, Guid outletId) => await Details(Context.Recipes.AsNoTracking().Where(x => ids.Contains(x.Id) && x.OutletId == outletId)).ToListAsync();
+    public Task<Recipe?> GetAsync(Guid id) => Details(Context.Recipes.Where(x => x.Id == id)).FirstOrDefaultAsync();
+    public Task<Recipe?> GetForOutletAsync(Guid id, Guid outletId) => Details(Context.Recipes.Where(x => x.Id == id && x.OutletId == outletId)).FirstOrDefaultAsync();
     public async Task AddAsync(Recipe recipe) {
-        db.Recipes.Add(recipe);
+        Context.Recipes.Add(recipe);
         await SaveAsync();
     }
     public async Task UpdateAsync(Recipe recipe) {
-        db.Recipes.Update(recipe);
+        Context.Recipes.Update(recipe);
         await SaveAsync();
     }
     public async Task DeleteAsync(Guid id)
     {
-        var recipe = await db.Recipes.FirstOrDefaultAsync(x => x.Id == id);
+        var recipe = await Context.Recipes.FirstOrDefaultAsync(x => x.Id == id);
         if (recipe is null) return;
-        db.Recipes.Remove(recipe);
+        Context.Recipes.Remove(recipe);
         await SaveAsync();
     }
 
     public async Task<bool> DeleteAsync(Guid id, Guid outletId)
     {
-        var recipe = await db.Recipes.FirstOrDefaultAsync(x => x.Id == id && x.OutletId == outletId);
+        var recipe = await Context.Recipes.FirstOrDefaultAsync(x => x.Id == id && x.OutletId == outletId);
         if (recipe is null) return false;
-        db.Recipes.Remove(recipe);
+        Context.Recipes.Remove(recipe);
         await SaveAsync();
         return true;
     }
@@ -178,26 +178,26 @@ public sealed class RecipeRepository(HealthAppDbContext db) : EfRepository(db), 
 public sealed class CustomerLikedMealRepository(HealthAppDbContext db) : EfRepository(db), ICustomerLikedMealRepository
 {
     public async Task<IReadOnlyList<CustomerLikedMeal>> GetByCustomerAsync(Guid customerId) =>
-        await db.CustomerLikedMeals.AsNoTracking()
+        await Context.CustomerLikedMeals.AsNoTracking()
             .Where(x => x.CustomerId == customerId)
             .OrderByDescending(x => x.CreatedAtUtc)
             .ToListAsync();
 
     public Task<bool> ExistsAsync(Guid customerId, Guid recipeId) =>
-        db.CustomerLikedMeals.AnyAsync(x => x.CustomerId == customerId && x.RecipeId == recipeId);
+        Context.CustomerLikedMeals.AnyAsync(x => x.CustomerId == customerId && x.RecipeId == recipeId);
 
     public async Task AddAsync(CustomerLikedMeal meal)
     {
-        db.CustomerLikedMeals.Add(meal);
+        Context.CustomerLikedMeals.Add(meal);
         await SaveAsync();
     }
 
     public async Task RemoveAsync(Guid customerId, Guid recipeId)
     {
-        var meal = await db.CustomerLikedMeals.FirstOrDefaultAsync(x => x.CustomerId == customerId && x.RecipeId == recipeId);
+        var meal = await Context.CustomerLikedMeals.FirstOrDefaultAsync(x => x.CustomerId == customerId && x.RecipeId == recipeId);
         if (meal is not null)
         {
-            db.CustomerLikedMeals.Remove(meal);
+            Context.CustomerLikedMeals.Remove(meal);
             await SaveAsync();
         }
     }
@@ -205,24 +205,24 @@ public sealed class CustomerLikedMealRepository(HealthAppDbContext db) : EfRepos
 
 public sealed class OutletMenuRepository(HealthAppDbContext db) : EfRepository(db), IOutletMenuRepository
 {
-    public async Task<IReadOnlyList<OutletMenuItem>> GetByOutletAsync(Guid outletId) => await db.OutletMenuItems.AsNoTracking().Where(x => x.OutletId == outletId).OrderBy(x => x.DayOfWeek).ThenBy(x => x.MealSlot).ThenBy(x => x.DisplayOrder).ToListAsync();
-    public async Task<IReadOnlyList<OutletMenuItem>> GetByOutletDayAsync(Guid outletId, DayOfWeek day) => await db.OutletMenuItems.AsNoTracking().Where(x => x.OutletId == outletId && x.DayOfWeek == day && x.IsAvailable).OrderBy(x => x.MealSlot).ThenBy(x => x.DisplayOrder).ToListAsync();
+    public async Task<IReadOnlyList<OutletMenuItem>> GetByOutletAsync(Guid outletId) => await Context.OutletMenuItems.AsNoTracking().Where(x => x.OutletId == outletId).OrderBy(x => x.DayOfWeek).ThenBy(x => x.MealSlot).ThenBy(x => x.DisplayOrder).ToListAsync();
+    public async Task<IReadOnlyList<OutletMenuItem>> GetByOutletDayAsync(Guid outletId, DayOfWeek day) => await Context.OutletMenuItems.AsNoTracking().Where(x => x.OutletId == outletId && x.DayOfWeek == day && x.IsAvailable).OrderBy(x => x.MealSlot).ThenBy(x => x.DisplayOrder).ToListAsync();
     public async Task AddAsync(OutletMenuItem item) {
-        db.OutletMenuItems.Add(item);
+        Context.OutletMenuItems.Add(item);
         await SaveAsync();
     }
     public async Task DeleteAsync(Guid id) {
-        var item = await db.OutletMenuItems.FindAsync(id);
+        var item = await Context.OutletMenuItems.FindAsync(id);
         if (item is not null) {
-            db.OutletMenuItems.Remove(item);
+            Context.OutletMenuItems.Remove(item);
             await SaveAsync();
         }
     }
     public async Task ReplaceAsync(Guid outletId, IEnumerable<OutletMenuItem> items)
     {
-        var existing = await db.OutletMenuItems.Where(x => x.OutletId == outletId).ToListAsync();
-        db.OutletMenuItems.RemoveRange(existing);
-        db.OutletMenuItems.AddRange(items);
+        var existing = await Context.OutletMenuItems.Where(x => x.OutletId == outletId).ToListAsync();
+        Context.OutletMenuItems.RemoveRange(existing);
+        Context.OutletMenuItems.AddRange(items);
         await SaveAsync();
     }
 }
@@ -230,38 +230,38 @@ public sealed class OutletMenuRepository(HealthAppDbContext db) : EfRepository(d
 public sealed class SubscriptionRepository(HealthAppDbContext db) : EfRepository(db), ISubscriptionRepository
 {
     public async Task<IReadOnlyList<Subscription>> GetByCustomerAsync(Guid id) =>
-        await db.Subscriptions.AsNoTracking()
-            .Where(x => x.CustomerId == id && db.Users.Any(u => u.Id == id && u.OutletId == x.OutletId))
+        await Context.Subscriptions.AsNoTracking()
+            .Where(x => x.CustomerId == id && Context.Users.Any(u => u.Id == id && u.OutletId == x.OutletId))
             .OrderByDescending(x => x.StartDate)
             .ToListAsync();
-    public async Task<IReadOnlyList<Subscription>> GetByOutletAsync(Guid id) => await db.Subscriptions.AsNoTracking().Where(x => x.OutletId == id).OrderByDescending(x => x.StartDate).ToListAsync();
-    public Task<Subscription?> GetAsync(Guid id) => db.Subscriptions.FirstOrDefaultAsync(x => x.Id == id);
+    public async Task<IReadOnlyList<Subscription>> GetByOutletAsync(Guid id) => await Context.Subscriptions.AsNoTracking().Where(x => x.OutletId == id).OrderByDescending(x => x.StartDate).ToListAsync();
+    public Task<Subscription?> GetAsync(Guid id) => Context.Subscriptions.FirstOrDefaultAsync(x => x.Id == id);
     public async Task AddAsync(Subscription s) {
-        db.Subscriptions.Add(s);
+        Context.Subscriptions.Add(s);
         await SaveAsync();
     }
     public async Task UpdateAsync(Subscription s) {
-        db.Subscriptions.Update(s);
+        Context.Subscriptions.Update(s);
         await SaveAsync();
     }
 }
 
 public sealed class SubscriptionMealSelectionRepository(HealthAppDbContext db) : EfRepository(db), ISubscriptionMealSelectionRepository
 {
-    public async Task<IReadOnlyList<SubscriptionMealSelection>> GetBySubscriptionAsync(Guid id) => await db.SubscriptionMealSelections.AsNoTracking().Where(x => x.SubscriptionId == id).OrderBy(x => x.MealDate).ThenBy(x => x.MealSlot).ToListAsync();
-    public async Task<IReadOnlyList<SubscriptionMealSelection>> GetBySubscriptionAndDateRangeAsync(Guid id, DateTime from, DateTime to) => await db.SubscriptionMealSelections.AsNoTracking().Where(x => x.SubscriptionId == id && x.MealDate >= from && x.MealDate < to).OrderBy(x => x.MealDate).ThenBy(x => x.MealSlot).ToListAsync();
-    public Task<SubscriptionMealSelection?> GetAsync(Guid id) => db.SubscriptionMealSelections.FirstOrDefaultAsync(x => x.Id == id);
+    public async Task<IReadOnlyList<SubscriptionMealSelection>> GetBySubscriptionAsync(Guid id) => await Context.SubscriptionMealSelections.AsNoTracking().Where(x => x.SubscriptionId == id).OrderBy(x => x.MealDate).ThenBy(x => x.MealSlot).ToListAsync();
+    public async Task<IReadOnlyList<SubscriptionMealSelection>> GetBySubscriptionAndDateRangeAsync(Guid id, DateTime from, DateTime to) => await Context.SubscriptionMealSelections.AsNoTracking().Where(x => x.SubscriptionId == id && x.MealDate >= from && x.MealDate < to).OrderBy(x => x.MealDate).ThenBy(x => x.MealSlot).ToListAsync();
+    public Task<SubscriptionMealSelection?> GetAsync(Guid id) => Context.SubscriptionMealSelections.FirstOrDefaultAsync(x => x.Id == id);
     public async Task AddRangeAsync(IEnumerable<SubscriptionMealSelection> selections) {
-        db.SubscriptionMealSelections.AddRange(selections);
+        Context.SubscriptionMealSelections.AddRange(selections);
         await SaveAsync();
     }
     public async Task UpdateAsync(SubscriptionMealSelection selection) {
-        db.SubscriptionMealSelections.Update(selection);
+        Context.SubscriptionMealSelections.Update(selection);
         await SaveAsync();
     }
     public async Task DeleteBySubscriptionAndDateRangeAsync(Guid id, DateTime from, DateTime to) {
-        var rows = await db.SubscriptionMealSelections.Where(x => x.SubscriptionId == id && x.MealDate >= from && x.MealDate < to).ToListAsync();
-        db.SubscriptionMealSelections.RemoveRange(rows);
+        var rows = await Context.SubscriptionMealSelections.Where(x => x.SubscriptionId == id && x.MealDate >= from && x.MealDate < to).ToListAsync();
+        Context.SubscriptionMealSelections.RemoveRange(rows);
         await SaveAsync();
     }
 }
@@ -270,28 +270,28 @@ public sealed class CustomerCreditRepository(HealthAppDbContext db) : EfReposito
 {
     public async Task<decimal> GetBalanceAsync(Guid customerId)
     {
-        var customer = await db.Users.AsNoTracking().Where(x => x.Id == customerId).Select(x => new { x.Role, x.OutletId }).FirstOrDefaultAsync();
+        var customer = await Context.Users.AsNoTracking().Where(x => x.Id == customerId).Select(x => new { x.Role, x.OutletId }).FirstOrDefaultAsync();
         if (customer is null || customer.Role != UserRole.Customer || !customer.OutletId.HasValue)
             return 0m;
 
-        return await db.CustomerCreditTransactions
+        return await Context.CustomerCreditTransactions
             .Where(x => x.CustomerId == customerId)
             .Select(x => x.Type == CreditTransactionType.Credit || x.Type == CreditTransactionType.Refund ? x.Amount : -x.Amount)
             .SumAsync();
     }
     public async Task<IReadOnlyList<CustomerCreditTransaction>> GetTransactionsAsync(Guid customerId)
     {
-        var customer = await db.Users.AsNoTracking().Where(x => x.Id == customerId).Select(x => new { x.Role, x.OutletId }).FirstOrDefaultAsync();
+        var customer = await Context.Users.AsNoTracking().Where(x => x.Id == customerId).Select(x => new { x.Role, x.OutletId }).FirstOrDefaultAsync();
         if (customer is null || customer.Role != UserRole.Customer || !customer.OutletId.HasValue)
             return [];
 
-        return await db.CustomerCreditTransactions.AsNoTracking()
+        return await Context.CustomerCreditTransactions.AsNoTracking()
             .Where(x => x.CustomerId == customerId)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync();
     }
     public async Task AddAsync(CustomerCreditTransaction transaction) {
-        db.CustomerCreditTransactions.Add(transaction);
+        Context.CustomerCreditTransactions.Add(transaction);
         await SaveAsync();
     }
 }
@@ -299,35 +299,35 @@ public sealed class CustomerCreditRepository(HealthAppDbContext db) : EfReposito
 public sealed class OrderRepository(HealthAppDbContext db) : EfRepository(db), IOrderRepository
 {
     public async Task<IReadOnlyList<Order>> GetByCustomerAsync(Guid id) =>
-        await db.Orders.AsNoTracking()
-            .Where(x => x.CustomerId == id && db.Users.Any(u => u.Id == id && u.OutletId == x.OutletId))
+        await Context.Orders.AsNoTracking()
+            .Where(x => x.CustomerId == id && Context.Users.Any(u => u.Id == id && u.OutletId == x.OutletId))
             .OrderByDescending(x => x.DeliveryDate)
             .ToListAsync();
-    public async Task<IReadOnlyList<Order>> GetByOutletAsync(Guid id) => await db.Orders.AsNoTracking().Where(x => x.OutletId == id).OrderByDescending(x => x.DeliveryDate).ToListAsync();
-    public Task<Order?> GetBySubscriptionAsync(Guid subscriptionId) => db.Orders.FirstOrDefaultAsync(x=>x.SubscriptionId==subscriptionId);
+    public async Task<IReadOnlyList<Order>> GetByOutletAsync(Guid id) => await Context.Orders.AsNoTracking().Where(x => x.OutletId == id).OrderByDescending(x => x.DeliveryDate).ToListAsync();
+    public Task<Order?> GetBySubscriptionAsync(Guid subscriptionId) => Context.Orders.FirstOrDefaultAsync(x=>x.SubscriptionId==subscriptionId);
     public async Task AddAsync(Order order) {
-        db.Orders.Add(order);
+        Context.Orders.Add(order);
         await SaveAsync();
     }
     public async Task UpdateAsync(Order order) {
-        db.Orders.Update(order);
+        Context.Orders.Update(order);
         await SaveAsync();
     }
 }
 
 public sealed class DeliveryRepository(HealthAppDbContext db) : EfRepository(db), IDeliveryRepository
 {
-    public async Task<IReadOnlyList<Delivery>> GetByOutletAsync(Guid id) => await db.Deliveries.AsNoTracking().Where(x => x.OutletId == id).OrderBy(x => x.ScheduledDate).ToListAsync();
+    public async Task<IReadOnlyList<Delivery>> GetByOutletAsync(Guid id) => await Context.Deliveries.AsNoTracking().Where(x => x.OutletId == id).OrderBy(x => x.ScheduledDate).ToListAsync();
     public async Task AddAsync(Delivery delivery) {
-        db.Deliveries.Add(delivery);
+        Context.Deliveries.Add(delivery);
         await SaveAsync();
     }
-    public Task<Delivery?> GetAsync(Guid id) => db.Deliveries.FirstOrDefaultAsync(x => x.Id == id);
+    public Task<Delivery?> GetAsync(Guid id) => Context.Deliveries.FirstOrDefaultAsync(x => x.Id == id);
     public async Task UpdateAsync(Delivery delivery) {
-        db.Deliveries.Update(delivery);
+        Context.Deliveries.Update(delivery);
         await SaveAsync();
     }
-    public async Task<IReadOnlyList<Delivery>> GetBySubscriptionAsync(Guid subscriptionId) => await db.Deliveries.AsNoTracking().Where(x => x.SubscriptionId == subscriptionId).OrderBy(x => x.ScheduledDate).ThenBy(x => x.MealSlot).ToListAsync();
+    public async Task<IReadOnlyList<Delivery>> GetBySubscriptionAsync(Guid subscriptionId) => await Context.Deliveries.AsNoTracking().Where(x => x.SubscriptionId == subscriptionId).OrderBy(x => x.ScheduledDate).ThenBy(x => x.MealSlot).ToListAsync();
 }
 
 public sealed class DeliveryRouteRepository(HealthAppDbContext db) : EfRepository(db), IDeliveryRouteRepository
@@ -336,63 +336,63 @@ public sealed class DeliveryRouteRepository(HealthAppDbContext db) : EfRepositor
     {
         var idList=ids.Distinct().ToList();
         if(idList.Count==0)return [];
-        return await db.DeliveryRoutes.AsNoTracking().Include(x=>x.Stops).Where(x=>idList.Contains(x.Id)).ToListAsync();
+        return await Context.DeliveryRoutes.AsNoTracking().Include(x=>x.Stops).Where(x=>idList.Contains(x.Id)).ToListAsync();
     }
 
     public Task<DeliveryRoute?> GetAsync(Guid id)
-        => db.DeliveryRoutes.Include(x=>x.Stops).FirstOrDefaultAsync(x=>x.Id==id);
+        => Context.DeliveryRoutes.Include(x=>x.Stops).FirstOrDefaultAsync(x=>x.Id==id);
 
     public async Task<IReadOnlyList<DeliveryRoute>> GetByOutletAndDateAsync(Guid outletId, DateTime date, MealSlot mealSlot)
-        => await db.DeliveryRoutes.AsNoTracking().Include(x => x.Stops).Where(x => x.OutletId == outletId && x.DeliveryDate >= date.Date && x.DeliveryDate < date.Date.AddDays(1) && x.MealSlot == mealSlot).OrderBy(x => x.DriverId).ToListAsync();
+        => await Context.DeliveryRoutes.AsNoTracking().Include(x => x.Stops).Where(x => x.OutletId == outletId && x.DeliveryDate >= date.Date && x.DeliveryDate < date.Date.AddDays(1) && x.MealSlot == mealSlot).OrderBy(x => x.DriverId).ToListAsync();
 
     public async Task DeleteByOutletAndDateAsync(Guid outletId, DateTime date, MealSlot mealSlot)
     {
-        var routes = await db.DeliveryRoutes.Where(x => x.OutletId == outletId && x.DeliveryDate >= date.Date && x.DeliveryDate < date.Date.AddDays(1) && x.MealSlot == mealSlot).ToListAsync();
+        var routes = await Context.DeliveryRoutes.Where(x => x.OutletId == outletId && x.DeliveryDate >= date.Date && x.DeliveryDate < date.Date.AddDays(1) && x.MealSlot == mealSlot).ToListAsync();
         if (routes.Count == 0) return;
         var routeIds = routes.Select(x => x.Id).ToList();
         // Clear route links with a bulk SQL UPDATE so the deliveries are not tracked.
         // PlanRoutesAsync reloads eligible deliveries as no-tracking and later updates those
         // instances. Keeping another tracked instance here causes EF identity-map conflicts.
-        await db.Deliveries
+        await Context.Deliveries
             .Where(x => x.RouteId.HasValue && routeIds.Contains(x.RouteId.Value))
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(x => x.RouteId, (Guid?)null)
                 .SetProperty(x => x.RouteStopId, (Guid?)null)
                 .SetProperty(x => x.RouteSequence, (int?)null));
 
-        db.DeliveryRoutes.RemoveRange(routes);
+        Context.DeliveryRoutes.RemoveRange(routes);
         await SaveAsync();
     }
 
     public async Task AddAsync(DeliveryRoute route)
     {
-        db.DeliveryRoutes.Add(route);
+        Context.DeliveryRoutes.Add(route);
         await SaveAsync();
     }
 
     public async Task UpdateAsync(DeliveryRoute route)
     {
-        db.DeliveryRoutes.Update(route);
+        Context.DeliveryRoutes.Update(route);
         await SaveAsync();
     }
 }
 
 public sealed class CustomerProfileRepository(HealthAppDbContext db) : EfRepository(db), ICustomerProfileRepository
 {
-    public Task<CustomerProfile?> GetAsync(Guid customerId) => db.CustomerProfiles
+    public Task<CustomerProfile?> GetAsync(Guid customerId) => Context.CustomerProfiles
     .FirstOrDefaultAsync(x => x.CustomerId == customerId);
     public async Task AddOrUpdateAsync(CustomerProfile profile)
     {
-        var existing = await db.CustomerProfiles.FirstOrDefaultAsync(x => x.CustomerId == profile.CustomerId);
-        if (existing is null) db.CustomerProfiles.Add(profile);
-        else db.Entry(existing).CurrentValues.SetValues(profile);
+        var existing = await Context.CustomerProfiles.FirstOrDefaultAsync(x => x.CustomerId == profile.CustomerId);
+        if (existing is null) Context.CustomerProfiles.Add(profile);
+        else Context.Entry(existing).CurrentValues.SetValues(profile);
         await SaveAsync();
     }
     public async Task ReplaceAllergiesAsync(Guid customerId, IReadOnlyCollection<Guid> allergenIds)
     {
-        var existing = await db.CustomerAllergies.Where(x => x.CustomerId == customerId).ToListAsync();
-        db.CustomerAllergies.RemoveRange(existing);
-        db.CustomerAllergies.AddRange(allergenIds.Distinct().Select(allergenId => new CustomerAllergy {
+        var existing = await Context.CustomerAllergies.Where(x => x.CustomerId == customerId).ToListAsync();
+        Context.CustomerAllergies.RemoveRange(existing);
+        Context.CustomerAllergies.AddRange(allergenIds.Distinct().Select(allergenId => new CustomerAllergy {
             Id=Guid.NewGuid(), CustomerId=customerId, AllergenId=allergenId
         }));
         await SaveAsync();
@@ -401,24 +401,24 @@ public sealed class CustomerProfileRepository(HealthAppDbContext db) : EfReposit
 
 public sealed class IngredientRepository(HealthAppDbContext db) : EfRepository(db), IIngredientRepository
 {
-    public async Task<IReadOnlyList<Ingredient>> GetActiveAsync() => await db.Ingredients.AsNoTracking().Where(x=>x.IsActive).OrderBy(x=>x.Name).ToListAsync();
-    public async Task<IReadOnlyList<Ingredient>> GetByIdsAsync(IEnumerable<Guid> ids) => await db.Ingredients.Where(x=>ids.Contains(x.Id)&&x.IsActive).ToListAsync();
+    public async Task<IReadOnlyList<Ingredient>> GetActiveAsync() => await Context.Ingredients.AsNoTracking().Where(x=>x.IsActive).OrderBy(x=>x.Name).ToListAsync();
+    public async Task<IReadOnlyList<Ingredient>> GetByIdsAsync(IEnumerable<Guid> ids) => await Context.Ingredients.Where(x=>ids.Contains(x.Id)&&x.IsActive).ToListAsync();
 }
 
 public sealed class AllergenRepository(HealthAppDbContext db) : EfRepository(db), IAllergenRepository
 {
-    public async Task<IReadOnlyList<Allergen>> GetActiveAsync() => await db.Allergens.AsNoTracking().Where(x=>x.IsActive).OrderBy(x=>x.Name).ToListAsync();
-    public async Task<IReadOnlyList<Allergen>> GetByIdsAsync(IEnumerable<Guid> ids) => await db.Allergens.Where(x=>ids.Contains(x.Id)&&x.IsActive).ToListAsync();
+    public async Task<IReadOnlyList<Allergen>> GetActiveAsync() => await Context.Allergens.AsNoTracking().Where(x=>x.IsActive).OrderBy(x=>x.Name).ToListAsync();
+    public async Task<IReadOnlyList<Allergen>> GetByIdsAsync(IEnumerable<Guid> ids) => await Context.Allergens.Where(x=>ids.Contains(x.Id)&&x.IsActive).ToListAsync();
 }
 
 public sealed class CustomerAllergyRepository(HealthAppDbContext db) : EfRepository(db), ICustomerAllergyRepository
 {
-    public async Task<IReadOnlyList<CustomerAllergy>> GetByCustomerAsync(Guid customerId) => await db.CustomerAllergies.AsNoTracking().Include(x=>x.Allergen).Where(x=>x.CustomerId==customerId).ToListAsync();
+    public async Task<IReadOnlyList<CustomerAllergy>> GetByCustomerAsync(Guid customerId) => await Context.CustomerAllergies.AsNoTracking().Include(x=>x.Allergen).Where(x=>x.CustomerId==customerId).ToListAsync();
     public async Task ReplaceAsync(Guid customerId, IReadOnlyCollection<Guid> allergenIds)
     {
-        var old = await db.CustomerAllergies.Where(x=>x.CustomerId==customerId).ToListAsync();
-        db.CustomerAllergies.RemoveRange(old);
-        db.CustomerAllergies.AddRange(allergenIds.Distinct().Select(x=>new CustomerAllergy {
+        var old = await Context.CustomerAllergies.Where(x=>x.CustomerId==customerId).ToListAsync();
+        Context.CustomerAllergies.RemoveRange(old);
+        Context.CustomerAllergies.AddRange(allergenIds.Distinct().Select(x=>new CustomerAllergy {
             Id=Guid.NewGuid(),CustomerId=customerId,AllergenId=x
         }));
         await SaveAsync();
@@ -428,32 +428,32 @@ public sealed class CustomerAllergyRepository(HealthAppDbContext db) : EfReposit
 public sealed class ServiceCityRepository(HealthAppDbContext db) : EfRepository(db), IServiceCityRepository
 {
     public async Task<IReadOnlyList<ServiceCity>> GetAllAsync() =>
-        await db.ServiceCities.AsNoTracking()
+        await Context.ServiceCities.AsNoTracking()
             .OrderBy(x => x.City)
             .ToListAsync();
 
     public async Task<IReadOnlyList<ServiceCity>> GetEnabledAsync() =>
-        await db.ServiceCities.AsNoTracking()
+        await Context.ServiceCities.AsNoTracking()
             .Where(x => x.IsEnabled)
             .OrderBy(x => x.City)
             .ToListAsync();
 
     public Task<ServiceCity?> GetByCityAsync(string city) =>
-        db.ServiceCities.FirstOrDefaultAsync(x => x.City == city);
+        Context.ServiceCities.FirstOrDefaultAsync(x => x.City == city);
 
     public Task<ServiceCity?> GetByIdAsync(Guid id) =>
-        db.ServiceCities.FirstOrDefaultAsync(x => x.Id == id);
+        Context.ServiceCities.FirstOrDefaultAsync(x => x.Id == id);
 
     public async Task AddAsync(ServiceCity city)
     {
-        db.ServiceCities.Add(city);
-        await db.SaveChangesAsync();
+        Context.ServiceCities.Add(city);
+        await Context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(ServiceCity city)
     {
-        db.ServiceCities.Update(city);
-        await db.SaveChangesAsync();
+        Context.ServiceCities.Update(city);
+        await Context.SaveChangesAsync();
     }
 }
 
@@ -461,41 +461,41 @@ public sealed class CityAreaRepository(HealthAppDbContext db) : EfRepository(db)
 {
     public async Task<IReadOnlyList<CityArea>> GetActiveAsync(string? city = null)
     {
-        var q = db.CityAreas.AsNoTracking().Where(x => x.IsActive);
+        var q = Context.CityAreas.AsNoTracking().Where(x => x.IsActive);
         if (!string.IsNullOrWhiteSpace(city)) q = q.Where(x => x.City == city);
         return await q.OrderBy(x => x.City).ThenBy(x => x.Name).ToListAsync();
     }
-    public Task<CityArea?> GetAsync(Guid id) => db.CityAreas.FirstOrDefaultAsync(x => x.Id == id);
+    public Task<CityArea?> GetAsync(Guid id) => Context.CityAreas.FirstOrDefaultAsync(x => x.Id == id);
     public async Task AddAsync(CityArea area) {
-        db.CityAreas.Add(area);
+        Context.CityAreas.Add(area);
         await SaveAsync();
     }
 }
 
 public sealed class OutletDeliveryAreaRepository(HealthAppDbContext db) : EfRepository(db), IOutletDeliveryAreaRepository
 {
-    public async Task<IReadOnlyList<OutletDeliveryArea>> GetByOutletAsync(Guid outletId) => await db.OutletDeliveryAreas.AsNoTracking().Where(x => x.OutletId == outletId && x.IsActive).OrderBy(x => x.CityAreaId).ToListAsync();
-    public async Task<IReadOnlyList<CityArea>> GetAreasForOutletAsync(Guid outletId) => await (from oa in db.OutletDeliveryAreas.AsNoTracking() join a in db.CityAreas.AsNoTracking() on oa.CityAreaId equals a.Id where oa.OutletId == outletId && oa.IsActive && a.IsActive orderby a.Name select a).ToListAsync();
+    public async Task<IReadOnlyList<OutletDeliveryArea>> GetByOutletAsync(Guid outletId) => await Context.OutletDeliveryAreas.AsNoTracking().Where(x => x.OutletId == outletId && x.IsActive).OrderBy(x => x.CityAreaId).ToListAsync();
+    public async Task<IReadOnlyList<CityArea>> GetAreasForOutletAsync(Guid outletId) => await (from oa in Context.OutletDeliveryAreas.AsNoTracking() join a in Context.CityAreas.AsNoTracking() on oa.CityAreaId equals a.Id where oa.OutletId == outletId && oa.IsActive && a.IsActive orderby a.Name select a).ToListAsync();
     public async Task ReplaceAsync(Guid outletId, IEnumerable<OutletDeliveryArea> areas)
     {
-        var existing = await db.OutletDeliveryAreas.Where(x => x.OutletId == outletId).ToListAsync();
-        db.OutletDeliveryAreas.RemoveRange(existing);
-        db.OutletDeliveryAreas.AddRange(areas);
+        var existing = await Context.OutletDeliveryAreas.Where(x => x.OutletId == outletId).ToListAsync();
+        Context.OutletDeliveryAreas.RemoveRange(existing);
+        Context.OutletDeliveryAreas.AddRange(areas);
         await SaveAsync();
     }
 }
 
 public sealed class DeliveryPricingRepository(HealthAppDbContext db) : EfRepository(db), IDeliveryPricingRepository
 {
-    public async Task<IReadOnlyList<DeliveryPricingRule>> GetByOutletAsync(Guid outletId) => await db.DeliveryPricingRules.AsNoTracking().Where(x => x.OutletId == outletId && x.IsActive).OrderBy(x => x.MaxDistanceKm).ToListAsync();
+    public async Task<IReadOnlyList<DeliveryPricingRule>> GetByOutletAsync(Guid outletId) => await Context.DeliveryPricingRules.AsNoTracking().Where(x => x.OutletId == outletId && x.IsActive).OrderBy(x => x.MaxDistanceKm).ToListAsync();
     public async Task AddAsync(DeliveryPricingRule rule) {
-        db.DeliveryPricingRules.Add(rule);
+        Context.DeliveryPricingRules.Add(rule);
         await SaveAsync();
     }
     public async Task DeleteAsync(Guid id, Guid outletId) {
-        var x = await db.DeliveryPricingRules.FirstOrDefaultAsync(x => x.Id == id && x.OutletId == outletId);
+        var x = await Context.DeliveryPricingRules.FirstOrDefaultAsync(x => x.Id == id && x.OutletId == outletId);
         if (x is not null) {
-            db.DeliveryPricingRules.Remove(x);
+            Context.DeliveryPricingRules.Remove(x);
             await SaveAsync();
         }
     }
@@ -503,46 +503,46 @@ public sealed class DeliveryPricingRepository(HealthAppDbContext db) : EfReposit
 
 public sealed class CustomerAddressRepository(HealthAppDbContext db) : EfRepository(db), ICustomerAddressRepository
 {
-    public async Task<IReadOnlyList<CustomerAddress>> GetByCustomerAsync(Guid customerId) => await db.CustomerAddresses.AsNoTracking().Where(x => x.CustomerId == customerId).OrderByDescending(x => x.IsDefault).ThenBy(x => x.Label).ToListAsync();
-    public Task<CustomerAddress?> GetAsync(Guid customerId, Guid id) => db.CustomerAddresses.FirstOrDefaultAsync(x => x.CustomerId == customerId && x.Id == id);
+    public async Task<IReadOnlyList<CustomerAddress>> GetByCustomerAsync(Guid customerId) => await Context.CustomerAddresses.AsNoTracking().Where(x => x.CustomerId == customerId).OrderByDescending(x => x.IsDefault).ThenBy(x => x.Label).ToListAsync();
+    public Task<CustomerAddress?> GetAsync(Guid customerId, Guid id) => Context.CustomerAddresses.FirstOrDefaultAsync(x => x.CustomerId == customerId && x.Id == id);
     public async Task AddAsync(CustomerAddress address) {
         if (address.IsDefault) await ClearDefaults(address.CustomerId, null);
-        db.CustomerAddresses.Add(address);
+        Context.CustomerAddresses.Add(address);
         await SaveAsync();
     }
     public async Task UpdateAsync(CustomerAddress address) {
         if (address.IsDefault) await ClearDefaults(address.CustomerId, address.Id);
-        db.CustomerAddresses.Update(address);
+        Context.CustomerAddresses.Update(address);
         await SaveAsync();
     }
     public async Task DeleteAsync(Guid customerId, Guid id) {
         var x = await GetAsync(customerId,id);
         if (x is not null) {
-            db.CustomerAddresses.Remove(x);
+            Context.CustomerAddresses.Remove(x);
             await SaveAsync();
         }
     }
     private async Task ClearDefaults(Guid customerId, Guid? except) {
-        var rows = await db.CustomerAddresses.Where(x => x.CustomerId == customerId && x.IsDefault && (!except.HasValue || x.Id != except.Value)).ToListAsync();
+        var rows = await Context.CustomerAddresses.Where(x => x.CustomerId == customerId && x.IsDefault && (!except.HasValue || x.Id != except.Value)).ToListAsync();
         foreach (var x in rows) x.IsDefault=false;
     }
 }
 
 public sealed class SubscriptionDiscountTierRepository(HealthAppDbContext db) : EfRepository(db), ISubscriptionDiscountTierRepository
 {
-    public async Task<IReadOnlyList<SubscriptionDiscountTier>> GetByOutletAsync(Guid outletId) => await db.SubscriptionDiscountTiers.AsNoTracking().Where(x => x.OutletId == outletId && x.IsActive).OrderBy(x => x.MinMeals).ToListAsync();
+    public async Task<IReadOnlyList<SubscriptionDiscountTier>> GetByOutletAsync(Guid outletId) => await Context.SubscriptionDiscountTiers.AsNoTracking().Where(x => x.OutletId == outletId && x.IsActive).OrderBy(x => x.MinMeals).ToListAsync();
     public async Task AddAsync(SubscriptionDiscountTier tier) {
-        db.SubscriptionDiscountTiers.Add(tier);
+        Context.SubscriptionDiscountTiers.Add(tier);
         await SaveAsync();
     }
     public async Task UpdateAsync(SubscriptionDiscountTier tier) {
-        db.SubscriptionDiscountTiers.Update(tier);
+        Context.SubscriptionDiscountTiers.Update(tier);
         await SaveAsync();
     }
     public async Task DeleteAsync(Guid outletId, Guid id) {
-        var x = await db.SubscriptionDiscountTiers.FirstOrDefaultAsync(x=>x.Id==id&&x.OutletId==outletId);
+        var x = await Context.SubscriptionDiscountTiers.FirstOrDefaultAsync(x=>x.Id==id&&x.OutletId==outletId);
         if(x is not null) {
-            db.SubscriptionDiscountTiers.Remove(x);
+            Context.SubscriptionDiscountTiers.Remove(x);
             await SaveAsync();
         }
     }
@@ -551,37 +551,37 @@ public sealed class SubscriptionDiscountTierRepository(HealthAppDbContext db) : 
 public sealed class MealSelectionHistoryRepository(HealthAppDbContext db) : EfRepository(db), IMealSelectionHistoryRepository
 {
     public async Task AddAsync(MealSelectionHistory history) {
-        db.MealSelectionHistories.Add(history);
+        Context.MealSelectionHistories.Add(history);
         await SaveAsync();
     }
-    public async Task<IReadOnlyList<MealSelectionHistory>> GetBySelectionAsync(Guid selectionId) => await db.MealSelectionHistories.AsNoTracking().Where(x=>x.MealSelectionId==selectionId).OrderByDescending(x=>x.OccurredAtUtc).ToListAsync();
+    public async Task<IReadOnlyList<MealSelectionHistory>> GetBySelectionAsync(Guid selectionId) => await Context.MealSelectionHistories.AsNoTracking().Where(x=>x.MealSelectionId==selectionId).OrderByDescending(x=>x.OccurredAtUtc).ToListAsync();
 }
 
 public sealed class PaymentTransactionRepository(HealthAppDbContext db) : EfRepository(db), IPaymentTransactionRepository
 {
-    public Task<PaymentTransaction?> GetAsync(Guid id) => db.PaymentTransactions.FirstOrDefaultAsync(x=>x.Id==id);
-    public Task<PaymentTransaction?> GetLatestBySubscriptionAsync(Guid subscriptionId) => db.PaymentTransactions.AsNoTracking().Where(x=>x.SubscriptionId==subscriptionId).OrderByDescending(x=>x.CreatedAtUtc).FirstOrDefaultAsync();
-    public Task<PaymentTransaction?> GetByIdempotencyKeyAsync(string key) => db.PaymentTransactions.FirstOrDefaultAsync(x=>x.IdempotencyKey==key);
+    public Task<PaymentTransaction?> GetAsync(Guid id) => Context.PaymentTransactions.FirstOrDefaultAsync(x=>x.Id==id);
+    public Task<PaymentTransaction?> GetLatestBySubscriptionAsync(Guid subscriptionId) => Context.PaymentTransactions.AsNoTracking().Where(x=>x.SubscriptionId==subscriptionId).OrderByDescending(x=>x.CreatedAtUtc).FirstOrDefaultAsync();
+    public Task<PaymentTransaction?> GetByIdempotencyKeyAsync(string key) => Context.PaymentTransactions.FirstOrDefaultAsync(x=>x.IdempotencyKey==key);
     public async Task AddAsync(PaymentTransaction payment) {
-        db.PaymentTransactions.Add(payment);
+        Context.PaymentTransactions.Add(payment);
         await SaveAsync();
     }
     public async Task UpdateAsync(PaymentTransaction payment) {
-        db.PaymentTransactions.Update(payment);
+        Context.PaymentTransactions.Update(payment);
         await SaveAsync();
     }
 }
 
 public sealed class DiscountCodeRepository(HealthAppDbContext db) : EfRepository(db), IDiscountCodeRepository
 {
-    public Task<DiscountCode?> GetAsync(Guid? outletId, string code) => db.DiscountCodes.FirstOrDefaultAsync(x => x.OutletId == outletId && x.Code == code.Trim().ToUpperInvariant() && x.IsActive);
-    public async Task<IReadOnlyList<DiscountCode>> GetByOutletAsync(Guid outletId) => await db.DiscountCodes.AsNoTracking().Where(x=>x.OutletId==outletId).OrderBy(x=>x.Code).ToListAsync();
+    public Task<DiscountCode?> GetAsync(Guid? outletId, string code) => Context.DiscountCodes.FirstOrDefaultAsync(x => x.OutletId == outletId && x.Code == code.Trim().ToUpperInvariant() && x.IsActive);
+    public async Task<IReadOnlyList<DiscountCode>> GetByOutletAsync(Guid outletId) => await Context.DiscountCodes.AsNoTracking().Where(x=>x.OutletId==outletId).OrderBy(x=>x.Code).ToListAsync();
     public async Task AddAsync(DiscountCode code) {
-        db.DiscountCodes.Add(code);
+        Context.DiscountCodes.Add(code);
         await SaveAsync();
     }
     public async Task UpdateAsync(DiscountCode code) {
-        db.DiscountCodes.Update(code);
+        Context.DiscountCodes.Update(code);
         await SaveAsync();
     }
 }
@@ -589,8 +589,8 @@ public sealed class DiscountCodeRepository(HealthAppDbContext db) : EfRepository
 public sealed class OrderFinancialRepository(HealthAppDbContext db) : EfRepository(db), IOrderFinancialRepository
 {
     public async Task AddAsync(OrderFinancialBreakdown breakdown) {
-        db.OrderFinancialBreakdowns.Add(breakdown);
+        Context.OrderFinancialBreakdowns.Add(breakdown);
         await SaveAsync();
     }
-    public Task<OrderFinancialBreakdown?> GetByOrderAsync(Guid orderId) => db.OrderFinancialBreakdowns.FirstOrDefaultAsync(x=>x.OrderId==orderId);
+    public Task<OrderFinancialBreakdown?> GetByOrderAsync(Guid orderId) => Context.OrderFinancialBreakdowns.FirstOrDefaultAsync(x=>x.OrderId==orderId);
 }
