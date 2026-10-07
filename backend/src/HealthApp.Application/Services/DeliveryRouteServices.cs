@@ -380,10 +380,10 @@ public sealed class DeliveryRouteService(
         if (route.OutletId != outletId || route.DriverId != driverId)
             throw new UnauthorizedAccessException("This route is not assigned to the current driver.");
 
-        if (route.Status == RouteStatus.Planned)
+        if (route.Status == RouteStatus.Dispatched)
             route.Status = RouteStatus.InProgress;
-        else if (route.Status != RouteStatus.Dispatched && route.Status != RouteStatus.InProgress)
-            throw new InvalidOperationException($"This route cannot be started from status {route.Status}.");
+        else if (route.Status != RouteStatus.InProgress)
+            throw new InvalidOperationException($"This route cannot be started from status {route.Status}. Dispatch it from the outlet first.");
 
         route.UpdatedAtUtc = DateTime.UtcNow;
         await routes.UpdateAsync(route);
