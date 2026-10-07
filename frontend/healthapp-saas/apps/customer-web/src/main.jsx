@@ -601,7 +601,7 @@ function PublicOutletHome({outlet,menu,busy,error,onBack,onBuild,standalone=fals
      </section>
    </main>
 
-   <footer className="outletLandingFooter"><div><span className="outletLandingLogo footer">{outlet?.logoUrl?<img src={getImg(outlet.logoUrl)} alt=""/>:<b>{outletName.slice(0,1).toUpperCase()}</b>}</span><div><strong>{outletName}</strong><small>{outlet?.tagline||'Fresh meals, prepared locally.'}</small></div></div><span>{city}, {outlet?.state||''} · {outlet?.pincode||''}</span></footer>
+   <footer className="outletLandingFooter"><div><span className="outletLandingLogo footer">{outlet?.logoUrl?<img src={getImg(outlet.logoUrl)} alt=""/>:<b>{outletName.slice(0,1).toUpperCase()}</b>}</span><div><strong>{outletName}</strong><small>{outlet?.tagline||'Fresh meals, prepared locally.'}</small></div></div><span>{city}, {outlet?.state||''} · {outlet?.pincode||''}</span><nav className="outletLandingLegalLinks" aria-label="Legal"><a href="?legal=terms">Terms</a><a href="?legal=privacy">Privacy</a><a href="?legal=cancellation">Refunds</a><a href="?legal=delivery">Delivery</a></nav></footer>
  </div></>;
 }
 function CustomerOutletHome({outlet,menu,busy,error,onBuild,onViewPlan}){
