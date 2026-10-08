@@ -29,6 +29,15 @@ public interface IOutletDomainRepository
 }
 
 
+public interface IOutletGroupRepository
+{
+    Task<IReadOnlyList<OutletGroup>> GetAllAsync();
+    Task<OutletGroup?> GetAsync(Guid id);
+    Task AddAsync(OutletGroup group);
+    Task UpdateAsync(OutletGroup group);
+    Task<bool> HasOutletsAsync(Guid groupId);
+}
+
 public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); Task<Outlet?> GetByIdAsync(Guid id); Task<Outlet?> GetBySlugAsync(string slug); Task<Outlet?> GetBySubdomainAsync(string subdomain); Task AddAsync(Outlet outlet); Task UpdateAsync(Outlet outlet); }
 public interface IOutletLegalPolicyRepository
 {
@@ -197,6 +206,11 @@ public interface IIngredientConsumptionService
 public interface IOutletService { Task<OutletTaxSettingsDto?> GetTaxSettingsAsync(); Task<OutletTaxSettingsDto?> UpdateTaxSettingsAsync(UpdateOutletTaxSettingsRequest request); Task<OutletDashboardDto> GetDashboardAsync(); Task<OutletSubscriptionDetailDto?> GetSubscriptionDetailAsync(Guid subscriptionId); Task<OutletKitchenDayDto> GetKitchenDayAsync(DateTime date); Task<OutletBillingDto?> GetBillingAsync(); Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync(); Task<OutletBillingDto?> ChangeSubscriptionAsync(ChangeOutletSubscriptionRequest request); Task<OutletDto?> GetCurrentAsync(); Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(); Task<MealPlanDto?> CreatePlanAsync(CreateMealPlanRequest request); Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(string? category); Task<RecipeDto?> CreateRecipeAsync(CreateRecipeRequest request); Task<RecipeDto?> UpdateRecipeAsync(Guid recipeId, UpdateRecipeRequest request); Task<bool> DeleteRecipeAsync(Guid recipeId); Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(); Task<IReadOnlyList<MenuItemDto>> SaveMenuAsync(BulkMenuRequest request); Task<IReadOnlyList<UserDto>> GetCustomersAsync(); Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync(); Task<IReadOnlyList<OrderDto>> GetOrdersAsync(); Task<IReadOnlyList<DeliveryDto>> GetDeliveriesAsync(); }
 public interface IAdminService
 {
+    Task<IReadOnlyList<OutletGroupDto>> GetOutletGroupsAsync();
+    Task<OutletGroupDto> CreateOutletGroupAsync(CreateOutletGroupRequest request);
+    Task<OutletGroupDto> UpdateOutletGroupAsync(Guid id, UpdateOutletGroupRequest request);
+    Task<OutletGroupDto?> AssignOutletGroupAsync(Guid outletId, Guid? groupId);
+    Task<AdminOutlet360Dto?> GetOutlet360Async(Guid outletId);
     Task<IReadOnlyList<OutletDto>> GetOutletsAsync();
     Task<IReadOnlyList<UserDto>> GetUsersAsync();
     Task<object> GetDashboardAsync();
