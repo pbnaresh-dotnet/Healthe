@@ -1489,7 +1489,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
         var count=(await subscriptions.GetByOutletAsync(id)).Count;
         var extra=Math.Max(0,count-plan.IncludedActiveCustomers)*plan.AdditionalCustomerFee;
         var isTrial=trial?.Status == TrialStatus.Active;
-        var trialEndsAt=trial?.Status is TrialStatus.Active or TrialStatus.Expired ? trial.EndsAtUtc : null;
+        DateTime? trialEndsAt=trial?.Status is TrialStatus.Active or TrialStatus.Expired ? trial.EndsAtUtc : null;
         var trialDaysRemaining=isTrial ? Math.Max(0,(int)Math.Ceiling((trial!.EndsAtUtc-DateTime.UtcNow).TotalDays)) : 0;
         return new(id,plan.Id,plan.Name,os.BillingCycle,os.SubscriptionFee,os.SetupFee,os.TransactionFeePercent,count,plan.IncludedActiveCustomers,plan.AdditionalCustomerFee,extra,os.RenewalDate,os.Status,isTrial,trialEndsAt,trialDaysRemaining);
     }
