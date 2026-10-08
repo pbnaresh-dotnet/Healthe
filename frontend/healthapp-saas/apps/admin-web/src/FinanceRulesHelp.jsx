@@ -93,7 +93,7 @@ function HelpPageIntro({eyebrow,title,text,action}){
   return <div className="pageIntro"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{text}</p></div>{action&&<div className="pageIntroAction">{action}</div>}</div>;
 }
 
-export default function FinanceRulesHelp({onBack, onFinance}) {
+export default function FinanceRulesHelp({policy, onBack, onFinance}) {
   return <section className="financeRulesPage">
     <HelpPageIntro
       eyebrow="FINANCE RULES & HELP"
@@ -101,6 +101,21 @@ export default function FinanceRulesHelp({onBack, onFinance}) {
       text="This page documents the calculation boundaries the product follows. Tax rates are effective-dated configuration, financial documents are snapshotted, and accounting is posted independently from payment settlement."
       action={<div className="financeRulesActions"><button className="secondaryBtn" onClick={onBack}>Back</button><button className="primaryBtn" onClick={onFinance}>Open finance</button></div>}
     />
+
+    {policy?.currentVersion&&<section className="card financePolicyRecord">
+      <div className="cardHead"><div><span className="eyebrow">AUTHORITATIVE BACKEND POLICY</span><h2>{policy.title||'Finance calculation and accounting policy'}</h2><p>{policy.description}</p></div><span className="financePolicyVersion">v{policy.currentVersion.version}</span></div>
+      <div className="financePolicyMeta">
+        <span><b>Status</b>{policy.currentVersion.status}</span>
+        <span><b>Effective</b>{new Date(policy.currentVersion.effectiveFromUtc).toLocaleDateString('en-IN')}</span>
+        <span><b>Source</b>{policy.currentVersion.sourceCodeReference||'—'}</span>
+      </div>
+      <div className="financePolicyChange"><b>Change summary</b><span>{policy.currentVersion.changeSummary}</span><b>Reason</b><span>{policy.currentVersion.changeReason}</span></div>
+      <div className="financePolicySections">{(policy.currentVersion.sections||[]).map(s=><article key={s.sectionCode}><span className="eyebrow">{s.sectionCode}</span><h3>{s.title}</h3><p>{s.contentMarkdown}</p></article>)}</div>
+      <details className="financePolicyHistory"><summary>Policy version history ({policy.history?.length||0})</summary>
+        <div>{(policy.history||[]).map(v=><div className="financePolicyHistoryRow" key={v.id}><b>v{v.version}</b><span>{v.status}</span><span>{new Date(v.effectiveFromUtc).toLocaleDateString('en-IN')}</span><span>{v.sourceCodeReference||'—'}</span><small>{v.changeSummary}</small></div>)}</div>
+      </details>
+      <small className="financePolicyHash">Content hash: {policy.currentVersion.contentHash||'—'}</small>
+    </section>}
 
     <div className="financeRulesNotice">
       <b>Production control:</b>
