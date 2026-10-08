@@ -32,8 +32,8 @@ public sealed class IngredientConsumptionService(
         var day = date.Date;
         var nextDay = day.AddDays(1);
 
-        var deliveredDeliveries = (await deliveries.GetByOutletAsync(outletId))
-            .Where(x => x.ScheduledDate.Date == day && x.Status == DeliveryStatus.Delivered)
+        var deliveredDeliveries = (await deliveries.GetByOutletAndDateRangeAsync(outletId, day, nextDay))
+            .Where(x => x.Status == DeliveryStatus.Delivered)
             .OrderBy(x => x.MealSlot)
             .ThenBy(x => x.ScheduledDate)
             .ToList();
