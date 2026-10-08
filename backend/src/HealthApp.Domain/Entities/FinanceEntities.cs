@@ -384,6 +384,9 @@ public sealed class FinanceCalculationSnapshot
     public decimal DiscountPercent { get; set; }
     public decimal DiscountAmount { get; set; }
     public string DiscountRuleSnapshotJson { get; set; } = "";
+    public Guid? DiscountCodeId { get; set; }
+    public decimal DiscountCodeAmount { get; set; }
+    public decimal TotalDiscountAmount { get; set; }
     public string InputHash { get; set; } = "";
     public string InputsJson { get; set; } = "";
     public string ResultsJson { get; set; } = "";
