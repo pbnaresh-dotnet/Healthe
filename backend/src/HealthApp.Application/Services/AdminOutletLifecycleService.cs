@@ -1,5 +1,6 @@
 using HealthApp.Application.Abstractions;
 using HealthApp.Domain.Enums;
+using HealthApp.Domain.Entities;
 using HealthApp.Shared.DTOs;
 
 namespace HealthApp.Application.Services;
@@ -55,7 +56,7 @@ public sealed class AdminOutletLifecycleService(
 
         if (subscription is null)
         {
-            subscription = new Domain.Entities.OutletSubscription
+            subscription = new OutletSubscription
             {
                 Id = Guid.NewGuid(),
                 OutletId = outletId,
