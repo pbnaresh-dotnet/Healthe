@@ -116,7 +116,7 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.Description).HasMaxLength(500);
         e.Property(x => x.IsActive).IsRequired();
         e.Property(x => x.SortOrder).IsRequired();
-        e.HasIndex(x => x.Name).IsUnique();
+        e.HasIndex(x => x.Name).IsUnique().HasDatabaseName("UX_OutletGroups_Name");
         e.HasIndex(x => new { x.IsActive, x.SortOrder });
     }
 
