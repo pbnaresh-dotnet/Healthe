@@ -65,6 +65,13 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_ApplicationErrorLogs_Fin
     CREATE INDEX IX_ApplicationErrorLogs_Fingerprint ON dbo.ApplicationErrorLogs(Fingerprint);
 ", cancellationToken);
 
+        // Recipe nutrition is now derived from the ingredient reference table.
+        // Existing databases need the new calculated sugar field before EF reads Recipes.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Recipes','SugarGrams') IS NULL
+    ALTER TABLE dbo.Recipes ADD SugarGrams int NOT NULL CONSTRAINT DF_Recipes_SugarGrams DEFAULT 0 WITH VALUES;
+", cancellationToken);
+
         // Add the column in its own batch first. SQL Server compiles a batch
         // before executing it, so referencing MobileNumber later in the same batch
         // can fail when this is an existing database being upgraded.
@@ -708,10 +715,38 @@ BEGIN
         Id uniqueidentifier NOT NULL CONSTRAINT PK_Ingredients PRIMARY KEY,
         Name nvarchar(200) NOT NULL,
         DefaultUnit nvarchar(20) NOT NULL,
+        CaloriesPer100g decimal(10,3) NOT NULL CONSTRAINT DF_Ingredients_CaloriesPer100g DEFAULT 0,
+        ProteinGramsPer100g decimal(10,3) NOT NULL CONSTRAINT DF_Ingredients_ProteinPer100g DEFAULT 0,
+        CarbsGramsPer100g decimal(10,3) NOT NULL CONSTRAINT DF_Ingredients_CarbsPer100g DEFAULT 0,
+        FatGramsPer100g decimal(10,3) NOT NULL CONSTRAINT DF_Ingredients_FatPer100g DEFAULT 0,
+        FiberGramsPer100g decimal(10,3) NOT NULL CONSTRAINT DF_Ingredients_FiberPer100g DEFAULT 0,
+        SugarGramsPer100g decimal(10,3) NOT NULL CONSTRAINT DF_Ingredients_SugarPer100g DEFAULT 0,
+        NutritionSource nvarchar(200) NOT NULL CONSTRAINT DF_Ingredients_NutritionSource DEFAULT '',
+        NutritionReferenceId nvarchar(100) NOT NULL CONSTRAINT DF_Ingredients_NutritionReferenceId DEFAULT '',
         IsActive bit NOT NULL CONSTRAINT DF_Ingredients_IsActive DEFAULT 1
     );
     CREATE UNIQUE INDEX IX_Ingredients_Name ON dbo.Ingredients(Name);
 END;
+
+-- Existing standalone databases need the nutrition columns added in a separate
+-- batch so SQL Server can compile this block against either schema version.
+IF COL_LENGTH('dbo.Ingredients','CaloriesPer100g') IS NULL
+    ALTER TABLE dbo.Ingredients ADD CaloriesPer100g decimal(10,3) NOT NULL CONSTRAINT DF_Ingredients_CaloriesPer100g_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Ingredients','ProteinGramsPer100g') IS NULL
+    ALTER TABLE dbo.Ingredients ADD ProteinGramsPer100g decimal(10,3) NOT NULL CONSTRAINT DF_Ingredients_ProteinPer100g_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Ingredients','CarbsGramsPer100g') IS NULL
+    ALTER TABLE dbo.Ingredients ADD CarbsGramsPer100g decimal(10,3) NOT NULL CONSTRAINT DF_Ingredients_CarbsPer100g_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Ingredients','FatGramsPer100g') IS NULL
+    ALTER TABLE dbo.Ingredients ADD FatGramsPer100g decimal(10,3) NOT NULL CONSTRAINT DF_Ingredients_FatPer100g_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Ingredients','FiberGramsPer100g') IS NULL
+    ALTER TABLE dbo.Ingredients ADD FiberGramsPer100g decimal(10,3) NOT NULL CONSTRAINT DF_Ingredients_FiberPer100g_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Ingredients','SugarGramsPer100g') IS NULL
+    ALTER TABLE dbo.Ingredients ADD SugarGramsPer100g decimal(10,3) NOT NULL CONSTRAINT DF_Ingredients_SugarPer100g_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Ingredients','NutritionSource') IS NULL
+    ALTER TABLE dbo.Ingredients ADD NutritionSource nvarchar(200) NOT NULL CONSTRAINT DF_Ingredients_NutritionSource_Compat DEFAULT '' WITH VALUES;
+IF COL_LENGTH('dbo.Ingredients','NutritionReferenceId') IS NULL
+    ALTER TABLE dbo.Ingredients ADD NutritionReferenceId nvarchar(100) NOT NULL CONSTRAINT DF_Ingredients_NutritionReferenceId_Compat DEFAULT '' WITH VALUES;
+
 IF OBJECT_ID('dbo.Allergens','U') IS NULL
 BEGIN
     CREATE TABLE dbo.Allergens(
