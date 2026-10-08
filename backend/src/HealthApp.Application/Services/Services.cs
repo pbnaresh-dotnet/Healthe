@@ -1467,7 +1467,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     public async Task<OutletDto?> GetCurrentAsync() {
         if(current.OutletId is not Guid id)return null;
         var x=await outlets.GetByIdAsync(id);
-        return x is null?null:new(x.Id,x.Name,x.Slug,x.Subdomain,x.City,x.State,x.Pincode,x.Status.ToString(),x.BillingPlan.ToString(),x.LogoUrl,x.HeroImageUrl??string.Empty,(x.HealthHighlights??string.Empty).Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToList(),x.PrimaryColor,x.Status==OutletStatus.Live,0);
+        return x is null?null:new(x.Id,x.Name,x.Slug,x.Subdomain,x.City,x.State,x.Pincode,x.Status.ToString(),x.BillingPlan.ToString(),x.LogoUrl,x.HeroImageUrl??string.Empty,(x.HealthHighlights??string.Empty).Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToList(),x.PrimaryColor,x.Status==OutletStatus.Live,0,x.Rating,x.ReviewCount,x.About,x.Latitude,x.Longitude,"","","","Radius",x.ServiceRadiusKm,"Inter","Fresh","Rounded","Soft",x.CustomPackagePricingMode,x.ShowPackagePriceToCustomer,x.ShowMealPriceToCustomer,x.ShowDeliveryFeeToCustomer,x.SupportsLargePortion);
     }
     public async Task<OutletBillingDto?> GetBillingAsync() {
         if(current.OutletId is not Guid id)return null;
