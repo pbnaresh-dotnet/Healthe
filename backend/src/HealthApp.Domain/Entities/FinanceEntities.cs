@@ -360,10 +360,12 @@ public sealed class FinanceCalculationSnapshot
     public Guid SourceId { get; set; }
     public DateTime CalculatedAtUtc { get; set; } = DateTime.UtcNow;
     public Guid? FinancePolicyDocumentVersionId { get; set; }
+    public Guid? PlatformTaxProfileId { get; set; }
     public Guid TaxProfileId { get; set; }
     public Guid RestaurantTaxRuleId { get; set; }
     public Guid PlatformTaxRuleId { get; set; }
     public Guid CommissionTaxRuleId { get; set; }
+    public bool PlatformTaxApplicable { get; set; }
     public bool RestaurantTaxApplicable { get; set; }
     public TaxOperatingMode RestaurantTaxOperatingMode { get; set; }
     public GstMode RestaurantGstMode { get; set; }
