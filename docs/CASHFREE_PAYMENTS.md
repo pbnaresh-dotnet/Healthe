@@ -13,7 +13,7 @@ Set these application settings on the API server:
 - Cashfree__ApiVersion=2025-01-01
 - Customer payment return URLs are generated server-side from the outlet storefront domain (primary active custom domain, otherwise `<subdomain>.broccoly.in`)
 - Cashfree__OutletReturnUrl=https://broccoly.in/payment
-- Cashfree__WebhookUrl=https://api.broccoly.in/api/payments/cashfree/webhook
+- Cashfree__WebhookUrl=https://api.broccoly.in/api/payments/webhook
 
 For Azure App Service, prefer Key Vault references or App Service Application Settings. Never put the secret in a VITE_* variable, source code, git history, or frontend environment.
 
@@ -31,7 +31,7 @@ Keep VITE_CASHFREE_MODE=production only when the API is configured with the matc
 
 Configure the Cashfree Payment Gateway webhook/notify URL to:
 
-https://api.broccoly.in/api/payments/cashfree/webhook
+https://api.broccoly.in/api/payments/webhook
 
 The API verifies the Cashfree webhook signature against the raw request body. The application also queries Cashfree server-side before marking a payment successful.
 
