@@ -762,3 +762,77 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .customerProfileStats{grid-template-columns:1fr!important}
  .customerAllergyOptions{grid-template-columns:1fr}
 }
+
+/* Package builder: mobile-first, lively schedule experience */
+.packageSchedulePanel{background:linear-gradient(180deg,#ffffff 0%,#f8fcf9 100%);border:1px solid #dce9df;border-radius:18px}
+.packageSchedulePanel .panelHead{padding-bottom:14px}
+.packageSchedulePanel .panelHead h3{font-size:16px}
+.packageSchedulePanel .panelHead p{max-width:720px;line-height:1.5}
+.packageBuilderBadge{display:flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #b9d9c0;border-radius:999px;background:#eff9f1;color:#24663a;box-shadow:0 5px 16px rgba(32,102,58,.08)}
+.packageBuilderBadge b{font-size:16px}
+.packageBuilderBadge span{font-size:9px;font-weight:800}
+.packageDayRow{padding:14px 0;border-top:1px solid #e5eee7}
+.packageDayRow:first-of-type{border-top:0}
+.packageDayHead{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.packageDayHead>div:first-child{display:flex;align-items:center;gap:8px}
+.packageDayHead>div:first-child b{font-size:15px}
+.packageDayHead>div:first-child span{font-size:9px;color:#6f7e75;background:#edf4ef;border-radius:999px;padding:4px 7px}
+.packageDayHead .field{margin:0;max-width:none}
+.packageDayHead .field span{font-size:8px}
+.packageSlotGrid{display:grid;grid-template-columns:1fr;gap:9px}
+.packageSlotCard{border:1px solid #dce8df;border-radius:14px;padding:10px;background:#fff;box-shadow:0 5px 16px rgba(22,59,35,.05);transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.packageSlotCard.editable:active{transform:scale(.995)}
+.packageSlotCard.hasSelections{border-color:#9bc5a4;box-shadow:0 7px 20px rgba(43,112,61,.10)}
+.packageSlotCard.disabled{background:#f5f8f6;border-style:dashed;box-shadow:none}
+.packageSlotCard.slot-1{border-top:3px solid #8bb8dc}
+.packageSlotCard.slot-2{border-top:3px solid #d5a75e}
+.packageSlotCard.slot-3{border-top:3px solid #c58bbf}
+.packageSlotCard.slot-4{border-top:3px solid #778fbe}
+.packageSlotHead{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.packageSlotHead b{font-size:13px}
+.packageSlotHead small{font-size:8px;color:#758279}
+.packageSlotHead .smallBtn{min-height:30px;padding:5px 8px}
+.packageOptionGroup{margin-top:8px;padding:8px;border-radius:11px;background:#f8fbf9;border:1px solid #e1ebe3}
+.packageOptionGroupHead b{font-size:10px}
+.packageOptionGroupHead small{font-size:8px}
+.packageOptionGroupHead>span{padding:3px 7px;border-radius:999px;background:#e6f4e9;color:#22653a;font-size:8px;font-weight:900}
+.packageOptionList{gap:6px}
+.packageOptionItem{padding:8px;border-radius:10px;border:1px solid #dfe8e1;background:#fff}
+.packageOptionItem.selected{background:linear-gradient(135deg,#f0faf2,#f8fcf9);border-color:#8fc09a}
+.packageOptionItem>label{min-height:28px;align-items:center}
+.packageOptionItem>label input{accent-color:#2d7542}
+.packageOptionItem>label b{font-size:10px}
+.packageOptionItem>label small{font-size:8px}
+.packageItemControls{grid-template-columns:1fr;margin:7px 0 0 26px}
+.packageItemControls select{min-height:38px;border-radius:9px}
+.packageNoMenu{min-height:54px;background:#fafcfa}
+.packageBottomGrid{display:grid;grid-template-columns:1fr;gap:12px}
+.packageQuotePanel{order:-1;border:1px solid #cfe2d3;background:linear-gradient(145deg,#f6fcf7,#fff)}
+.packageWarningsPanel,.packageQuotePanel{border-radius:16px}
+.packageBuilderActions{display:grid;grid-template-columns:1fr;gap:8px}
+.packageBuilderActions button{width:100%;min-height:46px;border-radius:11px}
+.packageBuilderActions .primary.big{box-shadow:0 8px 18px rgba(28,101,52,.18)}
+.packageQuoteRows .quoteGrand strong{font-size:20px}
+@media(min-width:651px){
+ .packageDayHead{display:grid;grid-template-columns:170px minmax(260px,360px);align-items:end}
+ .packageSlotGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .packageItemControls{grid-template-columns:1fr 1.4fr}
+ .packageBottomGrid{grid-template-columns:1fr 1fr}
+ .packageQuotePanel{order:initial}
+ .packageBuilderActions{display:flex}
+ .packageBuilderActions button{width:auto;flex:1}
+}
+@media(min-width:1001px){
+ .packageSlotGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+ .packageDayHead{grid-template-columns:180px minmax(260px,360px)}
+ .packageBuilderBadge{display:flex}
+}
+@media(max-width:650px){
+ .packageSchedulePanel{margin-left:-4px;margin-right:-4px}
+ .packageSchedulePanel .panelHead{padding-left:4px;padding-right:4px}
+ .packageDayRow{padding:12px 4px}
+ .packageDayHead{position:sticky;top:0;z-index:4;padding:7px 0;background:linear-gradient(180deg,#f8fcf9 75%,rgba(248,252,249,0));}
+ .packageSlotCard{padding:10px}
+ .packageOptionGroupHead{align-items:flex-start}
+ .packageBuilderBadge{display:flex;width:max-content;margin-top:8px}
+}
