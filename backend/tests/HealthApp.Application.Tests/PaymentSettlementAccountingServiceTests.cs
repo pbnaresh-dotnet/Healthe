@@ -3,6 +3,7 @@ using HealthApp.Application.Services;
 using HealthApp.Domain.Entities;
 using HealthApp.Shared.DTOs;
 using Moq;
+using Xunit;
 
 namespace HealthApp.Application.Tests;
 

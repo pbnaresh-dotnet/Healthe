@@ -2,6 +2,7 @@ using System.Net;
 using HealthApp.Application.Abstractions;
 using HealthApp.Infrastructure.Payments;
 using Microsoft.Extensions.Options;
+using Xunit;
 
 namespace HealthApp.Application.Tests;
 

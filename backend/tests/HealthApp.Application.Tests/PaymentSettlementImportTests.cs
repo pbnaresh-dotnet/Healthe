@@ -3,6 +3,7 @@ using HealthApp.Application.Services;
 using HealthApp.Domain.Entities;
 using Moq;
 using System.Text;
+using Xunit;
 
 namespace HealthApp.Application.Tests;
 
