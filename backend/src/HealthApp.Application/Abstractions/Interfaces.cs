@@ -361,7 +361,7 @@ public interface IPaymentTransactionRepository
     Task<PaymentTransaction?> GetByProviderPaymentIdAsync(string provider, string providerPaymentId);
     Task<PaymentTransaction?> GetByOnboardingApplicationIdAsync(Guid applicationId);
     Task<PaymentTransaction?> GetLatestBySubscriptionAsync(Guid subscriptionId);
-    Task<IReadOnlyList<PaymentTransaction>> GetRetryableAsync(DateTime utcNow, int maxAttempts, int batchSize);
+    Task<IReadOnlyList<PaymentTransaction>> GetRetryableAsync(DateTime utcNow, DateTime staleClaimBeforeUtc, int maxAttempts, int batchSize);
     Task<bool> TryClaimRetryAsync(Guid paymentId, DateTime utcNow, int maxAttempts);
     Task AddAsync(PaymentTransaction payment);
     Task UpdateAsync(PaymentTransaction payment);
