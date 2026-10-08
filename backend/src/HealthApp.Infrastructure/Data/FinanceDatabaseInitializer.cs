@@ -725,6 +725,7 @@ WHERE NOT EXISTS
             cancellationToken))
         {
             await SeedFinancePolicyVersion11Async(db, document, cancellationToken);
+            await SeedFinancePolicyVersion12Async(db, document, cancellationToken);
             return;
         }
 
@@ -780,6 +781,7 @@ WHERE NOT EXISTS
         document.UpdatedAtUtc = now;
         await db.SaveChangesAsync(cancellationToken);
         await SeedFinancePolicyVersion11Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion12Async(db, document, cancellationToken);
     }
 
     private static async Task SeedFinancePolicyVersion11Async(
@@ -853,5 +855,80 @@ WHERE NOT EXISTS
 
         document.UpdatedAtUtc = now;
         await db.SaveChangesAsync(cancellationToken);
+    private static async Task SeedFinancePolicyVersion12Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.1")
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (previous is null)
+            return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode,
+            x.Title,
+            x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "audit-trace" => "Final transaction calculations create immutable finance snapshots containing the outlet tax profile, effective tax rules, effective finance policy version, calculation inputs/results and hashes. Target trace: business event → effective outlet tax profile → effective tax rules → calculation → immutable calculation snapshot → financial document → payment allocation → settlement/refund → ledger → reporting.",
+                "governance" => "Published finance rules and calculation snapshots are immutable. A material calculation or documentation change creates a new policy version. Each final transaction snapshot records the policy version used, configuration/rule identifiers, calculation time and deterministic input/result payloads so a CA/auditor can reproduce the decision path without relying on current settings.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder)
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.2",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Persist immutable calculation snapshots with effective tax/profile/policy references and deterministic inputs/results.",
+            ChangeReason = "Make financial calculations reproducible for audit and prevent historical explanations from depending on current configuration.",
+            SourceCodeReference = "FIN-Phase-2C-Snapshots",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     }
 }
