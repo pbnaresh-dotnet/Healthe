@@ -12,3 +12,82 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .pageHead h1,.hero h1{font-size:30px;line-height:1.08;letter-spacing:-.035em}
 .pageHead p,.hero p{font-size:13px;line-height:1.55}
 .panelHead h2{font-size:18px}.panelHead h3{font-size:16px}.field,.formGrid label{font-size:11px}.primary,.secondary,.linkBtn{font-size:13px}
+
+/* Application error monitoring */
+.errorMonitorPanel{overflow:hidden}
+.errorMonitorBadge{padding:8px 11px;border-radius:999px;background:#fff3e8;color:#a85b1c;font-size:9px;font-weight:900;white-space:nowrap}
+.errorSummaryStats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:-2px 0 14px}
+.errorSummaryStats>div{padding:11px 12px;border:1px solid #e2e9e3;border-radius:11px;background:#f8fbf8}
+.errorSummaryStats span,.errorSummaryStats b{display:block}
+.errorSummaryStats span{font-size:8px;color:#758179}
+.errorSummaryStats b{margin-top:3px;font-size:18px;color:#1d4e2c}
+.errorMonitorFilters{display:grid;grid-template-columns:1fr 130px 140px 100px minmax(220px,1.7fr) auto;gap:8px;align-items:end;margin-bottom:10px}
+.errorMonitorFilters label{display:grid;gap:4px}
+.errorMonitorFilters label>span{font-size:7px;text-transform:uppercase;letter-spacing:.07em;font-weight:900;color:#718078}
+.errorMonitorFilters select,.errorMonitorFilters input{min-height:35px;border:1px solid #cfdad1;border-radius:8px;background:white;padding:7px 9px;font:inherit;font-size:9px;color:#25352a}
+.errorSearch{min-width:220px}
+.errorRefreshBtn{min-height:35px;background:#eef7ef;color:#236a3b;border:1px solid #c6dfcb;font-size:9px}
+.errorOutletSummary{display:flex;gap:6px;overflow:auto;padding:2px 0 10px}
+.errorOutletSummary button{display:grid;grid-template-columns:1fr auto;gap:2px 8px;min-width:150px;padding:8px 10px;background:#fbfdfb;color:#304337;border:1px solid #dde7df;border-radius:9px;text-align:left}
+.errorOutletSummary button.active{border-color:#69a47a;background:#eff8f1}
+.errorOutletSummary button span{grid-column:1;font-size:8px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.errorOutletSummary button b{grid-column:2;grid-row:1 / span 2;font-size:16px;color:#1f6d3a;align-self:center}
+.errorOutletSummary button small{grid-column:1;font-size:7px;color:#7b877f}
+.errorNoSummary{padding:9px;font-size:8px;color:#7b877f}
+.errorTable{border:1px solid #e1e9e2;border-radius:11px;overflow:hidden}
+.errorTableHead,.errorTableRow{display:grid;grid-template-columns:115px 130px minmax(180px,1.3fr) 52px minmax(220px,1.6fr) 75px;gap:8px;align-items:center}
+.errorTableHead{padding:8px 10px;background:#f3f7f4;color:#718078;font-size:7px;text-transform:uppercase;letter-spacing:.06em;font-weight:900}
+.errorTableRow{width:100%;padding:9px 10px;border:0;border-top:1px solid #edf1ed;background:#fff;color:#26382b;text-align:left;cursor:pointer;font:inherit}
+.errorTableRow:hover{background:#f7fbf8}
+.errorTableRow.errorRowCritical{box-shadow:inset 3px 0 0 #c64a42}
+.errorTableRow>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.errorTableRow>span:first-child{font-size:7px;color:#76837a}
+.errorTableRow b,.errorTableRow small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.errorTableRow b{font-size:8px}
+.errorTableRow small{margin-top:2px;font-size:7px;color:#78847c}
+.errorStatus{display:inline-grid;place-items:center;min-width:32px;padding:5px 4px;border-radius:999px;font-size:8px;font-weight:900;background:#f2f5f2;color:#68756d}
+.errorStatus.server{background:#fff0ef;color:#b33831}
+.errorStatus.client{background:#fff7eb;color:#9c642b}
+.errorOpen,.errorResolved{font-size:8px;font-weight:900}
+.errorOpen{color:#a14f2b}
+.errorResolved{color:#2c7444}
+.errorMonitorFooter{display:block;margin-top:8px;color:#7a867e;font-size:8px}
+.errorDetailBackdrop{position:fixed;inset:0;z-index:1100;background:rgba(10,28,16,.62);backdrop-filter:blur(4px);display:grid;place-items:center;padding:18px}
+.errorDetailModal{width:min(1060px,96vw);max-height:92vh;overflow:auto;background:#fff;border:1px solid #dce7df;border-radius:18px;box-shadow:0 30px 90px rgba(9,30,17,.3);padding:19px}
+.errorDetailHead{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;padding-bottom:13px;border-bottom:1px solid #edf1ed}
+.errorDetailHead h2{margin:5px 0 3px;font-size:18px}
+.errorDetailHead p{margin:0;color:#76827a;font-size:8px}
+.errorDetailHead>button{width:28px;height:28px;border:0;background:#f4f7f4;color:#66736b;border-radius:8px;font-size:18px}
+.errorDetailGrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:13px}
+.errorDetailGrid section{border:1px solid #e0e9e2;border-radius:11px;padding:12px;background:#fbfdfb}
+.errorDetailGrid h3{margin:0 0 9px;font-size:10px;color:#294433}
+.errorFacts{display:grid;grid-template-columns:85px 1fr;gap:6px 9px}
+.errorFacts span{font-size:7px;color:#77827c}
+.errorFacts b{font-size:8px;overflow-wrap:anywhere}
+.errorFacts .mono,.mono{font-family:Consolas,monospace}
+.errorMessageBlock b,.errorMessageBlock p,.errorMessageBlock strong{display:block}
+.errorMessageBlock b{font-size:8px}
+.errorMessageBlock p{margin:5px 0 9px;font-size:9px;line-height:1.45;color:#49574e}
+.errorMessageBlock strong{font-size:7px;text-transform:uppercase;letter-spacing:.05em;color:#7c8880}
+.errorStackSection{grid-column:1 / -1}
+.errorStackSection pre{margin:0;max-height:280px;overflow:auto;padding:10px;border-radius:8px;background:#142218;color:#dfe9e1;font:8px/1.5 Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.errorResolution{grid-column:1 / -1}
+.openBox textarea{width:100%;min-height:90px;resize:vertical;border:1px solid #d0dbd2;border-radius:8px;padding:9px;font:inherit;font-size:9px}
+.openBox button{margin-top:7px}
+.resolvedBox{padding:10px;border-radius:9px;background:#eef8f0;border:1px solid #cae4cf}
+.resolvedBox b,.resolvedBox span,.resolvedBox p{display:block}
+.resolvedBox b{font-size:9px;color:#2b7244}
+.resolvedBox span{margin-top:3px;font-size:7px;color:#698172}
+.resolvedBox p{margin:7px 0 0;font-size:8px;color:#49594d}
+@media(max-width:900px){
+ .errorMonitorFilters{grid-template-columns:1fr 1fr}
+ .errorSearch{grid-column:1 / -1}
+ .errorRefreshBtn{justify-self:start}
+ .errorTable{overflow:auto}
+ .errorTableHead,.errorTableRow{min-width:850px}
+}
+@media(max-width:720px){
+ .errorSummaryStats{grid-template-columns:1fr}
+ .errorDetailGrid{grid-template-columns:1fr}
+ .errorStackSection,.errorResolution{grid-column:auto}
+}
