@@ -348,6 +348,7 @@ public interface IPaymentTransactionRepository
     Task<PaymentTransaction?> GetAsync(Guid id);
     Task<PaymentTransaction?> GetByIdempotencyKeyAsync(string provider, string key);
     Task<PaymentTransaction?> GetByProviderOrderIdAsync(string providerOrderId);
+    Task<PaymentTransaction?> GetByProviderPaymentIdAsync(string provider, string providerPaymentId);
     Task<PaymentTransaction?> GetByOnboardingApplicationIdAsync(Guid applicationId);
     Task<PaymentTransaction?> GetLatestBySubscriptionAsync(Guid subscriptionId);
     Task AddAsync(PaymentTransaction payment);
