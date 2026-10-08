@@ -1493,7 +1493,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
         os.SaaSPlanId=p.Id;
         os.BillingCycle=r.BillingCycle;
         os.SubscriptionFee=r.BillingCycle.Equals("Annual",StringComparison.OrdinalIgnoreCase)?p.AnnualFee:p.MonthlyFee;
-        if(os.SetupFee<=0)os.SetupFee=5000m;
+        if(os.SetupFee<=0)os.SetupFee=configuration.GetValue<decimal?>("Onboarding:SetupFee") ?? 5000m;
         os.TransactionFeePercent=p.CustomerTransactionFeePercent;
         os.StartDate=DateTime.UtcNow.Date;
         os.RenewalDate=os.StartDate.AddMonths(r.BillingCycle.Equals("Annual",StringComparison.OrdinalIgnoreCase)?12:1);
@@ -1737,7 +1737,8 @@ public sealed class AdminService(
     ICloudflarePagesService cloudflarePages,
     IApplicationErrorRepository applicationErrors,
     IAdminFinanceRepository finance,
-    ICurrentUser currentUser) : IAdminService
+    ICurrentUser currentUser,
+    IConfiguration configuration) : IAdminService
 {
     public async Task<IReadOnlyList<OutletGroupDto>> GetOutletGroupsAsync()
     {
