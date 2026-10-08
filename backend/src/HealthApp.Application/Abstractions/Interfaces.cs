@@ -370,6 +370,10 @@ public sealed record PaymentGatewayTransactionStatus(
     string? PaymentMethod,
     decimal? Amount,
     string Currency);
+public interface IPaymentGatewayFactory
+{
+    IPaymentGateway Get(string provider);
+}
 public interface IPaymentGateway
 {
     string Provider { get; }
