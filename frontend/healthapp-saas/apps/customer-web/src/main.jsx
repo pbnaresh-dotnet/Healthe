@@ -757,6 +757,29 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
  const setSlotSelections=(date,slot,ids)=>{
    setSelections(g=>({...g,[key(date,slot)]:ids.map(recipeId=>({recipeId,portion:1}))}));
  };
+ const continueGuest=()=>{
+   for(const d of days){
+     for(const s of SLOT){
+       const opts=menuFor(d.date,s.id);
+       if(!opts.length)continue;
+       const ids=selectedIdsFor(d.date,s.id);
+       const groups={};
+       for(const item of opts){
+         const group=String(item.optionGroup||item.mealType||'Meal').trim()||'Meal';
+         (groups[group]??=[]).push(item);
+       }
+       for(const [group,items] of Object.entries(groups)){
+         const required=items.some(x=>x.isRequired);
+         const count=ids.filter(id=>items.some(x=>x.recipeId===id)).length;
+         if(required&&count===0){
+           window.alert('Please choose a '+group+' item for '+dayName(dayId(d.date))+' '+s.label+'.');
+           return;
+         }
+       }
+     }
+   }
+   onContinue();
+ };
  return <div className="publicOverlayBackdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}>
    <div className="publicGuestBuilder">
      <div className="publicExplorerHead">
@@ -792,7 +815,7 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
      </div>}
      <div className="publicGuestFooter">
        <div><b>{selectedCount} items selected</b><span>Each slot can contain a main meal plus configured items such as juice, snack, curd or other add-ons. After creating your account, we'll ask for your exact delivery address and allergy preferences before payment.</span></div>
-       <button className="primary big" disabled={busy||!selectedCount} onClick={onContinue}>{busy?'Preparing package…':'Create account to continue →'}</button>
+       <button className="primary big" disabled={busy||!selectedCount} onClick={continueGuest}>{busy?'Preparing package…':'Create account to continue →'}</button>
      </div>
    </div>
  </div>;
