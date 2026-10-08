@@ -97,7 +97,11 @@ public interface IFinanceCalculationSnapshotService
         decimal platformServiceFeePercent,
         bool gatewayCostsIncludedInPlatformFee,
         decimal commissionRatePercent,
-        decimal commissionAmount);
+        decimal commissionAmount,
+        Guid? discountTierId = null,
+        decimal discountPercent = 0m,
+        decimal discountAmount = 0m,
+        string discountRuleSnapshotJson = "");
 }
 
 public interface IFinancialDocumentRepository
