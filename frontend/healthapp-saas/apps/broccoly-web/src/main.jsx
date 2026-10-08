@@ -184,7 +184,7 @@ function Registration({plans,initialPlan,onBack,onLogin}) {
        <input value={details.city} onChange={e=>setDetails({...details,city:e.target.value})} placeholder="City" required />
       )}
      </label>
-     <label><span>State *</span><input value={details.state} onChange={e=>setDetails({...details,state:e.target.value})} required /></label>
+     <label><span>State *</span><input value={details.state} readOnly required /></label>
      <label><span>Pincode *</span><input value={details.pincode} onChange={e=>setDetails({...details,pincode:e.target.value})} required /></label>
      <label className="span2"><span>Address line 1 *</span><input value={details.addressLine1} onChange={e=>setDetails({...details,addressLine1:e.target.value})} placeholder="Building / flat / street" required /></label>
      <label className="span2"><span>Address line 2</span><input value={details.addressLine2} onChange={e=>setDetails({...details,addressLine2:e.target.value})} placeholder="Area / landmark" /></label>
