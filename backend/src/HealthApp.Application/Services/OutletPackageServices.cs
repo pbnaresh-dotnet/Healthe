@@ -706,6 +706,7 @@ public sealed class OutletPackageService(
                     discountedMealAmount,
                     serviceFee,
                     platformFee.Percent,
+                    platformFee.IncludesGatewayCosts,
                     commissionRate * 100m,
                     commission);
                 await financialDocuments.CreateDraftsForSubscriptionAsync(subscription.Id);
