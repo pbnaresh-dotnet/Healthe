@@ -278,14 +278,14 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    for(const d of days){
      for(const s of SLOT){
        const opts=publicMenuFor(d.date,s.id);
-       if(opts.length&&guestSelections[key(d.date,s.id)]===undefined) first[key(d.date,s.id)]='';
+       if(opts.length&&guestSelections[key(d.date,s.id)]===undefined) first[key(d.date,s.id)]=[];
      }
    }
    setGuestSelections(g=>({...first,...g}));
    setGuestBuilderOpen(true);
    setPublicOutlet(null);
  };
- const guestMealRows=Object.values(guestSelections).filter(Boolean);
+ const guestMealRows=Object.values(guestSelections).flatMap(value=>Array.isArray(value)?value.filter(Boolean):(value?[value]:[]));
  const guestSelectedCount=guestMealRows.length;
  const saveGuestDraftAndCreateAccount=()=>{
    if(!guestBuilderOutlet||!guestSelectedCount)return;
@@ -294,8 +294,10 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
        outlet:guestBuilderOutlet,
        duration:guestDuration,
        startDate:guestStartDate||todayISO(),
-       selections:Object.entries(guestSelections).filter(([,recipeId])=>recipeId).map(([k,recipeId])=>{
-         const parts=k.split('_'); return {date:parts[0],slot:Number(parts[1]),recipeId,portion:1};
+       selections:Object.entries(guestSelections).flatMap(([k,value])=>{
+         const parts=k.split('_');
+         const items=Array.isArray(value)?value:(value?[{recipeId:value}]:[]);
+         return items.filter(x=>x?.recipeId).map(x=>({date:parts[0],slot:Number(parts[1]),recipeId:x.recipeId,portion:Number(x.portion||1)}));
        })
      }));
    }catch{}
@@ -684,6 +686,62 @@ function CustomerOutletHome({outlet,menu,busy,error,onBuild,onViewPlan}){
  </div></>;
 }
 
+function GuestMealMultiSelect({options,selectedIds,onChange,showMealPrice}){
+ const [open,setOpen]=useState(false);
+ const rootRef=useRef(null);
+ useEffect(()=>{
+   if(!open)return;
+   const close=e=>{if(!rootRef.current?.contains(e.target))setOpen(false)};
+   document.addEventListener('mousedown',close);
+   return()=>document.removeEventListener('mousedown',close);
+ },[open]);
+ const selected=(selectedIds||[]).map(id=>options.find(x=>x.recipeId===id)).filter(Boolean);
+ const groups=useMemo(()=>{
+   const map={};
+   for(const item of options){
+     const group=String(item.optionGroup||'Meal').trim()||'Meal';
+     (map[group]??=[]).push(item);
+   }
+   return map;
+ },[options]);
+ const toggle=id=>{
+   const current=selectedIds||[];
+   if(current.includes(id)){onChange(current.filter(x=>x!==id));return;}
+   const item=options.find(x=>x.recipeId===id);
+   if(!item)return;
+   const group=String(item.optionGroup||'Meal').trim()||'Meal';
+   const groupItems=groups[group]||[];
+   const max=Math.max(1,...groupItems.map(x=>Number(x.maxSelections||1)));
+   const selectedInGroup=current.filter(x=>groupItems.some(g=>g.recipeId===x));
+   if(selectedInGroup.length>=max)return;
+   onChange([...current,id]);
+ };
+ return <div className={'guestMealMultiSelect '+(open?'open':'')} ref={rootRef}>
+   <div className="guestMealMultiTrigger" role="button" tabIndex={0} aria-expanded={open} onClick={()=>setOpen(v=>!v)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setOpen(v=>!v)}}}>
+     {selected.length?<div className="guestMealSelectedList">{selected.map(item=><span className="guestMealSelectedChip" key={item.recipeId}>{item.recipeName}<button type="button" aria-label={'Remove '+item.recipeName} onClick={e=>{e.stopPropagation();toggle(item.recipeId)}}>×</button></span>)}</div>:<span className="guestMealPlaceholder">Choose meal, juice, snack, curd…</span>}
+     <span className="guestMealChevron">{open?'⌃':'⌄'}</span>
+   </div>
+   {open&&<div className="guestMealMultiMenu">
+     <div className="guestMealMultiHint">Select items from each configured group. One item per group is the recommended setup; the outlet can allow more.</div>
+     {Object.entries(groups).map(([group,items])=>{
+       const max=Math.max(1,...items.map(x=>Number(x.maxSelections||1)));
+       const count=(selectedIds||[]).filter(id=>items.some(x=>x.recipeId===id)).length;
+       return <section className="guestMealGroup" key={group}>
+         <div className="guestMealGroupHead"><div><b>{group}</b><small>{items.some(x=>x.isRequired)?'Required':'Optional'} · up to {max}</small></div><strong>{count}/{max}</strong></div>
+         <div className="guestMealOptions">{items.map(item=>{
+           const active=(selectedIds||[]).includes(item.recipeId);
+           const atLimit=!active&&count>=max;
+           return <button type="button" key={item.recipeId} className={active?'guestMealOption active':'guestMealOption'} disabled={atLimit} onClick={()=>toggle(item.recipeId)}>
+             <span className="guestMealOptionCheck">{active?'✓':'+'}</span>
+             <span className="guestMealOptionText"><b>{item.recipeName}</b><small>{item.mealType||group}{showMealPrice?' · '+money(item.pricePerMeal):''}</small></span>
+           </button>;
+         })}</div>
+       </section>;
+     })}
+   </div>}
+ </div>;
+}
+
 function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDate,setStartDate,selections,setSelections,selectedCount,onClose,onContinue}){
  const showMealPrice=outlet?.showMealPriceToCustomer!==false;
  const days=useMemo(()=>{
@@ -692,6 +750,13 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
    return Array.from({length:d.days},(_,i)=>({date:addDays(start,i),index:i}));
  },[duration,startDate]);
  const menuFor=(date,slot)=>(menu||[]).filter(x=>Number(x.dayOfWeek)===Number(dayId(date))&&Number(x.mealSlotValue)===Number(slot));
+ const selectedIdsFor=(date,slot)=>{
+   const value=selections[key(date,slot)];
+   return Array.isArray(value)?value.filter(Boolean).map(x=>typeof x==='string'?x:x.recipeId):(value?[value.recipeId||value]:[]);
+ };
+ const setSlotSelections=(date,slot,ids)=>{
+   setSelections(g=>({...g,[key(date,slot)]:ids.map(recipeId=>({recipeId,portion:1}))}));
+ };
  return <div className="publicOverlayBackdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}>
    <div className="publicGuestBuilder">
      <div className="publicExplorerHead">
@@ -701,7 +766,7 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
      <div className="publicGuestBuilderToolbar">
        <label><span>Package duration</span><select value={duration} onChange={e=>setDuration(e.target.value)}>{DURATIONS.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}</select></label>
        <label><span>Start date</span><input type="date" min={todayISO()} value={startDate} onChange={e=>setStartDate(e.target.value)}/></label>
-       <div className="publicGuestCount"><b>{selectedCount}</b><span>meals selected</span></div>
+       <div className="publicGuestCount"><b>{selectedCount}</b><span>items selected</span></div>
        <div className="publicGuestOutlet"><span>OUTLET</span><b>{outlet?.name}</b><small>{outlet?.city}</small></div>
      </div>
      {busy?
@@ -718,15 +783,15 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
            {SLOT.map(s=>{
              const opts=menuFor(d.date,s.id);
              if(!opts.length)return null;
-             const selected=selections[key(d.date,s.id)]||'';
-             return <label key={s.id}><span>{s.icon} {s.label}</span><select value={selected} onChange={e=>setSelections(g=>({...g,[key(d.date,s.id)]:e.target.value}))}><option value="">Choose a meal</option>{opts.map(m=><option key={m.recipeId} value={m.recipeId}>{m.recipeName}{showMealPrice?' · '+money(m.pricePerMeal):''}</option>)}</select></label>;
+             const selectedIds=selectedIdsFor(d.date,s.id);
+             return <label key={s.id}><span>{s.icon} {s.label}</span><GuestMealMultiSelect options={opts} selectedIds={selectedIds} onChange={ids=>setSlotSelections(d.date,s.id,ids)} showMealPrice={showMealPrice}/></label>;
            })}
          </div>
          {!SLOT.some(s=>menuFor(d.date,s.id).length)&&<div className="publicGuestNoMenu">No menu is published for this day.</div>}
        </section>)}
      </div>}
      <div className="publicGuestFooter">
-       <div><b>{selectedCount} meals selected</b><span>After creating your account, we'll ask for your exact delivery address and allergy preferences before payment.</span></div>
+       <div><b>{selectedCount} items selected</b><span>Each slot can contain a main meal plus configured items such as juice, snack, curd or other add-ons. After creating your account, we'll ask for your exact delivery address and allergy preferences before payment.</span></div>
        <button className="primary big" disabled={busy||!selectedCount} onClick={onContinue}>{busy?'Preparing package…':'Create account to continue →'}</button>
      </div>
    </div>
@@ -891,7 +956,11 @@ function App(){
      const[m,rs,legal]=await Promise.all([menu.outlet(draft.outlet.id),recipes.list(draft.outlet.id),outlets.legal(draft.outlet.slug)]);
      const selections={};
      draft.selections.forEach(x=>{
-       if(x?.date&&x?.slot&&x?.recipeId)selections[key(x.date,Number(x.slot))]={date:x.date,slot:Number(x.slot),recipeId:x.recipeId,portion:Number(x.portion||1)};
+       if(!x?.date||!x?.slot||!x?.recipeId)return;
+       const k=key(x.date,Number(x.slot));
+       const next={date:x.date,slot:Number(x.slot),recipeId:x.recipeId,portion:Number(x.portion||1),allergyConfirmed:Boolean(x.allergyConfirmed)};
+       const current=Array.isArray(selections[k])?selections[k]:(selections[k]?[selections[k]]:[]);
+       if(!current.some(item=>item.recipeId===next.recipeId))selections[k]=[...current,next];
      });
      const defaultActiveDays=defaultWeekActiveDays(start,d.id);
      setSelectedOutlet(draft.outlet);
