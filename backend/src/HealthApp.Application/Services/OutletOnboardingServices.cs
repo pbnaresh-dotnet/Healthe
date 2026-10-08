@@ -172,7 +172,8 @@ public sealed class OutletOnboardingService(
                     NormalizePhone(user.MobileNumber ?? request.OwnerPhone),
                     paymentGateway.OutletReturnUrl,
                     paymentGateway.WebhookUrl,
-                    "Broccoly outlet setup fee"),
+                    "Broccoly outlet setup fee",
+                    payment.IdempotencyKey),
                 CancellationToken.None);
 
             payment.PaymentSessionId = checkout.PaymentSessionId;
