@@ -49,9 +49,18 @@ public sealed class FinancialDocumentService(
         if (existing.Count > 0)
             return existing;
 
-        var outletProfile = await outletTaxProfiles.GetCurrentAsync(subscription.OutletId, snapshot.CalculatedAtUtc)
-            ?? throw new InvalidOperationException("The outlet tax profile used by this transaction cannot be resolved.");
-        var platformProfile = await platformTaxProfiles.GetCurrentAsync(snapshot.CalculatedAtUtc);
+        var outletProfile = await outletTaxProfiles.GetByIdAsync(snapshot.TaxProfileId)
+            ?? throw new InvalidOperationException("The outlet tax profile captured by the immutable finance snapshot no longer exists.");
+
+        if (outletProfile.OutletId != subscription.OutletId)
+            throw new InvalidOperationException("The finance snapshot tax profile belongs to a different outlet.");
+
+        var platformProfile = snapshot.PlatformTaxProfileId.HasValue
+            ? await platformTaxProfiles.GetByIdAsync(snapshot.PlatformTaxProfileId.Value)
+            : null;
+
+        if (snapshot.PlatformTaxApplicable && platformProfile is null)
+            throw new InvalidOperationException("The finance snapshot requires a platform tax profile, but the captured profile no longer exists.");
         var customerAddress = (await addresses.GetByCustomerAsync(customer.Id))
             .OrderByDescending(x => x.IsDefault)
             .FirstOrDefault();
