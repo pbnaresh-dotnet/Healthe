@@ -269,7 +269,7 @@ function App(){
  const packageSelectionsPayload=useMemo(()=>Object.entries(pkgSelections).flatMap(([k,value])=>{
    const [date,slot]=k.split('_');
    const items=Array.isArray(value)?value:(value?.recipeId?[value]:value?[{recipeId:value}]:[]);
-   const addressId=pkgDeliveryMode==='OneDeliveryPerDay'?(pkgDayAddresses[date]||null):(pkgMealAddresses[k]||null);
+   const addressId=pkgDeliveryMode==='OneDeliveryPerDay'?(pkgDayAddresses[date]||null):(pkgMealAddresses[packageItemKey(date,Number(slot),x.recipeId)]||pkgDayAddresses[date]||null);
    return items.filter(x=>x?.recipeId).map(x=>({mealDate:date,mealSlot:Number(slot),recipeId:x.recipeId,portionSize:Number(pkgPortions[packageItemKey(date,Number(slot),x.recipeId)]||1),addressId}));
  }),[pkgSelections,pkgDayAddresses,pkgMealAddresses,pkgDeliveryMode,pkgPortions]);
  const selectedPackageCount=packageSelectionsPayload.length;
