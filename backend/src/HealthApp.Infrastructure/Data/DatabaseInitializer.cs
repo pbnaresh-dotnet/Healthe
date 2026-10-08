@@ -62,6 +62,12 @@ IF COL_LENGTH('dbo.Outlets','LateSkipFee') IS NULL
     ALTER TABLE dbo.Outlets ADD LateSkipFee decimal(18,2) NOT NULL CONSTRAINT DF_Outlets_LateSkipFee DEFAULT 50 WITH VALUES;
 ", cancellationToken);
 
+        // Late-skip recovery is a separate customer receivable/payment component and must not alter the original package sale amount.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Subscriptions','LateSkipRecoveryAmount') IS NULL
+    ALTER TABLE dbo.Subscriptions ADD LateSkipRecoveryAmount decimal(18,2) NOT NULL CONSTRAINT DF_Subscriptions_LateSkipRecoveryAmount DEFAULT 0 WITH VALUES;
+", cancellationToken);
+
         // ApplicationErrorLogs is persisted independently of the request DbContext so
         // production errors can be inspected by SuperAdmin even when an older database
         // predates the current EF model.
