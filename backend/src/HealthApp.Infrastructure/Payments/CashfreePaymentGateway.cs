@@ -48,7 +48,7 @@ public sealed class CashfreePaymentGateway(
             Encoding.UTF8,
             "application/json");
 
-        using var response = await http.SendAsync(message, cancellationToken);
+        using var response = await SendWithRetryAsync(message, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)
