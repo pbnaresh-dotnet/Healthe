@@ -755,7 +755,7 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
          money={money}
          title="Build your package"
          subtitle="Pick multiple meals, juices, snacks, curd and other configured items for every slot."
-       />
+       />}
      <div className="publicGuestFooter">
        <div><b>{selectedCount} items selected</b><span>Each slot can contain a main meal plus configured items such as juice, snack, curd or other add-ons. After creating your account, we'll ask for your exact delivery address and allergy preferences before payment.</span></div>
        <button className="primary big" disabled={busy||!selectedCount} onClick={continueGuest}>{busy?'Preparing package…':'Create account to continue →'}</button>
