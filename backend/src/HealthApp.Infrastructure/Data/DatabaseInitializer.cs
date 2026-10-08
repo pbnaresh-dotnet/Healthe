@@ -15,6 +15,40 @@ public static class DatabaseInitializer
         // replace EnsureCreatedAsync with EF Core MigrateAsync after generating migrations.
         await db.Database.EnsureCreatedAsync(cancellationToken);
 
+        // Outlet groups are a platform-level tenant classification used by Super Admin reports.
+        // Reconcile the group table and nullable tenant link for existing databases.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.OutletGroups','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OutletGroups
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_OutletGroups PRIMARY KEY,
+        Name nvarchar(120) NOT NULL,
+        Description nvarchar(500) NOT NULL CONSTRAINT DF_OutletGroups_Description DEFAULT '',
+        IsActive bit NOT NULL CONSTRAINT DF_OutletGroups_IsActive DEFAULT 1,
+        SortOrder int NOT NULL CONSTRAINT DF_OutletGroups_SortOrder DEFAULT 0
+    );
+END;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_OutletGroups_Name' AND object_id=OBJECT_ID('dbo.OutletGroups'))
+    CREATE UNIQUE INDEX UX_OutletGroups_Name ON dbo.OutletGroups(Name);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletGroups_IsActive_SortOrder' AND object_id=OBJECT_ID('dbo.OutletGroups'))
+    CREATE INDEX IX_OutletGroups_IsActive_SortOrder ON dbo.OutletGroups(IsActive, SortOrder);
+IF COL_LENGTH('dbo.Outlets','OutletGroupId') IS NULL
+    ALTER TABLE dbo.Outlets ADD OutletGroupId uniqueidentifier NULL;
+", cancellationToken);
+
+        await db.Database.ExecuteSqlRawAsync(@"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_Outlets_OutletGroupId' AND object_id=OBJECT_ID('dbo.Outlets'))
+    CREATE INDEX IX_Outlets_OutletGroupId ON dbo.Outlets(OutletGroupId);
+IF NOT EXISTS (
+    SELECT 1 FROM sys.foreign_keys
+    WHERE name='FK_Outlets_OutletGroups_OutletGroupId'
+      AND parent_object_id=OBJECT_ID('dbo.Outlets')
+)
+    ALTER TABLE dbo.Outlets ADD CONSTRAINT FK_Outlets_OutletGroups_OutletGroupId
+    FOREIGN KEY(OutletGroupId) REFERENCES dbo.OutletGroups(Id) ON DELETE NO ACTION;
+", cancellationToken);
+
         // ApplicationErrorLogs is persisted independently of the request DbContext so
         // production errors can be inspected by SuperAdmin even when an older database
         // predates the current EF model.
