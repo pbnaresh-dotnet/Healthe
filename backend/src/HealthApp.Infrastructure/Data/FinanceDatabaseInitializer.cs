@@ -754,6 +754,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion123Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion124Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion125Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion126Async(db, document, cancellationToken);
             return;
         }
 
@@ -1315,6 +1316,81 @@ WHERE NOT EXISTS
             ChangeSummary = "Make late-skip fees outlet-configurable and govern wallet deduction, deferred recovery and original-outlet settlement attribution.",
             ChangeReason = "Provide outlet-level commercial control while preserving auditable historical charges and preventing deferred late-skip recovery from being recognised as a new package sale.",
             SourceCodeReference = "FIN-Phase-2D-LATE-SKIP-WALLET-RECOVERY",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedFinancePolicyVersion126Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.6",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.5")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode,
+            x.Title,
+            x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "governance" => x.ContentMarkdown + " Policy v1.2.6: subscription discounts are outlet-owned configuration. The application no longer contains a hidden percentage matrix. Active outlet discount tiers must use non-overlapping meal ranges and percentages from 0% to 100%.",
+                "platform-charges" => x.ContentMarkdown + " Policy v1.2.6: the exact discount tier, discount percentage, discount amount, discount-code identity and discount-code amount used for a customer subscription are captured in the finance calculation snapshot.",
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.2.6: discounts reduce the customer meal/package base before restaurant tax and platform service-fee calculation. A discount code and configured subscription tier are both part of the historical calculation inputs.",
+                "audit-trace" => x.ContentMarkdown + " Discount configuration changes apply only to future calculations. Historical subscriptions retain their immutable discount snapshot and finance policy version.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder)
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.2.6",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Remove hidden discount fallback logic and snapshot outlet discount configuration and discount-code inputs.",
+            ChangeReason = "Ensure commercial discounts are explicitly configurable per outlet and historically reproducible for CA/auditor review.",
+            SourceCodeReference = "FIN-Phase-2D-DISCOUNT-CONFIGURATION-GOVERNANCE",
             ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
             PreviousVersionId = previous.Id,
             CreatedAtUtc = now,
