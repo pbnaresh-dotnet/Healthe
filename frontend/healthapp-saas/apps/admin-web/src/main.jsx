@@ -58,6 +58,7 @@ function App(){
  const[verification,setVerification]=useState([]);
  const[outletSearch,setOutletSearch]=useState('');
  const[outletStatus,setOutletStatus]=useState('');
+ const[selectedOutlet,setSelectedOutlet]=useState(null);
  const[outletCity,setOutletCity]=useState('');
  const[domainStatus,setDomainStatus]=useState('');
  const[domainSearch,setDomainSearch]=useState('');
@@ -172,7 +173,7 @@ function App(){
     {loading&&<div className="loadingBar"><span/></div>}
 
     {page==='overview'&&<Dashboard openPage={openPage} data={data} cities={cities} domains={domains} verification={verification} filteredOutlets={filteredOutlets} customerCount={customerCount} liveOutlets={liveOutlets} activeWorkspaces={activeWorkspaces} domainsActive={domainsActive} domainIssues={domainIssues} revenue={revenue} attention={attention} revenueRows={revenueRows}/>}
-    {page==='outlets'&&<OutletDirectory outlets={filteredOutlets} allOutlets={data.o||[]} search={outletSearch} setSearch={setOutletSearch} status={outletStatus} setStatus={setOutletStatus} city={outletCity} setCity={setOutletCity} onDashboard={()=>openPage('overview')} />}
+    {page==='outlets'&&<OutletDirectory outlets={filteredOutlets} allOutlets={data.o||[]} search={outletSearch} setSearch={setOutletSearch} status={outletStatus} setStatus={setOutletStatus} city={outletCity} setCity={setOutletCity} onDashboard={()=>openPage('overview')} onOpen={setSelectedOutlet} />}
     {page==='onboarding'&&<Onboarding verification={verification} onReview={review} onDashboard={()=>openPage('overview')} />}
     {page==='domains'&&<DomainCenter domains={filteredDomains} allDomains={domains} search={domainSearch} setSearch={setDomainSearch} status={domainStatus} setStatus={setDomainStatus} onUpdate={updateDomain}/>}
     {page==='geography'&&<Geography cities={cities} areas={areas} form={form} setForm={setForm} areaForm={areaForm} setAreaForm={setAreaForm} onCreateCity={createCity} onToggleCity={toggleCity} onCreateArea={createArea} loading={loading}/>}
@@ -181,6 +182,7 @@ function App(){
    </main>
   </div>
 
+  {selectedOutlet&&<OutletQuickView outlet={selectedOutlet} onClose={()=>setSelectedOutlet(null)} onOutlets={()=>{setSelectedOutlet(null);openPage('outlets')}} />}
   {selectedVerification&&<VerificationModal item={selectedVerification} notes={verificationNotes} setNotes={setVerificationNotes} onClose={()=>setSelectedVerification(null)} onDocument={openProtectedDocument} onDecision={decide} loading={loading}/>}
   {toast&&<div className="toast"><Icon name="check" size={15}/>{toast}</div>}
  </div>;
@@ -239,13 +241,13 @@ function Empty({text}){return <div className="emptyState">{text}</div>}
 
 function Toolbar({children}){return <div className="toolbar">{children}</div>}
 
-function OutletDirectory({outlets,allOutlets,search,setSearch,status,setStatus,city,setCity,onDashboard}){
+function OutletDirectory({outlets,allOutlets,search,setSearch,status,setStatus,city,setCity,onDashboard,onOpen}){
  const cities=[...new Set(allOutlets.map(x=>x.city).filter(Boolean))].sort();
  const statuses=[...new Set(allOutlets.map(x=>x.status).filter(Boolean))].sort();
  return <section>
   <PageIntro eyebrow="TENANTS" title="Outlet directory" text="Find a tenant quickly, review its status and use the directory as the entry point for support and reporting." action={<button className="secondaryBtn" onClick={onDashboard}><Icon name="arrow" size={15}/> Dashboard</button>}/>
   <Toolbar><label className="searchField"><Icon name="search" size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search outlet, slug, city or state"/></label><label className="filterField"><Icon name="filter" size={15}/><select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{statuses.map(x=><option key={x}>{x}</option>)}</select></label><label className="filterField"><select value={city} onChange={e=>setCity(e.target.value)}><option value="">All cities</option>{cities.map(x=><option key={x}>{x}</option>)}</select></label><span className="resultCount">{outlets.length} of {allOutlets.length}</span></Toolbar>
-  <section className="card"><div className="mobileOnly sectionCount">{outlets.length} outlet{outlets.length===1?'':'s'}</div><div className="tenantTable outletTable"><div className="tableHead"><span>Outlet</span><span>Location</span><span>Status</span><span>Plan</span><span>Slug / host</span><span>Action</span></div>{outlets.map(x=><div className="tableRow" key={x.id}><div><b>{x.name||'Unnamed outlet'}</b><small>{x.about||'No business description'}</small></div><span>{[x.city,x.state,x.pincode].filter(Boolean).join(', ')||'—'}</span><StatusPill status={x.status}/><span>{x.billingPlan||'—'}</span><span className="tenantCell"><b>{x.slug||'—'}</b><small>{x.subdomain||'No subdomain'}</small></span><button type="button" className="rowAction" onClick={()=>window.alert('Outlet 360 is planned for the next tenant-management phase. Use this directory to filter the correct outlet meanwhile.')}>Open <Icon name="arrow" size={12}/></button></div>)}{!outlets.length&&<Empty text="No outlets match your filters."/>}</div></section>
+  <section className="card"><div className="mobileOnly sectionCount">{outlets.length} outlet{outlets.length===1?'':'s'}</div><div className="tenantTable outletTable"><div className="tableHead"><span>Outlet</span><span>Location</span><span>Status</span><span>Plan</span><span>Slug / host</span><span>Action</span></div>{outlets.map(x=><div className="tableRow" key={x.id}><div><b>{x.name||'Unnamed outlet'}</b><small>{x.about||'No business description'}</small></div><span>{[x.city,x.state,x.pincode].filter(Boolean).join(', ')||'—'}</span><StatusPill status={x.status}/><span>{x.billingPlan||'—'}</span><span className="tenantCell"><b>{x.slug||'—'}</b><small>{x.subdomain||'No subdomain'}</small></span><button type="button" className="rowAction" onClick={()=>onOpen(x)}>Open <Icon name="arrow" size={12}/></button></div>)}{!outlets.length&&<Empty text="No outlets match your filters."/>}</div></section>
   <div className="insightGrid"><InsightCard label="Live outlets" value={allOutlets.filter(x=>x.status==='Live').length} detail="Customer-facing tenant workspaces" tone="green"/><InsightCard label="Setup / active" value={allOutlets.filter(x=>x.status!=='Live').length} detail="Tenants that still need go-live work" tone="amber"/><InsightCard label="Cities represented" value={new Set(allOutlets.map(x=>x.city).filter(Boolean)).size} detail="Distinct outlet operating locations" tone="blue"/></div>
  </section>;
 }
@@ -273,6 +275,19 @@ function Geography({cities,areas,form,setForm,areaForm,setAreaForm,onCreateCity,
 
 function Finance({revenue,rows,outletCount}){
  return <section><PageIntro eyebrow="FINANCE & REPORTS" title="Platform finance" text="This first release surfaces the revenue records already available through the platform transaction layer. GST, settlement and outlet-group reports can build on the same dimensions in the reporting phase."/><div className="financeHero"><div><span>Total recorded platform revenue</span><b>{money(revenue.totalRevenue||0)}</b><small>Across {outletCount} outlet{outletCount===1?'':'s'} in the current transaction source</small></div><div className="financeChip"><span>Reporting boundary</span><b>HealthApp revenue</b><small>Outlet tax liability remains separate</small></div></div><div className="financeCards">{rows.map(([label,value])=><div className="financeCard" key={label}><span>{label}</span><b>{money(value)}</b><small>Recorded by platform transaction type</small></div>)}</div><section className="card reportRoadmap"><div className="cardHead"><div><span className="eyebrow">REPORTING FOUNDATION</span><h2>Production reporting model</h2><p>The shell is ready for the next reporting modules without redesigning the workspace.</p></div></div><div className="roadmapGrid"><div><b>Daily subscriptions</b><span>By date → outlet group → outlet → meal plan.</span></div><div><b>GST & tax</b><span>Gross, discount, taxable, restaurant GST, platform fee and platform GST.</span></div><div><b>Payments</b><span>Provider, payment status, failure reason and reconciliation.</span></div><div><b>Outlet economics</b><span>Sales, fees, GST, outlet amount and HealthApp revenue.</span></div></div></section></section>;
+}
+
+function OutletQuickView({outlet,onClose,onOutlets}){ 
+ const fields=[
+  ['Status',outlet.status||'—'],
+  ['SaaS plan',outlet.billingPlan||'—'],
+  ['City',outlet.city||'—'],
+  ['State',outlet.state||'—'],
+  ['Pincode',outlet.pincode||'—'],
+  ['Tenant slug',outlet.slug||'—'],
+  ['Subdomain',outlet.subdomain||'—']
+ ];
+ return <div className="modalBackdrop quickViewBackdrop"><div className="modalShell quickViewShell"><div className="modalHead"><div><span className="eyebrow">TENANT QUICK VIEW</span><h2>{outlet.name||'Unnamed outlet'}</h2><p>Tenant-safe snapshot. Detailed Outlet 360 controls will be added in the tenant-management phase.</p></div><button type="button" className="iconBtn" onClick={onClose}><Icon name="close"/></button></div><div className="quickViewBanner"><div className="avatarCircle">{String(outlet.name||'O').trim().charAt(0).toUpperCase()}</div><div><b>{outlet.slug||'No tenant slug'}</b><small>{outlet.city||'No city'} · {outlet.status||'Unknown status'}</small></div><StatusPill status={outlet.status}/></div><div className="facts quickFacts">{fields.map(([label,value])=><React.Fragment key={label}><span>{label}</span><b>{value}</b></React.Fragment>)}</div><div className="quickViewActions"><button type="button" className="secondaryBtn" onClick={onClose}>Close</button><button type="button" className="primaryBtn" onClick={onOutlets}>Back to outlet directory <Icon name="arrow" size={13}/></button></div></div></div>;
 }
 
 function VerificationModal({item,notes,setNotes,onClose,onDocument,onDecision,loading}){
