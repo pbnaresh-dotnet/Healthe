@@ -283,6 +283,29 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .openBox textarea{width:100%;min-height:90px;resize:vertical;border:1px solid #d0dbd2;border-radius:8px;padding:9px;font-size:9px}.openBox button{margin-top:7px}
 .resolvedBox{padding:10px;border-radius:9px;background:#eef8f0;border:1px solid #cae4cf}.resolvedBox b,.resolvedBox span,.resolvedBox p{display:block}.resolvedBox b{font-size:9px;color:#2b7244}.resolvedBox span{margin-top:3px;font-size:7px;color:#698172}.resolvedBox p{margin:7px 0 0;font-size:8px;color:#49594d}
 
+
+.financePageActions,.financeRulesActions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.financeRulesPage{display:grid;gap:12px}
+.financeRulesNotice{display:grid;grid-template-columns:auto 1fr;gap:7px 9px;padding:11px 12px;border:1px solid #e5d6b9;border-radius:11px;background:#fffaf1;color:#6d6048;font-size:8px;line-height:1.5}
+.financeRulesNotice b{color:#604d27}
+.financeRulesGrid{display:grid;gap:12px}
+.financeRuleCard{height:100%}
+.financeRuleItems{display:grid}
+.financeRuleItem{padding:10px 0;border-top:1px solid #edf1ed}
+.financeRuleItem:first-child{border-top:0;padding-top:0}
+.financeRuleItem b{display:block;font-size:8px;color:#2a4935}
+.financeRuleItem p{margin:4px 0 0;font-size:8px;line-height:1.55;color:#6f7c74}
+.financeRulesExample{overflow:hidden}
+.financeExampleTable{overflow:auto;border:1px solid var(--line);border-radius:10px}
+.financeExampleHead,.financeExampleRow{min-width:660px;display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:9px;align-items:center}
+.financeExampleHead{padding:8px 10px;background:#f3f7f4;color:#758179;font-size:7px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.financeExampleRow{padding:9px 10px;border-top:1px solid #edf1ed;font-size:8px}
+.financeExampleRow b{font-size:8px;color:#294535}
+@media(min-width:720px){
+ .financeRulesGrid{grid-template-columns:1fr 1fr}
+ .financeRulesGrid .financeRuleCard:last-child{grid-column:1 / -1}
+}
+
 /* Larger screens */
 @media(min-width:720px){
  .mobileMenuBtn{display:none}
