@@ -84,7 +84,7 @@ public sealed class PaymentSettlementImportTests
             new MemoryStream(Encoding.UTF8.GetBytes(csv)),
             "admin");
 
-        Assert.Equal(1, result.ExceptionRows);
+        Assert.Single(result.ExceptionRows);
         exceptions.Verify(x => x.AddAsync(It.Is<PaymentSettlementReconciliationException>(e =>
             e.ExceptionType == "ValidationFailure")), Times.Once);
         settlements.Verify(x => x.AddAsync(It.IsAny<PaymentGatewaySettlement>()), Times.Never);
