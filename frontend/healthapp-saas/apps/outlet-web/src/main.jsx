@@ -238,7 +238,7 @@ function App(){
  {active==='discounts'&&<Discounts tiers={tiers} add={()=>{setEditTier(null);setTierForm({minMeals:1,maxMeals:9,oneWeekPercent:0,twoWeeksPercent:0,oneMonthPercent:0});setTierOpen(true)}} edit={t=>{setEditTier(t);setTierForm({...t,maxMeals:t.maxMeals??''});setTierOpen(true)}} remove={removeTier}/>}
  {active==='tax'&&<TaxSettingsPage settings={taxSettings} form={taxForm} setForm={setTaxForm} save={saveTax}/>}
  {effectiveActive==='billing'&&<Billing billing={billing}/>} 
- {effectiveActive==='settings'&&<OutletSettings onNavigate={nav}/>} 
+ {effectiveActive==='settings'&&<OutletSettings user={user} onNavigate={nav}/>} 
  {busy&&<div className="loadingBar"><span/></div>}</main></section>
  {confirmDialog&&<StandardConfirmModal request={confirmDialog} onClose={()=>setConfirmDialog(null)} onConfirm={async()=>{const fn=confirmDialog.onConfirm;setConfirmDialog(null);await fn()}}/>} {toast&&<div className={'statusToast '+toastType}><span>{toastType==='success'?'✓':toastType==='warning'?'⚠':toastType==='info'?'ℹ':'×'}</span><div><b>{toastType==='success'?'Success':toastType==='warning'?'Warning':toastType==='info'?'Info':'Error'}</b><small>{toast}</small></div><button onClick={()=>setToast('')}>×</button></div>}
  {customerEditorOpen&&<CustomerEditorModal form={customerEditorForm} setForm={setCustomerEditorForm} allergens={allergens} saving={customerEditorSaving} editing={Boolean(customerProfile)} onClose={()=>setCustomerEditorOpen(false)} onSave={saveCustomer}/>}
