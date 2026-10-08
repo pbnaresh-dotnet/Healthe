@@ -1721,38 +1721,38 @@ public sealed class AdminService(
         if (outlet is null)
             return null;
 
-        var allUsersTask = users.GetAllAsync();
-        var subscriptionsTask = subscriptions.GetByOutletAsync(outletId);
-        var ordersTask = orders.GetByOutletAsync(outletId);
-        var deliveriesTask = deliveries.GetByOutletAsync(outletId);
-        var domainTask = domains.GetByOutletAsync(outletId);
-        var billingTask = outletSubscriptions.GetByOutletAsync(outletId);
-        var transactionsTask = transactions.GetAllAsync();
-        var mealPlansTask = mealPlans.GetByOutletAsync(outletId);
-        var recipesTask = recipes.GetByOutletAsync(outletId);
-        var menuTask = menu.GetByOutletAsync(outletId);
-        var groupTask = outlet.OutletGroupId.HasValue ? groups.GetAsync(outlet.OutletGroupId.Value) : Task.FromResult<OutletGroup?>(null);
-
-        await Task.WhenAll(allUsersTask, subscriptionsTask, ordersTask, deliveriesTask, domainTask, billingTask, transactionsTask, mealPlansTask, recipesTask, menuTask, groupTask);
-
-        var allUsers = await allUsersTask;
+        // All repositories in this request share the scoped HealthAppDbContext.
+        // Starting multiple EF Core queries concurrently on that same DbContext causes
+        // "A second operation was started on this context instance..." failures.
+        // Keep these tenant snapshots sequential until repositories are backed by
+        // independent DbContext instances/factories.
+        var allUsers = await users.GetAllAsync();
+        var tenantSubscriptions = await subscriptions.GetByOutletAsync(outletId);
+        var tenantOrders = await orders.GetByOutletAsync(outletId);
+        var tenantDeliveries = await deliveries.GetByOutletAsync(outletId);
+        var domainsForOutlet = await domains.GetByOutletAsync(outletId);
+        var billing = await outletSubscriptions.GetByOutletAsync(outletId);
+        var allTransactions = await transactions.GetAllAsync();
+        var tenantMealPlans = await mealPlans.GetByOutletAsync(outletId);
+        var tenantRecipes = await recipes.GetByOutletAsync(outletId);
+        var tenantMenuItems = await menu.GetByOutletAsync(outletId);
+        var group = outlet.OutletGroupId.HasValue
+            ? await groups.GetAsync(outlet.OutletGroupId.Value)
+            : null;
         var tenantUsers = allUsers.Where(x => x.OutletId == outletId).ToList();
         var customerUsers = tenantUsers.Where(x => x.Role == UserRole.Customer).ToList();
         var staffUsers = tenantUsers.Where(x => x.Role != UserRole.Customer).ToList();
 
-        var tenantSubscriptions = await subscriptionsTask;
         var activeSubscriptions = tenantSubscriptions.Count(x => string.Equals(x.Status.ToString(), "Active", StringComparison.OrdinalIgnoreCase));
         var pendingSubscriptions = tenantSubscriptions.Count(x => string.Equals(x.Status.ToString(), "Pending", StringComparison.OrdinalIgnoreCase));
         var cancelledSubscriptions = tenantSubscriptions.Count(x => string.Equals(x.Status.ToString(), "Cancelled", StringComparison.OrdinalIgnoreCase));
 
         var todayUtc = DateTime.UtcNow.Date;
         var monthCutoff = todayUtc.AddDays(-30);
-        var tenantOrders = await ordersTask;
-        var tenantDeliveries = await deliveriesTask;
         var recentOrders = tenantOrders.Where(x => x.DeliveryDate >= monthCutoff).Take(10).ToList();
         var recentDeliveries = tenantDeliveries.Where(x => x.ScheduledDate >= monthCutoff).Take(10).ToList();
 
-        var tenantTransactions = (await transactionsTask)
+        var tenantTransactions = allTransactions
             .Where(x => x.OutletId == outletId && x.CreatedAt >= monthCutoff)
             .ToList();
 
@@ -1761,7 +1761,6 @@ public sealed class AdminService(
         var subscriptionGst30 = tenantSubscriptions.Where(x => x.StartDate >= monthCutoff).Sum(x => x.RestaurantGstAmount);
         var subscriptionPlatformFee30 = tenantSubscriptions.Where(x => x.StartDate >= monthCutoff).Sum(x => x.PlatformServiceFee);
 
-        var group = await groupTask;
         OutletGroupDto? groupDto = null;
         if (group is not null)
         {
@@ -1828,14 +1827,14 @@ public sealed class AdminService(
             outlet.LegalPoliciesPublished,
             outlet.LegalVersion,
             outlet.LegalEffectiveDateUtc,
-            (await domainTask).Take(10).Select(x => MapDomain(x)).ToList(),
+            domainsForOutlet.Take(10).Select(x => MapDomain(x)).ToList(),
             staffUsers.OrderBy(x => x.FirstName).ThenBy(x => x.LastName).Select(MapUser).ToList(),
             customerUsers.OrderBy(x => x.FirstName).ThenBy(x => x.LastName).Take(50).Select(MapUser).ToList(),
-            (await mealPlansTask).Count,
-            (await mealPlansTask).Count(x => x.IsActive),
-            (await recipesTask).Count,
-            (await recipesTask).Count(x => x.IsActive),
-            (await menuTask).Count,
+            tenantMealPlans.Count,
+            tenantMealPlans.Count(x => x.IsActive),
+            tenantRecipes.Count,
+            tenantRecipes.Count(x => x.IsActive),
+            tenantMenuItems.Count,
             recentSubs,
             recentOrderDtos,
             recentDeliveryDtos);
