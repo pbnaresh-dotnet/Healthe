@@ -385,3 +385,50 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .tenantHero .statusPill{margin-left:auto}
  .tenantHeroText{padding-right:2px}
 }
+
+
+/* Phase 3 — finance control center */
+.financeControl{display:grid;gap:12px}
+.financeFilterCard{overflow:visible}
+.financeFilters{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.financeFilters label{display:grid;gap:4px;min-width:0}
+.financeFilters label span{font-size:7px;font-weight:850;color:#6c7a71;text-transform:uppercase;letter-spacing:.06em}
+.financeFilters input,.financeFilters select{width:100%;min-height:38px;padding:0 10px;border:1px solid #d4dfd6;border-radius:9px;background:#fff;color:#294034;font-size:9px;outline:none}
+.financeFilters input:focus,.financeFilters select:focus{border-color:#76a582;box-shadow:0 0 0 3px rgba(70,120,80,.08)}
+.financeFilterActions{display:flex;gap:7px;align-items:end;flex-wrap:wrap;grid-column:1/-1}
+.financeScopeBanner{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:11px;border:1px solid #d9e5dc;border-radius:13px;background:linear-gradient(145deg,#f1f8f3,#fff)}
+.financeScopeBanner>div{min-width:0;padding:2px}
+.financeScopeBanner>div:first-child{grid-column:1/-1;border-bottom:1px solid #e5ece7;padding-bottom:9px}
+.financeScopeBanner span,.financeScopeBanner b,.financeScopeBanner strong{display:block}
+.financeScopeBanner span{font-size:7px;color:#7b877f;font-weight:750;text-transform:uppercase;letter-spacing:.05em}
+.financeScopeBanner b{margin-top:3px;font-size:11px;color:#173522}
+.financeScopeBanner strong{margin-top:3px;font-size:13px;color:#174f2d}
+.financeMetricGrid{grid-template-columns:1fr 1fr}
+.financeBoundary{display:flex;gap:8px;align-items:flex-start;padding:11px;border:1px dashed #bad1bf;border-radius:11px;background:#f5faf6;color:#607066}
+.financeBoundary svg{flex:none;color:#2f7142;margin-top:1px}.financeBoundary b,.financeBoundary span{display:block}.financeBoundary b{font-size:8px;color:#244a31}.financeBoundary span{margin-top:3px;font-size:8px;line-height:1.45}
+.financeTabs{display:flex;gap:5px;overflow:auto;padding:1px 0 2px;scrollbar-width:none}.financeTabs::-webkit-scrollbar{display:none}
+.financeTabs button{flex:none;min-height:35px;padding:0 11px;border:1px solid #d7e2da;border-radius:9px;background:#fff;color:#647169;font-size:8px;font-weight:850}
+.financeTabs button.active{background:#e9f5ec;border-color:#b9d6c0;color:#1d6536}
+.financePanelGrid{display:grid;gap:11px}
+.financeLedgerRows{display:grid}
+.financeLedgerRows>div{display:grid;grid-template-columns:1fr auto;gap:10px;padding:9px 0;border-top:1px solid #edf1ed}
+.financeLedgerRows>div:first-child{border-top:0}
+.financeLedgerRows span{font-size:8px;color:#6e7c73}.financeLedgerRows b{font-size:9px;color:#2c4336}
+.financeReconciliation{padding:4px 0}.financeReconciliation p{margin:9px 0 0;font-size:8px;line-height:1.55;color:#6f7c73}
+.financeEmpty{display:grid;gap:4px;padding:22px}.financeEmpty b{font-size:10px}.financeEmpty span{font-size:8px;color:#78857d}
+.financeTableWrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
+.financeTable{min-width:820px}
+.financeTable th,.financeTable td{white-space:nowrap}
+.financeTable td b{font-weight:850}
+@media(min-width:720px){
+ .financeFilters{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .financeFilterActions{grid-column:auto}
+ .financeMetricGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+ .financePanelGrid{grid-template-columns:1fr 1fr}
+ .financeScopeBanner{grid-template-columns:2fr repeat(3,1fr);align-items:center}
+ .financeScopeBanner>div:first-child{grid-column:auto;border-bottom:0;border-right:1px solid #e5ece7;padding-bottom:2px}
+}
+@media(min-width:1100px){
+ .financeFilters{grid-template-columns:repeat(5,minmax(0,1fr)) auto}
+ .financeMetricGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
