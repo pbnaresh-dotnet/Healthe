@@ -478,3 +478,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .financeFilters{grid-template-columns:repeat(5,minmax(0,1fr)) auto}
  .financeMetricGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
+
+.reactivationCard{margin-left:auto;min-width:min(520px,100%);padding:11px;border:1px solid #e6d4b0;border-radius:12px;background:#fffaf1;display:grid;gap:8px}
+.reactivationCard>b,.reactivationCard small{display:block}.reactivationCard>b{font-size:10px;color:#5f4c2a}.reactivationCard small{margin-top:3px;color:#7b6a4d;font-size:8px;line-height:1.4}
+.reactivationForm{display:grid;grid-template-columns:1fr 1fr;gap:7px}.reactivationForm select,.reactivationForm input{min-height:35px;padding:0 8px;border:1px solid #dccfae;border-radius:8px;background:#fff;color:#463a27;font-size:8px;min-width:0}.reactivationForm input{grid-column:1/-1}.reactivationForm .primaryBtn{grid-column:1/-1}
+@media(max-width:719px){.reactivationCard{margin-left:0;width:100%}.reactivationForm{grid-template-columns:1fr}.reactivationForm input,.reactivationForm .primaryBtn{grid-column:auto}}
