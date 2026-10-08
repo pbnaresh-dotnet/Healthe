@@ -243,7 +243,7 @@ public sealed class OutletPackageService(
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
             throw new ArgumentException("Customer password must be at least 6 characters.");
         if (await users.FindByEmailAsync(request.Email, outletId) is not null)
-            throw new InvalidOperationException("A customer with this email already exists for this outlet.");
+            throw new InvalidOperationException("An account with this email already exists for this outlet. Use a different email address for the customer.");
 
         var requestedAllergies = (request.AllergyIds ?? []).Distinct().ToList();
         var validAllergies = await allergens.GetByIdsAsync(requestedAllergies);
