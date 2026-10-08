@@ -365,6 +365,8 @@ public sealed class PaymentService(
 
         if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
             throw new ArgumentException("Idempotency key is required.");
+        if (request.IdempotencyKey.Trim().Length > 200)
+            throw new ArgumentException("Idempotency key must not exceed 200 characters.");
 
         if (!string.Equals(request.Provider, gateway.Provider, StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException($"Unsupported payment provider '{request.Provider}'. Use {gateway.Provider}.");
@@ -387,7 +389,7 @@ public sealed class PaymentService(
             subscription.TotalCharged,
             "INR");
 
-        var existing = await payments.GetByIdempotencyKeyAsync(request.IdempotencyKey.Trim());
+        var existing = await payments.GetByIdempotencyKeyAsync(gateway.Provider, request.IdempotencyKey.Trim());
         if (existing is not null)
         {
             if (existing.CustomerId != customerId ||
@@ -440,7 +442,7 @@ public sealed class PaymentService(
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException)
             {
-                var concurrent = await payments.GetByIdempotencyKeyAsync(payment.IdempotencyKey);
+                var concurrent = await payments.GetByIdempotencyKeyAsync(payment.Provider, payment.IdempotencyKey);
                 if (concurrent is null)
                     throw;
                 if (!string.Equals(concurrent.RequestFingerprint, fingerprint, StringComparison.OrdinalIgnoreCase))
