@@ -189,6 +189,11 @@ public interface IOutletStaffService
     Task<OutletStaffDto?> UpdateAsync(Guid id, UpdateOutletStaffRequest request);
 }
 
+public interface IIngredientConsumptionService
+{
+    Task<DailyIngredientConsumptionReportDto> GetDailyAsync(DateTime date);
+}
+
 public interface IOutletService { Task<OutletTaxSettingsDto?> GetTaxSettingsAsync(); Task<OutletTaxSettingsDto?> UpdateTaxSettingsAsync(UpdateOutletTaxSettingsRequest request); Task<OutletDashboardDto> GetDashboardAsync(); Task<OutletSubscriptionDetailDto?> GetSubscriptionDetailAsync(Guid subscriptionId); Task<OutletKitchenDayDto> GetKitchenDayAsync(DateTime date); Task<OutletBillingDto?> GetBillingAsync(); Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync(); Task<OutletBillingDto?> ChangeSubscriptionAsync(ChangeOutletSubscriptionRequest request); Task<OutletDto?> GetCurrentAsync(); Task<IReadOnlyList<MealPlanDto>> GetPlansAsync(); Task<MealPlanDto?> CreatePlanAsync(CreateMealPlanRequest request); Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(string? category); Task<RecipeDto?> CreateRecipeAsync(CreateRecipeRequest request); Task<RecipeDto?> UpdateRecipeAsync(Guid recipeId, UpdateRecipeRequest request); Task<bool> DeleteRecipeAsync(Guid recipeId); Task<IReadOnlyList<MenuItemDto>> GetMenuAsync(); Task<IReadOnlyList<MenuItemDto>> SaveMenuAsync(BulkMenuRequest request); Task<IReadOnlyList<UserDto>> GetCustomersAsync(); Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync(); Task<IReadOnlyList<OrderDto>> GetOrdersAsync(); Task<IReadOnlyList<DeliveryDto>> GetDeliveriesAsync(); }
 public interface IAdminService
 {
