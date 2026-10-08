@@ -48,7 +48,8 @@ public record OutletPackageQuoteDto(
     decimal TotalCharged,
     IReadOnlyList<DeliveryQuoteDto> DeliveryQuotes,
     IReadOnlyList<AllergyWarningDto> AllergyWarnings,
-    bool RequiresAllergyConfirmation);
+    bool RequiresAllergyConfirmation,
+    bool RestaurantGstApplicable = false);
 
 public record CreateOutletPackageRequest(
     Guid CustomerId,
