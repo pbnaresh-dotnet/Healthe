@@ -6,7 +6,18 @@ namespace HealthApp.Application.Services;
 public sealed class CatalogService(IIngredientRepository ingredients,IAllergenRepository allergens) : ICatalogService
 {
     public async Task<IReadOnlyList<IngredientDto>> GetIngredientsAsync() =>
-    (await ingredients.GetActiveAsync()).Select(x=>new IngredientDto(x.Id,x.Name,x.DefaultUnit)).ToList();
+    (await ingredients.GetActiveAsync()).Select(x => new IngredientDto(
+        x.Id,
+        x.Name,
+        x.DefaultUnit,
+        x.CaloriesPer100g,
+        x.ProteinGramsPer100g,
+        x.CarbsGramsPer100g,
+        x.FatGramsPer100g,
+        x.FiberGramsPer100g,
+        x.SugarGramsPer100g,
+        x.NutritionSource,
+        x.NutritionReferenceId)).ToList();
     public async Task<IReadOnlyList<AllergenDto>> GetAllergensAsync() =>
     (await allergens.GetActiveAsync()).Select(x=>new AllergenDto(x.Id,x.Name)).ToList();
 }
