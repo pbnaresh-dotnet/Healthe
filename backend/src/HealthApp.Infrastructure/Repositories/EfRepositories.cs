@@ -287,6 +287,16 @@ public sealed class CustomerCreditRepository(HealthAppDbContext db) : EfReposito
             .Select(x => x.Type == CreditTransactionType.Credit || x.Type == CreditTransactionType.Refund ? x.Amount : -x.Amount)
             .SumAsync();
     }
+    public async Task<decimal> GetOutstandingLateSkipAmountAsync(Guid customerId)
+    {
+        var rows = await Context.CustomerCreditTransactions.AsNoTracking()
+            .Where(x => x.CustomerId == customerId &&
+                (x.Reason.StartsWith("Late skip fee for package") || x.Reason.StartsWith("Recovery of late skip fees")))
+            .ToListAsync();
+        var debits = rows.Where(x => x.Type == CreditTransactionType.Debit).Sum(x => x.Amount);
+        var recoveries = rows.Where(x => x.Type == CreditTransactionType.Credit).Sum(x => x.Amount);
+        return Math.Max(0m, Math.Round(debits - recoveries, 2));
+    }
     public async Task<IReadOnlyList<CustomerCreditTransaction>> GetTransactionsAsync(Guid customerId)
     {
         var customer = await Context.Users.AsNoTracking().Where(x => x.Id == customerId).Select(x => new { x.Role, x.OutletId }).FirstOrDefaultAsync();
