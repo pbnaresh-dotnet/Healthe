@@ -108,6 +108,9 @@ public sealed class FinanceTaxRuleRepository(HealthAppDbContext db) : EfReposito
             .ThenByDescending(x => x.EffectiveFromUtc)
             .ThenByDescending(x => x.IsDefault)
             .FirstOrDefaultAsync();
+    public Task<FinanceTaxRule?> GetByIdAsync(Guid id)
+        => Context.FinanceTaxRules.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+
 }
 
 
