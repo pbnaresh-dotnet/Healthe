@@ -871,7 +871,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if(item.Status!=MealSelectionStatus.Scheduled)throw new InvalidOperationException("This meal is no longer available to skip.");
         var now=DateTime.UtcNow;
         var late=lateSkipPolicy.IsLate(now,item.MealDate);
-        var fee=lateSkipPolicy.GetFee(now,item.MealDate);
+        var fee=lateSkipPolicy.GetFee(now,item.MealDate,outlet.LateSkipFee);
         item.Status=MealSelectionStatus.Unused;
         item.SkippedAtUtc=now;
         item.LateSkipFee=fee;
@@ -883,7 +883,10 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             }
             await selectionHistory.AddAsync(new MealSelectionHistory {
                 Id=Guid.NewGuid(),MealSelectionId=item.Id,SubscriptionId=s.Id,Action="Skipped",OccurredAtUtc=now,FromMealDate=item.MealDate,Reason=r.Reason,Amount=fee
-            }); if(late)await events.PublishAsync(new MealSkippedEvent(s.Id,item.Id,s.CustomerId,s.OutletId,item.MealPrice,item.DeliveryFee,true,fee,r.Reason));
+            }); if(late) {
+                await credits.AddAsync(new CustomerCreditTransaction { Id=Guid.NewGuid(), CustomerId=s.CustomerId, SubscriptionId=s.Id, MealSelectionId=item.Id, Amount=fee, Type=CreditTransactionType.Debit, Reason=$"Late skip fee for package {s.Id:N}; outlet {s.OutletId:N}", CreatedAt=now });
+                await events.PublishAsync(new MealSkippedEvent(s.Id,item.Id,s.CustomerId,s.OutletId,item.MealPrice,item.DeliveryFee,true,fee,r.Reason));
+            }
         });
         return (await MapSelections(s.OutletId, new[] {
             item
@@ -897,9 +900,12 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var now=DateTime.UtcNow;
         await unitOfWork.ExecuteAsync(async()=> {
             foreach(var item in items) {
-                var fee=lateSkipPolicy.GetFee(now,item.MealDate); item.Status=MealSelectionStatus.Unused; item.SkippedAtUtc=now; item.LateSkipFee=fee; await selections.UpdateAsync(item); await selectionHistory.AddAsync(new MealSelectionHistory {
+                var fee=lateSkipPolicy.GetFee(now,item.MealDate,outlet.LateSkipFee); item.Status=MealSelectionStatus.Unused; item.SkippedAtUtc=now; item.LateSkipFee=fee; await selections.UpdateAsync(item); await selectionHistory.AddAsync(new MealSelectionHistory {
                     Id=Guid.NewGuid(),MealSelectionId=item.Id,SubscriptionId=s.Id,Action="Skipped",OccurredAtUtc=now,FromMealDate=item.MealDate,Reason=r.Reason,Amount=fee
-                }); if(fee>0)await events.PublishAsync(new MealSkippedEvent(s.Id,item.Id,s.CustomerId,s.OutletId,item.MealPrice,item.DeliveryFee,true,fee,r.Reason));
+                }); if(fee>0) {
+                    await credits.AddAsync(new CustomerCreditTransaction { Id=Guid.NewGuid(), CustomerId=s.CustomerId, SubscriptionId=s.Id, MealSelectionId=item.Id, Amount=fee, Type=CreditTransactionType.Debit, Reason=$"Late skip fee for package {s.Id:N}; outlet {s.OutletId:N}", CreatedAt=now });
+                    await events.PublishAsync(new MealSkippedEvent(s.Id,item.Id,s.CustomerId,s.OutletId,item.MealPrice,item.DeliveryFee,true,fee,r.Reason));
+                }
             }
             foreach(var d in (await deliveries.GetBySubscriptionAsync(s.Id)).Where(x=>x.ScheduledDate.Date==date.Date&&x.Status==DeliveryStatus.Scheduled)) {
                 d.Status=DeliveryStatus.Skipped; await deliveries.UpdateAsync(d);
