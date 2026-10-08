@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
@@ -379,14 +381,25 @@ public sealed class PaymentService(
         if (subscription.IsOutletCreated && subscription.PackageStatus != "PaymentPending")
             throw new InvalidOperationException("Accept the outlet-created package before making payment.");
 
-        var existing = await payments.GetByIdempotencyKeyAsync(request.IdempotencyKey);
+        var fingerprint = ComputePaymentFingerprint(
+            gateway.Provider,
+            subscription.Id,
+            subscription.TotalCharged,
+            "INR");
+
+        var existing = await payments.GetByIdempotencyKeyAsync(request.IdempotencyKey.Trim());
         if (existing is not null)
         {
             if (existing.CustomerId != customerId ||
-                existing.SubscriptionId != subscription.Id)
-                throw new InvalidOperationException("The payment idempotency key is already in use.");
+                existing.SubscriptionId != subscription.Id ||
+                !string.Equals(existing.RequestFingerprint, fingerprint, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("The payment idempotency key is already in use for a different payment request.");
 
-            return MapCheckout(existing);
+            if (!string.IsNullOrWhiteSpace(existing.PaymentSessionId) || existing.Status == "Paid")
+                return MapCheckout(existing);
+
+            // A previous attempt may have created the provider order but failed before
+            // our database update. Reuse the same provider order and idempotency key.
         }
 
         var customer = await users.FindByIdAsync(customerId)
@@ -400,7 +413,7 @@ public sealed class PaymentService(
         if (customerPhone.Length < 10)
             throw new InvalidOperationException("A valid customer mobile number is required before payment.");
 
-        var payment = new PaymentTransaction
+        var payment = existing ?? new PaymentTransaction
         {
             Id = Guid.NewGuid(),
             CustomerId = customerId,
@@ -410,16 +423,38 @@ public sealed class PaymentService(
             Provider = gateway.Provider,
             ProviderOrderId = $"BRC-CUS-{Guid.NewGuid():N}",
             IdempotencyKey = request.IdempotencyKey.Trim(),
+            RequestFingerprint = fingerprint,
+            ProcessingStatus = "CreatingProviderOrder",
+            AttemptCount = 0,
             Amount = subscription.TotalCharged,
             Currency = "INR",
             Status = "Pending",
             CreatedAtUtc = DateTime.UtcNow
         };
 
-        await payments.AddAsync(payment);
+        if (existing is null)
+        {
+            try
+            {
+                await payments.AddAsync(payment);
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+            {
+                var concurrent = await payments.GetByIdempotencyKeyAsync(payment.IdempotencyKey);
+                if (concurrent is null)
+                    throw;
+                if (!string.Equals(concurrent.RequestFingerprint, fingerprint, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("The payment idempotency key is already in use for a different payment request.");
+                payment = concurrent;
+            }
+        }
 
         try
         {
+            payment.AttemptCount++;
+            payment.LastAttemptAtUtc = DateTime.UtcNow;
+            await payments.UpdateAsync(payment);
+
             var checkout = await gateway.CreateOrderAsync(
                 new PaymentGatewayCreateOrderRequest(
                     payment.ProviderOrderId,
@@ -434,6 +469,8 @@ public sealed class PaymentService(
                     $"Broccoly meal subscription {subscription.PlanName}"),
                 cancellationToken);
 
+            payment.ProcessingStatus = "ProviderOrderCreated";
+            payment.NextRetryAtUtc = null;
             payment.PaymentSessionId = checkout.PaymentSessionId;
             payment.ProviderStatus = checkout.Status;
             payment.GatewayResponseJson = JsonSerializer.Serialize(new
@@ -448,7 +485,10 @@ public sealed class PaymentService(
         }
         catch (Exception ex)
         {
-            payment.Status = "Failed";
+            payment.ProcessingStatus = "ProviderOrderCreationFailed";
+            payment.LastErrorCode = ex.GetType().Name;
+            payment.NextRetryAtUtc = DateTime.UtcNow.AddSeconds(Math.Min(300, 10 * Math.Pow(2, Math.Max(0, payment.AttemptCount - 1))));
+            payment.Status = "Pending";
             payment.FailureReason = ex.Message.Length > 900 ? ex.Message[..900] : ex.Message;
             await payments.UpdateAsync(payment);
             throw;
@@ -570,6 +610,13 @@ public sealed class PaymentService(
 
         await payments.UpdateAsync(payment);
     }
+
+    private static string ComputePaymentFingerprint(string provider, Guid subscriptionId, decimal amount, string currency)
+    {
+        var canonical = $"{provider.Trim().ToUpperInvariant()}|{subscriptionId:N}|{amount:F2}|{currency.Trim().ToUpperInvariant()}";
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
+    }
+
 
     private async Task<string> GetCustomerReturnUrlAsync(Guid outletId)
     {
