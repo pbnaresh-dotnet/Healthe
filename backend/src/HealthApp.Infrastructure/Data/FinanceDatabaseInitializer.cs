@@ -763,6 +763,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion132Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion133Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion134Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion135Async(db, document, cancellationToken);
             return;
         }
 
@@ -2022,5 +2023,77 @@ WHERE NOT EXISTS
         document.UpdatedAtUtc = now;
         await db.SaveChangesAsync(cancellationToken);
     }
+
+    private static async Task SeedFinancePolicyVersion135Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.5",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.4")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode, x.Title, x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.3.5: provider settlement imports may capture reported gross/net amounts. The system independently recalculates net settlement from the paid transaction, gateway fee, fee tax and provider adjustment, then compares the provider-reported net before reconciliation.",
+                "governance" => x.ContentMarkdown + " Policy v1.3.5: Cashfree settlement rows are normalized through provider-specific aliases into the provider-neutral reconciliation contract. Missing identifiers, unmatched payments and financial amount mismatches become persistent open exceptions and are never auto-forced into a settlement.",
+                "audit-trace" => x.ContentMarkdown + " Policy v1.3.5: the original normalized row JSON, provider payment ID, settlement ID, exception type, error and resolution metadata are retained for audit review.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder).Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.3.5",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Add Cashfree settlement normalization and persistent reconciliation exception workflow.",
+            ChangeReason = "Prevent provider report differences, missing identifiers and unmatched settlement rows from being silently reconciled.",
+            SourceCodeReference = "FIN-Phase-2E-CASHFREE-SETTLEMENT-NORMALIZATION-EXCEPTIONS",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
 
 }
