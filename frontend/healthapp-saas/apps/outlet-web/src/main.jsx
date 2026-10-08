@@ -444,6 +444,240 @@ function OutletPackageBuilder({customers,recipes,menu,customerId,addresses,durat
  <section className="panel packageSetupPanel"><div className="panelHead"><div><h3>2. Package setup</h3><p>Set dates, delivery mode and your negotiated customer discount.</p></div></div><div className="formGrid"><Field label="Duration"><select value={duration} onChange={e=>{setDuration(e.target.value);setSelections({});setDayAddresses({});setMealAddresses({});setPortions({})}}><option value="ThreeDays">3 days</option><option value="FiveDays">5 days</option><option value="OneWeek">1 week</option><option value="TwoWeeks">2 weeks</option><option value="OneMonth">4 weeks</option></select></Field><Field label="Start date"><input type="date" value={startDate} onChange={e=>{setStartDate(e.target.value);setSelections({});setDayAddresses({});setMealAddresses({});setPortions({})}}/></Field><Field label="Delivery mode"><select value={deliveryMode} onChange={e=>setDeliveryMode(e.target.value)}><option value="OneDeliveryPerDay">One delivery per day</option><option value="IndividualMealDelivery">Individual meal delivery</option></select></Field><Field label="Discount type"><select value={discountType} onChange={e=>setDiscountType(e.target.value)}><option value="None">No negotiated discount</option><option value="Percent">Percentage</option><option value="Fixed">Fixed amount</option></select></Field>{discountType!=='None'&&<Field label={discountType==='Percent'?'Discount %':'Discount amount (₹)'}><input type="number" min="0" step=".01" max={discountType==='Percent'?100:undefined} value={discountValue} onChange={e=>setDiscountValue(e.target.value)}/></Field>}{discountType!=='None'&&<Field label="Discount reason" help="Required for audit when a negotiated discount is applied."><input value={discountReason} onChange={e=>setDiscountReason(e.target.value)} placeholder="Existing customer · cash negotiation…" required={discountType!=='None'}/></Field>}</div></section>
  <section className="panel packageSchedulePanel"><div className="panelHead"><div><h3>3. Meal schedule</h3><p>Select a main meal plus any configured juice, snack, curd or other items for each day & slot.</p></div><span className="count">{dates.length} days</span></div>{dates.map(date=><div className="packageDayRow" key={date}><div className="packageDayHead"><div><b>{dayName(dayId(date))}</b><span>{date}</span></div><label className="field"><span>Day address</span><select value={dayAddresses[date]||''} onChange={e=>setDay(e.target.value?date:date,e.target.value)}><option value="">Choose address…</option>{addresses.map(a=><option key={a.id} value={a.id}>{a.label} · {a.areaName||a.city}</option>)}</select></label></div><div className="packageSlotGrid">{[['Morning',1],['Afternoon',2],['Evening',3],['Night',4]].map(([label,slot])=>{const opts=menuFor(date,slot);const k=packageKey(date,slot);const selectedIds=Array.isArray(selections[k])?selections[k].filter(Boolean).map(x=>typeof x==='string'?x:x.recipeId):(selections[k]?.recipeId?[selections[k].recipeId]:[]);return <div className={opts.length?'packageSlotCard':'packageSlotCard disabled'} key={slot}><div><b>{label}</b><small>{opts.length?(selectedIds.length?selectedIds.length+' items selected':opts.length+' choices'):'No menu'}</small></div>{opts.length&&<><OutletPackageMultiSelect options={opts} selectedIds={selectedIds} onChange={ids=>setSlotSelections(date,slot,ids)}/>{selectedIds.length>0&&<div className="packageSelectedItems">{selectedIds.map(recipeId=>{const item=opts.find(x=>x.recipeId===recipeId);const pk=packageItemKey(date,slot,recipeId);return <div className="packageSelectedItem" key={recipeId}><div><b>{item?.recipeName||'Selected item'}</b><small>{item?.mealType||item?.optionGroup||'Item'}</small></div><label><span>Portion</span><select value={portions[pk]||1} onChange={e=>setPortion(date,slot,recipeId,e.target.value)}><option value="1">Regular</option><option value="2">Large</option></select></label></div>})}</div>}{deliveryMode==='IndividualMealDelivery'&&selectedIds.length>0&&<select className="packageItemAddressSelect" value={mealAddresses[k]||''} onChange={e=>setMealAddress(date,slot,e.target.value)}><option value="">Use day address</option>{addresses.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select>}</>}</div>})}</div></div>)}</section>
  <section className="packageBottomGrid"><section className="panel packageWarningsPanel">{quote?.allergyWarnings?.length?<><div className="panelHead"><div><h3>4. Allergy & safety review</h3><p>These warnings come from the customer's saved allergies and the recipe ingredient master.</p></div></div>{quote.allergyWarnings.map(w=><label className="packageWarningRow" key={w.recipeId}><input type="checkbox" checked={confirmedAllergies.includes(w.recipeId)} onChange={e=>setConfirmedAllergies(e.target.checked?[...confirmedAllergies,w.recipeId]:confirmedAllergies.filter(id=>id!==w.recipeId))}/><div><b>{w.recipeName}</b><span>{w.message}</span><small>{w.matchedIngredients?.join(', ')}</small></div></label>)}</>:<div className="packageSafe"><b>Safety check</b><span>Calculate the quote to check this customer's saved allergy profile.</span></div>}</section><aside className="panel packageQuotePanel"><div className="panelHead"><div><span className="eyebrow">5. PRICE & GST</span><h3>Customer total</h3></div></div>{quote?<div className="packageQuoteRows"><div><span>Gross meals</span><b>{money(quote.grossMealAmount)}</b></div><div><span>Negotiated discount</span><b>− {money(quote.discountAmount)}</b></div><div><span>{quote.restaurantGstMode==='Inclusive'?'Taxable meal value':'Net meals'}</span><b>{money(quote.restaurantTaxableAmount)}</b></div><div><span>Restaurant GST · {Number(quote.restaurantGstRate)}% ({quote.restaurantGstMode})</span><b>{money(quote.restaurantGstAmount)}</b></div><div><span>Delivery</span><b>{money(quote.deliveryFee)}</b></div><div><span>HealthApp service fee</span><b>{money(quote.platformServiceFee)}</b></div><div><span>Service fee GST</span><b>{money(quote.platformServiceGst)}</b></div><div className="quoteGrand"><span>Total payable</span><strong>{money(quote.totalCharged)}</strong></div>{quote.restaurantGstMode==='Inclusive'&&<div className="taxIncludedNote">✓ GST is included in meal prices and reported separately.</div>}</div>:<div className="packageQuoteEmpty">Calculate the package quote to see discount, GST, delivery and the final customer total.</div>}<div className="packageBuilderActions"><button className="secondary" type="button" onClick={quotePackage} disabled={!customerId||!selectedCount}>Calculate quote</button><button className="primary big" type="button" onClick={createPackage} disabled={!quote||Boolean(quote.requiresAllergyConfirmation&&!quote.allergyWarnings?.every(w=>confirmedAllergies.includes(w.recipeId)))}>Send package to customer →</button></div><small>Online payment is completed by the customer. For cash/manual payment, use Mark paid from Subscriptions after the package is sent.</small></aside></section></div>}
+function SubscriptionsPage({items,customers,onOpen,onMarkPaid,onConfirm,onCreate}) {
+ const names=new Map(customers.map(x=>[x.id,(x.firstName+' '+x.lastName).trim()]));
+ return <div className="page"><div className="pageHead"><div><span className="eyebrow">CUSTOMER PACKAGES</span><h1>Subscriptions</h1><p>Review customer-created packages, confirm pricing, record payment and activate delivery.</p></div><button className="primary" onClick={onCreate}>+ Create package</button></div>
+ <section className="panel">{items.length?<div className="subscriptionList">{items.map(x=>{
+   const review=x.packageStatus==='PendingOutletReview';
+   const paymentPending=x.packageStatus==='PaymentPending'||(x.isOutletCreated&&x.packageStatus==='SentToCustomer');
+   const paid=String(x.status).toLowerCase()==='active'||x.packageStatus==='Active';
+   return <div className="subscriptionCard packageListCard" key={x.id} onClick={()=>onOpen(x.id)}>
+     <div className="subscriptionMain"><div className="avatar">{(names.get(x.customerId)||'C').slice(0,1).toUpperCase()}</div><div><b>{x.planName}</b><span>{names.get(x.customerId)||'Customer'} · {x.isOutletCreated?'Outlet-created package':'Customer-created package'}</span></div></div>
+     <div className="packageListMeta"><span className={paid?'pill green':review?'pill amber':'pill'}>{paid?'PAID / ACTIVE':review?'AWAITING PRICE REVIEW':paymentPending?'PAYMENT PENDING':x.status}</span><b>{x.mealsPerWeek} meals</b><span>{new Date(x.nextDeliveryDate).toLocaleDateString()}</span>{review&&<button type="button" className="primary smallBtn" onClick={e=>{e.stopPropagation();onConfirm(x.id)}}>Confirm & finalise price</button>}{paymentPending&&!paid&&<button type="button" className="secondary smallBtn" onClick={e=>{e.stopPropagation();onMarkPaid(x.id)}}>Mark paid</button>}<i>→</i></div>
+   </div>;
+ })}</div>:<Empty title="No subscriptions yet" text="Customer-created packages awaiting review will appear here."/>}</section></div>
+}
+
+function SubscriptionDetail({data}) {
+ return <div className="subscriptionDetail">
+  <div className="detailHeader"><div><span className="eyebrow">CUSTOMER PACKAGE</span><h2>{data.planName}</h2><p>{data.customerName} · {data.customerEmail||'No email'}</p></div><span className="pill green">{data.status}</span></div>
+  <div className="detailStats">
+   <div><span>Start</span><b>{new Date(data.startDate).toLocaleDateString()}</b></div><div><span>End</span><b>{new Date(data.endDate).toLocaleDateString()}</b></div><div><span>Meals</span><b>{data.mealsPerWeek}</b></div><div><span>Delivery mode</span><b>{data.deliveryMode}</b></div>
+  </div>
+  <div className="financialStrip"><div><span>Gross meal prices</span><b>{money(data.mealAmount)}</b></div><div><span>Discount</span><b>− {money(data.discountAmount)}</b></div><div><span>Taxable meal value</span><b>{money(data.restaurantTaxableAmount??data.mealAmount)}</b></div><div><span>Restaurant GST · {Number(data.restaurantGstRate||0)}% ({data.restaurantGstMode||'Exclusive'})</span><b>{money(data.restaurantGstAmount)}</b></div><div><span>Package value incl. GST</span><strong>{money(data.packageAmountWithGst)}</strong></div><div><span>Delivery fees</span><b>{money(data.deliveryFee)}</b></div></div>
+  <h3>Meal schedule</h3>
+  <div className="scheduleTable"><div className="scheduleRow header"><span>Date</span><span>Time</span><span>Meal</span><span>Portion</span><span>Address</span><span>Status</span></div>
+   {data.meals.map(m=><div className="scheduleRow" key={m.selectionId}><span>{new Date(m.mealDate).toLocaleDateString()}</span><span>{m.mealSlotName}<small>{m.deliveryWindow}</small></span><span><b>{m.mealName}</b><small>{m.category}</small></span><span>{m.portionSize}</span><span><b>{m.addressLabel||'Address'}</b><small>{m.address + (m.areaName ? ', ' + m.areaName : '') + (m.pincode ? ' ' + m.pincode : '')}</small><small>{m.contactPhone}</small></span><span className="pill">{m.status}</span></div>)}
+  </div>
+ </div>
+}
+
+function KitchenPage({data,date,setDate,refresh}) {
+ const [printOpen,setPrintOpen]=useState(false);
+ const [printMode,setPrintMode]=useState('');
+ const [printSlots,setPrintSlots]=useState([2,3]);
+ const slots=[
+  {value:1,name:'Morning'},
+  {value:2,name:'Afternoon'},
+  {value:3,name:'Evening'},
+  {value:4,name:'Night'}
+ ];
+ const selectedLabels=useMemo(()=>data?.labels?.filter(l=>printSlots.includes(Number(l.mealSlot)))||[],[data,printSlots]);
+ const production=useMemo(()=>{
+  const map=new Map();
+  selectedLabels.forEach(l=>{
+   const key=[l.mealName,l.category,l.portionSize].join('|');
+   const current=map.get(key);
+   map.set(key,{mealName:l.mealName,category:l.category,portionSize:l.portionSize,quantity:(current?.quantity||0)+1});
+  });
+  return [...map.values()].sort((a,b)=>a.mealName.localeCompare(b.mealName)||a.portionSize.localeCompare(b.portionSize));
+ },[selectedLabels]);
+ const toggleSlot=value=>setPrintSlots(x=>x.includes(value)?x.filter(v=>v!==value):[...x,value]);
+ const doPrint=mode=>{
+  if(mode==='kitchen'&&!production.length)return;
+  if(mode==='labels'&&!selectedLabels.length)return;
+  setPrintMode(mode);
+  setPrintOpen(false);
+ };
+ useEffect(()=>{
+  if(!printMode)return;
+  const timer=setTimeout(()=>{window.print();setPrintMode('')},120);
+  return()=>clearTimeout(timer);
+ },[printMode]);
+ return <div className="page">
+  <div className="pageHead no-print"><div><span className="eyebrow">KITCHEN OPERATIONS</span><h1>Kitchen & Labels</h1><p>Daily production quantities and concise delivery labels for {new Date(date).toLocaleDateString()}.</p></div><div className="pageActions"><input type="date" value={date} onChange={e=>{setDate(e.target.value);refresh(e.target.value)}}/><button className="secondary" onClick={()=>refresh(date)}>Refresh</button><button className="primary" onClick={()=>setPrintOpen(true)} disabled={!data}>Print options</button></div></div>
+  {!data?<Empty title="No kitchen report loaded" text="Select a date and refresh the report."/>:<>
+   <div className="statGrid no-print">
+    <div className="statCard static"><div><span>Meal boxes</span><b>{data.totalMeals}</b></div></div>
+    <div className="statCard static"><div><span>Customers</span><b>{data.uniqueCustomers}</b></div></div>
+    <div className="statCard static"><div><span>Subscriptions</span><b>{data.activeSubscriptions}</b></div></div>
+   </div>
+   <section className="panel no-print">
+    <div className="panelHead"><div><h3>Production plan</h3><p>Prepare total quantities across the selected delivery windows.</p></div><span className="pill">{production.reduce((sum,x)=>sum+x.quantity,0)} meals</span></div>
+    {production.length?<div className="productionTable"><div className="productionTableRow header"><span>Meal</span><span>Category</span><span>Portion</span><span>Qty</span></div>{production.map(p=><div className="productionTableRow" key={p.mealName+p.category+p.portionSize}><b>{p.mealName}</b><span>{p.category}</span><span>{p.portionSize}</span><strong>{p.quantity}</strong></div>)}</div>:<Empty title="No Afternoon / Evening meals" text="Choose another date or delivery window."/>}
+   </section>
+   <section className="no-print slotSummary"><span>Print window:</span>{slots.filter(s=>printSlots.includes(s.value)).map(s=><button key={s.value} className="slotChip active" onClick={()=>toggleSlot(s.value)}>{s.name} ×</button>)}{slots.filter(s=>!printSlots.includes(s.value)).map(s=><button key={s.value} className="slotChip" onClick={()=>toggleSlot(s.value)}>+ {s.name}</button>)}</section>
+
+   <section className={printMode==='kitchen'?'kitchenPrintArea printTarget':'kitchenPrintArea'}>
+    <div className="kitchenPrintHeader"><div className="healthLogo printLogo">H</div><div><b>HealthApp · Kitchen Production</b><span>{data.outletName} · {new Date(date).toLocaleDateString()} · {printSlots.map(v=>slots.find(s=>s.value===v)?.name).join(' + ')}</span></div></div>
+    <table className="kitchenPrintTable"><thead><tr><th>Meal</th><th>Category</th><th>Portion</th><th>Qty</th></tr></thead><tbody>{production.map(p=><tr key={p.mealName+p.category+p.portionSize}><td>{p.mealName}</td><td>{p.category}</td><td>{p.portionSize}</td><td><b>{p.quantity}</b></td></tr>)}</tbody></table>
+    <div className="kitchenPrintFooter">Production total: <b>{production.reduce((sum,x)=>sum+x.quantity,0)} meal boxes</b></div>
+   </section>
+
+   <section className={printMode==='labels'?'labelPrintArea printTarget':'labelPrintArea'}>
+    <div className="labelsPrintHeader"><div className="healthLogo printLogo">H</div><div><b>{data.outletName}</b><span>Delivery labels · {new Date(date).toLocaleDateString()} · {printSlots.map(v=>slots.find(s=>s.value===v)?.name).join(' + ')}</span></div></div>
+    <div className="labelGrid">{selectedLabels.map(l=><article className="labelCard" key={l.selectionId}>
+      <div className="labelTop"><div className="labelOutletBrand">{l.logoUrl?<img src={img(l.logoUrl)} alt=""/>:<div className="outletLogo">{(l.outletName||'O')[0]}</div>}<b>{l.outletName}</b></div><span>{l.subscriptionPlanName}</span></div>
+      <div className="labelCustomerCompact"><span>{l.addressLabel||'DELIVERY'}</span><b>{l.customerName}</b></div>
+      <div className="labelMealCompact"><b>{l.mealName}</b><span>{l.category} · {l.portionSize}</span></div>
+      <div className="labelMetaRow"><span>{l.mealSlotName}</span><b>{l.deliveryWindow}</b></div>
+      <div className="labelAddressCompact"><b>{l.address}</b><span>{[l.areaName,l.pincode].filter(Boolean).join(' · ')}</span>{l.customerPhone&&<span>☎ {l.customerPhone}</span>}</div>
+      <div className="labelFooterCompact"><span>HealthApp</span><b>#{String(l.selectionId).slice(0,6).toUpperCase()}</b></div>
+    </article>)}</div>
+   </section>
+  </>}
+  {printOpen&&<Modal title="Print options" onClose={()=>setPrintOpen(false)}>
+   <div className="printOptions">
+    <div className="printOptionBlock"><div><b>Delivery windows</b><small>Select the meal windows for both the kitchen sheet and labels.</small></div><div className="printSlotChoices">{slots.map(s=><button type="button" key={s.value} className={printSlots.includes(s.value)?'printSlotChoice checked':'printSlotChoice'} onClick={()=>toggleSlot(s.value)}>{printSlots.includes(s.value)?'✓':'+'} {s.name}</button>)}</div></div>
+    <div className="printChoice"><div><b>Kitchen production sheet</b><small>One consolidated table: meal, category, portion and total quantity.</small></div><button className="primary" onClick={()=>doPrint('kitchen')} disabled={!production.length}>Print kitchen</button></div>
+    <div className="printChoice"><div><b>Meal-box labels</b><small>{selectedLabels.length} concise labels for the selected windows.</small></div><button className="primary" onClick={()=>doPrint('labels')} disabled={!selectedLabels.length}>Print labels</button></div>
+   </div>
+  </Modal>}
+ </div>
+}
+
+function MapBounds({coords}){const map=useMap();useEffect(()=>{if(!coords.length)return;const bounds=coords.map(x=>[x[0],x[1]]);map.fitBounds(bounds,{padding:[30,30],maxZoom:13})},[map,coords]);return null}
+function DeliveryRoutesPage({plan,drivers,date,mealSlot,setDate,setMealSlot,selectedDriverIds,setSelectedDriverIds,planRoutes,dispatchRoute,addDriver,manualPlanRoutes}){
+ const routeColor=i=>`hsl(${(i*67)%360} 65% 42%)`;
+ const assigned=new Set((plan?.routes||[]).flatMap(r=>r.stops.map(s=>s.addressId)));
+ const bounds=plan?[[plan.outletLatitude,plan.outletLongitude],...(plan.points||[]).filter(p=>!assigned.has(p.addressId)).map(p=>[p.latitude,p.longitude]),...(plan.routes||[]).flatMap(r=>(r.geometry||[]).map(p=>[p[1],p[0]]))]:[];
+ const slot=SLOTS.find(s=>s[1]===Number(mealSlot))||SLOTS[1];
+ const slotName=slot[0];
+ const slotWindow=slotName==='Afternoon'?'12:00–14:00':slotName==='Evening'?'17:00–19:00':slotName==='Morning'?'07:00–09:00':'20:00–22:00';
+ const points=plan?.points||[];
+ const unassigned=points.filter(p=>!assigned.has(p.addressId));
+
+ const [manualMode,setManualMode]=useState(false);
+ const [manualAssignments,setManualAssignments]=useState({});
+ const selectedDrivers=drivers.filter(d=>selectedDriverIds.includes(d.id));
+ const initializeManual=()=>{const next={};for(const route of plan?.routes||[])next[route.driverId]=(route.stops||[]).map(s=>s.addressId);setManualAssignments(next);setManualMode(true)};
+ const manualAssignedIds=new Set(Object.values(manualAssignments).flat());
+ const manualPool=points.filter(p=>!manualAssignedIds.has(p.addressId));
+ const manualDriverPoints=id=>points.filter(p=>(manualAssignments[id]||[]).includes(p.addressId));
+ const removeManualPoint=id=>setManualAssignments(prev=>Object.fromEntries(Object.entries(prev).map(([driver,ids])=>[driver,ids.filter(x=>x!==id)])));
+ const dropManualPoint=(e,driverId)=>{e.preventDefault();const id=e.dataTransfer.getData('text/plain');if(!id)return;setManualAssignments(prev=>{const next={...prev};for(const k of Object.keys(next))next[k]=(next[k]||[]).filter(x=>x!==id);next[driverId]=[...(next[driverId]||[]),id];return next})};
+ const saveManual=async()=>{if(!selectedDrivers.length)return manualPlanRoutes(null,'Select at least one active driver.');if(manualPool.length)return manualPlanRoutes(null,'Assign every delivery stop to a driver before saving manual routes.');const assignments=selectedDrivers.map(d=>({driverId:d.id,addressIds:manualAssignments[d.id]||[]})).filter(x=>x.addressIds.length);if(!assignments.length)return manualPlanRoutes(null,'Assign at least one delivery stop to a driver.');await manualPlanRoutes(assignments,'')};
+ return <div className="page">
+  <div className="pageHead"><div><span className="eyebrow">LAST-MILE OPERATIONS</span><h1>Delivery Routes</h1><p>Choose a delivery window, review the stops, then use automatic planning or manually assign stops before dispatch.</p></div><div className="pageActions"><input type="date" value={date} onChange={e=>setDate(e.target.value)}/><button className="secondary" onClick={addDriver}>+ Driver</button><button className={manualMode?'secondary':'secondary'} onClick={manualMode?()=>setManualMode(false):initializeManual}>{manualMode?'Back to routes':'Manual assignment'}</button><button className="primary" onClick={planRoutes} disabled={!drivers.length||!points.length||manualMode}>Optimize routes</button>{manualMode&&<button className="primary" onClick={saveManual} disabled={!selectedDrivers.length||manualPool.length>0}>Save manual routes</button>}</div></div>
+  <section className="panel routeControls">
+   <div className="panelHead"><div><h3>Delivery window</h3><p>{slotName} deliveries for {new Date(date+'T00:00:00').toLocaleDateString()} · {slotWindow}</p></div><span className="count">{plan?.totalDeliveryPoints||0} stops · {plan?.totalDeliveries||0} delivery jobs</span></div>
+   <div className="routeSlotPicker">{SLOTS.map(s=><button type="button" key={s[1]} className={Number(mealSlot)===s[1]?'routeSlotChoice active':'routeSlotChoice'} onClick={()=>setMealSlot(s[1])}><b>{s[0]}</b><small>{s[0]==='Morning'?'07:00–09:00':s[0]==='Afternoon'?'12:00–14:00':s[0]==='Evening'?'17:00–19:00':'20:00–22:00'}</small></button>)}</div>
+   <div className="panelHead routeDriverHead"><div><h3>Drivers</h3><p>Select active drivers created under Team. You can let the planner distribute stops or assign them manually.</p></div><span className="count">{selectedDriverIds.length} selected · {drivers.length} active</span></div>
+   <div className="driverPicker">{drivers.map(d=><label key={d.id} className={selectedDriverIds.includes(d.id)?'driverChoice checked':'driverChoice'}><input type="checkbox" checked={selectedDriverIds.includes(d.id)} onChange={e=>setSelectedDriverIds(e.target.checked?[...selectedDriverIds,d.id]:selectedDriverIds.filter(x=>x!==d.id))} disabled={manualMode}/><span><b>{d.name}</b><small>{d.email}</small></span></label>)}</div>
+   {!drivers.length&&<div className="notice"><b>No drivers yet.</b><span>Add an in-house driver, then calculate the route.</span></div>}
+  </section>
+  {!plan?<Empty title="No route plan loaded" text="Select a date and delivery window to load delivery points."/>:<>
+   {manualMode&&<section className="panel manualAssignmentPanel">
+    <div className="panelHead"><div><span className="eyebrow">MANUAL DISPATCH PREPARATION</span><h3>Assign delivery stops to drivers</h3><p>Drag a stop into a driver. A stop represents one physical delivery address; multiple delivery jobs at the same address stay together.</p></div><span className={manualPool.length?'pill amber':'pill green'}>{manualPool.length?manualPool.length+' unassigned':'All stops assigned'}</span></div>
+    <div className="manualAssignmentGrid">
+      <section className="manualPool" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();const id=e.dataTransfer.getData('text/plain');if(id)removeManualPoint(id)}}>
+        <div className="manualColumnHead"><b>Unassigned stops</b><small>{manualPool.length} remaining</small></div>
+        {manualPool.map(p=><article draggable key={p.addressId} onDragStart={e=>e.dataTransfer.setData('text/plain',p.addressId)} className="manualStopCard"><div className="manualStopNumber">•</div><div><b>{p.customerName}</b><span>{p.deliveryCount} job{p.deliveryCount===1?'':'s'} · {p.address}</span></div></article>)}
+        {!manualPool.length&&<div className="manualEmpty">All delivery stops have a driver.</div>}
+      </section>
+      <div className="manualDriverColumns">{selectedDrivers.map(d=><section key={d.id} className="manualDriverColumn" onDragOver={e=>e.preventDefault()} onDrop={e=>dropManualPoint(e,d.id)}>
+        <div className="manualColumnHead"><div><b>{d.name}</b><small>Drop stops here</small></div><span>{manualDriverPoints(d.id).length}</span></div>
+        <div className="manualColumnBody">{manualDriverPoints(d.id).map(p=><article draggable key={p.addressId} onDragStart={e=>e.dataTransfer.setData('text/plain',p.addressId)} className="manualStopCard assigned"><div className="manualStopNumber">✓</div><div><b>{p.customerName}</b><span>{p.deliveryCount} job{p.deliveryCount===1?'':'s'} · {p.address}</span></div><button type="button" className="iconBtn small" onClick={()=>removeManualPoint(p.addressId)} aria-label="Remove stop">×</button></article>)}{!manualDriverPoints(d.id).length&&<div className="manualDropHint">Drop delivery stops here</div>}</div>
+      </section>)}</div>
+    </div>
+    <div className="manualAssignmentFooter"><span>After saving, HealthApp will calculate the best road order <b>within each driver's assigned stops</b>.</span><button className="secondary" type="button" onClick={()=>setManualAssignments({})}>Clear assignments</button></div>
+   </section>}
+   <div className="statGrid routeStats"><div className="statCard static"><div><span>Delivery points</span><b>{plan.totalDeliveryPoints}</b></div></div><div className="statCard static"><div><span>Delivery jobs</span><b>{plan.totalDeliveries}</b></div></div><div className="statCard static"><div><span>Driver routes</span><b>{plan.routes?.length||0}</b></div></div><div className="statCard static"><div><span>Unassigned</span><b>{plan.unassignedPoints}</b></div></div></div>
+   <section className="mapRouteGrid">
+    <div className="panel mapPanel"><div className="panelHead"><div><h3>{plan.outletName} → delivery points</h3><p>{slotName} · {slotWindow} · blue marker is the outlet; every delivery point represents one address.</p></div><span className="routeLegend"><i/>Outlet <em/>Unassigned</span></div>
+     <MapContainer center={[plan.outletLatitude,plan.outletLongitude]} zoom={12} scrollWheelZoom className="deliveryMap">
+      <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
+      <MapBounds coords={bounds}/>
+      <CircleMarker center={[plan.outletLatitude,plan.outletLongitude]} radius={12} pathOptions={{color:'#14532d',fillColor:'#14532d',fillOpacity:1,weight:3}}><Popup><b>{plan.outletName}</b><br/>Dispatch / outlet location<br/><small>{plan.totalDeliveryPoints} delivery points · {plan.totalDeliveries} delivery jobs</small></Popup></CircleMarker>
+      {(plan.routes||[]).map((route,ri)=><React.Fragment key={route.id}><Polyline positions={(route.geometry||[]).map(p=>[p[1],p[0]])} pathOptions={{color:routeColor(ri),weight:6,opacity:.8}}/>{(route.stops||[]).map(stop=><CircleMarker key={stop.id} center={[stop.latitude,stop.longitude]} radius={9} pathOptions={{color:routeColor(ri),fillColor:routeColor(ri),fillOpacity:.9,weight:2}}><Popup><b>Stop {stop.stopSequence} · {stop.customerName}</b><br/>{stop.deliveryCount} delivery job{stop.deliveryCount===1?'':'s'} at this address.<br/>{stop.address}<br/><small>{route.driverName} · {route.mealSlot} · {route.deliveryWindow}</small></Popup></CircleMarker>)}</React.Fragment>)}
+      {unassigned.map(p=><CircleMarker key={p.deliveryId} center={[p.latitude,p.longitude]} radius={8} pathOptions={{color:'#64748b',fillColor:'#64748b',fillOpacity:.85,weight:2}}><Popup><b>{p.customerName}</b><br/>{p.deliveryCount} delivery job{p.deliveryCount===1?'':'s'} at this address.<br/>{p.address}<br/><small>Unassigned · {p.mealSlot}</small></Popup></CircleMarker>)}
+     </MapContainer>
+     <div className="mapNote">Map tiles: OpenStreetMap · Road routing: {plan.routes?.[0]?.routingSource||'not calculated yet'} · Optimization: {plan.optimizationSource||'not calculated yet'} · planned travel {plan.plannedDistanceKm||0} km / ≈ {Math.round(plan.plannedDurationMinutes||0)} min.</div>
+    </div>
+    <div className="panel routeListPanel"><div className="panelHead"><div><h3>Driver routes</h3><p>Routes can be optimized automatically or manually assigned and then road-ordered per driver.</p></div></div>
+     {(plan.routes||[]).map((route,ri)=><article className="routeCard" key={route.id}><div className="routeCardHead"><div><span className="routeColor" style={{background:routeColor(ri)}}/><div><b>{route.driverName}</b><small>Route {ri+1} · {route.mealSlot} · {route.deliveryWindow} · {route.stops.length} stops</small></div></div><span className="pill green">{route.status}</span></div><div className="routeMetrics"><b>{route.totalDistanceKm} km</b><span>≈ {Math.round(route.totalDurationMinutes)} min</span><span>{route.routingSource}</span></div><div className="stopList">{route.stops.map(stop=><div className="stopRow" key={stop.id}><strong>{stop.stopSequence}</strong><div><b>{stop.customerName}</b><span>{stop.deliveryCount} delivery job{stop.deliveryCount===1?'':'s'} · {stop.address}</span></div></div>)}</div><div className="routeCardActions">{route.status==='Planned'?<button type="button" className="primary smallBtn" onClick={()=>dispatchRoute(route)}>Dispatch route →</button>:route.status==='Dispatched'?<span className="routeDispatchedNote">✓ Dispatched to driver</span>:null}</div></article>)}
+     {!(plan.routes||[]).length&&<Empty title="Routes not calculated yet" text={points.length?"Choose drivers and calculate the "+slotName.toLowerCase()+" routes.":"There are no eligible deliveries for this window."}/>}
+    </div>
+   </section>
+  </>}
+ </div>
+}
+function Page({title,text,content}){return <div className="page"><div className="pageHead"><div><h1>{title}</h1><p>{text}</p></div></div><section className="panel">{content}</section></div>}
+function CustomersPage({customers,onCreate,onOpen}){return <div className="page"><div className="pageHead"><div><span className="eyebrow">CUSTOMER RELATIONSHIPS</span><h1>Customers</h1><p>Manage customers who contact the outlet directly, including their health profile, allergies and delivery addresses.</p></div><button className="primary" onClick={onCreate}>+ Add customer</button></div><section className="panel customerManagerPanel"><div className="customerManagerHead"><div><b>{customers.length}</b><span>connected customer{customers.length===1?'':'s'}</span></div><small>Click a customer to view their full profile.</small></div>{customers.length?<div className="customerManagerList">{customers.map(x=><button type="button" className="customerManagerRow" key={x.id} onClick={()=>onOpen(x)}><div className="customerAvatar">{(x.firstName||'C')[0]}{(x.lastName||'')[0]||''}</div><div className="customerManagerInfo"><b>{x.firstName} {x.lastName}</b><span>{x.email}</span></div><span className="customerManagerRole">{x.role}</span><strong>›</strong></button>)}</div>:<Empty title="No customers yet" text="Add a customer here when an outlet staff member takes a phone order or package request."/>}</section></div>}
+
+function CustomerEditorModal({form,setForm,allergens,saving,editing,onClose,onSave}){const set=(k,v)=>setForm(f=>({...f,[k]:v}));const toggle=id=>set('allergyIds',(form.allergyIds||[]).includes(id)?(form.allergyIds||[]).filter(x=>x!==id):[...(form.allergyIds||[]),id]);return <Modal title={editing?'Edit customer health profile':'Add customer'} onClose={onClose} wide><form onSubmit={onSave}><div className="customerEditorIntro"><div><span className="eyebrow">{editing?'PROFILE UPDATE':'PHONE / WALK-IN CUSTOMER'}</span><h3>{editing?'Update health profile':'Create the customer record now'}</h3><p>Capture the customer details while they are on the phone, then create their package from the outlet.</p></div></div><div className="customerEditorSection"><h4>Customer details</h4><div className="formGrid"><Field label="First name"><input value={form.firstName} onChange={e=>set('firstName',e.target.value)} required={!editing}/></Field><Field label="Last name"><input value={form.lastName} onChange={e=>set('lastName',e.target.value)} required={!editing}/></Field><Field label="Email"><input type="email" value={form.email} onChange={e=>set('email',e.target.value)} required={!editing}/></Field>{!editing&&<Field label="Temporary password" help="Give this to the customer if they need to sign in later."><input type="password" minLength="6" value={form.password} onChange={e=>set('password',e.target.value)} required/></Field>}</div></div><div className="customerEditorSection"><h4>Health profile</h4><div className="formGrid"><Field label="Weight (kg)"><input type="number" min="1" step=".1" value={form.weightKg} onChange={e=>set('weightKg',e.target.value)}/></Field><Field label="Height (cm)"><input type="number" min="1" step=".1" value={form.heightCm} onChange={e=>set('heightCm',e.target.value)}/></Field><Field label="Date of birth"><input type="date" value={form.dateOfBirth} onChange={e=>set('dateOfBirth',e.target.value)}/></Field><Field label="Goal"><select value={form.goal} onChange={e=>set('goal',e.target.value)}><option value="WeightLoss">Weight Loss</option><option value="MuscleGain">Muscle Gain</option><option value="GLP1Support">GLP-1 Support</option><option value="HighPerformance">High Performance</option></select></Field><Field label="Activity level"><select value={form.activityLevel} onChange={e=>set('activityLevel',e.target.value)}><option value="Sedentary">Sedentary</option><option value="Light">Light</option><option value="Moderate">Moderate</option><option value="Active">Active</option><option value="VeryActive">Very Active</option></select></Field><Field label="Diet"><select value={form.diet} onChange={e=>set('diet',e.target.value)}><option value="">Not specified</option><option value="Veg">Vegetarian</option><option value="NonVeg">Non-vegetarian</option><option value="Vegan">Vegan</option><option value="Eggetarian">Eggetarian</option><option value="Pescatarian">Pescatarian</option></select></Field></div><div className="customerAllergyEditor"><span>Allergies</span><p>Select from the HealthApp allergen master list. These choices drive meal safety warnings.</p><div className="customerAllergyOptions">{allergens.map(a=><label key={a.id} className={(form.allergyIds||[]).includes(a.id)?'checked':''}><input type="checkbox" checked={(form.allergyIds||[]).includes(a.id)} onChange={()=>toggle(a.id)}/><span>{a.name}</span></label>)}</div></div></div><div className="modalActions"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={saving}>{saving?(editing?'Saving…':'Creating…'):(editing?'Save profile':'Create customer')}</button></div></form></Modal>}
+
+function CustomerProfileModal({profile,loading,onClose,onEdit,onCreatePackage}){return <Modal title="Customer profile" onClose={onClose} wide>{loading||!profile?<div className="customerProfileLoading">Loading customer profile…</div>:<div className="customerProfileView"><div className="customerProfileHero"><div className="customerProfileAvatar">{(profile.customer.firstName||'C')[0]}{(profile.customer.lastName||'')[0]||''}</div><div><span className="eyebrow">CUSTOMER</span><h3>{profile.customer.firstName} {profile.customer.lastName}</h3><p>{profile.customer.email}</p></div><span className="pill green">{profile.customer.role}</span></div><div className="customerProfileGrid"><section><h4>Health & preferences</h4><div className="customerProfileStats"><div><span>Weight</span><b>{profile.profile?.weightKg?profile.profile.weightKg+' kg':'Not set'}</b></div><div><span>Height</span><b>{profile.profile?.heightCm?profile.profile.heightCm+' cm':'Not set'}</b></div><div><span>BMI</span><b>{profile.profile?.bmi??'—'}</b></div><div><span>Date of birth</span><b>{profile.profile?.dateOfBirth?new Date(profile.profile.dateOfBirth).toLocaleDateString('en-IN'):'Not set'}</b></div></div><div className="customerProfileFacts"><div><span>Goal</span><b>{profile.profile?.goal||'Not set'}</b></div><div><span>Activity</span><b>{profile.profile?.activityLevel||'Not set'}</b></div><div><span>Diet</span><b>{profile.profile?.diet||'Not specified'}</b></div></div><div className="customerProfileAllergies"><span>Allergies</span><div>{profile.profile?.allergies?.length?profile.profile.allergies.map(a=><span key={a.id}>{a.name}</span>):<small>No allergies recorded</small>}</div></div></section><section><div className="customerProfileSectionHead"><h4>Delivery addresses</h4><span>{profile.addresses?.length||0}</span></div>{profile.addresses?.length?<div className="customerProfileAddresses">{profile.addresses.map(a=><div className={a.isDefault?'default':''} key={a.id}><b>{a.label}{a.isDefault?' · Default':''}</b><span>{[a.addressLine1,a.addressLine2,a.areaName,a.city,a.pincode].filter(Boolean).join(', ')}</span><small>{a.contactName} · {a.contactPhone}</small></div>)}</div>:<div className="customerProfileEmpty">No delivery address yet. Add one from Create Package.</div>}</section></div><div className="modalActions"><button className="secondary" onClick={onEdit}>Edit health profile</button><button className="primary" onClick={onCreatePackage}>Create package →</button></div></div>}</Modal>}
+
+function Recipes({items,total,search,setSearch,category,setCategory,openNew,openEdit,remove}){
+ const[mealType,setMealType]=useState('All');
+ const visible=useMemo(()=>items.filter(r=>mealType==='All'||String(r.mealType||'Meal')===mealType),[items,mealType]);
+ return <div className="page recipePage">
+  <div className="pageHead">
+   <div><span className="eyebrow">MENU LIBRARY</span><h1>Recipes & menu items</h1><p>Create reusable food items with a dietary category, meal type, ingredient quantities, nutrition, pricing and allergen metadata.</p></div>
+   <button className="primary" onClick={openNew}>+ New menu item</button>
+  </div>
+  <section className="panel recipeFilterPanel">
+   <div className="recipeFilterIntro"><div><b>Menu library</b><span>{visible.length} of {total} recipes shown</span></div><span className="recipeFilterHint">Meal type is separate from dietary category.</span></div>
+   <div className="recipeFilters">
+    <label><span>Search</span><input className="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search meals, juices, snacks…"/></label>
+    <label><span>Dietary category</span><select value={category} onChange={e=>setCategory(e.target.value)}><option>All</option><option>Veg</option><option>NonVeg</option><option>Vegan</option></select></label>
+    <label><span>Meal type</span><select value={mealType} onChange={e=>setMealType(e.target.value)}><option>All</option>{MEAL_TYPES.map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label>
+   </div>
+  </section>
+  {!visible.length?<Empty title="No matching menu items" text="Try a different filter or create a new menu item."/>:<div className="recipeGrid">{visible.map(r=><article className="recipeCard" key={r.id}>
+   <div className="recipeImage">{r.imageUrl?<img src={img(r.imageUrl)} alt=""/>:<div className="placeholderImage">{r.name?.[0]||'M'}</div>}<span className="badge green">Active</span></div>
+   <div className="recipeBody">
+    <div className="recipeTitle"><div><h3>{r.name}</h3><div className="recipeTypeRow"><span className="recipeMealTypeBadge">{r.mealType||'Meal'}</span><span className="recipeDietBadge">{r.category||'Veg'}</span></div></div><b>{money(r.pricePerMeal)}</b></div>
+    <p>{r.description||'No description yet.'}</p>
+    <div className="nutrition"><span><b>{r.calories||0}</b>kcal</span><span><b>{r.proteinGrams||0}g</b>protein</span><span><b>{r.carbsGrams||0}g</b>carbs</span><span><b>{r.fatGrams||0}g</b>fat</span></div>
+    <div className="recipeMeta"><span>{r.ingredients?.length||0} ingredients</span><span>{r.allergens?.length||0} allergy flags</span></div>
+    <div className="cardActions"><button className="secondary" onClick={()=>openEdit(r)}>Edit</button><button className="dangerText" onClick={()=>remove(r)}>Delete</button></div>
+   </div>
+  </article>)}</div>}
+ </div>
+}
+
+function RecipeForm({form,setForm,ingredients,allergens,upload,uploading,submit,cancel}){
+ const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+ const addIngredient=()=>set('ingredients',[...(form.ingredients||[]),{ingredientId:ingredients[0]?.id||'',quantity:100,unit:ingredients[0]?.defaultUnit||'g'}]);
+ const updateIngredient=(idx,k,v)=>set('ingredients',(form.ingredients||[]).map((x,i)=>i===idx?{...x,[k]:v}:x));
+ const removeIngredient=idx=>set('ingredients',(form.ingredients||[]).filter((_,i)=>i!==idx));
+ const toggleAllergen=id=>set('allergenIds',(form.allergenIds||[]).includes(id)?(form.allergenIds||[]).filter(x=>x!==id):[...(form.allergenIds||[]),id]);
+ return <form onSubmit={submit}>
+  <div className="recipeEditor">
+   <div className="imageUpload"><div className="uploadPreview">{form.imageUrl?<img src={img(form.imageUrl)} alt="preview"/>:<div><span>＋</span><p>Upload menu item photo</p><small>JPG, PNG, WEBP · 10 MB upload limit · resized automatically</small></div>}</div><label className="uploadBtn">{uploading?'Uploading…':form.imageUrl?'Replace image':'Upload image'}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>upload(e.target.files?.[0])}/></label></div>
+   <div className="formGrid">
+    <Field label="Menu item name"><input value={form.name} onChange={e=>set('name',e.target.value)} placeholder="Paneer Power Bowl, Fresh Orange Juice…" required/></Field>
+    <Field label="Meal type" help="This controls whether the item is a Meal, Juice, Snack, Starter, etc."><select value={form.mealType||'Meal'} onChange={e=>set('mealType',e.target.value)}>{MEAL_TYPES.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></Field>
+    <Field label="Dietary category"><select value={form.category} onChange={e=>set('category',e.target.value)}><option>Veg</option><option>NonVeg</option><option>Vegan</option></select></Field>
+    <Field label="Regular price (₹)"><input type="number" min="0" step=".01" value={form.pricePerMeal} onChange={e=>set('pricePerMeal',e.target.value)}/></Field>
+    <Field label="Large price (₹)"><input type="number" min="0" step=".01" value={form.largePricePerMeal} onChange={e=>set('largePricePerMeal',e.target.value)}/></Field>
+    <Field label="Calories"><input type="number" min="0" value={form.calories} onChange={e=>set('calories',e.target.value)}/></Field>
+    <Field label="Protein (g)"><input type="number" min="0" value={form.proteinGrams} onChange={e=>set('proteinGrams',e.target.value)}/></Field>
+    <Field label="Carbs (g)"><input type="number" min="0" value={form.carbsGrams} onChange={e=>set('carbsGrams',e.target.value)}/></Field>
+    <Field label="Fat (g)"><input type="number" min="0" value={form.fatGrams} onChange={e=>set('fatGrams',e.target.value)}/></Field>
+    <Field label="Fiber (g)"><input type="number" min="0" value={form.fiberGrams??0} onChange={e=>set('fiberGrams',e.target.value)}/></Field>
+    <div className="span2"><Field label="Description"><textarea value={form.description} onChange={e=>set('description',e.target.value)} placeholder="Describe the item, portion and customer-facing details…"/></Field></div>
+    <div className="span2 ingredientEditor"><div className="editorTitle"><div><b>Ingredients</b><small>Choose the ingredient master value and specify the quantity used in this menu item.</small></div><button type="button" className="secondary small" onClick={addIngredient}>+ Add ingredient</button></div>{(form.ingredients||[]).map((x,idx)=><div className="ingredientRow" key={idx}><select value={x.ingredientId} onChange={e=>{const item=ingredients.find(i=>i.id===e.target.value);updateIngredient(idx,'ingredientId',e.target.value);if(item)updateIngredient(idx,'unit',item.defaultUnit)}}><option value="">Choose ingredient</option>{ingredients.map(i=><option key={i.id} value={i.id}>{i.name}</option>)}</select><input type="number" min="0.001" step="0.001" value={x.quantity} onChange={e=>updateIngredient(idx,'quantity',e.target.value)} placeholder="Quantity"/><input value={x.unit} onChange={e=>updateIngredient(idx,'unit',e.target.value)} placeholder="Unit"/><button type="button" className="dangerText" onClick={()=>removeIngredient(idx)}>Remove</button></div>)}{!(form.ingredients||[]).length&&<div className="editorEmpty">No ingredients added yet.</div>}</div>
+    <div className="span2 allergyEditor"><div className="editorTitle"><div><b>Recipe-level allergens</b><small>Additional explicit allergens. Ingredient-linked allergens are calculated automatically.</small></div></div><div className="allergenChoices">{allergens.map(a=><label key={a.id} className={(form.allergenIds||[]).includes(a.id)?'allergenChoice checked':'allergenChoice'}><input type="checkbox" checked={(form.allergenIds||[]).includes(a.id)} onChange={()=>toggleAllergen(a.id)}/><span>{a.name}</span></label>)}</div>{!allergens.length&&<div className="editorEmpty">No allergen master values available.</div>}</div>
+    <Field label="Tags"><input value={form.tags||''} onChange={e=>set('tags',e.target.value)} placeholder="High protein, low carb…"/></Field><Field label="Image URL"><input value={form.imageUrl||''} onChange={e=>set('imageUrl',e.target.value)} placeholder="https://…"/></Field>
+   </div>
+  </div>
+  <div className="modalActions"><button type="button" className="secondary" onClick={cancel}>Cancel</button><button className="primary" disabled={uploading}>{form.id?'Save changes':'Create menu item'}</button></div>
+ </form>
+}
+
 function MenuPage({recipes,menu,setMenu,onSave}){
  const[day,setDay]=useState(1),[slot,setSlot]=useState(1),[rid,setRid]=useState(''),[optionGroup,setOptionGroup]=useState('Meal'),[optionGroupTouched,setOptionGroupTouched]=useState(false),[isRequired,setIsRequired]=useState(true),[requiredTouched,setRequiredTouched]=useState(false),[maxSelections,setMaxSelections]=useState(1),[mealTypeFilter,setMealTypeFilter]=useState('All');
  const filteredRecipes=useMemo(()=>recipes.filter(r=>mealTypeFilter==='All'||String(r.mealType||'Meal')===mealTypeFilter),[recipes,mealTypeFilter]);
