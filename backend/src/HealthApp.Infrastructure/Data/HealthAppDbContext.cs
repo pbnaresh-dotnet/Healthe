@@ -41,6 +41,7 @@ public sealed class HealthAppDbContext(DbContextOptions<HealthAppDbContext> opti
     public DbSet<SubscriptionDiscountTier> SubscriptionDiscountTiers => Set<SubscriptionDiscountTier>();
     public DbSet<MealSelectionHistory> MealSelectionHistories => Set<MealSelectionHistory>();
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
+    public DbSet<PaymentGatewaySettlement> PaymentGatewaySettlements => Set<PaymentGatewaySettlement>();
     public DbSet<DiscountCode> DiscountCodes => Set<DiscountCode>();
     public DbSet<OrderFinancialBreakdown> OrderFinancialBreakdowns => Set<OrderFinancialBreakdown>();
     public DbSet<OutletLegalPolicyVersion> OutletLegalPolicyVersions => Set<OutletLegalPolicyVersion>();
