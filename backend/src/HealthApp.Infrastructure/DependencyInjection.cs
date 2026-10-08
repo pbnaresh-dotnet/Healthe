@@ -81,6 +81,9 @@ public static class DependencyInjection
         services.AddScoped<IApplicationErrorLogger, SqlApplicationErrorLogger>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IOutletRepository, OutletRepository>();
+        services.AddScoped<IOutletTaxProfileRepository, OutletTaxProfileRepository>();
+        services.AddScoped<IFinancePolicyRepository, FinancePolicyRepository>();
+        services.AddScoped<IFinancePolicyService, FinancePolicyService>();
         services.AddScoped<IOutletGroupRepository, OutletGroupRepository>();
         services.AddScoped<IOutletLegalPolicyRepository, OutletLegalPolicyRepository>();
         services.AddScoped<IOutletBrandingRepository, OutletBrandingRepository>();
