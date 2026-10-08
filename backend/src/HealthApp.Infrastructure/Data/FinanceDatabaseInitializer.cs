@@ -756,6 +756,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion125Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion126Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion127Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion128Async(db, document, cancellationToken);
             return;
         }
 
@@ -1469,6 +1470,81 @@ WHERE NOT EXISTS
             ChangeSummary = "Correct outlet confirmation discount basis and snapshot the complete confirmation discount calculation.",
             ChangeReason = "Prevent percentage values from being interpreted as currency and ensure the resulting financial calculation is reproducible.",
             SourceCodeReference = "FIN-Phase-2D-OUTLET-CONFIRMATION-DISCOUNT-CORRECTION",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedFinancePolicyVersion128Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.8",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.7")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode,
+            x.Title,
+            x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "governance" => x.ContentMarkdown + " Policy v1.2.8: demo financial fixtures must use the same active platform-fee economics as production. Demo data is not permitted to retain obsolete commercial percentages.",
+                "platform-charges" => x.ContentMarkdown + " Policy v1.2.8: demo subscription fixtures use the 5.00% HealthApp platform service fee and corresponding platform service tax values, matching the production calculation path.",
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.2.8: demo payable, platform fee, platform tax and transaction-fee display values are kept arithmetically consistent with the configured platform-fee rule.",
+                "audit-trace" => x.ContentMarkdown + " Demo fixture corrections are documented as finance consistency changes and do not alter historical production snapshots.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder)
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.2.8",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Align demo subscription financial fixtures with the production 5% platform-fee rule.",
+            ChangeReason = "Prevent demo users and auditors from seeing obsolete 3% platform-fee economics.",
+            SourceCodeReference = "FIN-Phase-2D-DEMO-FINANCE-CONSISTENCY",
             ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
             PreviousVersionId = previous.Id,
             CreatedAtUtc = now,
