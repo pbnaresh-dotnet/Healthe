@@ -44,6 +44,8 @@ public sealed class FinanceCalculationSnapshotService(
             platformServiceFee,
             commissionRatePercent,
             restaurantProfileId = configuration.Restaurant.ProfileId,
+            commissionTaxRuleId = configuration.PlatformCommission.Id,
+            commissionTaxRuleCode = configuration.PlatformCommission.Code,
             restaurantTaxRuleId = configuration.Restaurant.Rule.Id,
             restaurantTaxRuleCode = configuration.Restaurant.Rule.Code,
             platformTaxRuleId = configuration.PlatformService.Id,
@@ -70,7 +72,10 @@ public sealed class FinanceCalculationSnapshotService(
             platformIgstRate = calculation.PlatformIgstRate,
             commissionBaseAmount = calculation.RestaurantTaxableAmount,
             commissionRatePercent,
-            commissionAmount
+            commissionAmount,
+            commissionTaxRuleCode = configuration.PlatformCommission.Code,
+            commissionTaxRate = configuration.PlatformCommission.TaxRatePercent,
+            commissionTaxAmount = Math.Round(commissionAmount * configuration.PlatformCommission.TaxRatePercent / 100m, 2)
         };
 
         var inputJson = JsonSerializer.Serialize(inputs);
@@ -90,6 +95,7 @@ public sealed class FinanceCalculationSnapshotService(
             TaxProfileId = configuration.Restaurant.ProfileId,
             RestaurantTaxRuleId = configuration.Restaurant.Rule.Id,
             PlatformTaxRuleId = configuration.PlatformService.Id,
+            CommissionTaxRuleId = configuration.PlatformCommission.Id,
             RestaurantTaxApplicable = calculation.RestaurantTaxApplicable,
             RestaurantTaxOperatingMode = configuration.Restaurant.TaxOperatingMode,
             RestaurantGstMode = configuration.Restaurant.PricingMode,
@@ -99,6 +105,8 @@ public sealed class FinanceCalculationSnapshotService(
             PlatformServiceFee = platformServiceFee,
             PlatformTaxRate = calculation.PlatformRate,
             PlatformTaxAmount = calculation.PlatformAmount,
+            CommissionTaxRate = configuration.PlatformCommission.TaxRatePercent,
+            CommissionTaxAmount = Math.Round(commissionAmount * configuration.PlatformCommission.TaxRatePercent / 100m, 2),
             CommissionBaseAmount = calculation.RestaurantTaxableAmount,
             CommissionRatePercent = commissionRatePercent,
             CommissionAmount = commissionAmount,
