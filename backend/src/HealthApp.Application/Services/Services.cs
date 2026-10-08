@@ -777,8 +777,9 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 discountRule.TierId,
                 discountRule.Percent,
                 discountRule.Amount,
-                System.Text.Json.JsonSerializer.Serialize(new { discountRule.TierId, discountRule.TierMinMeals, discountRule.TierMaxMeals, discountRule.Percent, packageDiscountAmount, discountCode = discountCodeResult.AppliedCode }),
+                System.Text.Json.JsonSerializer.Serialize(new { discountRule.TierId, discountRule.TierMinMeals, discountRule.TierMaxMeals, discountRule.Percent, packageDiscountAmount, discountCode = discountCodeResult.AppliedCode, discountCodePercent = discountCodeResult.Percent, discountCodeMaxAmount = discountCodeResult.MaxAmount }),
                 null,
+                discountCodeResult.AppliedId,
                 discountCodeResult.Amount,
                 totalDiscount);
             await financialDocuments.CreateDraftsForSubscriptionAsync(subscription.Id);
@@ -1132,8 +1133,8 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         }
         return total;
     }
-    private async Task<(decimal Amount,string? AppliedCode)> CalculateDiscountCodeAsync(Guid outletId,decimal gross,string? requestedCode) {
-        if(string.IsNullOrWhiteSpace(requestedCode))return(0m,null);
+    private async Task<(decimal Amount,string? AppliedCode,Guid? AppliedId,decimal Percent,decimal? MaxAmount)> CalculateDiscountCodeAsync(Guid outletId,decimal gross,string? requestedCode) {
+        if(string.IsNullOrWhiteSpace(requestedCode))return(0m,null,null,0m,null);
         var code=await discountCodes.GetAsync(outletId,requestedCode.Trim());
         if(code is null)throw new ArgumentException("Discount code is invalid or inactive.");
         var now=DateTime.UtcNow;
@@ -1142,7 +1143,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if(code.MaxRedemptions.HasValue&&code.RedemptionCount>=code.MaxRedemptions.Value)throw new ArgumentException("Discount code redemption limit has been reached.");
         var amount=Math.Round(gross*code.Percent/100m,2);
         if(code.MaxAmount.HasValue)amount=Math.Min(amount,code.MaxAmount.Value);
-        return(amount,code.Code);
+        return(amount,code.Code,code.Id,code.Percent,code.MaxAmount);
     }
     private async Task<decimal> CalculateDiscountCodeAmountAsync(Guid outletId,decimal gross,string? requestedCode)=>(await CalculateDiscountCodeAsync(outletId,gross,requestedCode)).Amount;
     private async Task<decimal> GetOutletCommissionAsync(Guid outletId) {
