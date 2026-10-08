@@ -886,6 +886,8 @@ WHERE NOT EXISTS
 
         document.UpdatedAtUtc = now;
         await db.SaveChangesAsync(cancellationToken);
+    }
+
     private static async Task SeedFinancePolicyVersion12Async(
         HealthAppDbContext db,
         FinancePolicyDocument document,
