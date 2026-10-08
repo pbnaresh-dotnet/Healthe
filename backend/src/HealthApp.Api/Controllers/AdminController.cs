@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HealthApp.Api.Controllers;
 [ApiController,Route("api/admin"),Authorize(Roles="SuperAdmin")]
 
-public sealed class AdminController(IAdminService service):ControllerBase
+public sealed class AdminController(IAdminService service, IAdminOutletLifecycleService lifecycle):ControllerBase
 {
     [HttpGet("errors")] public async Task<IActionResult> Errors([FromQuery] ApplicationErrorQueryRequest request)
         => Ok(await service.GetErrorsAsync(request));
@@ -70,6 +70,15 @@ public sealed class AdminController(IAdminService service):ControllerBase
 
         try { return Ok(await service.SetOutletDomainStatusAsync(id, status)); }
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+    }
+
+    [HttpPost("outlets/{outletId:guid}/reactivate")]
+    public async Task<IActionResult> ReactivateOutlet(Guid outletId, AdminOutletReactivationRequest request)
+    {
+        try { return Ok(await lifecycle.ReactivateAsync(outletId, request)); }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
 }
