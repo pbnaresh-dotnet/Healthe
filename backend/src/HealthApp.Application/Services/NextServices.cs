@@ -485,7 +485,7 @@ public sealed class PaymentService(
         return Map(payment);
     }
 
-    public async Task<PaymentWebhookResultDto> HandleCashfreeWebhookAsync(
+    public async Task<PaymentWebhookResultDto> HandleWebhookAsync(
         string rawBody,
         string signature,
         string timestamp,
@@ -494,13 +494,11 @@ public sealed class PaymentService(
         if (!gateway.VerifyWebhookSignature(signature, timestamp, rawBody))
             throw new UnauthorizedAccessException("Invalid Cashfree webhook signature.");
 
-        using var document = JsonDocument.Parse(rawBody);
-        var providerOrderId = ExtractString(document.RootElement, "data", "order", "order_id")
-            ?? ExtractString(document.RootElement, "data", "payment", "cf_order_id")
-            ?? ExtractString(document.RootElement, "data", "payment", "order_id");
-
-        if (string.IsNullOrWhiteSpace(providerOrderId))
+        var webhook = gateway.ParseWebhook(rawBody);
+        if (webhook is null || string.IsNullOrWhiteSpace(webhook.ProviderOrderId))
             return new PaymentWebhookResultDto(true, "Ignored");
+
+        var providerOrderId = webhook.ProviderOrderId;
 
         var payment = await payments.GetByProviderOrderIdAsync(providerOrderId);
         if (payment is null)
