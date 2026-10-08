@@ -306,3 +306,46 @@ public sealed class DocumentNumberSequence
     public long LastNumber { get; set; }
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 }
+
+
+public sealed class FinancePolicyDocument
+{
+    public Guid Id { get; set; }
+    public string Code { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Description { get; set; } = "";
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class FinancePolicyDocumentVersion
+{
+    public Guid Id { get; set; }
+    public Guid FinancePolicyDocumentId { get; set; }
+    public string Version { get; set; } = "";
+    public FinancePolicyPublicationStatus Status { get; set; } = FinancePolicyPublicationStatus.Draft;
+    public DateTime EffectiveFromUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? EffectiveToUtc { get; set; }
+    public string ChangeSummary { get; set; } = "";
+    public string ChangeReason { get; set; } = "";
+    public string SourceCodeReference { get; set; } = "";
+    public string ContentHash { get; set; } = "";
+    public Guid? PreviousVersionId { get; set; }
+    public Guid? CreatedByUserId { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? ReviewedAtUtc { get; set; }
+    public DateTime? PublishedAtUtc { get; set; }
+}
+
+public sealed class FinancePolicyDocumentSection
+{
+    public Guid Id { get; set; }
+    public Guid FinancePolicyDocumentVersionId { get; set; }
+    public string SectionCode { get; set; } = "";
+    public string Title { get; set; } = "";
+    public int DisplayOrder { get; set; }
+    public string ContentMarkdown { get; set; } = "";
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}
