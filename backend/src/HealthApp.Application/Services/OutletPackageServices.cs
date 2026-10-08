@@ -950,7 +950,8 @@ public sealed class OutletPackageService(
 
         var delivery = await CalculateDeliveryAsync(outletId, deliveryMode, mealRows, customer.Id);
         var service = platformFee.Calculate(discountedMealAmount);
-        var taxes = taxStrategy.Calculate(discountedMealAmount, service, outlet.RestaurantGstRate, outlet.RestaurantGstMode);
+        var taxConfig = await taxConfiguration.ResolveAsync(outletId, DateTime.UtcNow);
+        var taxes = taxStrategy.Calculate(discountedMealAmount, service, taxConfig.Restaurant, taxConfig.PlatformService, taxConfig.PlatformTaxApplicable);
         var commissionRate = await GetCommissionRateAsync(outletId);
         var commission = Math.Round(taxes.RestaurantTaxableAmount * commissionRate, 2);
         var total = Math.Round(taxes.RestaurantTaxableAmount + taxes.RestaurantAmount + delivery + service + taxes.PlatformAmount, 2);
