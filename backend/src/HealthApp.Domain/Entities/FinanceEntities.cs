@@ -380,6 +380,10 @@ public sealed class FinanceCalculationSnapshot
     public decimal CommissionBaseAmount { get; set; }
     public decimal CommissionRatePercent { get; set; }
     public decimal CommissionAmount { get; set; }
+    public Guid? DiscountTierId { get; set; }
+    public decimal DiscountPercent { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public string DiscountRuleSnapshotJson { get; set; } = "";
     public string InputHash { get; set; } = "";
     public string InputsJson { get; set; } = "";
     public string ResultsJson { get; set; } = "";
