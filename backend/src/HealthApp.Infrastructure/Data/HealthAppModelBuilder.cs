@@ -719,6 +719,26 @@ internal static class HealthAppModelBuilder
         e.HasOne<Subscription>().WithMany().HasForeignKey(x => x.SubscriptionId).OnDelete(DeleteBehavior.NoAction).IsRequired(false);
         e.HasOne<OutletOnboardingApplication>().WithMany().HasForeignKey(x => x.OutletOnboardingApplicationId).OnDelete(DeleteBehavior.NoAction).IsRequired(false);
     }
+    private static void ConfigurePaymentSettlementReconciliationException(EntityTypeBuilder<PaymentSettlementReconciliationException> e)
+    {
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Provider).HasMaxLength(50).IsRequired();
+        e.Property(x => x.ProviderPaymentId).HasMaxLength(150).IsRequired();
+        e.Property(x => x.ProviderSettlementId).HasMaxLength(150).IsRequired();
+        e.Property(x => x.ExceptionType).HasMaxLength(80).IsRequired();
+        e.Property(x => x.Status).HasMaxLength(30).IsRequired();
+        e.Property(x => x.ReportedGrossAmount).HasPrecision(18,2);
+        e.Property(x => x.ReportedNetSettlementAmount).HasPrecision(18,2);
+        e.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+        e.Property(x => x.RawRowJson).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.ErrorMessage).HasMaxLength(2000).IsRequired();
+        e.Property(x => x.AssignedTo).HasMaxLength(200).IsRequired();
+        e.Property(x => x.ResolutionNotes).HasMaxLength(4000).IsRequired();
+        e.Property(x => x.ResolvedBy).HasMaxLength(200).IsRequired();
+        e.HasIndex(x => new { x.Provider, x.ProviderPaymentId, x.ProviderSettlementId, x.ExceptionType, x.Status });
+        e.HasIndex(x => new { x.Status, x.CreatedAtUtc });
+    }
+
     private static void ConfigurePaymentGatewaySettlement(EntityTypeBuilder<PaymentGatewaySettlement> e)
     {
         e.HasKey(x => x.Id);
