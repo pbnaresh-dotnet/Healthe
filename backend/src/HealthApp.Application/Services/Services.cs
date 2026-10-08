@@ -655,7 +655,8 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         await ValidateDeliveryAddressesAsync(customerId, deliveryCity, mealEntities);
         var gross = isPreplanned ? selectedPlan!.Price : Math.Round(mealEntities.Sum(x => x.MealPrice), 2);
         var lateSkipRecovery = await credits.GetOutstandingLateSkipAmountAsync(customerId);
-        var packageDiscountAmount = isPreplanned ? 0m : discountStrategy.Calculate(new(duration, mealEntities), await discountTiers.GetByOutletAsync(outlet.Id)).Amount;
+        var discountRule = isPreplanned ? new PackageDiscount(0m, 0m) : discountStrategy.Calculate(new(duration, mealEntities), await discountTiers.GetByOutletAsync(outlet.Id));
+        var packageDiscountAmount = discountRule.Amount;
         var discountCodeResult = await CalculateDiscountCodeAsync(outlet.Id, gross, r.DiscountCode);
         var totalDiscount = Math.Min(gross, packageDiscountAmount + discountCodeResult.Amount);
         var discountedMealAmount = Math.Round(gross - totalDiscount, 2);
@@ -772,7 +773,14 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 platformFee.Percent,
                 platformFee.IncludesGatewayCosts,
                 commissionRate * 100m,
-                commission);
+                commission,
+                discountRule.TierId,
+                discountRule.Percent,
+                discountRule.Amount,
+                System.Text.Json.JsonSerializer.Serialize(new { discountRule.TierId, discountRule.TierMinMeals, discountRule.TierMaxMeals, discountRule.Percent, packageDiscountAmount, discountCode = discountCodeResult.AppliedCode }),
+                null,
+                discountCodeResult.Amount,
+                totalDiscount);
             await financialDocuments.CreateDraftsForSubscriptionAsync(subscription.Id);
             if (subscription.Status == SubscriptionStatus.Active)
             {
