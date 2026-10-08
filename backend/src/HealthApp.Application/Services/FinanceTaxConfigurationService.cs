@@ -53,6 +53,13 @@ public sealed class FinanceTaxConfigurationService(
             ?? throw new InvalidOperationException(
                 $"No effective HealthApp platform-service tax rule is configured for {asOfUtc:O}.");
 
+        var commissionRule = await taxRules.GetEffectiveAsync(
+            FinanceSupplyType.PlatformCommission,
+            null,
+            asOfUtc)
+            ?? throw new InvalidOperationException(
+                $"No effective HealthApp commission tax rule is configured for {asOfUtc:O}.");
+
         var restaurantApplicable =
             profile.TaxOperatingMode == TaxOperatingMode.EcoSection9_5 ||
             (profile.TaxOperatingMode == TaxOperatingMode.DirectOutletSupplier &&
@@ -70,7 +77,8 @@ public sealed class FinanceTaxConfigurationService(
 
         return new FinanceTaxCalculationConfiguration(
             restaurant,
-            ToSnapshot(platformRule));
+            ToSnapshot(platformRule),
+            ToSnapshot(commissionRule));
     }
 
     private static FinanceTaxRuleSnapshot ToSnapshot(HealthApp.Domain.Entities.FinanceTaxRule rule)
