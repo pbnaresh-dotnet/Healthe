@@ -394,6 +394,9 @@ internal static class FinanceModelBuilder
         e.Property(x => x.CommissionBaseAmount).HasPrecision(18,2);
         e.Property(x => x.CommissionRatePercent).HasPrecision(9,4);
         e.Property(x => x.CommissionAmount).HasPrecision(18,2);
+        e.Property(x => x.DiscountPercent).HasPrecision(9,4);
+        e.Property(x => x.DiscountAmount).HasPrecision(18,2);
+        e.Property(x => x.DiscountRuleSnapshotJson).HasColumnType("nvarchar(max)").IsRequired();
         e.Property(x => x.InputHash).HasMaxLength(128).IsRequired();
         e.Property(x => x.InputsJson).HasColumnType("nvarchar(max)").IsRequired();
         e.Property(x => x.ResultsJson).HasColumnType("nvarchar(max)").IsRequired();
