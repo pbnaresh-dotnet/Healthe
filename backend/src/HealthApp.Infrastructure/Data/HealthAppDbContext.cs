@@ -65,6 +65,7 @@ public sealed class HealthAppDbContext(DbContextOptions<HealthAppDbContext> opti
     public DbSet<FinancePolicyDocument> FinancePolicyDocuments => Set<FinancePolicyDocument>();
     public DbSet<FinancePolicyDocumentVersion> FinancePolicyDocumentVersions => Set<FinancePolicyDocumentVersion>();
     public DbSet<FinancePolicyDocumentSection> FinancePolicyDocumentSections => Set<FinancePolicyDocumentSection>();
+     public DbSet<FinanceCalculationSnapshot> FinanceCalculationSnapshots => Set<FinanceCalculationSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
         => HealthAppModelBuilder.Configure(modelBuilder);
