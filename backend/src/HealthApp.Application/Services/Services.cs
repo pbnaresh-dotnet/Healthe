@@ -352,7 +352,7 @@ IPlatformServiceFeeStrategy platformFee, ITaxStrategy taxStrategy, IPackageDisco
 IDeliveryModeStrategyFactory deliveryModeFactory, IMealPriceStrategy mealPrice, ILateSkipFeePolicy lateSkipPolicy, IFinanceTaxConfigurationService taxConfiguration,
 IPlatformTransactionRepository transactions, IDomainEventDispatcher events, IUnitOfWork unitOfWork,
 ICustomerAddressRepository addresses, ISubscriptionDiscountTierRepository discountTiers, IMealSelectionHistoryRepository selectionHistory,
-IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments, IOutletLegalPolicyRepository legalPolicies, ITransactionalEmailService emails, IOutletUrlService outletUrls) : ICustomerService
+IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IFinanceCalculationSnapshotService financeSnapshots, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments, IOutletLegalPolicyRepository legalPolicies, ITransactionalEmailService emails, IOutletUrlService outletUrls) : ICustomerService
 {
     public async Task<UserDto?> GetProfileAsync()
     {
@@ -757,6 +757,17 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             await orderFinancials.AddAsync(new OrderFinancialBreakdown {
                 Id=Guid.NewGuid(),OrderId=order.Id,GrossMealAmount=gross,DiscountAmount=totalDiscount,NetMealAmount=net,DeliveryAmount=delivery,PlatformServiceFee=serviceFee,PlatformServiceGst=taxes.PlatformAmount,RestaurantGstRate=taxes.RestaurantRate,RestaurantGstMode=taxes.RestaurantMode,RestaurantTaxableAmount=taxes.RestaurantTaxableAmount,RestaurantGstAmount=taxes.RestaurantAmount,LateSkipFee=0,CustomerPayable=subscription.TotalCharged,OutletCommission=commission,OutletCommissionGst=0,OutletSettlementAmount=subscription.OutletAmount,HealthAppRevenue=serviceFee+commission
             });
+            await financeSnapshots.CreateAsync(
+                outlet.Id,
+                "CustomerSubscription",
+                subscription.Id,
+                DateTime.UtcNow,
+                taxConfig,
+                taxes,
+                discountedMealAmount,
+                serviceFee,
+                commissionRate * 100m,
+                commission);
             if (subscription.Status == SubscriptionStatus.Active)
             {
                 var customer = await users.FindByIdAsync(customerId);
