@@ -663,14 +663,15 @@ public sealed class PaymentTransactionRepository(HealthAppDbContext db) : EfRepo
             .OrderByDescending(x => x.CreatedAtUtc)
             .FirstOrDefaultAsync();
 
-    public async Task<IReadOnlyList<PaymentTransaction>> GetRetryableAsync(DateTime utcNow, int maxAttempts, int batchSize) =>
+    public async Task<IReadOnlyList<PaymentTransaction>> GetRetryableAsync(DateTime utcNow, DateTime staleClaimBeforeUtc, int maxAttempts, int batchSize) =>
         await Context.PaymentTransactions
             .Where(x => x.Status == "Pending" &&
                         x.PaymentType == "CustomerSubscription" &&
-                        x.ProcessingStatus == "ProviderOrderCreationFailed" &&
-                        x.NextRetryAtUtc != null &&
-                        x.NextRetryAtUtc <= utcNow &&
-                        x.AttemptCount < maxAttempts)
+                        x.AttemptCount < maxAttempts &&
+                        ((x.ProcessingStatus == "ProviderOrderCreationFailed" &&
+                          x.NextRetryAtUtc != null && x.NextRetryAtUtc <= utcNow) ||
+                         (x.ProcessingStatus == "RetryingProviderOrder" &&
+                          x.LastAttemptAtUtc != null && x.LastAttemptAtUtc <= staleClaimBeforeUtc)))
             .OrderBy(x => x.NextRetryAtUtc)
             .ThenBy(x => x.CreatedAtUtc)
             .Take(batchSize)
@@ -681,10 +682,11 @@ public sealed class PaymentTransactionRepository(HealthAppDbContext db) : EfRepo
         var affected = await Context.PaymentTransactions
             .Where(x => x.Id == paymentId &&
                         x.Status == "Pending" &&
-                        x.ProcessingStatus == "ProviderOrderCreationFailed" &&
-                        x.NextRetryAtUtc != null &&
-                        x.NextRetryAtUtc <= utcNow &&
-                        x.AttemptCount < maxAttempts)
+                        x.AttemptCount < maxAttempts &&
+                        ((x.ProcessingStatus == "ProviderOrderCreationFailed" &&
+                          x.NextRetryAtUtc != null && x.NextRetryAtUtc <= utcNow) ||
+                         (x.ProcessingStatus == "RetryingProviderOrder" &&
+                          x.LastAttemptAtUtc != null && x.LastAttemptAtUtc <= utcNow))
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(x => x.ProcessingStatus, "RetryingProviderOrder")
                 .SetProperty(x => x.LastAttemptAtUtc, utcNow));
