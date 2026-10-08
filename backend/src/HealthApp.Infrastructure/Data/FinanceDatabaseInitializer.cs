@@ -809,6 +809,10 @@ WHERE NOT EXISTS
         await db.SaveChangesAsync(cancellationToken);
         await SeedFinancePolicyVersion11Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion12Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion121Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion122Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion123Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion124Async(db, document, cancellationToken);
     }
 
     private static async Task SeedFinancePolicyVersion11Async(
