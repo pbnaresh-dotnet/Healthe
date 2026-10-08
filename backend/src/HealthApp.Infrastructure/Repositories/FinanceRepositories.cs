@@ -94,3 +94,17 @@ public sealed class FinanceTaxRuleRepository(HealthAppDbContext db) : EfReposito
             .ThenByDescending(x => x.IsDefault)
             .FirstOrDefaultAsync();
 }
+
+
+public sealed class FinanceCalculationSnapshotRepository(HealthAppDbContext db) : EfRepository(db), IFinanceCalculationSnapshotRepository
+{
+    public Task<FinanceCalculationSnapshot?> GetBySourceAsync(string sourceType, Guid sourceId)
+        => Context.FinanceCalculationSnapshots.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.SourceType == sourceType && x.SourceId == sourceId);
+
+    public async Task AddAsync(FinanceCalculationSnapshot snapshot)
+    {
+        Context.FinanceCalculationSnapshots.Add(snapshot);
+        await SaveAsync();
+    }
+}
