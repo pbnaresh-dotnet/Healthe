@@ -2125,7 +2125,7 @@ WHERE NOT EXISTS
             Content = x.SectionCode switch
             {
                 "payment-settlement" => x.ContentMarkdown + " Policy v1.3.6: failed provider-order creation may be retried by the durable payment worker only after the persisted retry time has elapsed and only while the bounded attempt limit permits it. Retry success creates no financial posting by itself.",
-                "governance" => x.ContentMarkdown + " Policy v1.3.6: retry candidates are atomically claimed before provider communication and reuse the original provider order ID and idempotency key, preventing concurrent duplicate recovery attempts.",
+                "governance" => x.ContentMarkdown + " Policy v1.3.6: retry candidates are atomically claimed before provider communication and reuse the original provider order ID and idempotency key, preventing concurrent duplicate recovery attempts. Claims have a bounded lease so a crashed worker cannot strand a payment permanently.",
                 "audit-trace" => x.ContentMarkdown + " Policy v1.3.6: payment retry attempts retain attempt count, last-attempt time, next-retry time, processing state and error code against the original payment transaction.",
                 _ => x.ContentMarkdown
             }
