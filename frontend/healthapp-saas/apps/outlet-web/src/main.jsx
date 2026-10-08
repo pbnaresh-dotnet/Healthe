@@ -767,10 +767,10 @@ function NutritionSummary({title,data,active,onSelect}){
 function RecipeForm({form,setForm,ingredients,allergens,allergenCatalogError,ingredientCatalogLoading,ingredientCatalogError,retryIngredientCatalog,upload,uploading,submit,cancel}){
  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
  const[portion,setPortion]=useState('regular');
- const addIngredient=()=>{const first=ingredients[0];if(!first)return;set('ingredients',[...(form.ingredients||[]),{ingredientId:first.id,quantity:100,largeQuantity:125,unit:first.defaultUnit||'g'}])};
+ const addIngredient=()=>{const first=ingredients.find(i=>!(form.ingredients||[]).some(x=>x.ingredientId===i.id));if(!first)return;set('ingredients',[...(form.ingredients||[]),{ingredientId:first.id,quantity:100,largeQuantity:125,unit:first.defaultUnit||'g'}])};
  const updateIngredient=(idx,k,v)=>set('ingredients',(form.ingredients||[]).map((x,i)=>i===idx?{...x,[k]:v}:x));
  const removeIngredient=idx=>set('ingredients',(form.ingredients||[]).filter((_,i)=>i!==idx));
- const chooseIngredient=(idx,item)=>{updateIngredient(idx,'ingredientId',item.id);updateIngredient(idx,'unit',item.defaultUnit||'g')};
+ const chooseIngredient=(idx,item)=>{const duplicate=(form.ingredients||[]).some((x,i)=>i!==idx&&x.ingredientId===item.id);if(duplicate){window.dispatchEvent(new CustomEvent('healthapp:notify',{detail:{message:`${item.name} is already in this recipe. Use the existing row to change its quantity.`}}));return;}updateIngredient(idx,'ingredientId',item.id);updateIngredient(idx,'unit',item.defaultUnit||'g')};
  const toggleAllergen=id=>set('allergenIds',(form.allergenIds||[]).includes(id)?(form.allergenIds||[]).filter(x=>x!==id):[...(form.allergenIds||[]),id]);
  const nutrition=calculateRecipeNutrition(form,ingredients);
  const hasIngredients=(form.ingredients||[]).some(x=>x.ingredientId&&Number(x.quantity)>0);
@@ -795,6 +795,7 @@ function RecipeForm({form,setForm,ingredients,allergens,allergenCatalogError,ing
       {ingredientCatalogLoading&&<div className="recipeCatalogStatus loading">Loading ingredients from the master table…</div>}
       {!ingredientCatalogLoading&&ingredientCatalogError&&<div className="recipeCatalogStatus error"><span>{ingredientCatalogError}</span><button type="button" className="secondary small" onClick={()=>retryIngredientCatalog?.()}>Retry</button></div>}
       {!ingredientCatalogLoading&&!ingredientCatalogError&&!ingredients.length&&<div className="recipeCatalogStatus empty">No active ingredients are available. Add/activate ingredients in the master table before creating a recipe.</div>}
+      {!ingredientCatalogLoading&&ingredients.length&&(form.ingredients||[]).length>=ingredients.length&&<div className="recipeCatalogStatus empty">All available ingredients have already been added. Adjust their quantities rather than adding another row.</div>}
       <div className="portionQuantityBar"><button type="button" className={portion==='regular'?'active':''} onClick={()=>setPortion('regular')}><b>Regular</b><span>Standard serving</span></button><button type="button" className={portion==='large'?'active':''} onClick={()=>setPortion('large')}><b>Large</b><span>Large serving</span></button></div>
       {(form.ingredients||[]).map((x,idx)=>{
        const item=ingredients.find(i=>i.id===x.ingredientId);
