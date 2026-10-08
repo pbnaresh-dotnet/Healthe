@@ -361,6 +361,8 @@ public interface IPaymentTransactionRepository
     Task<PaymentTransaction?> GetByProviderPaymentIdAsync(string provider, string providerPaymentId);
     Task<PaymentTransaction?> GetByOnboardingApplicationIdAsync(Guid applicationId);
     Task<PaymentTransaction?> GetLatestBySubscriptionAsync(Guid subscriptionId);
+    Task<IReadOnlyList<PaymentTransaction>> GetRetryableAsync(DateTime utcNow, int maxAttempts, int batchSize);
+    Task<bool> TryClaimRetryAsync(Guid paymentId, DateTime utcNow, int maxAttempts);
     Task AddAsync(PaymentTransaction payment);
     Task UpdateAsync(PaymentTransaction payment);
 }
@@ -416,6 +418,7 @@ public interface IPaymentService
     Task<PaymentCheckoutDto?> CreateAsync(CreatePaymentRequest request, CancellationToken cancellationToken = default);
     Task<PaymentDto?> GetAsync(Guid id);
     Task<PaymentWebhookResultDto> HandleWebhookAsync(string rawBody, IReadOnlyDictionary<string, string> headers, CancellationToken cancellationToken = default);
+    Task RetryPendingAsync(Guid paymentId, CancellationToken cancellationToken = default);
 }
 
 public interface IDeliveryLabelService { Task<IReadOnlyList<DeliveryLabelDto>> GetLabelsAsync(DateTime? date); }
