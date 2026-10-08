@@ -104,6 +104,25 @@ public sealed class OutletPackageActivationService(
             var lateSkipRecovery = subscription.LateSkipRecoveryAmount;
             if (lateSkipRecovery > 0m) {
                 await credits.AddAsync(new CustomerCreditTransaction { Id = Guid.NewGuid(), CustomerId = subscription.CustomerId, SubscriptionId = subscription.Id, Amount = lateSkipRecovery, Type = CreditTransactionType.Credit, Reason = $"Recovery of late skip fees through package {subscription.Id:N}; original outlet {subscription.OutletId:N}", CreatedAt = DateTime.UtcNow });
+
+                var remainingRecovery = lateSkipRecovery;
+                foreach (var lateSkipTransaction in existingTx
+                    .Where(x => x.CustomerId == subscription.CustomerId && x.OutletId == subscription.OutletId && x.Type == "LateSkipFee" && x.Status == "Pending")
+                    .OrderBy(x => x.CreatedAt))
+                {
+                    if (remainingRecovery <= 0m) break;
+                    var amount = Math.Min(remainingRecovery, lateSkipTransaction.GrossAmount);
+                    if (amount == lateSkipTransaction.GrossAmount)
+                        lateSkipTransaction.Status = "Recovered";
+                    else
+                        throw new InvalidOperationException("A partial late-skip receivable recovery was detected; settlement reconciliation requires the receivable to be recovered as a whole charge.");
+                    await transactions.UpdateAsync(lateSkipTransaction);
+                    remainingRecovery = Math.Round(remainingRecovery - amount, 2);
+                }
+
+                if (remainingRecovery != 0m)
+                    throw new InvalidOperationException("Late-skip recovery could not be fully reconciled to pending original charges.");
+
                 var recoveryTransaction = (await transactions.GetAllAsync()).FirstOrDefault(x => x.SubscriptionId == subscription.Id && x.Type == "LateSkipFeeRecovery" && x.Status != "Paid");
                 if (recoveryTransaction is not null) { recoveryTransaction.Status = "Paid"; await transactions.UpdateAsync(recoveryTransaction); }
             }
