@@ -476,6 +476,8 @@ IF COL_LENGTH('dbo.Outlets','ShowPackagePriceToCustomer') IS NULL
     ALTER TABLE dbo.Outlets ADD ShowPackagePriceToCustomer bit NOT NULL CONSTRAINT DF_Outlets_ShowPackagePriceToCustomer DEFAULT 1 WITH VALUES;
 IF COL_LENGTH('dbo.Outlets','ShowMealPriceToCustomer') IS NULL
     ALTER TABLE dbo.Outlets ADD ShowMealPriceToCustomer bit NOT NULL CONSTRAINT DF_Outlets_ShowMealPriceToCustomer DEFAULT 1 WITH VALUES;
+IF COL_LENGTH('dbo.Outlets','SupportsLargePortion') IS NULL
+    ALTER TABLE dbo.Outlets ADD SupportsLargePortion bit NOT NULL CONSTRAINT DF_Outlets_SupportsLargePortion DEFAULT 1;
 IF COL_LENGTH('dbo.Outlets','ShowDeliveryFeeToCustomer') IS NULL
     ALTER TABLE dbo.Outlets ADD ShowDeliveryFeeToCustomer bit NOT NULL CONSTRAINT DF_Outlets_ShowDeliveryFeeToCustomer DEFAULT 1 WITH VALUES;
 ", cancellationToken);
