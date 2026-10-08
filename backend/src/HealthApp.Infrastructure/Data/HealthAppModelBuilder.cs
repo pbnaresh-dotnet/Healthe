@@ -43,6 +43,7 @@ internal static class HealthAppModelBuilder
         ConfigureDiscountTier(b.Entity<SubscriptionDiscountTier>());
         ConfigureMealSelectionHistory(b.Entity<MealSelectionHistory>());
         ConfigurePayment(b.Entity<PaymentTransaction>());
+        ConfigurePaymentGatewaySettlement(b.Entity<PaymentGatewaySettlement>());
         ConfigureDiscountCode(b.Entity<DiscountCode>());
         ConfigureOrderFinancial(b.Entity<OrderFinancialBreakdown>());
         ConfigureOutletLegalPolicyVersion(b.Entity<OutletLegalPolicyVersion>());
@@ -713,6 +714,24 @@ internal static class HealthAppModelBuilder
         e.HasOne<Subscription>().WithMany().HasForeignKey(x => x.SubscriptionId).OnDelete(DeleteBehavior.NoAction).IsRequired(false);
         e.HasOne<OutletOnboardingApplication>().WithMany().HasForeignKey(x => x.OutletOnboardingApplicationId).OnDelete(DeleteBehavior.NoAction).IsRequired(false);
     }
+    private static void ConfigurePaymentGatewaySettlement(EntityTypeBuilder<PaymentGatewaySettlement> e)
+    {
+        e.HasKey(x => x.Id);
+        e.HasIndex(x => new { x.Provider, x.ProviderPaymentId }).IsUnique();
+        e.HasIndex(x => x.PaymentTransactionId).IsUnique();
+        e.HasIndex(x => new { x.Status, x.OutletId });
+        e.Property(x => x.GrossAmount).HasPrecision(18,2);
+        e.Property(x => x.GatewayFeeAmount).HasPrecision(18,2);
+        e.Property(x => x.GatewayFeeTaxAmount).HasPrecision(18,2);
+        e.Property(x => x.OtherProviderAdjustmentAmount).HasPrecision(18,2);
+        e.Property(x => x.NetSettlementAmount).HasPrecision(18,2);
+        e.Property(x => x.SourceDataJson).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.Provider).HasMaxLength(50).IsRequired();
+        e.Property(x => x.ProviderPaymentId).HasMaxLength(150).IsRequired();
+        e.Property(x => x.ProviderSettlementId).HasMaxLength(150);
+        e.HasOne<PaymentTransaction>().WithMany().HasForeignKey(x => x.PaymentTransactionId).OnDelete(DeleteBehavior.Restrict);
+    }
+
     private static void ConfigureDiscountCode(EntityTypeBuilder<DiscountCode> e)
     {
         e.ToTable("DiscountCodes");
