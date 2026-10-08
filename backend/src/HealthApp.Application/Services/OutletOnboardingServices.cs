@@ -25,7 +25,16 @@ public sealed class OutletOnboardingService(
     ITransactionalEmailService emails,
     IConfiguration configuration) : IOutletOnboardingService
 {
-    private decimal SetupFee => configuration.GetValue<decimal?>("Onboarding:SetupFee") ?? 5000m;
+    private decimal SetupFee
+    {
+        get
+        {
+            var value = configuration.GetValue<decimal?>("Onboarding:SetupFee") ?? 5000m;
+            if (value < 0m || value > 1000000m)
+                throw new InvalidOperationException("Onboarding setup fee must be between ₹0 and ₹1,000,000.");
+            return Math.Round(value, 2, MidpointRounding.AwayFromZero);
+        }
+    }
 
     public async Task<IReadOnlyList<SaaSPlanDto>> GetPlansAsync() =>
         (await plans.GetActiveAsync()).Select(x => new SaaSPlanDto(
