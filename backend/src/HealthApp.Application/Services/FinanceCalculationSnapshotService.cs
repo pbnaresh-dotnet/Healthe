@@ -19,6 +19,7 @@ public sealed class FinanceCalculationSnapshotService(
         TaxBreakdown calculation,
         decimal restaurantBaseAmount,
         decimal platformServiceFee,
+        decimal platformServiceFeePercent,
         decimal commissionRatePercent,
         decimal commissionAmount)
     {
@@ -26,6 +27,10 @@ public sealed class FinanceCalculationSnapshotService(
             throw new ArgumentException("Finance snapshot source type is required.", nameof(sourceType));
         if (sourceId == Guid.Empty)
             throw new ArgumentException("Finance snapshot source id is required.", nameof(sourceId));
+        if (commissionRatePercent is < 0m or > 100m)
+            throw new ArgumentOutOfRangeException(nameof(commissionRatePercent), commissionRatePercent, "Commission rate must be between 0% and 100%.");
+        if (platformServiceFeePercent is < 0m or > 100m)
+            throw new ArgumentOutOfRangeException(nameof(platformServiceFeePercent), platformServiceFeePercent, "Platform service fee rate must be between 0% and 100%.");
 
         var existing = await snapshots.GetBySourceAsync(sourceType.Trim(), sourceId);
         if (existing is not null)
@@ -42,6 +47,7 @@ public sealed class FinanceCalculationSnapshotService(
             calculatedAtUtc,
             restaurantBaseAmount,
             platformServiceFee,
+            platformServiceFeePercent,
             commissionRatePercent,
             restaurantProfileId = configuration.Restaurant.ProfileId,
             commissionTaxRuleId = configuration.PlatformCommission.Id,
@@ -67,6 +73,7 @@ public sealed class FinanceCalculationSnapshotService(
             restaurantSgstRate = calculation.RestaurantSgstRate,
             restaurantIgstRate = calculation.RestaurantIgstRate,
             platformServiceFee,
+            platformServiceFeePercent,
             platformTaxRate = calculation.PlatformRate,
             platformTaxAmount = calculation.PlatformAmount,
             platformCgstRate = calculation.PlatformCgstRate,
