@@ -1548,8 +1548,15 @@ public sealed class AdminService(
         var result = await applicationErrors.QueryAsync(normalized);
         var summary = await applicationErrors.GetSummaryAsync(normalized);
 
-        var outletIds = result.Items.Select(x => x.OutletId).Where(x => x.HasValue).Select(x => x!.Value).ToHashSet();
-        var userIds = result.Items.SelectMany(x => new[] { x.UserId, x.ResolvedByUserId }).Where(x => x.HasValue).Select(x => x!.Value).ToHashSet();
+        var outletIds = result.Items.Select(x => x.OutletId)
+            .Concat(summary.ByOutlet.Select(x => x.OutletId))
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .ToHashSet();
+        var userIds = result.Items.SelectMany(x => new[] { x.UserId, x.ResolvedByUserId })
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .ToHashSet();
 
         var outletMap = (await outlets.GetAllAsync())
             .Where(x => outletIds.Contains(x.Id))
