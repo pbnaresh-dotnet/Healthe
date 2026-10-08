@@ -95,6 +95,7 @@ public interface IFinanceCalculationSnapshotService
         decimal restaurantBaseAmount,
         decimal platformServiceFee,
         decimal platformServiceFeePercent,
+        bool gatewayCostsIncludedInPlatformFee,
         decimal commissionRatePercent,
         decimal commissionAmount);
 }
