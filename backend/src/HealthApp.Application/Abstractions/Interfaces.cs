@@ -38,6 +38,26 @@ public interface IOutletGroupRepository
     Task<bool> HasOutletsAsync(Guid groupId);
 }
 
+public interface IOutletTaxProfileRepository
+{
+    Task<OutletTaxProfile?> GetCurrentAsync(Guid outletId, DateTime? asOfUtc = null);
+    Task<IReadOnlyList<OutletTaxProfile>> GetHistoryAsync(Guid outletId);
+    Task AddVersionAsync(OutletTaxProfile profile, DateTime effectiveFromUtc);
+}
+
+public interface IFinancePolicyRepository
+{
+    Task<FinancePolicyDocument?> GetDocumentAsync(string code);
+    Task<IReadOnlyList<FinancePolicyDocumentVersion>> GetVersionsAsync(Guid documentId);
+    Task<IReadOnlyList<FinancePolicyDocumentSection>> GetSectionsAsync(Guid versionId);
+}
+
+public interface IFinancePolicyService
+{
+    Task<FinancePolicyDocumentDto?> GetAsync(string code = "FINANCE-CALCULATION-POLICY", DateTime? asOfUtc = null);
+    Task<IReadOnlyList<FinancePolicyVersionDto>> GetHistoryAsync(string code = "FINANCE-CALCULATION-POLICY");
+}
+
 public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); Task<Outlet?> GetByIdAsync(Guid id); Task<Outlet?> GetBySlugAsync(string slug); Task<Outlet?> GetBySubdomainAsync(string subdomain); Task AddAsync(Outlet outlet); Task UpdateAsync(Outlet outlet); }
 public interface IOutletLegalPolicyRepository
 {
