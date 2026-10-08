@@ -344,7 +344,7 @@ public interface IPaymentGatewaySettlementRepository
 public interface IPaymentTransactionRepository
 {
     Task<PaymentTransaction?> GetAsync(Guid id);
-    Task<PaymentTransaction?> GetByIdempotencyKeyAsync(string key);
+    Task<PaymentTransaction?> GetByIdempotencyKeyAsync(string provider, string key);
     Task<PaymentTransaction?> GetByProviderOrderIdAsync(string providerOrderId);
     Task<PaymentTransaction?> GetByOnboardingApplicationIdAsync(Guid applicationId);
     Task<PaymentTransaction?> GetLatestBySubscriptionAsync(Guid subscriptionId);
