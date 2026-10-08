@@ -14,6 +14,7 @@ public static class DatabaseInitializer
         // The checked-in demo package is self-contained. A production deployment should
         // replace EnsureCreatedAsync with EF Core MigrateAsync after generating migrations.
         await db.Database.EnsureCreatedAsync(cancellationToken);
+        await FinanceDatabaseInitializer.EnsureAsync(db, cancellationToken);
 
         // Outlet groups are a platform-level tenant classification used by Super Admin reports.
         // Reconcile the group table and nullable tenant link for existing databases.
