@@ -643,3 +643,27 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .demoActivityCard p{font-size:7.5px}
  .demoTipCard{padding:11px}
 }
+
+/* Recipe editor refresh: searchable ingredients + mobile-first portion UX */
+.ingredientPicker{position:relative;min-width:0}.ingredientPicker>input{width:100%;border:1px solid #dbe4de;border-radius:9px;padding:10px 11px;background:#fff;color:#18241c}.ingredientPickerMenu{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid #d7e2da;border-radius:11px;box-shadow:0 16px 35px #173a251c;max-height:240px;overflow:auto;padding:5px}.ingredientPickerMenu button{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;border:0;background:#fff;text-align:left;padding:9px 10px;border-radius:8px;cursor:pointer}.ingredientPickerMenu button:hover{background:#f1f7f2}.ingredientPickerMenu button b,.ingredientPickerMenu button small{display:block}.ingredientPickerMenu button b{font-size:10px;color:#1d3326}.ingredientPickerMenu button small{font-size:8px;color:#7b887f;margin-top:2px}.ingredientPickerMenu button i{font-style:normal;color:#267041;font-weight:800}.ingredientPickerEmpty{padding:12px 10px;color:#7a877f;font-size:9px;line-height:1.4}.portionNutritionTabs,.portionQuantityBar{display:flex;gap:6px;background:#eaf2ec;padding:4px;border-radius:10px}.portionNutritionTabs{margin-top:12px}.portionNutritionTabs button,.portionQuantityBar button{flex:1;border:0;border-radius:8px;background:transparent;padding:8px 10px;color:#627168;cursor:pointer}.portionNutritionTabs button{font-size:9px;font-weight:800}.portionNutritionTabs button.selected,.portionQuantityBar button.active{background:#fff;color:#1c4a2b;box-shadow:0 2px 8px #173a2510}.portionNutritionCards{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px}.portionNutritionCard{border:1px solid #dce8df;background:#fff;border-radius:11px;padding:10px;text-align:left;cursor:pointer}.portionNutritionCard.active{border-color:#72a882;box-shadow:0 0 0 2px #e2f0e5}.portionNutritionCardHead{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.portionNutritionCardHead span{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.07em;color:#77857b}.portionNutritionCardHead b{display:block;font-size:17px;color:#183523;margin-top:3px}.portionNutritionCardHead em{font-style:normal;font-size:7px;background:#e8f4eb;color:#28633c;padding:4px 6px;border-radius:999px}.portionMacroGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:9px}.portionMacroGrid span{background:#f7faf7;border-radius:7px;padding:5px 3px;text-align:center}.portionMacroGrid b,.portionMacroGrid small{display:block}.portionMacroGrid b{font-size:8px;color:#274b34}.portionMacroGrid small{font-size:6px;color:#7b887f;margin-top:2px}.portionQuantityBar{margin:-2px 0 10px}.portionQuantityBar button{text-align:left}.portionQuantityBar button b,.portionQuantityBar button span{display:block}.portionQuantityBar button b{font-size:9px}.portionQuantityBar button span{font-size:7px;margin-top:2px;color:#819087}.ingredientQtyField,.ingredientUnitField{display:grid;gap:4px}.ingredientQtyField span,.ingredientUnitField span{font-size:7px;color:#758279;text-transform:uppercase;letter-spacing:.05em}.ingredientQtyField input,.ingredientUnitField input{width:100%;border:1px solid #dbe4de;border-radius:9px;padding:10px;background:#fff}.ingredientOtherQty{grid-column:1/-1;padding:6px 9px;border-radius:7px;background:#f3f7f4;color:#748178;font-size:8px}.ingredientOtherQty b{color:#31543c}.ingredientRemove{align-self:end;white-space:nowrap}.recipeEditor .imageUpload{position:sticky;top:0}
+@media(max-width:760px){
+ .modal.wide{width:100%;max-height:94vh;border-radius:16px 16px 0 0;padding:15px}
+ .recipeEditor{display:block}
+ .recipeEditor .imageUpload{position:static;margin-bottom:12px}
+ .uploadPreview{height:170px}
+ .formGrid{display:grid;grid-template-columns:1fr;gap:10px}
+ .recipeNutritionCalculated,.ingredientEditor,.allergyEditor{padding:11px}
+ .portionNutritionCards{grid-template-columns:1fr}
+ .portionNutritionCardHead b{font-size:16px}
+ .portionMacroGrid{grid-template-columns:repeat(5,1fr)}
+ .ingredientRow{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:10px 0;border-top:1px solid #e8eee9}
+ .ingredientRow .ingredientSelectWrap{grid-column:1/-1}
+ .ingredientRow .ingredientQtyField{grid-column:1}
+ .ingredientRow .ingredientUnitField{grid-column:2}
+ .ingredientRow .ingredientOtherQty{grid-column:1}
+ .ingredientRow .ingredientRemove{grid-column:2;justify-self:end}
+ .editorTitle{align-items:flex-start}
+ .editorTitle .small{white-space:nowrap}
+ .modalActions{position:sticky;bottom:-15px;background:#fff;margin-left:-15px;margin-right:-15px;padding:12px 15px;z-index:20}
+ .modalActions button{flex:1;min-height:44px}
+}
