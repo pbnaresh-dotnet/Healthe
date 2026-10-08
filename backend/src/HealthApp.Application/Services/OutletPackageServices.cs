@@ -101,7 +101,7 @@ public sealed class OutletPackageActivationService(
 
             var existingTx = await transactions.GetAllAsync();
             var alreadyRecorded = existingTx.Any(x => x.SubscriptionId == subscription.Id && x.Type == "CustomerSubscription");
-            var lateSkipRecovery = await credits.GetOutstandingLateSkipAmountAsync(subscription.CustomerId);
+            var lateSkipRecovery = subscription.LateSkipRecoveryAmount;
             if (lateSkipRecovery > 0m) {
                 await credits.AddAsync(new CustomerCreditTransaction { Id = Guid.NewGuid(), CustomerId = subscription.CustomerId, SubscriptionId = subscription.Id, Amount = lateSkipRecovery, Type = CreditTransactionType.Credit, Reason = $"Recovery of late skip fees through package {subscription.Id:N}; original outlet {subscription.OutletId:N}", CreatedAt = DateTime.UtcNow });
                 var recoveryTransaction = (await transactions.GetAllAsync()).FirstOrDefault(x => x.SubscriptionId == subscription.Id && x.Type == "LateSkipFeeRecovery" && x.Status != "Paid");
@@ -118,7 +118,7 @@ public sealed class OutletPackageActivationService(
                     SubscriptionId = subscription.Id,
                     ReferenceId = $"outlet-package-{subscription.Id}",
                     Type = "CustomerSubscription",
-                    GrossAmount = subscription.TotalCharged,
+                    GrossAmount = subscription.TotalCharged - subscription.LateSkipRecoveryAmount,
                     PlatformFee = subscription.PlatformServiceFee,
                     OutletAmount = subscription.OutletAmount,
                     FeePercent = subscription.PlatformServiceFeePercent,
