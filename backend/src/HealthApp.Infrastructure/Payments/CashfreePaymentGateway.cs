@@ -227,4 +227,18 @@ public sealed class CashfreePaymentGateway(
 
         return string.IsNullOrWhiteSpace(body) ? "No additional details returned." : body[..Math.Min(body.Length, 500)];
     }
+    public PaymentGatewayWebhookEvent? ParseWebhook(string rawBody)
+    {
+        using var document = JsonDocument.Parse(rawBody);
+        var root = document.RootElement;
+        var providerOrderId = ExtractString(root, "data", "order", "order_id")
+            ?? ExtractString(root, "data", "payment", "cf_order_id")
+            ?? ExtractString(root, "data", "payment", "order_id");
+        if (string.IsNullOrWhiteSpace(providerOrderId))
+            return null;
+        var eventType = ExtractString(root, "type") ?? "";
+        return new PaymentGatewayWebhookEvent(providerOrderId, eventType);
+    }
+
+
 }
