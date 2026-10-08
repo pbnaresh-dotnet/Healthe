@@ -35,7 +35,14 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
             user = tenantMatches.FirstOrDefault() ?? await users.FindByEmailAsync(r.Email);
         }
 
-        if (user is null || !user.IsActive || !passwords.Verify(r.Password, user.PasswordHash))
+        if (user is null || !user.IsActive)
+            return null;
+
+        // Demo credentials are generated without whitespace. Trim only demo input so
+        // copying the credential from an email client cannot add an accidental leading
+        // or trailing space and cause a false password failure.
+        var password = user.IsDemo ? r.Password.Trim() : r.Password;
+        if (!passwords.Verify(password, user.PasswordHash))
             return null;
 
         // Customer access is only valid for a live outlet. Outlet admins/staff must
