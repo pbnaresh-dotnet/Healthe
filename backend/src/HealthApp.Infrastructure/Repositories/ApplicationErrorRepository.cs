@@ -19,8 +19,54 @@ public sealed class ApplicationErrorRepository(HealthAppDbContext db) : IApplica
         var page = Math.Max(1, request.Page);
         var pageSize = Math.Clamp(request.PageSize, 1, 200);
 
-        var query = db.ApplicationErrorLogs.AsNoTracking();
+        var query = ApplyFilters(db.ApplicationErrorLogs.AsNoTracking(), request);
 
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(x => x.OccurredAtUtc)
+            .ThenByDescending(x => x.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, total);
+    }
+
+    public async Task<ApplicationErrorSummaryData> GetSummaryAsync(
+        ApplicationErrorQueryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var query = ApplyFilters(db.ApplicationErrorLogs.AsNoTracking(), request);
+
+        var total = await query.CountAsync(cancellationToken);
+        var unresolved = await query.CountAsync(x => !x.IsResolved, cancellationToken);
+
+        var since = DateTime.UtcNow.AddHours(-24);
+        var last24 = await query.CountAsync(x => x.OccurredAtUtc >= since, cancellationToken);
+
+        var byOutlet = await query
+            .GroupBy(x => x.OutletId)
+            .Select(g => new
+            {
+                OutletId = g.Key,
+                ErrorCount = g.Count(),
+                UnresolvedCount = g.Count(x => !x.IsResolved)
+            })
+            .OrderByDescending(x => x.ErrorCount)
+            .Take(50)
+            .ToListAsync(cancellationToken);
+
+        return new ApplicationErrorSummaryData(
+            total,
+            unresolved,
+            last24,
+            byOutlet.Select(x => new ApplicationErrorOutletSummaryData(x.OutletId, x.ErrorCount, x.UnresolvedCount)).ToList());
+    }
+
+    private static IQueryable<ApplicationErrorLog> ApplyFilters(
+        IQueryable<ApplicationErrorLog> query,
+        ApplicationErrorQueryRequest request)
+    {
         if (request.OutletId.HasValue)
             query = query.Where(x => x.OutletId == request.OutletId);
 
@@ -52,15 +98,7 @@ public sealed class ApplicationErrorRepository(HealthAppDbContext db) : IApplica
                 x.TenantSlug.Contains(search));
         }
 
-        var total = await query.CountAsync(cancellationToken);
-        var items = await query
-            .OrderByDescending(x => x.OccurredAtUtc)
-            .ThenByDescending(x => x.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-
-        return (items, total);
+        return query;
     }
 
     public Task<ApplicationErrorLog?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
