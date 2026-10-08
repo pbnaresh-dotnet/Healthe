@@ -102,3 +102,25 @@ public record PaymentSettlementImportResultDto(
     int AlreadyReconciledRows,
     int UnmatchedRows,
     IReadOnlyList<string> Errors);
+
+
+public record PaymentSettlementReconciliationExceptionDto(
+    Guid Id,
+    string Provider,
+    string ProviderPaymentId,
+    string ProviderSettlementId,
+    string ExceptionType,
+    string Status,
+    decimal? ReportedGrossAmount,
+    decimal? ReportedNetSettlementAmount,
+    string Currency,
+    string ErrorMessage,
+    string AssignedTo,
+    string ResolutionNotes,
+    DateTime CreatedAtUtc,
+    DateTime? ResolvedAtUtc,
+    string ResolvedBy);
+
+public record ResolvePaymentSettlementExceptionRequest(
+    string ResolutionNotes,
+    string? ResolvedBy = null);
