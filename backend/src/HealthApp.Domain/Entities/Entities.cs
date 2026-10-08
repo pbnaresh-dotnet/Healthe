@@ -656,6 +656,8 @@ public sealed class Outlet
         set;
     }
     = true;
+    /// <summary>Outlet-configured late meal-skip fee. Applied when the customer skips on/after the delivery date cutoff.</summary>
+    public decimal LateSkipFee { get; set; } = 50m;
 
     // Outlet-owned customer-facing legal and commercial policies.
     public string CustomerTermsAndConditions { get; set; } = "";
