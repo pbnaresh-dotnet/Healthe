@@ -751,6 +751,21 @@ public sealed class OutletDomain
     public Outlet? Outlet { get; set; }
 }
 
+public sealed class Trial
+{
+    public Guid Id { get; set; }
+    public Guid OutletSubscriptionId { get; set; }
+    public Guid OutletId { get; set; }
+    public DateTime StartedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime EndsAtUtc { get; set; }
+    public TrialStatus Status { get; set; } = TrialStatus.Active;
+    public DateTime? ConvertedAtUtc { get; set; }
+    public DateTime? CancelledAtUtc { get; set; }
+    public string? CancellationReason { get; set; }
+    public int DurationDays { get; set; } = 30;
+    public OutletSubscription? OutletSubscription { get; set; }
+}
+
 public sealed class OutletSubscription
 {
     public Guid Id {
@@ -790,6 +805,7 @@ public sealed class OutletSubscription
         get;
         set;
     }
+    public Trial? Trial { get; set; }
     public string Status {
         get;
         set;
