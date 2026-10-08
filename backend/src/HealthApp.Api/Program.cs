@@ -49,6 +49,7 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddInfrastructure(builder.Configuration);\nbuilder.Services.AddScoped<ITrialService, TrialLifecycleService>();
+builder.Services.AddScoped<IAdminOutletLifecycleService, AdminOutletLifecycleService>();
 
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key));
