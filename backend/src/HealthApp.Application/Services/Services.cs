@@ -352,7 +352,7 @@ IPlatformServiceFeeStrategy platformFee, ITaxStrategy taxStrategy, IPackageDisco
 IDeliveryModeStrategyFactory deliveryModeFactory, IMealPriceStrategy mealPrice, ILateSkipFeePolicy lateSkipPolicy, IFinanceTaxConfigurationService taxConfiguration,
 IPlatformTransactionRepository transactions, IDomainEventDispatcher events, IUnitOfWork unitOfWork,
 ICustomerAddressRepository addresses, ISubscriptionDiscountTierRepository discountTiers, IMealSelectionHistoryRepository selectionHistory,
-IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IFinanceCalculationSnapshotService financeSnapshots, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments, IOutletLegalPolicyRepository legalPolicies, ITransactionalEmailService emails, IOutletUrlService outletUrls) : ICustomerService
+IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, IOrderFinancialRepository orderFinancials, IDeliveryRepository deliveries, IFinanceCalculationSnapshotService financeSnapshots, IFinancialDocumentService financialDocuments, IAllergySafetyService allergySafety, IPaymentTransactionRepository payments, IOutletLegalPolicyRepository legalPolicies, ITransactionalEmailService emails, IOutletUrlService outletUrls) : ICustomerService
 {
     public async Task<UserDto?> GetProfileAsync()
     {
@@ -768,6 +768,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 serviceFee,
                 commissionRate * 100m,
                 commission);
+            await financialDocuments.CreateDraftsForSubscriptionAsync(subscription.Id);
             if (subscription.Status == SubscriptionStatus.Active)
             {
                 var customer = await users.FindByIdAsync(customerId);
