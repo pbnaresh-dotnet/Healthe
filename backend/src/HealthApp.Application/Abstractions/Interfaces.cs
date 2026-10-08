@@ -326,7 +326,9 @@ public sealed record PaymentGatewaySettlementInput(
     DateTime? SettledAtUtc,
     string SourceDataJson,
     string ReconciliationReference,
-    string ReconciledBy);
+    string ReconciledBy,
+    decimal? ReportedGrossAmount = null,
+    decimal? ReportedNetSettlementAmount = null);
 
 public interface IPaymentSettlementAccountingService
 {
