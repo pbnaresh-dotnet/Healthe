@@ -46,6 +46,11 @@ public interface IOutletTaxProfileRepository
     Task AddVersionAsync(OutletTaxProfile profile, DateTime effectiveFromUtc);
 }
 
+public interface IPlatformTaxProfileRepository
+{
+    Task<PlatformTaxProfile?> GetCurrentAsync(DateTime? asOfUtc = null);
+}
+
 public interface IFinancePolicyRepository
 {
     Task<FinancePolicyDocument?> GetDocumentAsync(string code);
