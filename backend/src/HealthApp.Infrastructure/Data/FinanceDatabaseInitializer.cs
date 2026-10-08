@@ -757,6 +757,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion126Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion127Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion128Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion129Async(db, document, cancellationToken);
             return;
         }
 
@@ -1546,6 +1547,81 @@ WHERE NOT EXISTS
             ChangeSummary = "Align demo subscription financial fixtures with the production 5% platform-fee rule.",
             ChangeReason = "Prevent demo users and auditors from seeing obsolete 3% platform-fee economics.",
             SourceCodeReference = "FIN-Phase-2D-DEMO-FINANCE-CONSISTENCY",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedFinancePolicyVersion129Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.9",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.8")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode,
+            x.Title,
+            x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "governance" => x.ContentMarkdown + " Policy v1.2.9: the outlet onboarding setup fee is a platform-level commercial setting, not an outlet meal charge. It is configurable through the Onboarding:SetupFee configuration and defaults to ₹5,000 when no override is supplied.",
+                "platform-charges" => x.ContentMarkdown + " Policy v1.2.9: the setup fee is captured on the onboarding application, payment transaction and outlet SaaS subscription at onboarding time. Subsequent configuration changes affect new onboarding transactions only.",
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.2.9: setup-fee payment is kept separate from customer meal/package revenue and outlet transaction-fee calculations.",
+                "audit-trace" => x.ContentMarkdown + " The configured setup-fee value is persisted on the onboarding application and subscription, providing historical evidence of the amount charged.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder)
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.2.9",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Make the platform onboarding setup fee configuration-driven while preserving the existing ₹5,000 default.",
+            ChangeReason = "Remove a duplicated hardcoded commercial amount and make future onboarding pricing operationally configurable.",
+            SourceCodeReference = "FIN-Phase-2D-ONBOARDING-SETUP-FEE-GOVERNANCE",
             ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
             PreviousVersionId = previous.Id,
             CreatedAtUtc = now,
