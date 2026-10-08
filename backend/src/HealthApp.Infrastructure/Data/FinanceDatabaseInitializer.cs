@@ -749,6 +749,7 @@ WHERE NOT EXISTS
         {
             await SeedFinancePolicyVersion11Async(db, document, cancellationToken);
             await SeedFinancePolicyVersion12Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion121Async(db, document, cancellationToken);
             return;
         }
 
@@ -952,4 +953,79 @@ WHERE NOT EXISTS
         document.UpdatedAtUtc = now;
         await db.SaveChangesAsync(cancellationToken);
     }
+    private static async Task SeedFinancePolicyVersion121Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.1",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2")
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (previous is null)
+            return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode,
+            x.Title,
+            x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "governance" => x.ContentMarkdown + " Technical correction v1.2.1: the FinancialDocument status property was aligned with the existing FinancialDocumentStatus domain enum. This is a compile-time/domain consistency correction only; it does not alter tax rates, applicability, rounding, allocation, settlement, refund, ledger, or customer pricing calculations.",
+                "audit-trace" => x.ContentMarkdown + " This technical correction is recorded in policy version 1.2.1 so the source-code change remains traceable even though calculation behaviour is unchanged.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder)
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.2.1",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Technical correction: align financial document status reference with the existing domain enum.",
+            ChangeReason = "Restore compilation while preserving the established finance-domain model. No financial calculation behaviour changes.",
+            SourceCodeReference = "FIN-Phase-2C-TECH-STATUS-ENUM",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
 }
