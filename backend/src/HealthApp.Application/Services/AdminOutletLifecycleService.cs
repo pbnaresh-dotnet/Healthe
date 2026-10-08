@@ -12,6 +12,43 @@ public sealed class AdminOutletLifecycleService(
     ITrialRepository trials,
     ICurrentUser currentUser) : IAdminOutletLifecycleService
 {
+    public async Task<AdminOutletReactivationOptionsDto?> GetReactivationOptionsAsync(Guid outletId)
+    {
+        _ = await outlets.GetByIdAsync(outletId)
+            ?? throw new KeyNotFoundException("Outlet not found.");
+
+        var subscription = await outletSubscriptions.GetAnyByOutletAsync(outletId);
+        var trial = await trials.GetByOutletAsync(outletId);
+        var plans = (await saasPlans.GetActiveAsync())
+            .Select(x => new SaaSPlanDto(
+                x.Id,
+                x.Name,
+                x.MonthlyFee,
+                x.AnnualFee,
+                x.IncludedActiveCustomers,
+                x.AdditionalCustomerFee,
+                x.CustomerTransactionFeePercent,
+                x.Description,
+                x.IsActive))
+            .ToList();
+
+        var subscriptionStatus = subscription?.Status ?? "None";
+        var trialStatus = trial?.Status.ToString() ?? "None";
+        var canReactivate =
+            string.Equals(subscriptionStatus, "Expired", StringComparison.OrdinalIgnoreCase) ||
+            trial?.Status == TrialStatus.Expired;
+
+        var outlet = await outlets.GetByIdAsync(outletId)!;
+        return new AdminOutletReactivationOptionsDto(
+            outletId,
+            outlet!.Status.ToString(),
+            subscriptionStatus,
+            trialStatus,
+            subscription?.SaaSPlanId,
+            plans,
+            canReactivate);
+    }
+
     public async Task<AdminOutletReactivationDto?> ReactivateAsync(
         Guid outletId,
         AdminOutletReactivationRequest request)
