@@ -137,7 +137,10 @@ internal static class FinanceModelBuilder
         e.Property(x => x.RoundedOffAmount).HasPrecision(18,2);
         e.Property(x => x.GrandTotal).HasPrecision(18,2);
         e.Property(x => x.Notes).HasColumnType("nvarchar(max)");
-        e.HasIndex(x => new { x.IssuerType, x.IssuerId, x.FiscalYearStart, x.InvoiceNumber }).IsUnique();
+        e.HasIndex(x => new { x.IssuerType, x.IssuerId, x.FiscalYearStart, x.InvoiceNumber })
+            .IsUnique()
+            .HasFilter("[InvoiceNumber] <> ''")
+            .HasDatabaseName("UX_FinancialDocuments_IssuerType_IssuerId_FiscalYearStart_InvoiceNumber");
         e.HasIndex(x => new { x.OutletId, x.IssueDateUtc });
         e.HasIndex(x => new { x.SourceType, x.SourceId });
         e.HasIndex(x => new { x.SupplyType, x.IssueDateUtc });
@@ -261,7 +264,10 @@ internal static class FinanceModelBuilder
         e.Property(x => x.GatewayRefundFee).HasPrecision(18,2);
         e.Property(x => x.Reason).HasMaxLength(1000).IsRequired();
         e.Property(x => x.ApprovalReference).HasMaxLength(200).IsRequired();
-        e.HasIndex(x => x.ProviderRefundId).IsUnique();
+        e.HasIndex(x => x.ProviderRefundId)
+            .IsUnique()
+            .HasFilter("[ProviderRefundId] <> ''")
+            .HasDatabaseName("UX_RefundTransactions_ProviderRefundId");
         e.HasIndex(x => new { x.PaymentTransactionId, x.Status });
         e.HasIndex(x => new { x.OutletId, x.RequestedAtUtc });
         e.HasOne<PaymentTransaction>().WithMany().HasForeignKey(x => x.PaymentTransactionId).OnDelete(DeleteBehavior.NoAction);
