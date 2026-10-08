@@ -799,20 +799,19 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
          <div className="publicGuestProgress"><span/></div>
          <small>Almost ready</small>
        </div>
-       :<div className="publicGuestWeeks">
-       {days.map(d=><section className="publicGuestDay" key={d.date}>
-         <div className="publicGuestDayHead"><div><b>{dayName(dayId(d.date))}</b><span>{shortDate(d.date)}</span></div><small>{SLOT.filter(s=>menuFor(d.date,s.id).length).length} meal slots available</small></div>
-         <div className="publicGuestSlots">
-           {SLOT.map(s=>{
-             const opts=menuFor(d.date,s.id);
-             if(!opts.length)return null;
-             const selectedIds=selectedIdsFor(d.date,s.id);
-             return <label key={s.id}><span>{s.icon} {s.label}</span><GuestMealMultiSelect options={opts} selectedIds={selectedIds} onChange={ids=>setSlotSelections(d.date,s.id,ids)} showMealPrice={showMealPrice}/></label>;
-           })}
-         </div>
-         {!SLOT.some(s=>menuFor(d.date,s.id).length)&&<div className="publicGuestNoMenu">No menu is published for this day.</div>}
-       </section>)}
-     </div>}
+       :<PackageBuilder
+         days={days.map(d=>({date:d.date,label:dayName(dayId(d.date)),week:1}))}
+         menuFor={menuFor}
+         selections={selections}
+         getSelected={(date,slot)=>selections[key(date,slot)]||[]}
+         onSelectionChange={(date,slot,value)=>setSelections(g=>({...g,[key(date,slot)]:value}))}
+         showAddresses={false}
+         showPortion={false}
+         showPrice={showMealPrice}
+         money={money}
+         title="Build your package"
+         subtitle="Pick multiple meals, juices, snacks, curd and other configured items for every slot."
+       />
      <div className="publicGuestFooter">
        <div><b>{selectedCount} items selected</b><span>Each slot can contain a main meal plus configured items such as juice, snack, curd or other add-ons. After creating your account, we'll ask for your exact delivery address and allergy preferences before payment.</span></div>
        <button className="primary big" disabled={busy||!selectedCount} onClick={continueGuest}>{busy?'Preparing package…':'Create account to continue →'}</button>
