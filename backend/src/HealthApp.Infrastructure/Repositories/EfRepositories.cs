@@ -663,6 +663,34 @@ public sealed class PaymentTransactionRepository(HealthAppDbContext db) : EfRepo
             .OrderByDescending(x => x.CreatedAtUtc)
             .FirstOrDefaultAsync();
 
+    public async Task<IReadOnlyList<PaymentTransaction>> GetRetryableAsync(DateTime utcNow, int maxAttempts, int batchSize) =>
+        await Context.PaymentTransactions
+            .Where(x => x.Status == "Pending" &&
+                        x.ProcessingStatus == "ProviderOrderCreationFailed" &&
+                        x.NextRetryAtUtc != null &&
+                        x.NextRetryAtUtc <= utcNow &&
+                        x.AttemptCount < maxAttempts)
+            .OrderBy(x => x.NextRetryAtUtc)
+            .ThenBy(x => x.CreatedAtUtc)
+            .Take(batchSize)
+            .ToListAsync();
+
+    public async Task<bool> TryClaimRetryAsync(Guid paymentId, DateTime utcNow, int maxAttempts)
+    {
+        var affected = await Context.PaymentTransactions
+            .Where(x => x.Id == paymentId &&
+                        x.Status == "Pending" &&
+                        x.ProcessingStatus == "ProviderOrderCreationFailed" &&
+                        x.NextRetryAtUtc != null &&
+                        x.NextRetryAtUtc <= utcNow &&
+                        x.AttemptCount < maxAttempts)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.ProcessingStatus, "RetryingProviderOrder")
+                .SetProperty(x => x.LastAttemptAtUtc, utcNow));
+
+        return affected == 1;
+    }
+
     public async Task AddAsync(PaymentTransaction payment)
     {
         Context.PaymentTransactions.Add(payment);
