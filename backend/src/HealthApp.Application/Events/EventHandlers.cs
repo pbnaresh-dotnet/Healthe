@@ -3,7 +3,7 @@ using HealthApp.Domain.Events;
 
 namespace HealthApp.Application.Events;
 
-public sealed class LateSkipFeeRevenueHandler(IPlatformTransactionRepository transactions) : IDomainEventHandler<MealSkippedEvent>
+public sealed class LateSkipFeeRevenueHandler(IPlatformTransactionRepository transactions, ICustomerCreditRepository credits) : IDomainEventHandler<MealSkippedEvent>
 {
     public async Task HandleAsync(MealSkippedEvent e, CancellationToken cancellationToken = default)
     {
@@ -24,7 +24,7 @@ public sealed class LateSkipFeeRevenueHandler(IPlatformTransactionRepository tra
             OutletAmount = 0m,
             FeePercent = 0m,
             Currency = "INR",
-            Status = "Paid",
+            Status = await credits.GetBalanceAsync(e.CustomerId) >= 0m ? "Paid" : "Pending",
             CreatedAt = e.OccurredAtUtc
         });
     }
