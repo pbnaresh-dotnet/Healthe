@@ -42,6 +42,7 @@ public sealed class CashfreePaymentGateway(
             },
             order_note = request.OrderNote
         };
+        message.Headers.TryAddWithoutValidation("x-idempotency-key", request.IdempotencyKey);
         message.Content = new StringContent(
             JsonSerializer.Serialize(payload),
             Encoding.UTF8,
