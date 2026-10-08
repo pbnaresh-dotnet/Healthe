@@ -1828,7 +1828,7 @@ public sealed class AdminService(
             outlet.LegalPoliciesPublished,
             outlet.LegalVersion,
             outlet.LegalEffectiveDateUtc,
-            (await domainTask).Take(10).Select(MapDomain).ToList(),
+            (await domainTask).Take(10).Select(x => MapDomain(x)).ToList(),
             staffUsers.OrderBy(x => x.FirstName).ThenBy(x => x.LastName).Select(MapUser).ToList(),
             customerUsers.OrderBy(x => x.FirstName).ThenBy(x => x.LastName).Take(50).Select(MapUser).ToList(),
             (await mealPlansTask).Count,
