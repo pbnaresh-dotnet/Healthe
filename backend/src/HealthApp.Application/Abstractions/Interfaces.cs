@@ -343,6 +343,14 @@ public interface IPaymentGatewaySettlementRepository
     Task UpdateAsync(PaymentGatewaySettlement settlement);
     Task<IReadOnlyList<PaymentGatewaySettlement>> GetUnreconciledAsync(Guid? outletId = null);
 }
+
+public interface IPaymentSettlementReconciliationExceptionRepository
+{
+    Task<PaymentSettlementReconciliationException?> GetOpenAsync(string provider, string providerPaymentId, string providerSettlementId, string exceptionType);
+    Task AddAsync(PaymentSettlementReconciliationException exception);
+    Task UpdateAsync(PaymentSettlementReconciliationException exception);
+    Task<IReadOnlyList<PaymentSettlementReconciliationException>> GetOpenAsync(string? provider = null, Guid? outletId = null);
+}
 public interface IPaymentTransactionRepository
 {
     Task<PaymentTransaction?> GetAsync(Guid id);
