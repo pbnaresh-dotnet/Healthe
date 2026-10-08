@@ -239,6 +239,8 @@ public sealed class PaymentSettlementAccountingService(
         throw new FormatException($"Invalid monetary value '{value}'.");
     }
 
+    private static decimal? ParseNullableMoney(string value) => ParseMoney(value);
+
     private static DateTime? ParseNullableDate(string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
