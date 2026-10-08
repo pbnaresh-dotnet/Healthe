@@ -152,6 +152,7 @@ public static class DependencyInjection
         services.AddScoped<IMealSelectionHistoryRepository, MealSelectionHistoryRepository>();
         services.AddScoped<IPaymentTransactionRepository, PaymentTransactionRepository>();
         services.AddScoped<IPaymentGatewaySettlementRepository, PaymentGatewaySettlementRepository>();
+        services.AddScoped<IPaymentSettlementReconciliationExceptionRepository, PaymentSettlementReconciliationExceptionRepository>();
         services.AddScoped<IPaymentSettlementAccountingService, PaymentSettlementAccountingService>();
         services.AddScoped<IDiscountCodeRepository, DiscountCodeRepository>();
         services.AddScoped<IOrderFinancialRepository, OrderFinancialRepository>();
