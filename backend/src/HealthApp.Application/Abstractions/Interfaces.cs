@@ -374,6 +374,8 @@ public interface IPaymentGatewayFactory
 {
     IPaymentGateway Get(string provider);
 }
+public sealed record PaymentGatewayWebhookEvent(string ProviderOrderId, string EventType);
+
 public interface IPaymentGateway
 {
     string Provider { get; }
@@ -382,6 +384,7 @@ public interface IPaymentGateway
     Task<PaymentGatewayCheckoutSession> CreateOrderAsync(PaymentGatewayCreateOrderRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PaymentGatewayTransactionStatus>> GetPaymentsAsync(string providerOrderId, CancellationToken cancellationToken = default);
     bool VerifyWebhookSignature(string signature, string timestamp, string rawBody);
+    PaymentGatewayWebhookEvent? ParseWebhook(string rawBody);
 }
 public interface IDiscountCodeRepository { Task<DiscountCode?> GetAsync(Guid? outletId, string code); Task<IReadOnlyList<DiscountCode>> GetByOutletAsync(Guid outletId); Task AddAsync(DiscountCode code); Task UpdateAsync(DiscountCode code); }
 public interface IOrderFinancialRepository { Task AddAsync(OrderFinancialBreakdown breakdown); Task<OrderFinancialBreakdown?> GetByOrderAsync(Guid orderId); }
@@ -397,7 +400,7 @@ public interface IPaymentService
 {
     Task<PaymentCheckoutDto?> CreateAsync(CreatePaymentRequest request, CancellationToken cancellationToken = default);
     Task<PaymentDto?> GetAsync(Guid id);
-    Task<PaymentWebhookResultDto> HandleCashfreeWebhookAsync(string rawBody, string signature, string timestamp, CancellationToken cancellationToken = default);
+    Task<PaymentWebhookResultDto> HandleWebhookAsync(string rawBody, string signature, string timestamp, CancellationToken cancellationToken = default);
 }
 
 public interface IDeliveryLabelService { Task<IReadOnlyList<DeliveryLabelDto>> GetLabelsAsync(DateTime? date); }
