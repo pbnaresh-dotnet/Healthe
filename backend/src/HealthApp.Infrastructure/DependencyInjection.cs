@@ -145,6 +145,7 @@ public static class DependencyInjection
         services.AddScoped<ISubscriptionDiscountTierRepository, SubscriptionDiscountTierRepository>();
         services.AddScoped<IMealSelectionHistoryRepository, MealSelectionHistoryRepository>();
         services.AddScoped<IPaymentTransactionRepository, PaymentTransactionRepository>();
+        services.AddScoped<IPaymentGatewaySettlementRepository, PaymentGatewaySettlementRepository>();
         services.AddScoped<IDiscountCodeRepository, DiscountCodeRepository>();
         services.AddScoped<IOrderFinancialRepository, OrderFinancialRepository>();
         services.AddScoped<IDeliveryCalculator, DeliveryCalculator>();
