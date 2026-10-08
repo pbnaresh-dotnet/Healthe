@@ -29,7 +29,13 @@ BEGIN
         SortOrder int NOT NULL CONSTRAINT DF_OutletGroups_SortOrder DEFAULT 0
     );
 END;
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_OutletGroups_Name' AND object_id=OBJECT_ID('dbo.OutletGroups'))
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes i
+    INNER JOIN sys.index_columns ic ON ic.object_id=i.object_id AND ic.index_id=i.index_id
+    INNER JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id
+    WHERE i.object_id=OBJECT_ID('dbo.OutletGroups') AND i.is_unique=1 AND c.name='Name'
+)
     CREATE UNIQUE INDEX UX_OutletGroups_Name ON dbo.OutletGroups(Name);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OutletGroups_IsActive_SortOrder' AND object_id=OBJECT_ID('dbo.OutletGroups'))
     CREATE INDEX IX_OutletGroups_IsActive_SortOrder ON dbo.OutletGroups(IsActive, SortOrder);
