@@ -23,12 +23,13 @@ public sealed class PaymentRetryWorker(
         var interval = TimeSpan.FromSeconds(Math.Clamp(settings.PollIntervalSeconds, 5, 300));
         var maxAttempts = Math.Clamp(settings.MaxAttempts, 1, 20);
         var batchSize = Math.Clamp(settings.BatchSize, 1, 100);
+        var claimLease = TimeSpan.FromSeconds(Math.Clamp(settings.ClaimLeaseSeconds, 30, 900));
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                await ProcessBatchAsync(maxAttempts, batchSize, stoppingToken);
+                await ProcessBatchAsync(maxAttempts, batchSize, claimLease, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -50,14 +51,14 @@ public sealed class PaymentRetryWorker(
         }
     }
 
-    private async Task ProcessBatchAsync(int maxAttempts, int batchSize, CancellationToken cancellationToken)
+    private async Task ProcessBatchAsync(int maxAttempts, int batchSize, TimeSpan claimLease, CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
         var payments = scope.ServiceProvider.GetRequiredService<IPaymentTransactionRepository>();
         var paymentService = scope.ServiceProvider.GetRequiredService<IPaymentService>();
 
         var now = DateTime.UtcNow;
-        var candidates = await payments.GetRetryableAsync(now, maxAttempts, batchSize);
+        var candidates = await payments.GetRetryableAsync(now, now.Subtract(claimLease), maxAttempts, batchSize);
 
         foreach (var candidate in candidates)
         {
