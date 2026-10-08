@@ -791,8 +791,6 @@ function RecipeForm({form,setForm,ingredients,allergens,allergenCatalogError,ing
       {!!nutrition.missing.length&&<div className="recipeNutritionWarning">Nutrition is unavailable for: {nutrition.missing.join(', ')}. Use gram/kg quantities and configure the ingredient nutrition reference.</div>}
     </div>
     <div className="span2 ingredientEditor">
-      {allergenCatalogError&&<div className="recipeCatalogStatus error"><span>Allergen master could not be loaded: {allergenCatalogError}</span></div>}
-      {!allergenCatalogError&&!allergens.length&&<div className="recipeCatalogStatus empty">No active allergen master values are available. The backend catalog must be seeded before recipe allergen safety can be calculated.</div>}
       <div className="editorTitle"><div><b>Ingredients & portion quantities</b><small>Select from the Ingredients master. Search by typing; free-text values cannot be saved. Regular and Large quantities are stored separately.</small></div><button type="button" className="secondary small" onClick={addIngredient} disabled={ingredientCatalogLoading||!ingredients.length}>+ Add ingredient</button></div>
       {ingredientCatalogLoading&&<div className="recipeCatalogStatus loading">Loading ingredients from the master table…</div>}
       {!ingredientCatalogLoading&&ingredientCatalogError&&<div className="recipeCatalogStatus error"><span>{ingredientCatalogError}</span><button type="button" className="secondary small" onClick={()=>retryIngredientCatalog?.()}>Retry</button></div>}
@@ -811,7 +809,7 @@ function RecipeForm({form,setForm,ingredients,allergens,allergenCatalogError,ing
       })}
       {!(form.ingredients||[]).length&&<div className="editorEmpty">No ingredients yet. Add an ingredient and start typing its name.</div>}
     </div>
-    <div className="span2 allergyEditor"><div className="editorTitle"><div><b>Recipe-level allergens</b><small>Ingredient-linked allergens are calculated automatically.</small></div></div><div className="allergenChoices">{allergens.map(a=><label key={a.id} className={(form.allergenIds||[]).includes(a.id)?'allergenChoice checked':'allergenChoice'}><input type="checkbox" checked={(form.allergenIds||[]).includes(a.id)} onChange={()=>toggleAllergen(a.id)}/><span>{a.name}</span></label>)}</div>{!allergens.length&&<div className="editorEmpty">No allergen master values available.</div>}</div>
+    <div className="span2 allergyEditor"><div className="editorTitle"><div><b>Recipe-level allergens</b><small>Ingredient-linked allergens are calculated automatically.</small></div></div>{allergenCatalogError&&<div className="recipeCatalogStatus error"><span>Allergen master could not be loaded: {allergenCatalogError}</span></div>}<div className="allergenChoices">{allergens.map(a=><label key={a.id} className={(form.allergenIds||[]).includes(a.id)?'allergenChoice checked':'allergenChoice'}><input type="checkbox" checked={(form.allergenIds||[]).includes(a.id)} onChange={()=>toggleAllergen(a.id)}/><span>{a.name}</span></label>)}</div>{!allergenCatalogError&&!allergens.length&&<div className="recipeCatalogStatus empty">No active allergen master values are available. The backend catalog must be seeded before recipe allergen safety can be calculated.</div>}</div>
     <Field label="Tags"><input value={form.tags||''} onChange={e=>set('tags',e.target.value)} placeholder="High protein, low carb…"/></Field><Field label="Image URL"><input value={form.imageUrl||''} onChange={e=>set('imageUrl',e.target.value)} placeholder="https://…"/></Field>
    </div>
   </div>
