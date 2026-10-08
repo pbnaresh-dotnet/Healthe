@@ -389,6 +389,37 @@ BEGIN
         CreatedAtUtc datetime2 NOT NULL DEFAULT SYSUTCDATETIME()
     );
 END;
+IF OBJECT_ID('dbo.FinanceCalculationSnapshots','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.FinanceCalculationSnapshots
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_FinanceCalculationSnapshots PRIMARY KEY,
+        OutletId uniqueidentifier NOT NULL,
+        SourceType nvarchar(100) NOT NULL,
+        SourceId uniqueidentifier NOT NULL,
+        CalculatedAtUtc datetime2 NOT NULL,
+        FinancePolicyDocumentVersionId uniqueidentifier NULL,
+        TaxProfileId uniqueidentifier NOT NULL,
+        RestaurantTaxRuleId uniqueidentifier NOT NULL,
+        PlatformTaxRuleId uniqueidentifier NOT NULL,
+        RestaurantTaxApplicable bit NOT NULL,
+        RestaurantTaxOperatingMode int NOT NULL,
+        RestaurantGstMode int NOT NULL,
+        RestaurantRate decimal(9,4) NOT NULL,
+        RestaurantTaxableAmount decimal(18,2) NOT NULL,
+        RestaurantTaxAmount decimal(18,2) NOT NULL,
+        PlatformServiceFee decimal(18,2) NOT NULL,
+        PlatformTaxRate decimal(9,4) NOT NULL,
+        PlatformTaxAmount decimal(18,2) NOT NULL,
+        CommissionBaseAmount decimal(18,2) NOT NULL,
+        CommissionRatePercent decimal(9,4) NOT NULL,
+        CommissionAmount decimal(18,2) NOT NULL,
+        InputHash nvarchar(128) NOT NULL,
+        InputsJson nvarchar(max) NOT NULL,
+        ResultsJson nvarchar(max) NOT NULL,
+        CreatedAtUtc datetime2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END;
 ", cancellationToken);
 
         await db.Database.ExecuteSqlRawAsync(@"
@@ -542,6 +573,20 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_LedgerJournalLines_
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_DocumentNumberSequences_OwnerType_OwnerId_DocumentType_FiscalYearStart' AND object_id=OBJECT_ID('dbo.DocumentNumberSequences'))
     CREATE UNIQUE INDEX IX_DocumentNumberSequences_OwnerType_OwnerId_DocumentType_FiscalYearStart ON dbo.DocumentNumberSequences(OwnerType, OwnerId, DocumentType, FiscalYearStart);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinanceCalculationSnapshots_SourceType_SourceId' AND object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
+    CREATE UNIQUE INDEX IX_FinanceCalculationSnapshots_SourceType_SourceId ON dbo.FinanceCalculationSnapshots(SourceType, SourceId);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinanceCalculationSnapshots_OutletId_CalculatedAtUtc' AND object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
+    CREATE INDEX IX_FinanceCalculationSnapshots_OutletId_CalculatedAtUtc ON dbo.FinanceCalculationSnapshots(OutletId, CalculatedAtUtc);
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationSnapshots_Outlets' AND parent_object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
+    ALTER TABLE dbo.FinanceCalculationSnapshots ADD CONSTRAINT FK_FinanceCalculationSnapshots_Outlets FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationSnapshots_PolicyVersion' AND parent_object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
+    ALTER TABLE dbo.FinanceCalculationSnapshots ADD CONSTRAINT FK_FinanceCalculationSnapshots_PolicyVersion FOREIGN KEY(FinancePolicyDocumentVersionId) REFERENCES dbo.FinancePolicyDocumentVersions(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationSnapshots_TaxProfile' AND parent_object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
+    ALTER TABLE dbo.FinanceCalculationSnapshots ADD CONSTRAINT FK_FinanceCalculationSnapshots_TaxProfile FOREIGN KEY(TaxProfileId) REFERENCES dbo.OutletTaxProfiles(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationSnapshots_RestaurantRule' AND parent_object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
+    ALTER TABLE dbo.FinanceCalculationSnapshots ADD CONSTRAINT FK_FinanceCalculationSnapshots_RestaurantRule FOREIGN KEY(RestaurantTaxRuleId) REFERENCES dbo.FinanceTaxRules(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationSnapshots_PlatformRule' AND parent_object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
+    ALTER TABLE dbo.FinanceCalculationSnapshots ADD CONSTRAINT FK_FinanceCalculationSnapshots_PlatformRule FOREIGN KEY(PlatformTaxRuleId) REFERENCES dbo.FinanceTaxRules(Id) ON DELETE NO ACTION;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancePolicyDocuments_Code' AND object_id=OBJECT_ID('dbo.FinancePolicyDocuments'))
     CREATE UNIQUE INDEX IX_FinancePolicyDocuments_Code ON dbo.FinancePolicyDocuments(Code);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancePolicyDocuments_IsActive' AND object_id=OBJECT_ID('dbo.FinancePolicyDocuments'))
