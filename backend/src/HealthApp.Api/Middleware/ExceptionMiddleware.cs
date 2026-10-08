@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using HealthApp.Application.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace HealthApp.Api.Middleware;
 
