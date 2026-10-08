@@ -400,12 +400,14 @@ internal static class FinanceModelBuilder
         e.HasIndex(x => new { x.SourceType, x.SourceId }).IsUnique();
         e.HasIndex(x => new { x.OutletId, x.CalculatedAtUtc });
         e.HasIndex(x => x.FinancePolicyDocumentVersionId);
+        e.HasIndex(x => x.PlatformTaxProfileId);
         e.HasIndex(x => x.TaxProfileId);
         e.HasIndex(x => x.RestaurantTaxRuleId);
         e.HasIndex(x => x.PlatformTaxRuleId);
         e.HasIndex(x => x.CommissionTaxRuleId);
         e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
         e.HasOne<FinancePolicyDocumentVersion>().WithMany().HasForeignKey(x => x.FinancePolicyDocumentVersionId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<PlatformTaxProfile>().WithMany().HasForeignKey(x => x.PlatformTaxProfileId).OnDelete(DeleteBehavior.NoAction);
         e.HasOne<OutletTaxProfile>().WithMany().HasForeignKey(x => x.TaxProfileId).OnDelete(DeleteBehavior.NoAction);
         e.HasOne<FinanceTaxRule>().WithMany().HasForeignKey(x => x.RestaurantTaxRuleId).OnDelete(DeleteBehavior.NoAction);
         e.HasOne<FinanceTaxRule>().WithMany().HasForeignKey(x => x.PlatformTaxRuleId).OnDelete(DeleteBehavior.NoAction);
