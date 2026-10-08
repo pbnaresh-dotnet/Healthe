@@ -387,6 +387,8 @@ internal static class FinanceModelBuilder
         e.Property(x => x.PlatformServiceFee).HasPrecision(18,2);
         e.Property(x => x.PlatformTaxRate).HasPrecision(9,4);
         e.Property(x => x.PlatformTaxAmount).HasPrecision(18,2);
+        e.Property(x => x.CommissionTaxRate).HasPrecision(9,4);
+        e.Property(x => x.CommissionTaxAmount).HasPrecision(18,2);
         e.Property(x => x.CommissionBaseAmount).HasPrecision(18,2);
         e.Property(x => x.CommissionRatePercent).HasPrecision(9,4);
         e.Property(x => x.CommissionAmount).HasPrecision(18,2);
@@ -399,11 +401,13 @@ internal static class FinanceModelBuilder
         e.HasIndex(x => x.TaxProfileId);
         e.HasIndex(x => x.RestaurantTaxRuleId);
         e.HasIndex(x => x.PlatformTaxRuleId);
+        e.HasIndex(x => x.CommissionTaxRuleId);
         e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
         e.HasOne<FinancePolicyDocumentVersion>().WithMany().HasForeignKey(x => x.FinancePolicyDocumentVersionId).OnDelete(DeleteBehavior.NoAction);
         e.HasOne<OutletTaxProfile>().WithMany().HasForeignKey(x => x.TaxProfileId).OnDelete(DeleteBehavior.NoAction);
         e.HasOne<FinanceTaxRule>().WithMany().HasForeignKey(x => x.RestaurantTaxRuleId).OnDelete(DeleteBehavior.NoAction);
         e.HasOne<FinanceTaxRule>().WithMany().HasForeignKey(x => x.PlatformTaxRuleId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<FinanceTaxRule>().WithMany().HasForeignKey(x => x.CommissionTaxRuleId).OnDelete(DeleteBehavior.NoAction);
     }
 
 
