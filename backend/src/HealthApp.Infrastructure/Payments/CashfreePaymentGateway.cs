@@ -9,7 +9,7 @@ namespace HealthApp.Infrastructure.Payments;
 
 public sealed class CashfreePaymentGateway(
     HttpClient http,
-    IOptions<CashfreeOptions> configuredOptions) : IPaymentGateway
+    IOptions<CashfreeOptions> configuredOptions) : IPaymentGatewayAdapter
 {
     private readonly CashfreeOptions options = configuredOptions.Value;
 
