@@ -1618,10 +1618,230 @@ public sealed class AdminService(
     IPlatformTransactionRepository transactions,
     IOutletDomainRepository domains,
     IOutletSubscriptionRepository outletSubscriptions,
+    IOutletGroupRepository groups,
+    ISubscriptionRepository subscriptions,
+    IOrderRepository orders,
+    IDeliveryRepository deliveries,
+    ISaaSPlanRepository saasPlans,
     ICloudflarePagesService cloudflarePages,
     IApplicationErrorRepository applicationErrors,
     ICurrentUser currentUser) : IAdminService
 {
+    public async Task<IReadOnlyList<OutletGroupDto>> GetOutletGroupsAsync()
+    {
+        var groupRows = await groups.GetAllAsync();
+        var outletRows = await outlets.GetAllAsync();
+        var counts = outletRows.Where(x => x.OutletGroupId.HasValue)
+            .GroupBy(x => x.OutletGroupId!.Value)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        return groupRows
+            .Select(x => new OutletGroupDto(x.Id, x.Name, x.Description, x.IsActive, x.SortOrder, counts.GetValueOrDefault(x.Id)))
+            .ToList();
+    }
+
+    public async Task<OutletGroupDto> CreateOutletGroupAsync(CreateOutletGroupRequest request)
+    {
+        var name = request.Name?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Outlet group name is required.");
+        if (name.Length > 120)
+            throw new ArgumentException("Outlet group name cannot exceed 120 characters.");
+
+        var existing = await groups.GetAllAsync();
+        if (existing.Any(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException("An outlet group with this name already exists.");
+
+        var group = new OutletGroup
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            Description = request.Description?.Trim() ?? "",
+            IsActive = request.IsActive,
+            SortOrder = request.SortOrder
+        };
+        await groups.AddAsync(group);
+        return new OutletGroupDto(group.Id, group.Name, group.Description, group.IsActive, group.SortOrder, 0);
+    }
+
+    public async Task<OutletGroupDto> UpdateOutletGroupAsync(Guid id, UpdateOutletGroupRequest request)
+    {
+        var group = await groups.GetAsync(id)
+            ?? throw new KeyNotFoundException("Outlet group not found.");
+
+        var name = request.Name?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Outlet group name is required.");
+
+        var existing = await groups.GetAllAsync();
+        if (existing.Any(x => x.Id != id && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException("An outlet group with this name already exists.");
+
+        group.Name = name;
+        group.Description = request.Description?.Trim() ?? "";
+        group.IsActive = request.IsActive;
+        group.SortOrder = request.SortOrder;
+        await groups.UpdateAsync(group);
+
+        var outletCount = (await outlets.GetAllAsync()).Count(x => x.OutletGroupId == id);
+        return new OutletGroupDto(group.Id, group.Name, group.Description, group.IsActive, group.SortOrder, outletCount);
+    }
+
+    public async Task<OutletGroupDto?> AssignOutletGroupAsync(Guid outletId, Guid? groupId)
+    {
+        var outlet = await outlets.GetByIdAsync(outletId);
+        if (outlet is null)
+            return null;
+
+        OutletGroup? group = null;
+        if (groupId.HasValue)
+        {
+            group = await groups.GetAsync(groupId.Value)
+                ?? throw new KeyNotFoundException("Outlet group not found.");
+            if (!group.IsActive)
+                throw new InvalidOperationException("An inactive outlet group cannot be assigned to a tenant.");
+        }
+
+        outlet.OutletGroupId = groupId;
+        await outlets.UpdateAsync(outlet);
+
+        if (group is null)
+            return null;
+
+        var count = (await outlets.GetAllAsync()).Count(x => x.OutletGroupId == group.Id);
+        return new OutletGroupDto(group.Id, group.Name, group.Description, group.IsActive, group.SortOrder, count);
+    }
+
+    public async Task<AdminOutlet360Dto?> GetOutlet360Async(Guid outletId)
+    {
+        var outlet = await outlets.GetByIdAsync(outletId);
+        if (outlet is null)
+            return null;
+
+        var allUsersTask = users.GetAllAsync();
+        var subscriptionsTask = subscriptions.GetByOutletAsync(outletId);
+        var ordersTask = orders.GetByOutletAsync(outletId);
+        var deliveriesTask = deliveries.GetByOutletAsync(outletId);
+        var domainTask = domains.GetByOutletAsync(outletId);
+        var billingTask = outletSubscriptions.GetByOutletAsync(outletId);
+        var transactionsTask = transactions.GetAllAsync();
+        var groupTask = outlet.OutletGroupId.HasValue ? groups.GetAsync(outlet.OutletGroupId.Value) : Task.FromResult<OutletGroup?>(null);
+
+        await Task.WhenAll(allUsersTask, subscriptionsTask, ordersTask, deliveriesTask, domainTask, billingTask, transactionsTask, groupTask);
+
+        var allUsers = await allUsersTask;
+        var tenantUsers = allUsers.Where(x => x.OutletId == outletId).ToList();
+        var customerUsers = tenantUsers.Where(x => x.Role == UserRole.Customer).ToList();
+        var staffUsers = tenantUsers.Where(x => x.Role != UserRole.Customer).ToList();
+
+        var tenantSubscriptions = await subscriptionsTask;
+        var activeSubscriptions = tenantSubscriptions.Count(x => string.Equals(x.Status.ToString(), "Active", StringComparison.OrdinalIgnoreCase));
+        var pendingSubscriptions = tenantSubscriptions.Count(x => string.Equals(x.Status.ToString(), "Pending", StringComparison.OrdinalIgnoreCase));
+        var cancelledSubscriptions = tenantSubscriptions.Count(x => string.Equals(x.Status.ToString(), "Cancelled", StringComparison.OrdinalIgnoreCase));
+
+        var todayUtc = DateTime.UtcNow.Date;
+        var monthCutoff = todayUtc.AddDays(-30);
+        var tenantOrders = await ordersTask;
+        var tenantDeliveries = await deliveriesTask;
+        var recentOrders = tenantOrders.Where(x => x.DeliveryDate >= monthCutoff).Take(10).ToList();
+        var recentDeliveries = tenantDeliveries.Where(x => x.ScheduledDate >= monthCutoff).Take(10).ToList();
+
+        var tenantTransactions = (await transactionsTask)
+            .Where(x => x.OutletId == outletId && x.CreatedAt >= monthCutoff)
+            .ToList();
+
+        var revenue30 = tenantTransactions.Sum(x => x.GrossAmount);
+        var platformRevenue30 = tenantTransactions.Sum(x => x.PlatformFee);
+        var subscriptionGst30 = tenantSubscriptions.Where(x => x.StartDate >= monthCutoff).Sum(x => x.RestaurantGstAmount);
+        var subscriptionPlatformFee30 = tenantSubscriptions.Where(x => x.StartDate >= monthCutoff).Sum(x => x.PlatformServiceFee);
+
+        var group = await groupTask;
+        OutletGroupDto? groupDto = null;
+        if (group is not null)
+        {
+            var count = (await outlets.GetAllAsync()).Count(x => x.OutletGroupId == group.Id);
+            groupDto = new OutletGroupDto(group.Id, group.Name, group.Description, group.IsActive, group.SortOrder, count);
+        }
+
+        var billing = await billingTask;
+        OutletBillingDto? billingDto = null;
+        if (billing is not null)
+        {
+            var plan = await saasPlans.GetAsync(billing.SaaSPlanId);
+            var included = plan?.IncludedActiveCustomers ?? 0;
+            var fee = plan?.AdditionalCustomerFee ?? billing.SetupFee;
+            billingDto = new OutletBillingDto(
+                outletId,
+                billing.SaaSPlanId,
+                plan?.Name ?? "Unknown plan",
+                billing.BillingCycle,
+                billing.SubscriptionFee,
+                billing.SetupFee,
+                billing.TransactionFeePercent,
+                customerUsers.Count(x => x.IsActive),
+                included,
+                plan?.AdditionalCustomerFee ?? 0m,
+                Math.Max(0, customerUsers.Count(x => x.IsActive) - included) * (plan?.AdditionalCustomerFee ?? 0m),
+                billing.RenewalDate,
+                billing.Status);
+        }
+
+        var outletDto = new OutletDto(
+            outlet.Id, outlet.Name, outlet.Slug, outlet.Subdomain, outlet.City, outlet.State, outlet.Pincode,
+            outlet.Status.ToString(), outlet.BillingPlan.ToString(), outlet.LogoUrl ?? "", outlet.HeroImageUrl ?? "",
+            (outlet.HealthHighlights ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
+            outlet.PrimaryColor, outlet.Status is OutletStatus.Active or OutletStatus.Live, 0, outlet.Rating, outlet.ReviewCount,
+            outlet.About, outlet.Latitude, outlet.Longitude, "", "", "", outlet.DeliveryCoverageMode.ToString(),
+            outlet.ServiceRadiusKm, outlet.Branding?.FontFamily ?? "Inter", outlet.Branding?.ThemeStyle ?? "Fresh",
+            outlet.Branding?.ButtonStyle ?? "Rounded", outlet.Branding?.CardStyle ?? "Soft",
+            outlet.CustomPackagePricingMode, outlet.ShowPackagePriceToCustomer, outlet.ShowMealPriceToCustomer, outlet.ShowDeliveryFeeToCustomer);
+
+        var recentSubs = tenantSubscriptions.Take(10).Select(x => MapAdminSubscription(x)).ToList();
+        var recentOrderDtos = recentOrders.Select(x => new OrderDto(x.Id, x.CustomerId, x.OutletId, x.Total, x.Status.ToString(), x.DeliveryDate, x.Address)).ToList();
+        var recentDeliveryDtos = recentDeliveries.Select(x => new DeliveryDto(x.Id, x.OrderId, x.OutletId, x.CustomerName, x.Address, x.ScheduledDate, x.MealSlot.ToString(), x.DeliveryFee, x.Status.ToString())).ToList();
+
+        return new AdminOutlet360Dto(
+            outletDto,
+            groupDto,
+            tenantUsers.Count,
+            customerUsers.Count,
+            staffUsers.Count,
+            customerUsers.Count(x => x.IsActive),
+            tenantSubscriptions.Count,
+            activeSubscriptions,
+            pendingSubscriptions,
+            cancelledSubscriptions,
+            tenantOrders.Count(x => x.DeliveryDate >= monthCutoff),
+            tenantDeliveries.Count(x => x.ScheduledDate >= monthCutoff),
+            tenantDeliveries.Count(x => x.ScheduledDate.Date == todayUtc),
+            revenue30,
+            subscriptionGst30,
+            subscriptionPlatformFee30,
+            Math.Max(platformRevenue30, subscriptionPlatformFee30),
+            billingDto,
+            new OutletTaxSettingsDto(outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString()),
+            (await domainTask).Take(10).Select(MapDomain).ToList(),
+            staffUsers.OrderBy(x => x.FirstName).ThenBy(x => x.LastName).Select(MapUser).ToList(),
+            recentSubs,
+            recentOrderDtos,
+            recentDeliveryDtos);
+    }
+
+    private static SubscriptionDto MapAdminSubscription(Subscription x) =>
+        new(
+            x.Id, x.CustomerId, x.OutletId, x.MealPlanId, x.PlanName, x.DeliveryMode.ToString(),
+            x.Price, x.DeliveryFee, x.CustomerTransactionFeePercent, x.TransactionFee, x.TotalCharged, x.OutletAmount,
+            x.Frequency, x.MealsPerDay, x.MealsPerWeek, x.Status.ToString(), x.NextDeliveryDate, 0,
+            x.PackageStatus == "PaymentPending" ? "Pending" : x.PackageStatus,
+            x.DeliveryCity, x.GrossMealAmount, x.SubscriptionDiscountAmount, x.RestaurantTaxableAmount,
+            x.RestaurantGstAmount, x.RestaurantGstRate, x.RestaurantGstMode.ToString(), x.PlatformServiceFee,
+            x.PlatformServiceGst, x.PackageStatus, x.IsOutletCreated, x.OutletDiscountType.ToString(),
+            x.OutletDiscountValue, x.OutletDiscountReason, x.IsPreplanned, x.PricingMode,
+            x.PriceVisibleToCustomer, x.DeliveryFeeVisibleToCustomer, x.PackageStatus == "PendingOutletReview");
+
+    private static UserDto MapUser(User x) =>
+        new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId, x.IsDemo, x.DemoExpiresAtUtc, x.MobileNumber, x.MarketingOptIn, x.MarketingOptInAtUtc);
+
     public async Task<IReadOnlyList<OutletDto>> GetOutletsAsync()=>(await outlets.GetAllAsync()).Select(x=>new OutletDto(x.Id,x.Name,x.Slug,x.Subdomain,x.City,x.State,x.Pincode,x.Status.ToString(),x.BillingPlan.ToString(),x.LogoUrl??string.Empty,x.HeroImageUrl??string.Empty,(x.HealthHighlights??string.Empty).Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToList(),x.PrimaryColor,x.Status==OutletStatus.Active,0,x.Rating,x.ReviewCount,x.About)).ToList();
     public async Task<IReadOnlyList<UserDto>> GetUsersAsync()=>(await users.GetAllAsync()).Select(x=>new UserDto(x.Id,x.Email,x.FirstName,x.LastName,x.Role.ToString(),x.OutletId)).ToList();
     public async Task<object> GetDashboardAsync()=>new {
