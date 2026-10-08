@@ -145,7 +145,7 @@ function LandingPage({onLogin,onRegister,onDemo}){
 function App(){
  const legalDoc=(()=>{try{return new URLSearchParams(window.location.search).get('legal')||''}catch{return ''}})();
  const[user,setUser]=useState(currentUser()),[demoOpen,setDemoOpen]=useState(false),[login,setLogin]=useState({email:'',password:''}),[active,setActive]=useState('dashboard'),[dash,setDash]=useState(null),[deliveryFilter,setDeliveryFilter]=useState('all'),[showLogin,setShowLogin]=useState(false),[verificationApp,setVerificationApp]=useState(null),[verificationLoading,setVerificationLoading]=useState(false);
- const[recipes,setRecipes]=useState([]),[ingredients,setIngredients]=useState([]),[allergens,setAllergens]=useState([]),[pricing,setPricing]=useState([]),[areas,setAreas]=useState([]),[selectedAreas,setSelectedAreas]=useState([]),[tiers,setTiers]=useState([]);
+ const[recipes,setRecipes]=useState([]),[ingredients,setIngredients]=useState([]),[ingredientCatalogLoading,setIngredientCatalogLoading]=useState(false),[ingredientCatalogError,setIngredientCatalogError]=useState(''),[allergens,setAllergens]=useState([]),[pricing,setPricing]=useState([]),[areas,setAreas]=useState([]),[selectedAreas,setSelectedAreas]=useState([]),[tiers,setTiers]=useState([]);
  const[customers,setCustomers]=useState([]),[subs,setSubs]=useState([]),[orders,setOrders]=useState([]),[deliveries,setDeliveries]=useState([]),[menu,setMenu]=useState([]),[billing,setBilling]=useState(null),[selectedSub,setSelectedSub]=useState(null),[kitchen,setKitchen]=useState(null),[kitchenDate,setKitchenDate]=useState(new Date().toISOString().slice(0,10)),[ingredientConsumption,setIngredientConsumption]=useState(null),[ingredientConsumptionDate,setIngredientConsumptionDate]=useState(todayISO());
  const[customerEditorOpen,setCustomerEditorOpen]=useState(false),[customerEditorSaving,setCustomerEditorSaving]=useState(false),[customerEditorForm,setCustomerEditorForm]=useState({firstName:'',lastName:'',email:'',password:'',weightKg:'',heightCm:'',dateOfBirth:'',goal:'WeightLoss',activityLevel:'Moderate',diet:'',allergyIds:[]});
  const[customerProfile,setCustomerProfile]=useState(null),[customerProfileLoading,setCustomerProfileLoading]=useState(false),[customerProfileOpen,setCustomerProfileOpen]=useState(false);
@@ -167,7 +167,20 @@ function App(){
   if(p==='dashboard'){setDash(await outletAdmin.dashboard());setRecipes(await outletAdmin.recipes());setPricing(await outletAdmin.pricingRules());}
   if(p==='kitchen')setKitchen(await outletAdmin.kitchen(kitchenDate));
   if(p==='ingredient-usage')setIngredientConsumption(await outletAdmin.ingredientConsumption(ingredientConsumptionDate));
-  if(p==='recipes'){const x=await Promise.all([outletAdmin.recipes(),catalog.ingredients(),catalog.allergens()]);setRecipes(x[0]);setIngredients(x[1]);setAllergens(x[2]);}
+  if(p==='recipes'){
+   const results=await Promise.allSettled([outletAdmin.recipes(),catalog.ingredients(),catalog.allergens()]);
+   if(results[0].status==='fulfilled')setRecipes(results[0].value||[]);
+   else throw results[0].reason;
+   if(results[1].status==='fulfilled'){
+    setIngredients(Array.isArray(results[1].value)?results[1].value:[]);
+    setIngredientCatalogError('');
+   }else{
+    setIngredients([]);
+    setIngredientCatalogError(results[1].reason?.message||'Unable to load the ingredient master.');
+   }
+   if(results[2].status==='fulfilled')setAllergens(results[2].value||[]);
+   else setAllergens([]);
+  }
   if(p==='customers'){const x=await Promise.all([outletAdmin.customers(),catalog.allergens()]);setCustomers(x[0]||[]);setAllergens(x[1]||[]);}
   if(p==='subscriptions'){const x=await Promise.all([outletAdmin.subscriptions(),outletAdmin.customers()]);setSubs(x[0]);setCustomers(x[1])}
   if(p==='orders')setOrders(await outletAdmin.orders());
@@ -213,8 +226,23 @@ function App(){
  const signIn=async e=>{e.preventDefault();try{const x=await auth.login(login);setUser(x.user);setActive(x.user?.role==='KitchenStaff'?'kitchen':x.user?.role==='Driver'?'driver':'dashboard');setShowLogin(false);setError('')}catch(e){fail(e)}};
  const filtered=useMemo(()=>recipes.filter(r=>(category==='All'||r.category===category)&&(!search||r.name.toLowerCase().includes(search.toLowerCase()))),[recipes,category,search]);
 
- const openNew=()=>{setEditRecipe(null);setRecipeForm({...emptyRecipe,ingredients:[],allergenIds:[]});setRecipeOpen(true)};
- const openEdit=r=>{setEditRecipe(r);setRecipeForm({...emptyRecipe,...r,ingredients:(r.ingredients||[]).map(x=>({ingredientId:x.ingredientId,quantity:x.quantity,largeQuantity:x.largeQuantity||x.quantity,unit:x.unit})),allergenIds:(r.allergens||[]).map(x=>x.id)});setRecipeOpen(true)};
+ const ensureIngredientCatalog=async()=>{
+  if(ingredients.length)return true;
+  setIngredientCatalogLoading(true);setIngredientCatalogError('');
+  try{
+   const items=await catalog.ingredients();
+   const list=Array.isArray(items)?items:[];
+   setIngredients(list);
+   if(!list.length)throw new Error('No active ingredients are available in the Ingredients master table.');
+   return true;
+  }catch(e){
+   setIngredients([]);
+   setIngredientCatalogError(e?.message||'Unable to load the ingredient master.');
+   return false;
+  }finally{setIngredientCatalogLoading(false)}
+ };
+ const openNew=()=>{setEditRecipe(null);setRecipeForm({...emptyRecipe,ingredients:[],allergenIds:[]});setRecipeOpen(true);void ensureIngredientCatalog()};
+ const openEdit=r=>{setEditRecipe(r);setRecipeForm({...emptyRecipe,...r,ingredients:(r.ingredients||[]).map(x=>({ingredientId:x.ingredientId,quantity:x.quantity,largeQuantity:x.largeQuantity||x.quantity,unit:x.unit})),allergenIds:(r.allergens||[]).map(x=>x.id)});setRecipeOpen(true);void ensureIngredientCatalog()};
  const upload=async file=>{if(!file)return;if(!file.type.startsWith('image/'))return fail({message:'Only image files are allowed.'});if(file.size>10000000)return fail({message:'Image must be 10 MB or smaller. It will be resized and compressed automatically.'});try{setUploading(true);const r=await outletAdmin.uploadRecipeImage(file);setRecipeForm(f=>({...f,imageUrl:r.url}));notify('Image uploaded')}catch(e){fail(e)}finally{setUploading(false)}};
  const saveRecipe=async e=>{e.preventDefault();try{const normalizedIngredients=(recipeForm.ingredients||[]).filter(x=>x.ingredientId&&Number(x.quantity)>0).map(x=>({ingredientId:x.ingredientId,quantity:Number(x.quantity),largeQuantity:Number(x.largeQuantity)>0?Number(x.largeQuantity):Number(x.quantity),unit:x.unit||ingredients.find(i=>i.id===x.ingredientId)?.defaultUnit||'g'}));const nutrition=calculateRecipeNutrition({...recipeForm,ingredients:normalizedIngredients},ingredients);if(!normalizedIngredients.length)throw new Error('Add at least one ingredient so nutrition can be calculated.');if(nutrition.missing.length)throw new Error(`Nutrition cannot be calculated for: ${nutrition.missing.join(', ')}.`);const p={...recipeForm,calories:Math.round(nutrition.regular.calories),proteinGrams:Math.round(nutrition.regular.proteinGrams),carbsGrams:Math.round(nutrition.regular.carbsGrams),fatGrams:Math.round(nutrition.regular.fatGrams),fiberGrams:Math.round(nutrition.regular.fiberGrams),sugarGrams:Math.round(nutrition.regular.sugarGrams),largeCalories:Math.round(nutrition.large.calories),largeProteinGrams:Math.round(nutrition.large.proteinGrams),largeCarbsGrams:Math.round(nutrition.large.carbsGrams),largeFatGrams:Math.round(nutrition.large.fatGrams),largeFiberGrams:Math.round(nutrition.large.fiberGrams),largeSugarGrams:Math.round(nutrition.large.sugarGrams),pricePerMeal:Number(recipeForm.pricePerMeal)||0,largePricePerMeal:Number(recipeForm.largePricePerMeal)||0,ingredients:normalizedIngredients,allergenIds:recipeForm.allergenIds||[]};if(editRecipe)await outletAdmin.updateRecipe(editRecipe.id,p);else await outletAdmin.createRecipe(p);setRecipeOpen(false);await load('recipes');notify(editRecipe?'Recipe updated':'Recipe created')}catch(e){fail(e)}};
  const executeRemoveRecipe=async r=>{try{await outletAdmin.deleteRecipe(r.id);await load('recipes');notify('Recipe deleted')}catch(e){fail(e)}};
@@ -282,7 +310,7 @@ function App(){
  {confirmDialog&&<StandardConfirmModal request={confirmDialog} onClose={()=>setConfirmDialog(null)} onConfirm={async()=>{const fn=confirmDialog.onConfirm;setConfirmDialog(null);await fn()}}/>} {toast&&<div className={'statusToast '+toastType}><span>{toastType==='success'?'✓':toastType==='warning'?'⚠':toastType==='info'?'ℹ':'×'}</span><div><b>{toastType==='success'?'Success':toastType==='warning'?'Warning':toastType==='info'?'Info':'Error'}</b><small>{toast}</small></div><button onClick={()=>setToast('')}>×</button></div>}
  {customerEditorOpen&&<CustomerEditorModal form={customerEditorForm} setForm={setCustomerEditorForm} allergens={allergens} saving={customerEditorSaving} editing={Boolean(customerProfile)} onClose={()=>setCustomerEditorOpen(false)} onSave={saveCustomer}/>}
  {customerProfileOpen&&<CustomerProfileModal profile={customerProfile} loading={customerProfileLoading} onClose={()=>setCustomerProfileOpen(false)} onEdit={editCustomerProfile} onCreatePackage={()=>{setCustomerProfileOpen(false);nav('packages')}}/>}
- {recipeOpen&&<Modal title={editRecipe?'Edit recipe':'Create new recipe'} onClose={()=>setRecipeOpen(false)} wide><RecipeForm form={recipeForm} setForm={setRecipeForm} ingredients={ingredients} allergens={allergens} upload={upload} uploading={uploading} submit={saveRecipe} cancel={()=>setRecipeOpen(false)}/></Modal>}
+ {recipeOpen&&<Modal title={editRecipe?'Edit recipe':'Create new recipe'} onClose={()=>setRecipeOpen(false)} wide><RecipeForm form={recipeForm} setForm={setRecipeForm} ingredients={ingredients} allergens={allergens} ingredientCatalogLoading={ingredientCatalogLoading} ingredientCatalogError={ingredientCatalogError} retryIngredientCatalog={ensureIngredientCatalog} upload={upload} uploading={uploading} submit={saveRecipe} cancel={()=>setRecipeOpen(false)}/></Modal>}
  {pkgNewCustomerOpen&&<Modal title="Create customer" onClose={()=>setPkgNewCustomerOpen(false)}><form onSubmit={createPackageCustomer} className="formGrid"><Field label="First name"><input value={pkgNewCustomerForm.firstName} onChange={e=>setPkgNewCustomerForm({...pkgNewCustomerForm,firstName:e.target.value})} required/></Field><Field label="Last name"><input value={pkgNewCustomerForm.lastName} onChange={e=>setPkgNewCustomerForm({...pkgNewCustomerForm,lastName:e.target.value})} required/></Field><Field label="Email"><input type="email" value={pkgNewCustomerForm.email} onChange={e=>setPkgNewCustomerForm({...pkgNewCustomerForm,email:e.target.value})} required/></Field><Field label="Initial password" help="The customer can sign in with these credentials later."><input type="password" minLength="6" value={pkgNewCustomerForm.password} onChange={e=>setPkgNewCustomerForm({...pkgNewCustomerForm,password:e.target.value})} required/></Field><div className="modalActions"><button type="button" className="secondary" onClick={()=>setPkgNewCustomerOpen(false)}>Cancel</button><button className="primary">Create customer</button></div></form></Modal>}
  {reviewPackageId&&<Modal title="Review & finalise customer package" onClose={()=>setReviewPackageId('')}><form onSubmit={confirmReviewPackage} className="formGrid"><div className="packageReviewIntro span2"><b>Confirm the customer's requested meal package</b><span>Enter the final meal subtotal approved by the outlet. HealthApp will recalculate applicable GST, delivery, platform fee and settlement from this amount. Leave it blank to use the calculated meal amount.</span></div><Field label="Final meal amount (₹)" help="This is the meal subtotal before delivery and applicable taxes/fees."><input type="number" min="0" step=".01" value={reviewPackageForm.finalMealAmount} onChange={e=>setReviewPackageForm({...reviewPackageForm,finalMealAmount:e.target.value})}/></Field><Field label="Review note"><input maxLength="500" value={reviewPackageForm.discountReason} onChange={e=>setReviewPackageForm({...reviewPackageForm,discountReason:e.target.value})} placeholder="Approved after menu/package review"/></Field><div className="modalActions span2"><button type="button" className="secondary" onClick={()=>setReviewPackageId('')}>Cancel</button><button className="primary">Confirm package & enable payment</button></div></form></Modal>}
  {manualPaymentPackageId&&<Modal title="Record manual payment" onClose={()=>setManualPaymentPackageId('')}><form onSubmit={e=>{e.preventDefault();markPackagePaid()}} className="formGrid"><Field label="Payment method"><select value={manualPaymentMethod} onChange={e=>setManualPaymentMethod(e.target.value)}><option value="Cash">Cash</option><option value="UPI">UPI</option><option value="BankTransfer">Bank transfer</option><option value="Manual">Other manual</option></select></Field><div className="packageManualPaymentNote span2"><b>This activates the package immediately.</b><span>The payment is recorded against the customer package and scheduled deliveries are created.</span></div><div className="modalActions span2"><button type="button" className="secondary" onClick={()=>setManualPaymentPackageId('')}>Cancel</button><button className="primary">Mark paid & activate</button></div></form></Modal>}
@@ -730,10 +758,10 @@ function NutritionSummary({title,data,active,onSelect}){
  </button>;
 }
 
-function RecipeForm({form,setForm,ingredients,allergens,upload,uploading,submit,cancel}){
+function RecipeForm({form,setForm,ingredients,allergens,ingredientCatalogLoading,ingredientCatalogError,retryIngredientCatalog,upload,uploading,submit,cancel}){
  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
  const[portion,setPortion]=useState('regular');
- const addIngredient=()=>{const first=ingredients[0];set('ingredients',[...(form.ingredients||[]),{ingredientId:first?.id||'',quantity:100,largeQuantity:125,unit:first?.defaultUnit||'g'}])};
+ const addIngredient=()=>{const first=ingredients[0];if(!first)return;set('ingredients',[...(form.ingredients||[]),{ingredientId:first.id,quantity:100,largeQuantity:125,unit:first.defaultUnit||'g'}])};
  const updateIngredient=(idx,k,v)=>set('ingredients',(form.ingredients||[]).map((x,i)=>i===idx?{...x,[k]:v}:x));
  const removeIngredient=idx=>set('ingredients',(form.ingredients||[]).filter((_,i)=>i!==idx));
  const chooseIngredient=(idx,item)=>{updateIngredient(idx,'ingredientId',item.id);updateIngredient(idx,'unit',item.defaultUnit||'g')};
@@ -757,7 +785,10 @@ function RecipeForm({form,setForm,ingredients,allergens,upload,uploading,submit,
       {!!nutrition.missing.length&&<div className="recipeNutritionWarning">Nutrition is unavailable for: {nutrition.missing.join(', ')}. Use gram/kg quantities and configure the ingredient nutrition reference.</div>}
     </div>
     <div className="span2 ingredientEditor">
-      <div className="editorTitle"><div><b>Ingredients & portion quantities</b><small>Search by typing. Regular and Large quantities are stored separately; nutrition follows each quantity.</small></div><button type="button" className="secondary small" onClick={addIngredient}>+ Add ingredient</button></div>
+      <div className="editorTitle"><div><b>Ingredients & portion quantities</b><small>Select from the Ingredients master. Search by typing; free-text values cannot be saved. Regular and Large quantities are stored separately.</small></div><button type="button" className="secondary small" onClick={addIngredient} disabled={ingredientCatalogLoading||!ingredients.length}>+ Add ingredient</button></div>
+      {ingredientCatalogLoading&&<div className="recipeCatalogStatus loading">Loading ingredients from the master table…</div>}
+      {!ingredientCatalogLoading&&ingredientCatalogError&&<div className="recipeCatalogStatus error"><span>{ingredientCatalogError}</span><button type="button" className="secondary small" onClick={()=>retryIngredientCatalog?.()}>Retry</button></div>}
+      {!ingredientCatalogLoading&&!ingredientCatalogError&&!ingredients.length&&<div className="recipeCatalogStatus empty">No active ingredients are available. Add/activate ingredients in the master table before creating a recipe.</div>}
       <div className="portionQuantityBar"><button type="button" className={portion==='regular'?'active':''} onClick={()=>setPortion('regular')}><b>Regular</b><span>Standard serving</span></button><button type="button" className={portion==='large'?'active':''} onClick={()=>setPortion('large')}><b>Large</b><span>Large serving</span></button></div>
       {(form.ingredients||[]).map((x,idx)=>{
        const item=ingredients.find(i=>i.id===x.ingredientId);
