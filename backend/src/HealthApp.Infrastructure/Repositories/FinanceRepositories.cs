@@ -20,6 +20,9 @@ public sealed class OutletTaxProfileRepository(HealthAppDbContext db) : EfReposi
             .FirstOrDefaultAsync();
     }
 
+    public Task<OutletTaxProfile?> GetByIdAsync(Guid id) =>
+        Context.OutletTaxProfiles.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+
     public async Task<IReadOnlyList<OutletTaxProfile>> GetHistoryAsync(Guid outletId) =>
         await Context.OutletTaxProfiles
             .AsNoTracking()
@@ -77,6 +80,9 @@ public sealed class FinancePolicyRepository(HealthAppDbContext db) : EfRepositor
 
 public sealed class PlatformTaxProfileRepository(HealthAppDbContext db) : EfRepository(db), IPlatformTaxProfileRepository
 {
+    public Task<PlatformTaxProfile?> GetByIdAsync(Guid id)
+        => Context.PlatformTaxProfiles.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+
     public Task<PlatformTaxProfile?> GetCurrentAsync(DateTime? asOfUtc = null)
     {
         var at = asOfUtc ?? DateTime.UtcNow;
