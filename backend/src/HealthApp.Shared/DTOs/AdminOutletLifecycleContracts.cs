@@ -5,6 +5,15 @@ public record AdminOutletReactivationRequest(
     string BillingCycle = "Monthly",
     string Reason = "Super Admin reactivation");
 
+public record AdminOutletReactivationOptionsDto(
+    Guid OutletId,
+    string OutletStatus,
+    string SubscriptionStatus,
+    string TrialStatus,
+    Guid? CurrentSaaSPlanId,
+    IReadOnlyList<SaaSPlanDto> AvailablePlans,
+    bool CanReactivate);
+
 public record AdminOutletReactivationDto(
     Guid OutletId,
     Guid OutletSubscriptionId,
