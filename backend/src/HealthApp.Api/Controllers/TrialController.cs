@@ -22,6 +22,15 @@ public sealed class TrialController(ITrialService service):ControllerBase
         catch(InvalidOperationException ex){return Conflict(new{message=ex.Message});}
     }
 
+    [HttpPost("convert")]
+    public async Task<IActionResult> Convert(ChangeOutletSubscriptionRequest request)
+    {
+        try{return Ok(await service.ConvertAsync(request));}
+        catch(KeyNotFoundException ex){return NotFound(new{message=ex.Message});}
+        catch(ArgumentException ex){return BadRequest(new{message=ex.Message});}
+        catch(InvalidOperationException ex){return Conflict(new{message=ex.Message});}
+    }
+
     [HttpPost("cancel")]
     public async Task<IActionResult> Cancel([FromBody] string? reason=null)
     {
