@@ -627,7 +627,11 @@ public sealed class PaymentGatewaySettlementRepository(HealthAppDbContext db) : 
     public Task<PaymentGatewaySettlement?> GetByProviderPaymentIdAsync(string provider, string paymentId) =>
         Context.PaymentGatewaySettlements.FirstOrDefaultAsync(x => x.Provider == provider && x.ProviderPaymentId == paymentId);
 
-    public async Task AddAsync(PaymentGatewaySettlement settlement)\n    {\n        Context.PaymentGatewaySettlements.Add(settlement);\n        await SaveAsync();\n    }
+    public async Task AddAsync(PaymentGatewaySettlement settlement)
+    {
+        Context.PaymentGatewaySettlements.Add(settlement);
+        await SaveAsync();
+    }
     public Task UpdateAsync(PaymentGatewaySettlement settlement) { Context.PaymentGatewaySettlements.Update(settlement); return Task.CompletedTask; }
 
     public async Task<IReadOnlyList<PaymentGatewaySettlement>> GetUnreconciledAsync(Guid? outletId = null) =>
