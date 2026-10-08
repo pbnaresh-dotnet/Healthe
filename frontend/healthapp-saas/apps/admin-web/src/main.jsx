@@ -3,10 +3,12 @@ import{createRoot}from'react-dom/client';
 import{auth,admin,currentUser,money,API_URL}from'@healthapp/shared';
 import'./styles.css';
 import ApplicationErrorMonitor from './ApplicationErrorMonitor.jsx';
+import OutletGroups from './OutletGroups.jsx';
+import Outlet360 from './Outlet360.jsx';
 
 const NAV_GROUPS=[
  {label:'Command Center',items:[['overview','Dashboard','grid']]},
- {label:'Tenants',items:[['outlets','Outlets','building'],['onboarding','Onboarding','clipboard'],['domains','Domains','globe']]},
+ {label:'Tenants',items:[['outlets','Outlets','building'],['groups','Outlet Groups','building'],['onboarding','Onboarding','clipboard'],['domains','Domains','globe']]},
  {label:'Operations',items:[['geography','Cities & Coverage','pin']]},
  {label:'Finance & Reports',items:[['finance','Finance','chart']]},
  {label:'Platform',items:[['health','Platform Health','pulse']]}
@@ -44,7 +46,7 @@ function App(){
  const[page,setPage]=useState('overview');
  const[sidebarOpen,setSidebarOpen]=useState(false);
  const[login,setLogin]=useState({email:'admin@healthapp.test',password:'demo'});
- const[data,setData]=useState({d:{},o:[],us:[],r:{}});
+ const[data,setData]=useState({d:{},o:[],us:[],r:{},groups:[]});
  const[domains,setDomains]=useState([]);
  const[cities,setCities]=useState([]);
  const[areas,setAreas]=useState([]);
@@ -57,6 +59,7 @@ function App(){
  const[verificationNotes,setVerificationNotes]=useState('');
  const[verification,setVerification]=useState([]);
  const[outletSearch,setOutletSearch]=useState('');
+ const[selected360,setSelected360]=useState(null);
  const[outletStatus,setOutletStatus]=useState('');
  const[selectedOutlet,setSelectedOutlet]=useState(null);
  const[outletCity,setOutletCity]=useState('');
@@ -68,10 +71,10 @@ function App(){
  const reload=async()=>{
   try{
    setLoading(true);setError('');
-   const[d,o,us,r,cs,v,ds,ars]=await Promise.all([
-    admin.dashboard(),admin.outlets(),admin.users(),admin.revenue(),admin.cities(),admin.outletOnboardingPending(),admin.domains(),admin.cityAreas()
+   const[d,o,us,r,cs,v,ds,ars,gs]=await Promise.all([
+    admin.dashboard(),admin.outlets(),admin.users(),admin.revenue(),admin.cities(),admin.outletOnboardingPending(),admin.domains(),admin.cityAreas(),admin.groups()
    ]);
-   setData({d:d||{},o:o||[],us:us||[],r:r||{}});setCities(cs||[]);setVerification(v||[]);setDomains(ds||[]);setAreas(ars||[]);
+   setData({d:d||{},o:o||[],us:us||[],r:r||{},groups:gs||[]});setCities(cs||[]);setVerification(v||[]);setDomains(ds||[]);setAreas(ars||[]);
   }catch(e){setError(e.message||'Unable to load Super Admin data.')}finally{setLoading(false)}
  };
  useEffect(()=>{if(u)reload()},[u]);
@@ -173,7 +176,9 @@ function App(){
     {loading&&<div className="loadingBar"><span/></div>}
 
     {page==='overview'&&<Dashboard openPage={openPage} data={data} cities={cities} domains={domains} verification={verification} filteredOutlets={filteredOutlets} customerCount={customerCount} liveOutlets={liveOutlets} activeWorkspaces={activeWorkspaces} domainsActive={domainsActive} domainIssues={domainIssues} revenue={revenue} attention={attention} revenueRows={revenueRows}/>}
-    {page==='outlets'&&<OutletDirectory outlets={filteredOutlets} allOutlets={data.o||[]} search={outletSearch} setSearch={setOutletSearch} status={outletStatus} setStatus={setOutletStatus} city={outletCity} setCity={setOutletCity} onDashboard={()=>openPage('overview')} onOpen={setSelectedOutlet} />}
+    {page==='outlets'&&<OutletDirectory outlets={filteredOutlets} allOutlets={data.o||[]} groups={data.groups||[]} search={outletSearch} setSearch={setOutletSearch} status={outletStatus} setStatus={setOutletStatus} city={outletCity} setCity={setOutletCity} onDashboard={()=>openPage('overview')} onOpen={x=>{setSelected360(x.id);openPage('outlet360')}} onAssign={async(outletId,groupId)=>{try{setLoading(true);await admin.assignOutletGroup(outletId,groupId||null);await reload();notify(groupId?'Outlet assigned to group':'Outlet removed from group')}catch(e){setError(e.message||'Unable to assign outlet group')}finally{setLoading(false)}}} />}
+    {page==='groups'&&<OutletGroups groups={data.groups||[]} onSave={async(payload,id)=>{try{setLoading(true);if(id)await admin.updateGroup(id,payload);else await admin.createGroup(payload);await reload();notify(id?'Outlet group updated':'Outlet group created')}catch(e){setError(e.message||'Unable to save outlet group')}finally{setLoading(false)}}}/>} 
+    {page==='outlet360'&&<Outlet360 outletId={selected360} onBack={()=>openPage('outlets')}/>} 
     {page==='onboarding'&&<Onboarding verification={verification} onReview={review} onDashboard={()=>openPage('overview')} />}
     {page==='domains'&&<DomainCenter domains={filteredDomains} allDomains={domains} search={domainSearch} setSearch={setDomainSearch} status={domainStatus} setStatus={setDomainStatus} onUpdate={updateDomain}/>}
     {page==='geography'&&<Geography cities={cities} areas={areas} form={form} setForm={setForm} areaForm={areaForm} setAreaForm={setAreaForm} onCreateCity={createCity} onToggleCity={toggleCity} onCreateArea={createArea} loading={loading}/>}
