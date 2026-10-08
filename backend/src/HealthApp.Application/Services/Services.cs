@@ -2247,3 +2247,40 @@ public sealed class AdminService(
                 throw new InvalidOperationException("The outlet must be Live before a custom domain can be activated.");
 
             if (await outletSubscriptions.GetByOutletAsync(domain.OutletId) is not { Status: "Active" })
+                throw new InvalidOperationException("The outlet SaaS subscription must be active before a custom domain can be activated.");
+        }
+
+        domain.Status = status;
+        if (status is OutletDomainStatus.Verified or OutletDomainStatus.Active)
+            domain.VerifiedAtUtc ??= DateTime.UtcNow;
+        if (status == OutletDomainStatus.Pending)
+            domain.VerifiedAtUtc = null;
+
+        await domains.UpdateAsync(domain);
+        return MapDomain(domain, providerState);
+    }
+
+    private static bool IsCloudflareActive(CloudflarePagesDomainState state) =>
+        string.Equals(state.Status, "active", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(state.ValidationStatus, "active", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(state.VerificationStatus, "active", StringComparison.OrdinalIgnoreCase);
+
+    private static OutletDomainDto MapDomain(OutletDomain x, CloudflarePagesDomainState? providerState = null) =>
+        new(
+            x.Id,
+            x.OutletId,
+            x.Outlet?.Name ?? "",
+            x.Hostname,
+            "Custom",
+            x.Status.ToString(),
+            x.IsPrimary,
+            x.CreatedAtUtc,
+            x.VerifiedAtUtc,
+            providerState?.ValidationMethod ?? "TXT",
+            x.VerificationRecordName,
+            x.VerificationToken,
+            "Cloudflare Pages",
+            providerState?.Status ?? "not_checked",
+            providerState?.ValidationStatus ?? "not_checked",
+            providerState?.ValidationError ?? providerState?.VerificationError);
+}
