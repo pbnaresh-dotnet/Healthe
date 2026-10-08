@@ -75,6 +75,21 @@ public sealed class FinancePolicyRepository(HealthAppDbContext db) : EfRepositor
 }
 
 
+public sealed class PlatformTaxProfileRepository(HealthAppDbContext db) : EfRepository(db), IPlatformTaxProfileRepository
+{
+    public Task<PlatformTaxProfile?> GetCurrentAsync(DateTime? asOfUtc = null)
+    {
+        var at = asOfUtc ?? DateTime.UtcNow;
+        return Context.PlatformTaxProfiles
+            .AsNoTracking()
+            .Where(x => x.IsActive &&
+                        x.EffectiveFromUtc <= at &&
+                        (!x.EffectiveToUtc.HasValue || x.EffectiveToUtc.Value > at))
+            .OrderByDescending(x => x.EffectiveFromUtc)
+            .FirstOrDefaultAsync();
+    }
+}
+
 public sealed class FinanceTaxRuleRepository(HealthAppDbContext db) : EfRepository(db), IFinanceTaxRuleRepository
 {
     public Task<FinanceTaxRule?> GetEffectiveAsync(
