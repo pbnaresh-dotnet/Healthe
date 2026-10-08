@@ -8,26 +8,19 @@ namespace HealthApp.Api.Controllers;
 public sealed class PaymentWebhookController(IPaymentService payments) : ControllerBase
 {
     [AllowAnonymous]
-    [HttpPost("cashfree/webhook")]
+    [HttpPost("webhook")]
     [IgnoreAntiforgeryToken]
     [RequestSizeLimit(1_000_000)]
-    public async Task<IActionResult> CashfreeWebhook(CancellationToken cancellationToken)
+    public async Task<IActionResult> PaymentGatewayWebhook(CancellationToken cancellationToken)
     {
         Request.EnableBuffering();
         using var reader = new StreamReader(Request.Body);
         var rawBody = await reader.ReadToEndAsync(cancellationToken);
 
-        var signature = Request.Headers["x-webhook-signature"].ToString();
-        var timestamp = Request.Headers["x-webhook-timestamp"].ToString();
-        if (string.IsNullOrWhiteSpace(signature) || string.IsNullOrWhiteSpace(timestamp))
-            return Unauthorized(new { message = "payment gateway webhook signature headers are required." });
+        var headers = Request.Headers
+            .ToDictionary(x => x.Key, x => x.Value.ToString(), StringComparer.OrdinalIgnoreCase);
 
-        var result = await payments.HandleWebhookAsync(
-            rawBody,
-            signature,
-            timestamp,
-            cancellationToken);
-
+        var result = await payments.HandleWebhookAsync(rawBody, headers, cancellationToken);
         return Ok(result);
     }
 }
