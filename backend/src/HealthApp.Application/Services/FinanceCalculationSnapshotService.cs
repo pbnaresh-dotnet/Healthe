@@ -20,6 +20,7 @@ public sealed class FinanceCalculationSnapshotService(
         decimal restaurantBaseAmount,
         decimal platformServiceFee,
         decimal platformServiceFeePercent,
+        bool gatewayCostsIncludedInPlatformFee,
         decimal commissionRatePercent,
         decimal commissionAmount)
     {
@@ -48,6 +49,7 @@ public sealed class FinanceCalculationSnapshotService(
             restaurantBaseAmount,
             platformServiceFee,
             platformServiceFeePercent,
+            gatewayCostsIncludedInPlatformFee,
             commissionRatePercent,
             restaurantProfileId = configuration.Restaurant.ProfileId,
             commissionTaxRuleId = configuration.PlatformCommission.Id,
@@ -74,6 +76,7 @@ public sealed class FinanceCalculationSnapshotService(
             restaurantIgstRate = calculation.RestaurantIgstRate,
             platformServiceFee,
             platformServiceFeePercent,
+            gatewayCostsIncludedInPlatformFee,
             platformTaxRate = calculation.PlatformRate,
             platformTaxAmount = calculation.PlatformAmount,
             platformCgstRate = calculation.PlatformCgstRate,
