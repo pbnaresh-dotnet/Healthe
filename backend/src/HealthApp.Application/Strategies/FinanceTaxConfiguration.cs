@@ -26,4 +26,6 @@ public sealed record RestaurantTaxConfiguration(
 public sealed record FinanceTaxCalculationConfiguration(
     RestaurantTaxConfiguration Restaurant,
     FinanceTaxRuleSnapshot PlatformService,
-    FinanceTaxRuleSnapshot PlatformCommission);
+    FinanceTaxRuleSnapshot PlatformCommission,
+    bool PlatformTaxApplicable,
+    Guid? PlatformTaxProfileId);
