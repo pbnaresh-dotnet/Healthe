@@ -121,13 +121,24 @@ public record OutletTaxSettingsDto(decimal RestaurantGstRate, string RestaurantG
 public record UpdateOutletTaxSettingsRequest(decimal RestaurantGstRate, string RestaurantGstMode);
 public record PlatformRevenueDto(decimal OutletSubscriptionRevenue, decimal CustomerTransactionRevenue, decimal TotalRevenue, decimal LateSkipFeeRevenue = 0m, decimal CustomerServiceFeeRevenue = 0m, decimal OutletCommissionRevenue = 0m);
 public record MealPlanDto(Guid Id, Guid OutletId, string Name, string Frequency, int MealsPerDay, int MealsPerWeek, decimal Price, string Currency, string Description, bool IsActive, bool IsPreplanned = false, string AvailableCity = "", int DurationDays = 7);
-public record IngredientDto(Guid Id, string Name, string DefaultUnit);
+public record IngredientDto(
+    Guid Id,
+    string Name,
+    string DefaultUnit,
+    decimal CaloriesPer100g = 0m,
+    decimal ProteinGramsPer100g = 0m,
+    decimal CarbsGramsPer100g = 0m,
+    decimal FatGramsPer100g = 0m,
+    decimal FiberGramsPer100g = 0m,
+    decimal SugarGramsPer100g = 0m,
+    string NutritionSource = "",
+    string NutritionReferenceId = "");
 public record AllergenDto(Guid Id, string Name);
 public record CustomerLikedMealDto(Guid RecipeId, string RecipeName, string ImageUrl, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, string Category, decimal PricePerMeal, int FiberGrams = 0);
 public record RecipeIngredientInput(Guid IngredientId, decimal Quantity, string Unit);
 public record RecipeIngredientDto(Guid IngredientId, string Name, decimal Quantity, string Unit, IReadOnlyList<AllergenDto> Allergens);
 public record AllergyWarningDto(Guid RecipeId, string RecipeName, IReadOnlyList<string> MatchedAllergies, IReadOnlyList<string> MatchedIngredients, string Message);
-public record RecipeDto(Guid Id, Guid OutletId, string Name, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, string Category, decimal PricePerMeal, decimal LargePricePerMeal, string Description, string ImageUrl, string Tags, bool IsActive, IReadOnlyList<RecipeIngredientDto> Ingredients, IReadOnlyList<AllergenDto> Allergens, int FiberGrams = 0, string MealType = "Meal");
+public record RecipeDto(Guid Id, Guid OutletId, string Name, int Calories, int ProteinGrams, int CarbsGrams, int FatGrams, string Category, decimal PricePerMeal, decimal LargePricePerMeal, string Description, string ImageUrl, string Tags, bool IsActive, IReadOnlyList<RecipeIngredientDto> Ingredients, IReadOnlyList<AllergenDto> Allergens, int FiberGrams = 0, string MealType = "Meal", int SugarGrams = 0);
 public record MenuItemDto(Guid Id, Guid OutletId, Guid RecipeId, string RecipeName, DayOfWeek DayOfWeek, string MealSlot, int MealSlotValue, decimal PricePerMeal, decimal LargePricePerMeal, int Calories, int ProteinGrams, string Category, string ImageUrl, bool IsAvailable, int DisplayOrder, int CarbsGrams = 0, int FatGrams = 0, int FiberGrams = 0, string OptionGroup = "Main", bool IsRequired = true, int MaxSelections = 1, string MealType = "Meal");
 public record SubscriptionDto(Guid Id, Guid CustomerId, Guid OutletId, Guid MealPlanId, string PlanName, string DeliveryMode, decimal Price, decimal DeliveryFee, decimal CustomerTransactionFeePercent, decimal TransactionFee, decimal TotalCharged, decimal OutletAmount, string Frequency, int MealsPerDay, int MealsPerWeek, string Status, DateTime NextDeliveryDate, decimal AvailableCredit, string PaymentStatus = "Pending", string DeliveryCity = "", decimal GrossMealAmount = 0m, decimal DiscountAmount = 0m, decimal RestaurantTaxableAmount = 0m, decimal RestaurantGstAmount = 0m, decimal RestaurantGstRate = 0m, string RestaurantGstMode = "Exclusive", decimal PlatformServiceFee = 0m, decimal PlatformServiceGst = 0m, string PackageStatus = "Active", bool IsOutletCreated = false, string OutletDiscountType = "None", decimal OutletDiscountValue = 0m, string OutletDiscountReason = "", bool IsPreplanned = false, string PricingMode = "Calculated", bool PriceVisibleToCustomer = true, bool DeliveryFeeVisibleToCustomer = true, bool RequiresOutletReview = false);
 public record CustomerDashboardDeliveryDto(Guid DeliveryId, Guid SubscriptionId, DateTime ScheduledDate, string MealSlot, string DeliveryWindow, string Status, string Address, double Latitude, double Longitude, int MealCount);
