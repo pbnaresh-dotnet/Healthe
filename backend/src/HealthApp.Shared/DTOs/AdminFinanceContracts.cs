@@ -101,7 +101,11 @@ public record PaymentSettlementImportResultDto(
     int ReconciledRows,
     int AlreadyReconciledRows,
     int UnmatchedRows,
-    IReadOnlyList<string> Errors);
+    IReadOnlyList<string> Errors)
+{
+    // Backward-compatible name for consumers that display import exception rows.
+    public IReadOnlyList<string> ExceptionRows => Errors;
+}
 
 
 public record PaymentSettlementReconciliationExceptionDto(
