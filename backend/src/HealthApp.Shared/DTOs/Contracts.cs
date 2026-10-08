@@ -133,8 +133,6 @@ public record DailyIngredientConsumptionReportDto(
     int DeliveredMealCount,
     IReadOnlyList<IngredientConsumptionRowDto> Ingredients);
 
-public record OutletTaxSettingsDto(decimal RestaurantGstRate, string RestaurantGstMode);
-public record UpdateOutletTaxSettingsRequest(decimal RestaurantGstRate, string RestaurantGstMode);
 public record PlatformRevenueDto(decimal OutletSubscriptionRevenue, decimal CustomerTransactionRevenue, decimal TotalRevenue, decimal LateSkipFeeRevenue = 0m, decimal CustomerServiceFeeRevenue = 0m, decimal OutletCommissionRevenue = 0m);
 public record MealPlanDto(Guid Id, Guid OutletId, string Name, string Frequency, int MealsPerDay, int MealsPerWeek, decimal Price, string Currency, string Description, bool IsActive, bool IsPreplanned = false, string AvailableCity = "", int DurationDays = 7);
 public record IngredientDto(
