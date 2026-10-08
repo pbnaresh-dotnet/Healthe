@@ -27,7 +27,8 @@ public interface ITaxStrategy
         decimal restaurantAmount,
         decimal platformServiceFee,
         RestaurantTaxConfiguration restaurant,
-        FinanceTaxRuleSnapshot platformServiceTaxRule);
+        FinanceTaxRuleSnapshot platformServiceTaxRule,
+        bool platformTaxApplicable);
 }
 
 public sealed class ConfigurableTaxStrategy : ITaxStrategy
@@ -36,7 +37,8 @@ public sealed class ConfigurableTaxStrategy : ITaxStrategy
         decimal restaurantAmount,
         decimal platformServiceFee,
         RestaurantTaxConfiguration restaurant,
-        FinanceTaxRuleSnapshot platformServiceTaxRule)
+        FinanceTaxRuleSnapshot platformServiceTaxRule,
+        bool platformTaxApplicable)
     {
         if (restaurant.Rule.TaxRatePercent < 0m || restaurant.Rule.TaxRatePercent > 100m)
             throw new ArgumentOutOfRangeException(nameof(restaurant), "Restaurant tax rate must be between 0% and 100%.");
@@ -76,7 +78,7 @@ public sealed class ConfigurableTaxStrategy : ITaxStrategy
         }
 
         var platformGross = Math.Round(Math.Max(0m, platformServiceFee), 2);
-        var platformTax = platformServiceTaxRule.TaxRatePercent == 0m || !restaurant.PlatformTaxApplicable
+        var platformTax = platformServiceTaxRule.TaxRatePercent == 0m || !platformTaxApplicable
             ? 0m
             : Math.Round(platformGross * platformServiceTaxRule.TaxRatePercent / 100m, 2);
 
@@ -87,7 +89,7 @@ public sealed class ConfigurableTaxStrategy : ITaxStrategy
             restaurant.PricingMode,
             restaurantTaxable,
             restaurantTax,
-            restaurant.PlatformTaxApplicable ? platformServiceTaxRule.TaxRatePercent : 0m,
+            platformTaxApplicable ? platformServiceTaxRule.TaxRatePercent : 0m,
             platformTax,
             restaurant.IsApplicable,
             restaurant.Rule.Id,
@@ -97,8 +99,8 @@ public sealed class ConfigurableTaxStrategy : ITaxStrategy
             restaurant.IsApplicable ? restaurant.Rule.CgstRatePercent : 0m,
             restaurant.IsApplicable ? restaurant.Rule.SgstRatePercent : 0m,
             restaurant.IsApplicable ? restaurant.Rule.IgstRatePercent : 0m,
-            restaurant.PlatformTaxApplicable ? platformServiceTaxRule.CgstRatePercent : 0m,
-            restaurant.PlatformTaxApplicable ? platformServiceTaxRule.SgstRatePercent : 0m,
-            restaurant.PlatformTaxApplicable ? platformServiceTaxRule.IgstRatePercent : 0m);
+            platformTaxApplicable ? platformServiceTaxRule.CgstRatePercent : 0m,
+            platformTaxApplicable ? platformServiceTaxRule.SgstRatePercent : 0m,
+            platformTaxApplicable ? platformServiceTaxRule.IgstRatePercent : 0m);
     }
 }
