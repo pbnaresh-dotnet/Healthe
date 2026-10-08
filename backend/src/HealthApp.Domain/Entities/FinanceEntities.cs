@@ -89,7 +89,7 @@ public sealed class FinancialDocument
     public Guid? OutletId { get; set; }
     public FinanceDocumentType DocumentType { get; set; }
     public FinanceSupplyType SupplyType { get; set; }
-    public FinanceDocumentStatus Status { get; set; } = FinanceDocumentStatus.Draft;
+    public FinancialDocumentStatus Status { get; set; } = FinancialDocumentStatus.Draft;
     public FinancePartyType IssuerType { get; set; }
     public Guid IssuerId { get; set; }
     public FinancePartyType RecipientType { get; set; }
