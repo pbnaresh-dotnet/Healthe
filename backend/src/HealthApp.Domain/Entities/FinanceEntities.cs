@@ -83,6 +83,29 @@ public sealed class PaymentMerchantAccount
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
+public sealed class PaymentGatewaySettlement
+{
+    public Guid Id { get; set; }
+    public Guid PaymentTransactionId { get; set; }
+    public Guid? OutletId { get; set; }
+    public string Provider { get; set; } = "";
+    public string ProviderPaymentId { get; set; } = "";
+    public string ProviderSettlementId { get; set; } = "";
+    public decimal GrossAmount { get; set; }
+    public decimal GatewayFeeAmount { get; set; }
+    public decimal GatewayFeeTaxAmount { get; set; }
+    public decimal OtherProviderAdjustmentAmount { get; set; }
+    public decimal NetSettlementAmount { get; set; }
+    public string Currency { get; set; } = "INR";
+    public string Status { get; set; } = "Unreconciled";
+    public string ReconciliationReference { get; set; } = "";
+    public string SourceDataJson { get; set; } = "";
+    public DateTime? SettledAtUtc { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? ReconciledAtUtc { get; set; }
+    public string ReconciledBy { get; set; } = "";
+}
+
 public sealed class FinancialDocument
 {
     public Guid Id { get; set; }
