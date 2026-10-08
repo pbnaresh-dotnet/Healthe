@@ -641,7 +641,7 @@ public sealed class OutletPackageService(
             throw new InvalidOperationException("The package contains no scheduled meals.");
 
         var gross = Math.Round(mealRows.Sum(x => x.MealPrice), 2);
-        var baseDiscount = Math.Max(0m, subscription.SubscriptionDiscountAmount - subscription.OutletDiscountValue);
+        var baseDiscount = Math.Max(0m, subscription.SubscriptionDiscountAmount);
         var outletDiscount = discountType switch
         {
             OutletPackageDiscountType.Percent => Math.Round(gross * discountValue / 100m, 2),
@@ -735,7 +735,22 @@ public sealed class OutletPackageService(
                     platformFee.Percent,
                     platformFee.IncludesGatewayCosts,
                     commissionRate * 100m,
-                    commission);
+                    commission,
+                    null,
+                    gross == 0m ? 0m : Math.Round(totalDiscount / gross * 100m, 4),
+                    totalDiscount,
+                    System.Text.Json.JsonSerializer.Serialize(new {
+                        baseDiscount,
+                        outletDiscountType = discountType.ToString(),
+                        requestedOutletDiscountValue = discountValue,
+                        calculatedOutletDiscount = outletDiscount,
+                        finalMealAmount = request.FinalMealAmount,
+                        additionalOutletDiscount,
+                        discountReason = request.DiscountReason?.Trim() ?? ""
+                    }),
+                    null,
+                    0m,
+                    totalDiscount);
                 await financialDocuments.CreateDraftsForSubscriptionAsync(subscription.Id);
             }
         });
