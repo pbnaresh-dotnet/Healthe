@@ -58,6 +58,16 @@ public interface IFinancePolicyService
     Task<IReadOnlyList<FinancePolicyVersionDto>> GetHistoryAsync(string code = "FINANCE-CALCULATION-POLICY");
 }
 
+public interface IFinanceTaxRuleRepository
+{
+    Task<FinanceTaxRule?> GetEffectiveAsync(FinanceSupplyType supplyType, TaxOperatingMode? taxOperatingMode, DateTime asOfUtc);
+}
+
+public interface IFinanceTaxConfigurationService
+{
+    Task<FinanceTaxCalculationConfiguration> ResolveAsync(Guid outletId, DateTime asOfUtc);
+}
+
 public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); Task<Outlet?> GetByIdAsync(Guid id); Task<Outlet?> GetBySlugAsync(string slug); Task<Outlet?> GetBySubdomainAsync(string subdomain); Task AddAsync(Outlet outlet); Task UpdateAsync(Outlet outlet); }
 public interface IOutletLegalPolicyRepository
 {
