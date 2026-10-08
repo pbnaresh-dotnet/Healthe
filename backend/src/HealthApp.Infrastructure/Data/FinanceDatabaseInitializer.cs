@@ -759,6 +759,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion128Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion129Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion130Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion131Async(db, document, cancellationToken);
             return;
         }
 
@@ -1700,6 +1701,79 @@ WHERE NOT EXISTS
             ChangeSummary = "Separate actual payment gateway settlement costs from customer-facing platform fees and establish reconciliation controls.",
             ChangeReason = "Prevent gateway costs from being charged twice and provide an auditable settlement-cost record based on provider evidence.",
             SourceCodeReference = "FIN-Phase-2E-GATEWAY-SETTLEMENT-ACCOUNTING",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedFinancePolicyVersion131Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.1",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.0")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode,
+            x.Title,
+            x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.3.1: payment providers are adapter-based. Provider-specific checkout, status, webhook parsing and signature validation remain isolated inside an IPaymentGatewayAdapter; commercial calculations and settlement accounting do not depend on Cashfree, Razorpay or another provider.",
+                "audit-trace" => x.ContentMarkdown + " Provider changes must preserve the immutable payment transaction reference and settlement evidence trail. Changing providers must not rewrite historical payment calculations.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder)
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.3.1",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Make payment provider integration pluggable without changing commercial finance calculations.",
+            ChangeReason = "Prevent provider-specific payment logic from becoming coupled to customer charging, settlement accounting or historical finance records.",
+            SourceCodeReference = "FIN-Phase-2E-PAYMENT-GATEWAY-PLUGGABILITY",
             ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
             PreviousVersionId = previous.Id,
             CreatedAtUtc = now,
