@@ -46,6 +46,7 @@ internal static class HealthAppModelBuilder
         ConfigureOrderFinancial(b.Entity<OrderFinancialBreakdown>());
         ConfigureOutletLegalPolicyVersion(b.Entity<OutletLegalPolicyVersion>());
         ConfigureCustomerLegalAcceptance(b.Entity<CustomerLegalAcceptance>());
+        ConfigureApplicationError(b.Entity<ApplicationErrorLog>());
         ConfigureOutletForeignKeys(b);
     }
 
@@ -714,3 +715,33 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.HealthAppRevenue).HasPrecision(18,2);
     }
 }
+
+    private static void ConfigureApplicationError(EntityTypeBuilder<ApplicationErrorLog> e)
+    {
+        e.ToTable("ApplicationErrorLogs");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Environment).HasMaxLength(40).IsRequired();
+        e.Property(x => x.Severity).HasMaxLength(20).IsRequired();
+        e.Property(x => x.ErrorCode).HasMaxLength(160).IsRequired();
+        e.Property(x => x.Activity).HasMaxLength(300).IsRequired();
+        e.Property(x => x.ExceptionType).HasMaxLength(300);
+        e.Property(x => x.Message).HasMaxLength(4000);
+        e.Property(x => x.InnerExceptionMessage).HasMaxLength(4000);
+        e.Property(x => x.StackTrace).HasColumnType("nvarchar(max)");
+        e.Property(x => x.RequestPath).HasMaxLength(500).IsRequired();
+        e.Property(x => x.HttpMethod).HasMaxLength(16).IsRequired();
+        e.Property(x => x.CorrelationId).HasMaxLength(100).IsRequired();
+        e.Property(x => x.TraceId).HasMaxLength(100);
+        e.Property(x => x.UserRole).HasMaxLength(50);
+        e.Property(x => x.TenantSlug).HasMaxLength(100);
+        e.Property(x => x.TenantHost).HasMaxLength(255);
+        e.Property(x => x.ClientIpAddress).HasMaxLength(64);
+        e.Property(x => x.UserAgent).HasMaxLength(1000);
+        e.Property(x => x.Fingerprint).HasMaxLength(128).IsRequired();
+        e.Property(x => x.ResolutionNotes).HasMaxLength(2000);
+        e.HasIndex(x => x.OccurredAtUtc);
+        e.HasIndex(x => new { x.OutletId, x.OccurredAtUtc });
+        e.HasIndex(x => new { x.IsResolved, x.OccurredAtUtc });
+        e.HasIndex(x => new { x.StatusCode, x.OccurredAtUtc });
+        e.HasIndex(x => x.Fingerprint);
+    }
