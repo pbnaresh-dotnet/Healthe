@@ -11,24 +11,26 @@ public sealed class AdminFinanceRepository(HealthAppDbContext db) : IAdminFinanc
         AdminFinanceReportRequest request,
         CancellationToken cancellationToken = default)
     {
-        var from = (request.FromDate ?? DateTime.UtcNow.Date.AddDays(-29)).Date;
-        var toExclusive = (request.ToDate ?? DateTime.UtcNow.Date).Date.AddDays(1);
+        var fromDate = (request.FromDate ?? DateTime.UtcNow.Date.AddDays(-29)).Date;
+        var toExclusiveDate = (request.ToDate ?? DateTime.UtcNow.Date).Date.AddDays(1);
 
-        if (toExclusive <= from)
+        if (toExclusiveDate <= fromDate)
             return [];
 
-        var query =
-            from s in db.Subscriptions.AsNoTracking()
-            join o in db.Outlets.AsNoTracking() on s.OutletId equals o.Id
-            where s.StartDate >= from && s.StartDate < toExclusive
-            select new
-            {
-                Subscription = s,
-                OutletId = o.Id,
-                OutletName = o.Name,
-                City = o.City,
-                OutletGroupId = o.OutletGroupId
-            };
+        var query = db.Subscriptions.AsNoTracking()
+            .Join(
+                db.Outlets.AsNoTracking(),
+                s => s.OutletId,
+                o => o.Id,
+                (s, o) => new
+                {
+                    Subscription = s,
+                    OutletId = o.Id,
+                    OutletName = o.Name,
+                    City = o.City,
+                    OutletGroupId = o.OutletGroupId
+                })
+            .Where(x => x.Subscription.StartDate >= fromDate && x.Subscription.StartDate < toExclusiveDate);
 
         if (request.OutletGroupId.HasValue)
             query = query.Where(x => x.OutletGroupId == request.OutletGroupId.Value);
