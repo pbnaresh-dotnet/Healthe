@@ -68,6 +68,12 @@ public interface IFinanceTaxConfigurationService
     Task<FinanceTaxCalculationConfiguration> ResolveAsync(Guid outletId, DateTime asOfUtc);
 }
 
+public interface IFinanceCalculationSnapshotRepository
+{
+    Task<FinanceCalculationSnapshot?> GetBySourceAsync(string sourceType, Guid sourceId);
+    Task AddAsync(FinanceCalculationSnapshot snapshot);
+}
+
 public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); Task<Outlet?> GetByIdAsync(Guid id); Task<Outlet?> GetBySlugAsync(string slug); Task<Outlet?> GetBySubdomainAsync(string subdomain); Task AddAsync(Outlet outlet); Task UpdateAsync(Outlet outlet); }
 public interface IOutletLegalPolicyRepository
 {
