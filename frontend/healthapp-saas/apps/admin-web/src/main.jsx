@@ -66,7 +66,7 @@ function App(){
  const[domainStatus,setDomainStatus]=useState('');
  const[domainSearch,setDomainSearch]=useState('');
  const[financeFilters,setFinanceFilters]=useState(()=>{const d=new Date();d.setDate(d.getDate()-29);return {fromDate:d.toISOString().slice(0,10),toDate:new Date().toISOString().slice(0,10),outletGroupId:'',outletId:'',city:'',mealPlanId:''}});
- const[financeReport,setFinanceReport]=useState(null);
+ const[financeReport,setFinanceReport]=useState(null); const[financePolicy,setFinancePolicy]=useState(null);
  const[financeLoading,setFinanceLoading]=useState(false);
  const notify=m=>{setToast(m);setTimeout(()=>setToast(''),2600)};
  const fileUrl=url=>{if(!url)return'';return url.startsWith('http')?url:(API_URL?new URL(API_URL).origin+url:url)};
@@ -89,7 +89,7 @@ function App(){
    setFinanceReport(await admin.finance(normalized));
   }catch(e){setError(e.message||'Unable to load finance report')}finally{setFinanceLoading(false)}
  };
- useEffect(()=>{if(u&&page==='finance')loadFinance(financeFilters)},[u,page]);
+ useEffect(()=>{if(u&&page==='finance')loadFinance(financeFilters)},[u,page]);\n const loadFinancePolicy=async()=>{try{setError('');setFinancePolicy(await admin.financePolicy())}catch(e){setError(e.message||'Unable to load finance policy')}};\n useEffect(()=>{if(u&&page==='finance-rules')loadFinancePolicy()},[u,page]);
  const sign=async e=>{e.preventDefault();try{setLoading(true);const x=await auth.login(login);setU(x.user);notify('Welcome back')}catch(e){setError(e.message||'Sign in failed')}finally{setLoading(false)}};
 
  const openProtectedDocument=async url=>{
@@ -195,7 +195,7 @@ function App(){
     {page==='domains'&&<DomainCenter domains={filteredDomains} allDomains={domains} search={domainSearch} setSearch={setDomainSearch} status={domainStatus} setStatus={setDomainStatus} onUpdate={updateDomain}/>}
     {page==='geography'&&<Geography cities={cities} areas={areas} form={form} setForm={setForm} areaForm={areaForm} setAreaForm={setAreaForm} onCreateCity={createCity} onToggleCity={toggleCity} onCreateArea={createArea} loading={loading}/>}
     {page==='finance'&&<Finance report={financeReport} filters={financeFilters} setFilters={setFinanceFilters} groups={data.groups||[]} outlets={data.o||[]} onApply={loadFinance} loading={financeLoading} onFinanceRules={()=>openPage('finance-rules')}/>}
-    {page==='finance-rules'&&<FinanceRulesHelp onBack={()=>openPage('finance')} onFinance={()=>openPage('finance')}/>}
+    {page==='finance-rules'&&<FinanceRulesHelp policy={financePolicy} onBack={()=>openPage('finance')} onFinance={()=>openPage('finance')}/>}
     {page==='health'&&<section><PageIntro eyebrow="PLATFORM HEALTH" title="Operational health" text="Central visibility into application errors and tenant-impacting incidents. Drill into an event to see outlet, request, user and correlation context." action={<button className="secondaryBtn" onClick={()=>openPage('overview')}><Icon name="arrow" size={15}/> Command center</button>}/><ApplicationErrorMonitor outlets={data.o||[]}/></section>}
    </main>
   </div>
