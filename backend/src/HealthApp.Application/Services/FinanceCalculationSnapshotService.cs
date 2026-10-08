@@ -48,6 +48,8 @@ public sealed class FinanceCalculationSnapshotService(
             commissionTaxRuleCode = configuration.PlatformCommission.Code,
             restaurantTaxRuleId = configuration.Restaurant.Rule.Id,
             restaurantTaxRuleCode = configuration.Restaurant.Rule.Code,
+            platformTaxProfileId = configuration.PlatformTaxProfileId,
+            platformTaxApplicable = configuration.PlatformTaxApplicable,
             platformTaxRuleId = configuration.PlatformService.Id,
             platformTaxRuleCode = configuration.PlatformService.Code,
             restaurantTaxApplicable = configuration.Restaurant.IsApplicable,
@@ -75,7 +77,7 @@ public sealed class FinanceCalculationSnapshotService(
             commissionAmount,
             commissionTaxRuleCode = configuration.PlatformCommission.Code,
             commissionTaxRate = configuration.PlatformCommission.TaxRatePercent,
-            commissionTaxAmount = Math.Round(commissionAmount * configuration.PlatformCommission.TaxRatePercent / 100m, 2)
+            commissionTaxAmount = configuration.PlatformTaxApplicable ? Math.Round(commissionAmount * configuration.PlatformCommission.TaxRatePercent / 100m, 2) : 0m
         };
 
         var inputJson = JsonSerializer.Serialize(inputs);
@@ -92,10 +94,12 @@ public sealed class FinanceCalculationSnapshotService(
             SourceId = sourceId,
             CalculatedAtUtc = calculatedAtUtc,
             FinancePolicyDocumentVersionId = policyVersionId,
+            PlatformTaxProfileId = configuration.PlatformTaxProfileId,
             TaxProfileId = configuration.Restaurant.ProfileId,
             RestaurantTaxRuleId = configuration.Restaurant.Rule.Id,
             PlatformTaxRuleId = configuration.PlatformService.Id,
             CommissionTaxRuleId = configuration.PlatformCommission.Id,
+            PlatformTaxApplicable = configuration.PlatformTaxApplicable,
             RestaurantTaxApplicable = calculation.RestaurantTaxApplicable,
             RestaurantTaxOperatingMode = configuration.Restaurant.TaxOperatingMode,
             RestaurantGstMode = configuration.Restaurant.PricingMode,
@@ -105,8 +109,8 @@ public sealed class FinanceCalculationSnapshotService(
             PlatformServiceFee = platformServiceFee,
             PlatformTaxRate = calculation.PlatformRate,
             PlatformTaxAmount = calculation.PlatformAmount,
-            CommissionTaxRate = configuration.PlatformCommission.TaxRatePercent,
-            CommissionTaxAmount = Math.Round(commissionAmount * configuration.PlatformCommission.TaxRatePercent / 100m, 2),
+            CommissionTaxRate = configuration.PlatformTaxApplicable ? configuration.PlatformCommission.TaxRatePercent : 0m,
+            CommissionTaxAmount = configuration.PlatformTaxApplicable ? Math.Round(commissionAmount * configuration.PlatformCommission.TaxRatePercent / 100m, 2) : 0m,
             CommissionBaseAmount = calculation.RestaurantTaxableAmount,
             CommissionRatePercent = commissionRatePercent,
             CommissionAmount = commissionAmount,
