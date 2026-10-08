@@ -44,6 +44,7 @@ public sealed class HealthAppDbContext(DbContextOptions<HealthAppDbContext> opti
     public DbSet<OrderFinancialBreakdown> OrderFinancialBreakdowns => Set<OrderFinancialBreakdown>();
     public DbSet<OutletLegalPolicyVersion> OutletLegalPolicyVersions => Set<OutletLegalPolicyVersion>();
     public DbSet<CustomerLegalAcceptance> CustomerLegalAcceptances => Set<CustomerLegalAcceptance>();
+    public DbSet<ApplicationErrorLog> ApplicationErrorLogs => Set<ApplicationErrorLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
         => HealthAppModelBuilder.Configure(modelBuilder);
