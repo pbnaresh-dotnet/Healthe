@@ -10,6 +10,7 @@ internal static class HealthAppModelBuilder
         b.HasDefaultSchema("dbo");
         ConfigureUser(b.Entity<User>());
         ConfigureOutlet(b.Entity<Outlet>());
+        ConfigureOutletGroup(b.Entity<OutletGroup>());
         ConfigureOutletBranding(b.Entity<OutletBranding>());
         ConfigureOutletDomain(b.Entity<OutletDomain>());
         ConfigureSaaSPlan(b.Entity<SaaSPlan>());
@@ -107,6 +108,18 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.DemoExpiresAtUtc);
         e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
     }
+    private static void ConfigureOutletGroup(EntityTypeBuilder<OutletGroup> e)
+    {
+        e.ToTable("OutletGroups");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Name).HasMaxLength(120).IsRequired();
+        e.Property(x => x.Description).HasMaxLength(500);
+        e.Property(x => x.IsActive).IsRequired();
+        e.Property(x => x.SortOrder).IsRequired();
+        e.HasIndex(x => x.Name).IsUnique();
+        e.HasIndex(x => new { x.IsActive, x.SortOrder });
+    }
+
     private static void ConfigureOutlet(EntityTypeBuilder<Outlet> e)
     {
         e.ToTable("Outlets");
@@ -143,6 +156,8 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.RestaurantGstMode).HasConversion<int>();
         e.HasIndex(x => x.Slug).IsUnique();
         e.HasIndex(x => x.Subdomain).IsUnique();
+        e.HasIndex(x => x.OutletGroupId);
+        e.HasOne<OutletGroup>().WithMany().HasForeignKey(x => x.OutletGroupId).OnDelete(DeleteBehavior.NoAction);
     }
     private static void ConfigureOutletLegalPolicyVersion(EntityTypeBuilder<OutletLegalPolicyVersion> e)
     {
