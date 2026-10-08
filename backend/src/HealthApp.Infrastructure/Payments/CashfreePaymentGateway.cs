@@ -230,6 +230,55 @@ public sealed class CashfreePaymentGateway(
 
         return string.IsNullOrWhiteSpace(body) ? "No additional details returned." : body[..Math.Min(body.Length, 500)];
     }
+    private async Task<HttpResponseMessage> SendWithRetryAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 4;
+        var body = request.Content is null
+            ? null
+            : await request.Content.ReadAsByteArrayAsync(cancellationToken);
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            using var retryRequest = new HttpRequestMessage(request.Method, request.RequestUri);
+
+            foreach (var header in request.Headers)
+                retryRequest.Headers.TryAddWithoutValidation(header.Key, header.Value);
+
+            if (body is not null)
+            {
+                var content = new ByteArrayContent(body);
+                foreach (var header in request.Content!.Headers)
+                    content.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                retryRequest.Content = content;
+            }
+
+            try
+            {
+                var response = await http.SendAsync(retryRequest, cancellationToken);
+                if (!ShouldRetry(response.StatusCode) || attempt == maxAttempts)
+                    return response;
+
+                var delay = response.Headers.RetryAfter?.Delta
+                    ?? TimeSpan.FromMilliseconds(Math.Min(8000, 250 * Math.Pow(2, attempt - 1)));
+
+                response.Dispose();
+                await Task.Delay(delay, cancellationToken);
+            }
+            catch (HttpRequestException) when (attempt < maxAttempts)
+            {
+                var delay = TimeSpan.FromMilliseconds(Math.Min(8000, 250 * Math.Pow(2, attempt - 1)));
+                await Task.Delay(delay, cancellationToken);
+            }
+        }
+
+        throw new InvalidOperationException("Cashfree request retry policy exhausted.");
+    }
+
+    private static bool ShouldRetry(System.Net.HttpStatusCode statusCode) =>
+        statusCode == System.Net.HttpStatusCode.RequestTimeout ||
+        (int)statusCode == 429 ||
+        (int)statusCode >= 500;
+
     public PaymentGatewayWebhookEvent? ParseWebhook(string rawBody)
     {
         using var document = JsonDocument.Parse(rawBody);
