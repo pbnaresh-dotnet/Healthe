@@ -104,3 +104,12 @@ public enum LedgerJournalStatus
     Posted = 2,
     Reversed = 3
 }
+
+public enum FinancePolicyPublicationStatus
+{
+    Draft = 1,
+    InReview = 2,
+    Published = 3,
+    Superseded = 4,
+    Withdrawn = 5
+}
