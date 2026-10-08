@@ -25,6 +25,9 @@ internal static class NutritionReferenceData
         new Dictionary<string, Reference>(StringComparer.OrdinalIgnoreCase)
         {
             ["Chicken Breast"] = new(151m, 30.5m, 0m, 3.2m, 0m, 0m, "USDA FoodData Central · cooked grilled, skinless boneless", "FDC 171534"),
+            ["Chicken Breast (Grilled)"] = new(151m, 30.5m, 0m, 3.2m, 0m, 0m, "USDA FoodData Central · cooked grilled, skinless boneless", "FDC 171534"),
+            ["Basmati Rice"] = new(130m, 2.7m, 28.2m, 0.28m, 0.4m, 0.05m, "USDA FoodData Central · cooked white long-grain rice; basmati reference", "FDC 168878"),
+            ["Basmati Rice (Boiled)"] = new(130m, 2.7m, 28.2m, 0.28m, 0.4m, 0.05m, "USDA FoodData Central · cooked white long-grain rice; basmati reference", "FDC 168878"),
             ["Brown Rice"] = new(123m, 2.74m, 25.58m, 0.97m, 1.6m, 0.0m, "USDA FoodData Central · cooked long-grain brown rice", "FDC 169704"),
             ["Broccoli"] = new(35m, 2.38m, 7.18m, 0.41m, 3.3m, 1.39m, "USDA FoodData Central · cooked boiled drained without salt", "FDC 169967"),
             ["Chickpeas"] = new(164m, 8.86m, 27.42m, 2.59m, 7.6m, 4.8m, "USDA FoodData Central · cooked boiled chickpeas", "FDC 173757"),
