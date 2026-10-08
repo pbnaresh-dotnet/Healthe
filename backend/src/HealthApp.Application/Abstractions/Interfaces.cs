@@ -42,6 +42,7 @@ public interface IOutletGroupRepository
 public interface IOutletTaxProfileRepository
 {
     Task<OutletTaxProfile?> GetCurrentAsync(Guid outletId, DateTime? asOfUtc = null);
+    Task<OutletTaxProfile?> GetByIdAsync(Guid id);
     Task<IReadOnlyList<OutletTaxProfile>> GetHistoryAsync(Guid outletId);
     Task AddVersionAsync(OutletTaxProfile profile, DateTime effectiveFromUtc);
 }
@@ -49,6 +50,7 @@ public interface IOutletTaxProfileRepository
 public interface IPlatformTaxProfileRepository
 {
     Task<PlatformTaxProfile?> GetCurrentAsync(DateTime? asOfUtc = null);
+    Task<PlatformTaxProfile?> GetByIdAsync(Guid id);
 }
 
 public interface IFinancePolicyRepository
