@@ -386,6 +386,12 @@ public sealed class PaymentTransaction
     public string PaymentMethod { get; set; } = "";
     public string ProviderStatus { get; set; } = "";
     public string IdempotencyKey { get; set; } = "";
+    public string RequestFingerprint { get; set; } = "";
+    public int AttemptCount { get; set; }
+    public DateTime? LastAttemptAtUtc { get; set; }
+    public DateTime? NextRetryAtUtc { get; set; }
+    public string ProcessingStatus { get; set; } = "NotStarted";
+    public string LastErrorCode { get; set; } = "";
     public decimal Amount { get; set; }
     public string Currency { get; set; } = "INR";
     public string Status { get; set; } = "Pending";
