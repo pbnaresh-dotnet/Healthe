@@ -15,6 +15,56 @@ public static class DatabaseInitializer
         // replace EnsureCreatedAsync with EF Core MigrateAsync after generating migrations.
         await db.Database.EnsureCreatedAsync(cancellationToken);
 
+        // ApplicationErrorLogs is persisted independently of the request DbContext so
+        // production errors can be inspected by SuperAdmin even when an older database
+        // predates the current EF model.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.ApplicationErrorLogs','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ApplicationErrorLogs
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_ApplicationErrorLogs PRIMARY KEY,
+        OccurredAtUtc datetime2 NOT NULL,
+        Environment nvarchar(40) NOT NULL,
+        Severity nvarchar(20) NOT NULL,
+        ErrorCode nvarchar(160) NOT NULL,
+        Activity nvarchar(300) NOT NULL,
+        ExceptionType nvarchar(300) NOT NULL,
+        Message nvarchar(4000) NOT NULL,
+        InnerExceptionMessage nvarchar(4000) NOT NULL,
+        StackTrace nvarchar(max) NOT NULL,
+        RequestPath nvarchar(500) NOT NULL,
+        HttpMethod nvarchar(16) NOT NULL,
+        StatusCode int NOT NULL,
+        CorrelationId nvarchar(100) NOT NULL,
+        TraceId nvarchar(100) NOT NULL,
+        ElapsedMilliseconds bigint NOT NULL,
+        UserId uniqueidentifier NULL,
+        OutletId uniqueidentifier NULL,
+        UserRole nvarchar(50) NOT NULL,
+        TenantSlug nvarchar(100) NOT NULL,
+        TenantHost nvarchar(255) NOT NULL,
+        ClientIpAddress nvarchar(64) NOT NULL,
+        UserAgent nvarchar(1000) NOT NULL,
+        Fingerprint nvarchar(128) NOT NULL,
+        IsResolved bit NOT NULL CONSTRAINT DF_ApplicationErrorLogs_IsResolved DEFAULT 0,
+        ResolvedAtUtc datetime2 NULL,
+        ResolvedByUserId uniqueidentifier NULL,
+        ResolutionNotes nvarchar(2000) NOT NULL CONSTRAINT DF_ApplicationErrorLogs_ResolutionNotes DEFAULT ''
+    );
+END;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_ApplicationErrorLogs_OccurredAtUtc' AND object_id=OBJECT_ID('dbo.ApplicationErrorLogs'))
+    CREATE INDEX IX_ApplicationErrorLogs_OccurredAtUtc ON dbo.ApplicationErrorLogs(OccurredAtUtc DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_ApplicationErrorLogs_OutletId_OccurredAtUtc' AND object_id=OBJECT_ID('dbo.ApplicationErrorLogs'))
+    CREATE INDEX IX_ApplicationErrorLogs_OutletId_OccurredAtUtc ON dbo.ApplicationErrorLogs(OutletId, OccurredAtUtc DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_ApplicationErrorLogs_IsResolved_OccurredAtUtc' AND object_id=OBJECT_ID('dbo.ApplicationErrorLogs'))
+    CREATE INDEX IX_ApplicationErrorLogs_IsResolved_OccurredAtUtc ON dbo.ApplicationErrorLogs(IsResolved, OccurredAtUtc DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_ApplicationErrorLogs_StatusCode_OccurredAtUtc' AND object_id=OBJECT_ID('dbo.ApplicationErrorLogs'))
+    CREATE INDEX IX_ApplicationErrorLogs_StatusCode_OccurredAtUtc ON dbo.ApplicationErrorLogs(StatusCode, OccurredAtUtc DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_ApplicationErrorLogs_Fingerprint' AND object_id=OBJECT_ID('dbo.ApplicationErrorLogs'))
+    CREATE INDEX IX_ApplicationErrorLogs_Fingerprint ON dbo.ApplicationErrorLogs(Fingerprint);
+", cancellationToken);
+
         // Add the column in its own batch first. SQL Server compiles a batch
         // before executing it, so referencing MobileNumber later in the same batch
         // can fail when this is an existing database being upgraded.
