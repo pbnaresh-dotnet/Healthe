@@ -331,8 +331,6 @@ internal static class FinanceModelBuilder
         e.Property(x => x.RowVersion).IsRowVersion();
         e.HasIndex(x => new { x.OwnerType, x.OwnerId, x.DocumentType, x.FiscalYearStart }).IsUnique();
     }
-}
-
 
     private static void ConfigureFinancePolicyDocument(EntityTypeBuilder<FinancePolicyDocument> e)
     {
@@ -375,3 +373,4 @@ internal static class FinanceModelBuilder
         e.HasIndex(x => new { x.FinancePolicyDocumentVersionId, x.DisplayOrder });
         e.HasOne<FinancePolicyDocumentVersion>().WithMany().HasForeignKey(x => x.FinancePolicyDocumentVersionId).OnDelete(DeleteBehavior.NoAction);
     }
+}
