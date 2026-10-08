@@ -12,6 +12,7 @@ public sealed class HealthAppDbContext(DbContextOptions<HealthAppDbContext> opti
     public DbSet<OutletDomain> OutletDomains => Set<OutletDomain>();
     public DbSet<SaaSPlan> SaaSPlans => Set<SaaSPlan>();
     public DbSet<OutletSubscription> OutletSubscriptions => Set<OutletSubscription>();
+    public DbSet<Trial> Trials => Set<Trial>();
     public DbSet<OutletOnboardingApplication> OutletOnboardingApplications => Set<OutletOnboardingApplication>();
     public DbSet<OutletDemoRequest> OutletDemoRequests => Set<OutletDemoRequest>();
     public DbSet<PlatformTransaction> PlatformTransactions => Set<PlatformTransaction>();
