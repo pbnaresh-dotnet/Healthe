@@ -710,7 +710,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             RestaurantGstAmount=taxes.RestaurantAmount,
             LateSkipFee=0,
             LateSkipRecoveryAmount=lateSkipRecovery,
-            Price=net;
+            Price=net,
             DeliveryFee=delivery,
             CustomerTransactionFeePercent=0,
             TransactionFee=0,
