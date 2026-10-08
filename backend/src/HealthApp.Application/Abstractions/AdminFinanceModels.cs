@@ -13,8 +13,6 @@ public sealed record AdminFinanceSubscriptionRow(
     string PlanName,
     DateTime StartDate,
     DateTime? PaidAtUtc,
-    string Status,
-    string PackageStatus,
     decimal GrossMealAmount,
     decimal SubscriptionDiscountAmount,
     decimal NetMealAmount,
