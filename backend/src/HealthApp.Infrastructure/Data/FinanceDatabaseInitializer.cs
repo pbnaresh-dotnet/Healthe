@@ -756,8 +756,6 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion125Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion126Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion127Async(db, document, cancellationToken);
-        await SeedFinancePolicyVersion126Async(db, document, cancellationToken);
-        await SeedFinancePolicyVersion127Async(db, document, cancellationToken);
             return;
         }
 
@@ -820,6 +818,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion124Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion125Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion126Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion127Async(db, document, cancellationToken);
     }
 
     private static async Task SeedFinancePolicyVersion11Async(
