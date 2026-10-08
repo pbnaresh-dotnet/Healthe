@@ -921,7 +921,8 @@ public sealed class OutletPackageService(
             total,
             quotes,
             allergyWarnings,
-            requiresAllergyConfirmation);
+            requiresAllergyConfirmation,
+            taxes.RestaurantTaxApplicable);
     }
 
     private async Task<List<SubscriptionMealSelection>> BuildSelectionsAsync(
