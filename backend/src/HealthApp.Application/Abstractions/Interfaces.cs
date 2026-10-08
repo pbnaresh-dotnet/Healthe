@@ -211,6 +211,7 @@ public interface IAdminService
     Task<OutletGroupDto> UpdateOutletGroupAsync(Guid id, UpdateOutletGroupRequest request);
     Task<OutletGroupDto?> AssignOutletGroupAsync(Guid outletId, Guid? groupId);
     Task<AdminOutlet360Dto?> GetOutlet360Async(Guid outletId);
+    Task<AdminFinanceReportDto> GetFinanceReportAsync(AdminFinanceReportRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<OutletDto>> GetOutletsAsync();
     Task<IReadOnlyList<UserDto>> GetUsersAsync();
     Task<object> GetDashboardAsync();
