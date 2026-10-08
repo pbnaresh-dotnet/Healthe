@@ -620,6 +620,9 @@ public sealed class PaymentTransactionRepository(HealthAppDbContext db) : EfRepo
     public Task<PaymentTransaction?> GetByProviderOrderIdAsync(string providerOrderId) =>
         Context.PaymentTransactions.FirstOrDefaultAsync(x => x.ProviderOrderId == providerOrderId);
 
+    public Task<PaymentTransaction?> GetByProviderPaymentIdAsync(string provider, string providerPaymentId) =>
+        Context.PaymentTransactions.FirstOrDefaultAsync(x => x.Provider == provider && x.ProviderPaymentId == providerPaymentId);
+
     public Task<PaymentTransaction?> GetByOnboardingApplicationIdAsync(Guid applicationId) =>
         Context.PaymentTransactions
             .Where(x => x.OutletOnboardingApplicationId == applicationId)
