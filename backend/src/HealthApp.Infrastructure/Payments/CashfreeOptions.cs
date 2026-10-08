@@ -23,4 +23,5 @@ public sealed class PaymentRetryOptions
     public int PollIntervalSeconds { get; set; } = 15;
     public int MaxAttempts { get; set; } = 6;
     public int BatchSize { get; set; } = 20;
+    public int ClaimLeaseSeconds { get; set; } = 120;
 }
