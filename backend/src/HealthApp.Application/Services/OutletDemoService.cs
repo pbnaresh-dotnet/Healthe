@@ -31,7 +31,7 @@ public sealed class OutletDemoService(
     ITransactionalEmailService emails)
     : IOutletDemoService
 {
-    private static readonly char[] PasswordChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%".ToCharArray();
+    private static readonly char[] PasswordChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789".ToCharArray();
 
     public async Task<OutletDemoRequestDto> RequestAsync(RequestOutletDemoRequest request, CancellationToken cancellationToken = default)
     {
@@ -152,6 +152,7 @@ public sealed class OutletDemoService(
         await SeedDemoWorkspaceAsync(outlet.Id, city.City, cancellationToken);
 
         var portalUrl = configuration["Demo:OutletPortalUrl"] ?? "http://localhost:5174";
+        var demoPortalUrl = $"{portalUrl}{(portalUrl.Contains('?') ? "&" : "?")}demo={Uri.EscapeDataString(outlet.Slug)}";
         await emails.SendAsync(
             EmailTemplateId.OutletDemoAccess,
             email,
@@ -160,7 +161,7 @@ public sealed class OutletDemoService(
                 ["FirstName"] = user.FirstName,
                 ["Email"] = email,
                 ["Password"] = password,
-                ["PortalUrl"] = portalUrl,
+                ["PortalUrl"] = demoPortalUrl,
                 ["ExpiresAtUtc"] = $"{demoExpires:dd MMM yyyy HH:mm} UTC"
             },
             cancellationToken);
