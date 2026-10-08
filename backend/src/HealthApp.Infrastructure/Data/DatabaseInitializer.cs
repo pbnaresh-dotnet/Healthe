@@ -68,6 +68,17 @@ IF COL_LENGTH('dbo.Subscriptions','LateSkipRecoveryAmount') IS NULL
     ALTER TABLE dbo.Subscriptions ADD LateSkipRecoveryAmount decimal(18,2) NOT NULL CONSTRAINT DF_Subscriptions_LateSkipRecoveryAmount DEFAULT 0 WITH VALUES;
 ", cancellationToken);
 
+        // Finance calculation snapshots must retain the complete discount rule used for historical reproducibility.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.FinanceCalculationSnapshots','DiscountTierId') IS NULL ALTER TABLE dbo.FinanceCalculationSnapshots ADD DiscountTierId uniqueidentifier NULL;
+IF COL_LENGTH('dbo.FinanceCalculationSnapshots','DiscountPercent') IS NULL ALTER TABLE dbo.FinanceCalculationSnapshots ADD DiscountPercent decimal(9,4) NOT NULL CONSTRAINT DF_FinanceSnapshots_DiscountPercent DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.FinanceCalculationSnapshots','DiscountAmount') IS NULL ALTER TABLE dbo.FinanceCalculationSnapshots ADD DiscountAmount decimal(18,2) NOT NULL CONSTRAINT DF_FinanceSnapshots_DiscountAmount DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.FinanceCalculationSnapshots','DiscountRuleSnapshotJson') IS NULL ALTER TABLE dbo.FinanceCalculationSnapshots ADD DiscountRuleSnapshotJson nvarchar(max) NOT NULL CONSTRAINT DF_FinanceSnapshots_DiscountRuleSnapshotJson DEFAULT '' WITH VALUES;
+IF COL_LENGTH('dbo.FinanceCalculationSnapshots','DiscountCodeId') IS NULL ALTER TABLE dbo.FinanceCalculationSnapshots ADD DiscountCodeId uniqueidentifier NULL;
+IF COL_LENGTH('dbo.FinanceCalculationSnapshots','DiscountCodeAmount') IS NULL ALTER TABLE dbo.FinanceCalculationSnapshots ADD DiscountCodeAmount decimal(18,2) NOT NULL CONSTRAINT DF_FinanceSnapshots_DiscountCodeAmount DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.FinanceCalculationSnapshots','TotalDiscountAmount') IS NULL ALTER TABLE dbo.FinanceCalculationSnapshots ADD TotalDiscountAmount decimal(18,2) NOT NULL CONSTRAINT DF_FinanceSnapshots_TotalDiscountAmount DEFAULT 0 WITH VALUES;
+", cancellationToken);
+
         // ApplicationErrorLogs is persisted independently of the request DbContext so
         // production errors can be inspected by SuperAdmin even when an older database
         // predates the current EF model.
