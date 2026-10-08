@@ -71,13 +71,9 @@ public sealed class FinancePolicyService(IFinancePolicyRepository repository) : 
 
     public static string ComputeContentHash(IEnumerable<FinancePolicySectionUpdateRequest> sections)
     {
-        var canonical = string.Join("
----
-",
+        var canonical = string.Join("\n---\n",
             sections.OrderBy(x => x.DisplayOrder).ThenBy(x => x.SectionCode)
-                .Select(x => $"{x.SectionCode.Trim()}
-{x.Title.Trim()}
-{x.ContentMarkdown.Trim()}"));
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.ContentMarkdown.Trim()}"));
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
     }
 }
