@@ -123,6 +123,7 @@ BEGIN
         ReverseCharge bit NOT NULL DEFAULT 0,
         IsEcoSection9_5 bit NOT NULL DEFAULT 0,
         OriginalDocumentId uniqueidentifier NULL,
+        FinanceCalculationSnapshotId uniqueidentifier NULL,
         SupplierLegalName nvarchar(250) NOT NULL DEFAULT '',
         SupplierTradeName nvarchar(250) NOT NULL DEFAULT '',
         SupplierAddressLine1 nvarchar(500) NOT NULL DEFAULT '',
@@ -432,6 +433,8 @@ IF COL_LENGTH('dbo.FinanceCalculationSnapshots','CommissionTaxRate') IS NULL
     ALTER TABLE dbo.FinanceCalculationSnapshots ADD CommissionTaxRate decimal(9,4) NOT NULL CONSTRAINT DF_FinanceCalculationSnapshots_CommissionTaxRate DEFAULT 0;
 IF COL_LENGTH('dbo.FinanceCalculationSnapshots','CommissionTaxAmount') IS NULL
     ALTER TABLE dbo.FinanceCalculationSnapshots ADD CommissionTaxAmount decimal(18,2) NOT NULL CONSTRAINT DF_FinanceCalculationSnapshots_CommissionTaxAmount DEFAULT 0;
+IF COL_LENGTH('dbo.FinancialDocuments','FinanceCalculationSnapshotId') IS NULL
+    ALTER TABLE dbo.FinancialDocuments ADD FinanceCalculationSnapshotId uniqueidentifier NULL;
 IF COL_LENGTH('dbo.PaymentTransactions','MerchantAccountId') IS NULL
     ALTER TABLE dbo.PaymentTransactions ADD MerchantAccountId uniqueidentifier NULL;
 IF COL_LENGTH('dbo.PaymentTransactions','Purpose') IS NULL
@@ -481,7 +484,9 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancialDocuments_IsEco
     CREATE INDEX IX_FinancialDocuments_IsEcoSection9_5_IssueDateUtc ON dbo.FinancialDocuments(IsEcoSection9_5, IssueDateUtc);
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinancialDocuments_Outlets' AND parent_object_id=OBJECT_ID('dbo.FinancialDocuments'))
     ALTER TABLE dbo.FinancialDocuments ADD CONSTRAINT FK_FinancialDocuments_Outlets FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
-IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinancialDocuments_OriginalDocument' AND parent_object_id=OBJECT_ID('dbo.FinancialDocuments'))
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinancialDocuments_FinanceCalculationSnapshot' AND parent_object_id=OBJECT_ID('dbo.FinancialDocuments'))
+    ALTER TABLE dbo.FinancialDocuments ADD CONSTRAINT FK_FinancialDocuments_FinanceCalculationSnapshot FOREIGN KEY(FinanceCalculationSnapshotId) REFERENCES dbo.FinanceCalculationSnapshots(Id) ON DELETE NO ACTION;IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinancialDocuments_OriginalDocument' AND parent_object_id=OBJECT_ID('dbo.FinancialDocuments'))
     ALTER TABLE dbo.FinancialDocuments ADD CONSTRAINT FK_FinancialDocuments_OriginalDocument FOREIGN KEY(OriginalDocumentId) REFERENCES dbo.FinancialDocuments(Id) ON DELETE NO ACTION;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancialDocumentLines_FinancialDocumentId_LineNumber' AND object_id=OBJECT_ID('dbo.FinancialDocumentLines'))
