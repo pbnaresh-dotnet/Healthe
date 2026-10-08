@@ -251,6 +251,13 @@ public sealed class SubscriptionMealSelectionRepository(HealthAppDbContext db) :
 {
     public async Task<IReadOnlyList<SubscriptionMealSelection>> GetBySubscriptionAsync(Guid id) => await Context.SubscriptionMealSelections.AsNoTracking().Where(x => x.SubscriptionId == id).OrderBy(x => x.MealDate).ThenBy(x => x.MealSlot).ToListAsync();
     public async Task<IReadOnlyList<SubscriptionMealSelection>> GetBySubscriptionAndDateRangeAsync(Guid id, DateTime from, DateTime to) => await Context.SubscriptionMealSelections.AsNoTracking().Where(x => x.SubscriptionId == id && x.MealDate >= from && x.MealDate < to).OrderBy(x => x.MealDate).ThenBy(x => x.MealSlot).ToListAsync();
+    public async Task<IReadOnlyList<SubscriptionMealSelection>> GetByOutletAndDateRangeAsync(Guid outletId, DateTime from, DateTime to) =>
+        await Context.SubscriptionMealSelections.AsNoTracking()
+            .Where(x => x.MealDate >= from && x.MealDate < to && Context.Subscriptions.Any(s => s.Id == x.SubscriptionId && s.OutletId == outletId))
+            .OrderBy(x => x.SubscriptionId)
+            .ThenBy(x => x.MealDate)
+            .ThenBy(x => x.MealSlot)
+            .ToListAsync();
     public Task<SubscriptionMealSelection?> GetAsync(Guid id) => Context.SubscriptionMealSelections.FirstOrDefaultAsync(x => x.Id == id);
     public async Task AddRangeAsync(IEnumerable<SubscriptionMealSelection> selections) {
         Context.SubscriptionMealSelections.AddRange(selections);
