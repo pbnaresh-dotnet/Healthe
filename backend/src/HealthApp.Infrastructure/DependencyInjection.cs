@@ -88,6 +88,8 @@ public static class DependencyInjection
         services.AddScoped<IFinanceTaxConfigurationService, FinanceTaxConfigurationService>();
         services.AddScoped<IFinanceCalculationSnapshotRepository, FinanceCalculationSnapshotRepository>();
         services.AddScoped<IFinanceCalculationSnapshotService, FinanceCalculationSnapshotService>();
+        services.AddScoped<IFinancialDocumentRepository, FinancialDocumentRepository>();
+        services.AddScoped<IFinancialDocumentService, FinancialDocumentService>();
         services.AddScoped<IOutletGroupRepository, OutletGroupRepository>();
         services.AddScoped<IOutletLegalPolicyRepository, OutletLegalPolicyRepository>();
         services.AddScoped<IOutletBrandingRepository, OutletBrandingRepository>();
