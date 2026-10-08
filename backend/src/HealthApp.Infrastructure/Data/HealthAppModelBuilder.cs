@@ -150,6 +150,7 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.ShowPackagePriceToCustomer).IsRequired();
         e.Property(x => x.ShowMealPriceToCustomer).IsRequired();
         e.Property(x => x.ShowDeliveryFeeToCustomer).IsRequired();
+        e.Property(x => x.SupportsLargePortion).IsRequired();
         e.Property(x => x.Status).HasConversion<int>();
         e.Property(x => x.BillingPlan).HasConversion<int>();
         e.Property(x => x.LogoUrl).HasMaxLength(1000);
