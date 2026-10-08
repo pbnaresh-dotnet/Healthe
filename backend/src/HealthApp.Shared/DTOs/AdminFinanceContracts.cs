@@ -63,3 +63,42 @@ public record AdminFinanceReportDto(
     IReadOnlyList<AdminFinanceOutletRowDto> Outlets,
     IReadOnlyList<AdminFinanceGroupRowDto> Groups,
     IReadOnlyList<AdminFinanceDailyRowDto> Daily);
+
+
+public record PaymentSettlementReconciliationDto(
+    Guid Id,
+    Guid PaymentTransactionId,
+    Guid? OutletId,
+    string Provider,
+    string ProviderPaymentId,
+    string ProviderSettlementId,
+    decimal GrossAmount,
+    decimal GatewayFeeAmount,
+    decimal GatewayFeeTaxAmount,
+    decimal OtherProviderAdjustmentAmount,
+    decimal NetSettlementAmount,
+    string Currency,
+    string Status,
+    string ReconciliationReference,
+    DateTime? SettledAtUtc,
+    DateTime? ReconciledAtUtc,
+    string ReconciledBy);
+
+public record RecordPaymentSettlementRequest(
+    Guid PaymentTransactionId,
+    string ProviderSettlementId,
+    decimal GatewayFeeAmount,
+    decimal GatewayFeeTaxAmount,
+    decimal OtherProviderAdjustmentAmount = 0m,
+    DateTime? SettledAtUtc = null,
+    string? ReconciliationReference = null,
+    string? ReconciledBy = null,
+    string? SourceDataJson = null);
+
+public record PaymentSettlementImportResultDto(
+    string Provider,
+    int TotalRows,
+    int ReconciledRows,
+    int AlreadyReconciledRows,
+    int UnmatchedRows,
+    IReadOnlyList<string> Errors);
