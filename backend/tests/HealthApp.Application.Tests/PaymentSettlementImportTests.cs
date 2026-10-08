@@ -35,7 +35,7 @@ public sealed class PaymentSettlementImportTests
 
         Assert.Equal(1, result.TotalRows);
         Assert.Equal(0, result.ReconciledRows);
-        Assert.Equal(1, result.ExceptionRows);
+        Assert.Equal(1, result.UnmatchedRows);
         exceptions.Verify(x => x.AddAsync(It.Is<PaymentSettlementReconciliationException>(e =>
             e.Provider == "Cashfree" &&
             e.ProviderPaymentId == "CF-MISSING" &&
