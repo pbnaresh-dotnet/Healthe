@@ -46,6 +46,22 @@ public sealed class HealthAppDbContext(DbContextOptions<HealthAppDbContext> opti
     public DbSet<OutletLegalPolicyVersion> OutletLegalPolicyVersions => Set<OutletLegalPolicyVersion>();
     public DbSet<CustomerLegalAcceptance> CustomerLegalAcceptances => Set<CustomerLegalAcceptance>();
     public DbSet<ApplicationErrorLog> ApplicationErrorLogs => Set<ApplicationErrorLog>();
+    public DbSet<OutletTaxProfile> OutletTaxProfiles => Set<OutletTaxProfile>();
+    public DbSet<PlatformTaxProfile> PlatformTaxProfiles => Set<PlatformTaxProfile>();
+    public DbSet<FinanceTaxRule> FinanceTaxRules => Set<FinanceTaxRule>();
+    public DbSet<PaymentMerchantAccount> PaymentMerchantAccounts => Set<PaymentMerchantAccount>();
+    public DbSet<FinancialDocument> FinancialDocuments => Set<FinancialDocument>();
+    public DbSet<FinancialDocumentLine> FinancialDocumentLines => Set<FinancialDocumentLine>();
+    public DbSet<FinancialTaxComponent> FinancialTaxComponents => Set<FinancialTaxComponent>();
+    public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
+    public DbSet<GatewayFee> GatewayFees => Set<GatewayFee>();
+    public DbSet<Settlement> Settlements => Set<Settlement>();
+    public DbSet<SettlementLine> SettlementLines => Set<SettlementLine>();
+    public DbSet<RefundTransaction> RefundTransactions => Set<RefundTransaction>();
+    public DbSet<LedgerAccount> LedgerAccounts => Set<LedgerAccount>();
+    public DbSet<LedgerJournal> LedgerJournals => Set<LedgerJournal>();
+    public DbSet<LedgerJournalLine> LedgerJournalLines => Set<LedgerJournalLine>();
+    public DbSet<DocumentNumberSequence> DocumentNumberSequences => Set<DocumentNumberSequence>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
         => HealthAppModelBuilder.Configure(modelBuilder);
