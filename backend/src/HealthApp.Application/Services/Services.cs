@@ -320,7 +320,7 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
     private static RecipeDto Map(Recipe x) => MapRecipeForCustomer(x, true);
     private static RecipeDto MapRecipeForCustomer(Recipe x, bool showMealPrice) => new(x.Id,x.OutletId,x.Name,x.Calories,x.ProteinGrams,x.CarbsGrams,x.FatGrams,x.Category.ToString(),showMealPrice?x.PricePerMeal:0m,showMealPrice?x.LargePricePerMeal:0m,x.Description,x.ImageUrl,x.Tags,x.IsActive,
     x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId,i.Ingredient.Name,i.Quantity,i.Unit,i.Ingredient.Allergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).OrderBy(a=>a.Name).ToList(), i.LargeQuantity)).ToList(),
-    x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams, string.IsNullOrWhiteSpace(x.MealType)?"Meal":x.MealType, x.SugarGrams);
+    x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams, string.IsNullOrWhiteSpace(x.MealType)?"Meal":x.MealType, x.SugarGrams, x.LargeCalories, x.LargeProteinGrams, x.LargeCarbsGrams, x.LargeFatGrams, x.LargeFiberGrams, x.LargeSugarGrams);
     private static OutletDto ToDto(Outlet x, double distance)
     {
         var b = x.Branding;
@@ -1744,7 +1744,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     public async Task<IReadOnlyList<OrderDto>> GetOrdersAsync()=>current.OutletId is not Guid id?[]:(await orders.GetByOutletAsync(id)).Select(x=>new OrderDto(x.Id,x.CustomerId,x.OutletId,x.Total,x.Status.ToString(),x.DeliveryDate,x.Address)).ToList();
     public async Task<IReadOnlyList<DeliveryDto>> GetDeliveriesAsync()=>current.OutletId is not Guid id?[]:(await deliveries.GetByOutletAsync(id)).Select(x=>new DeliveryDto(x.Id,x.OrderId,x.OutletId,x.CustomerName,x.Address,x.ScheduledDate,x.MealSlot.ToString(),x.DeliveryFee,x.Status.ToString())).ToList();
     private static RecipeDto Map(Recipe x)=>new(x.Id,x.OutletId,x.Name,x.Calories,x.ProteinGrams,x.CarbsGrams,x.FatGrams,x.Category.ToString(),x.PricePerMeal,x.LargePricePerMeal,x.Description,x.ImageUrl,x.Tags,x.IsActive,
-    x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId, i.Ingredient.Name, i.Quantity, i.Unit, i.Ingredient.Allergens.Select(a => new AllergenDto(a.AllergenId, a.Allergen.Name)).OrderBy(a => a.Name).ToList())).ToList(),
+    x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId, i.Ingredient.Name, i.Quantity, i.Unit, i.Ingredient.Allergens.Select(a => new AllergenDto(a.AllergenId, a.Allergen.Name)).OrderBy(a => a.Name).ToList(), i.LargeQuantity)).ToList(),
     x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams, string.IsNullOrWhiteSpace(x.MealType)?"Meal":x.MealType, x.SugarGrams);
 }
 public sealed class AdminService(
