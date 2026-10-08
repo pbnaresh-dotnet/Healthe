@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using HealthApp.Application.Abstractions;
 using HealthApp.Application.Events;
 using HealthApp.Application.Orchestration;
