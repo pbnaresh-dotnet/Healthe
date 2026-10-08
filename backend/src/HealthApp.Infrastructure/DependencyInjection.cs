@@ -175,6 +175,7 @@ public static class DependencyInjection
         services.AddScoped<IOutletService, OutletService>();
         services.AddScoped<IOutletOnboardingService, OutletOnboardingService>();
         services.AddScoped<IOutletSettingsService, OutletSettingsService>();
+        services.AddScoped<IIngredientConsumptionService, IngredientConsumptionService>();
         services.AddScoped<IOutletDemoService, OutletDemoService>();
         services.AddScoped<IOutletVerificationService, OutletVerificationService>();
         services.AddScoped<IOutletPackageService, OutletPackageService>();
