@@ -400,6 +400,7 @@ BEGIN
         SourceId uniqueidentifier NOT NULL,
         CalculatedAtUtc datetime2 NOT NULL,
         FinancePolicyDocumentVersionId uniqueidentifier NULL,
+        PlatformTaxProfileId uniqueidentifier NULL,
         TaxProfileId uniqueidentifier NOT NULL,
         RestaurantTaxRuleId uniqueidentifier NOT NULL,
         PlatformTaxRuleId uniqueidentifier NOT NULL,
@@ -435,6 +436,10 @@ IF COL_LENGTH('dbo.FinanceCalculationSnapshots','CommissionTaxAmount') IS NULL
     ALTER TABLE dbo.FinanceCalculationSnapshots ADD CommissionTaxAmount decimal(18,2) NOT NULL CONSTRAINT DF_FinanceCalculationSnapshots_CommissionTaxAmount DEFAULT 0;
 IF COL_LENGTH('dbo.FinancialDocuments','FinanceCalculationSnapshotId') IS NULL
     ALTER TABLE dbo.FinancialDocuments ADD FinanceCalculationSnapshotId uniqueidentifier NULL;
+IF COL_LENGTH('dbo.FinanceCalculationSnapshots','PlatformTaxProfileId') IS NULL
+    ALTER TABLE dbo.FinanceCalculationSnapshots ADD PlatformTaxProfileId uniqueidentifier NULL;
+IF COL_LENGTH('dbo.FinanceCalculationSnapshots','PlatformTaxApplicable') IS NULL
+    ALTER TABLE dbo.FinanceCalculationSnapshots ADD PlatformTaxApplicable bit NOT NULL CONSTRAINT DF_FinanceCalculationSnapshots_PlatformTaxApplicable DEFAULT 0;
 IF COL_LENGTH('dbo.PaymentTransactions','MerchantAccountId') IS NULL
     ALTER TABLE dbo.PaymentTransactions ADD MerchantAccountId uniqueidentifier NULL;
 IF COL_LENGTH('dbo.PaymentTransactions','Purpose') IS NULL
@@ -595,7 +600,9 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationS
     ALTER TABLE dbo.FinanceCalculationSnapshots ADD CONSTRAINT FK_FinanceCalculationSnapshots_Outlets FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationSnapshots_PolicyVersion' AND parent_object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
     ALTER TABLE dbo.FinanceCalculationSnapshots ADD CONSTRAINT FK_FinanceCalculationSnapshots_PolicyVersion FOREIGN KEY(FinancePolicyDocumentVersionId) REFERENCES dbo.FinancePolicyDocumentVersions(Id) ON DELETE NO ACTION;
-IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationSnapshots_TaxProfile' AND parent_object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationSnapshots_PlatformTaxProfile' AND parent_object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
+    ALTER TABLE dbo.FinanceCalculationSnapshots ADD CONSTRAINT FK_FinanceCalculationSnapshots_PlatformTaxProfile FOREIGN KEY(PlatformTaxProfileId) REFERENCES dbo.PlatformTaxProfiles(Id) ON DELETE NO ACTION;IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationSnapshots_TaxProfile' AND parent_object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
     ALTER TABLE dbo.FinanceCalculationSnapshots ADD CONSTRAINT FK_FinanceCalculationSnapshots_TaxProfile FOREIGN KEY(TaxProfileId) REFERENCES dbo.OutletTaxProfiles(Id) ON DELETE NO ACTION;
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationSnapshots_RestaurantRule' AND parent_object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
     ALTER TABLE dbo.FinanceCalculationSnapshots ADD CONSTRAINT FK_FinanceCalculationSnapshots_RestaurantRule FOREIGN KEY(RestaurantTaxRuleId) REFERENCES dbo.FinanceTaxRules(Id) ON DELETE NO ACTION;
