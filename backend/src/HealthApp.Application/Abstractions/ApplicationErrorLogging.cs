@@ -50,3 +50,14 @@ public interface IApplicationErrorRepository
     Task<ApplicationErrorLog?> GetAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ApplicationErrorLog?> ResolveAsync(Guid id, Guid resolvedByUserId, string notes, CancellationToken cancellationToken = default);
 }
+
+public sealed record ApplicationErrorSummaryData(
+    int TotalCount,
+    int UnresolvedCount,
+    int Last24HoursCount,
+    IReadOnlyList<ApplicationErrorOutletSummaryData> ByOutlet);
+
+public sealed record ApplicationErrorOutletSummaryData(
+    Guid? OutletId,
+    int ErrorCount,
+    int UnresolvedCount);
