@@ -94,6 +94,7 @@ public interface IFinanceCalculationSnapshotService
         TaxBreakdown calculation,
         decimal restaurantBaseAmount,
         decimal platformServiceFee,
+        decimal platformServiceFeePercent,
         decimal commissionRatePercent,
         decimal commissionAmount);
 }
