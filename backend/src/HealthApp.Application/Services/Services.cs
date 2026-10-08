@@ -1622,6 +1622,9 @@ public sealed class AdminService(
     ISubscriptionRepository subscriptions,
     IOrderRepository orders,
     IDeliveryRepository deliveries,
+    IMealPlanRepository mealPlans,
+    IRecipeRepository recipes,
+    IOutletMenuRepository menu,
     ISaaSPlanRepository saasPlans,
     ICloudflarePagesService cloudflarePages,
     IApplicationErrorRepository applicationErrors,
@@ -1725,9 +1728,12 @@ public sealed class AdminService(
         var domainTask = domains.GetByOutletAsync(outletId);
         var billingTask = outletSubscriptions.GetByOutletAsync(outletId);
         var transactionsTask = transactions.GetAllAsync();
+        var mealPlansTask = mealPlans.GetByOutletAsync(outletId);
+        var recipesTask = recipes.GetByOutletAsync(outletId);
+        var menuTask = menu.GetByOutletAsync(outletId);
         var groupTask = outlet.OutletGroupId.HasValue ? groups.GetAsync(outlet.OutletGroupId.Value) : Task.FromResult<OutletGroup?>(null);
 
-        await Task.WhenAll(allUsersTask, subscriptionsTask, ordersTask, deliveriesTask, domainTask, billingTask, transactionsTask, groupTask);
+        await Task.WhenAll(allUsersTask, subscriptionsTask, ordersTask, deliveriesTask, domainTask, billingTask, transactionsTask, mealPlansTask, recipesTask, menuTask, groupTask);
 
         var allUsers = await allUsersTask;
         var tenantUsers = allUsers.Where(x => x.OutletId == outletId).ToList();
@@ -1824,6 +1830,12 @@ public sealed class AdminService(
             outlet.LegalEffectiveDateUtc,
             (await domainTask).Take(10).Select(MapDomain).ToList(),
             staffUsers.OrderBy(x => x.FirstName).ThenBy(x => x.LastName).Select(MapUser).ToList(),
+            customerUsers.OrderBy(x => x.FirstName).ThenBy(x => x.LastName).Take(50).Select(MapUser).ToList(),
+            (await mealPlansTask).Count,
+            (await mealPlansTask).Count(x => x.IsActive),
+            (await recipesTask).Count,
+            (await recipesTask).Count(x => x.IsActive),
+            (await menuTask).Count,
             recentSubs,
             recentOrderDtos,
             recentDeliveryDtos);
