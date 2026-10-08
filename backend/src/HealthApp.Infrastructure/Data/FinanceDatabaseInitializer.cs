@@ -735,6 +735,4 @@ WHERE NOT EXISTS
         document.UpdatedAtUtc = now;
         await db.SaveChangesAsync(cancellationToken);
     }
-
-    }
 }
