@@ -88,16 +88,21 @@ public sealed class DurationAndVolumeDiscountStrategy : IPackageDiscountStrategy
 
 public interface ILateSkipFeePolicy
 {
-    decimal GetFee(DateTime nowUtc, DateTime mealDateUtc);
+    decimal GetFee(DateTime nowUtc, DateTime mealDateUtc, decimal configuredFee);
     bool IsLate(DateTime nowUtc, DateTime mealDateUtc);
 }
-/// <summary>Business rule: skipping before midnight on the delivery date is free; after midnight is ₹50.</summary>
+/// <summary>Business rule: skipping before midnight on the delivery date is free; after midnight the outlet-configured fee applies.</summary>
 
 public sealed class MidnightLateSkipFeePolicy : ILateSkipFeePolicy
 {
-    private const decimal Fee = 50m;
     public bool IsLate(DateTime nowUtc, DateTime mealDateUtc) => ToIndiaTime(nowUtc).Date >= mealDateUtc.Date;
-    public decimal GetFee(DateTime nowUtc, DateTime mealDateUtc) => IsLate(nowUtc, mealDateUtc) ? Fee : 0m;
+    public decimal GetFee(DateTime nowUtc, DateTime mealDateUtc, decimal configuredFee)
+    {
+        if (!IsLate(nowUtc, mealDateUtc)) return 0m;
+        if (configuredFee < 0m || configuredFee > 100000m)
+            throw new ArgumentOutOfRangeException(nameof(configuredFee), "Late-skip fee must be between ₹0 and ₹100,000.");
+        return Math.Round(configuredFee, 2, MidpointRounding.AwayFromZero);
+    }
     private static DateTime ToIndiaTime(DateTime utc)
     {
         var zone = TimeZoneInfo.FindSystemTimeZoneById(GetIndiaZoneId());
