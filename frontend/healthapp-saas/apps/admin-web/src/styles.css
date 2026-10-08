@@ -332,3 +332,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .errorMonitorFilters{grid-template-columns:1fr}
  .errorSearch{grid-column:auto}
 }
+
+.quickViewBanner{display:grid;grid-template-columns:38px 1fr auto;align-items:center;gap:9px;margin:13px 0;padding:11px;border:1px solid #dfe8e1;border-radius:12px;background:#f7faf7}
+.quickViewBanner b,.quickViewBanner small{display:block}.quickViewBanner b{font-size:10px}.quickViewBanner small{margin-top:2px;color:#7d8982;font-size:8px}
+.quickFacts{margin-top:4px;padding:2px 0}
+.quickViewActions{display:flex;justify-content:flex-end;gap:7px;margin-top:14px;padding-top:12px;border-top:1px solid #e7ede8}
+@media(min-width:720px){.quickViewShell{max-width:620px}}
