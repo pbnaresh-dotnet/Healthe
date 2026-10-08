@@ -117,6 +117,22 @@ public record OutletReadinessDto(
     string Message);
 
 public record OutletBillingDto(Guid OutletId, Guid SaaSPlanId, string PlanName, string BillingCycle, decimal SubscriptionFee, decimal SetupFee, decimal TransactionFeePercent, int ActiveCustomers, int IncludedActiveCustomers, decimal AdditionalCustomerFee, decimal EstimatedAdditionalCustomerFee, DateTime RenewalDate, string Status);
+public record IngredientConsumptionRowDto(
+    Guid IngredientId,
+    string IngredientName,
+    decimal Quantity,
+    string Unit,
+    int MealCount,
+    int DeliveryCount,
+    IReadOnlyList<string> RecipeNames);
+
+public record DailyIngredientConsumptionReportDto(
+    DateTime Date,
+    string OutletName,
+    int DeliveredDeliveryCount,
+    int DeliveredMealCount,
+    IReadOnlyList<IngredientConsumptionRowDto> Ingredients);
+
 public record OutletTaxSettingsDto(decimal RestaurantGstRate, string RestaurantGstMode);
 public record UpdateOutletTaxSettingsRequest(decimal RestaurantGstRate, string RestaurantGstMode);
 public record PlatformRevenueDto(decimal OutletSubscriptionRevenue, decimal CustomerTransactionRevenue, decimal TotalRevenue, decimal LateSkipFeeRevenue = 0m, decimal CustomerServiceFeeRevenue = 0m, decimal OutletCommissionRevenue = 0m);
