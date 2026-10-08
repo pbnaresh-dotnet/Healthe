@@ -940,6 +940,12 @@ public sealed class Recipe
         get;
         set;
     }
+    public int LargeCalories { get; set; }
+    public int LargeProteinGrams { get; set; }
+    public int LargeCarbsGrams { get; set; }
+    public int LargeFatGrams { get; set; }
+    public int LargeFiberGrams { get; set; }
+    public int LargeSugarGrams { get; set; }
     public RecipeCategory Category {
         get;
         set;
@@ -1076,6 +1082,7 @@ public sealed class RecipeIngredient
         get;
         set;
     }
+    public decimal LargeQuantity { get; set; }
     public string Unit {
         get;
         set;
