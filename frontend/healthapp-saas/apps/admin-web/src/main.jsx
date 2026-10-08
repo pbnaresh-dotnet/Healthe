@@ -64,7 +64,6 @@ function App(){
   const[outletCity,setOutletCity]=useState('');
  const[domainStatus,setDomainStatus]=useState('');
  const[domainSearch,setDomainSearch]=useState('');
- const[todayForFinance]=useState(()=>new Date().toISOString().slice(0,10));
  const[financeFilters,setFinanceFilters]=useState(()=>{const d=new Date();d.setDate(d.getDate()-29);return {fromDate:d.toISOString().slice(0,10),toDate:new Date().toISOString().slice(0,10),outletGroupId:'',outletId:'',city:'',mealPlanId:''}});
  const[financeReport,setFinanceReport]=useState(null);
  const[financeLoading,setFinanceLoading]=useState(false);
@@ -194,7 +193,7 @@ function App(){
     {page==='onboarding'&&<Onboarding verification={verification} onReview={review} onDashboard={()=>openPage('overview')} />}
     {page==='domains'&&<DomainCenter domains={filteredDomains} allDomains={domains} search={domainSearch} setSearch={setDomainSearch} status={domainStatus} setStatus={setDomainStatus} onUpdate={updateDomain}/>}
     {page==='geography'&&<Geography cities={cities} areas={areas} form={form} setForm={setForm} areaForm={areaForm} setAreaForm={setAreaForm} onCreateCity={createCity} onToggleCity={toggleCity} onCreateArea={createArea} loading={loading}/>}
-    {page==='finance'&&<Finance report={financeReport} filters={financeFilters} setFilters={setFinanceFilters} groups={data.groups||[]} outlets={data.o||[]} onApply={()=>loadFinance()} loading={financeLoading}/>}
+    {page==='finance'&&<Finance report={financeReport} filters={financeFilters} setFilters={setFinanceFilters} groups={data.groups||[]} outlets={data.o||[]} onApply={loadFinance} loading={financeLoading}/>}
     {page==='health'&&<section><PageIntro eyebrow="PLATFORM HEALTH" title="Operational health" text="Central visibility into application errors and tenant-impacting incidents. Drill into an event to see outlet, request, user and correlation context." action={<button className="secondaryBtn" onClick={()=>openPage('overview')}><Icon name="arrow" size={15}/> Command center</button>}/><ApplicationErrorMonitor outlets={data.o||[]}/></section>}
    </main>
   </div>
@@ -298,7 +297,7 @@ function Finance({report,filters,setFilters,groups,outlets,onApply,loading}){
  const moneyValue=v=>money(v||0);
  const set=(key,value)=>setFilters(x=>({...x,[key]:value}));
  return <section className="financeControl">
-  <PageIntro eyebrow="FINANCE & GST CONTROL CENTER" title="Financial command center" text="Review customer collections, outlet settlements, restaurant GST and HealthApp fees from the tenant subscription ledger. Filters stay tenant-aware and financial responsibilities remain separate." action={<button className="secondaryBtn" onClick={onApply} disabled={loading}><Icon name="refresh" size={15}/>{loading?'Refreshing…':'Refresh report'}</button>}/>
+  <PageIntro eyebrow="FINANCE & GST CONTROL CENTER" title="Financial command center" text="Review customer collections, outlet settlements, restaurant GST and HealthApp fees from the tenant subscription ledger. Filters stay tenant-aware and financial responsibilities remain separate." action={<button className="secondaryBtn" onClick={()=>onApply(filters)} disabled={loading}><Icon name="refresh" size={15}/>{loading?'Refreshing…':'Refresh report'}</button>}/>
   <section className="card financeFilterCard">
    <div className="cardHead"><div><span className="eyebrow">REPORT FILTERS</span><h2>Control the reporting window</h2><p>Dates use subscription start dates for cohort and daily subscription reporting.</p></div></div>
    <div className="financeFilters">
@@ -307,7 +306,7 @@ function Finance({report,filters,setFilters,groups,outlets,onApply,loading}){
     <label><span>Outlet group</span><select value={filters.outletGroupId||''} onChange={e=>set('outletGroupId',e.target.value)}><option value="">All groups</option>{groups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
     <label><span>Outlet</span><select value={filters.outletId||''} onChange={e=>set('outletId',e.target.value)}><option value="">All outlets</option>{outlets.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
     <label><span>City</span><select value={filters.city||''} onChange={e=>set('city',e.target.value)}><option value="">All cities</option>{cities.map(city=><option key={city} value={city}>{city}</option>)}</select></label>
-    <div className="financeFilterActions"><button className="primaryBtn" onClick={onApply} disabled={loading}>{loading?'Running report…':'Apply filters'}</button><button className="secondaryBtn" onClick={()=>{setFilters({fromDate:filters.fromDate,toDate:filters.toDate,outletGroupId:'',outletId:'',city:'',mealPlanId:''});setTimeout(onApply,0)}} disabled={loading}>Clear scope</button></div>
+    <div className="financeFilterActions"><button className="primaryBtn" onClick={()=>onApply(filters)} disabled={loading}>{loading?'Running report…':'Apply filters'}</button><button className="secondaryBtn" onClick={()=>{const next={fromDate:filters.fromDate,toDate:filters.toDate,outletGroupId:'',outletId:'',city:'',mealPlanId:''};setFilters(next);onApply(next)}} disabled={loading}>Clear scope</button></div>
    </div>
   </section>
   {!report?<section className="card financeEmpty"><b>{loading?'Building the finance report…':'No finance report loaded'}</b><span>{loading?'Querying the tenant subscription ledger.':'Choose the reporting window and apply the filters.'}</span></section>:
