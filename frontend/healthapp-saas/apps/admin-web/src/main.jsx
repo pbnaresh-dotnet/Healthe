@@ -194,7 +194,7 @@ function App(){
     {page==='onboarding'&&<Onboarding verification={verification} onReview={review} onDashboard={()=>openPage('overview')} />}
     {page==='domains'&&<DomainCenter domains={filteredDomains} allDomains={domains} search={domainSearch} setSearch={setDomainSearch} status={domainStatus} setStatus={setDomainStatus} onUpdate={updateDomain}/>}
     {page==='geography'&&<Geography cities={cities} areas={areas} form={form} setForm={setForm} areaForm={areaForm} setAreaForm={setAreaForm} onCreateCity={createCity} onToggleCity={toggleCity} onCreateArea={createArea} loading={loading}/>}
-    {page==='finance'&&<Finance report={financeReport} filters={financeFilters} setFilters={setFinanceFilters} groups={data.groups||[]} outlets={data.o||[]} onApply={loadFinance} loading={financeLoading}/>}
+    {page==='finance'&&<Finance report={financeReport} filters={financeFilters} setFilters={setFinanceFilters} groups={data.groups||[]} outlets={data.o||[]} onApply={loadFinance} loading={financeLoading} onFinanceRules={()=>openPage('finance-rules')}/>}
     {page==='finance-rules'&&<FinanceRulesHelp onBack={()=>openPage('finance')} onFinance={()=>openPage('finance')}/>}
     {page==='health'&&<section><PageIntro eyebrow="PLATFORM HEALTH" title="Operational health" text="Central visibility into application errors and tenant-impacting incidents. Drill into an event to see outlet, request, user and correlation context." action={<button className="secondaryBtn" onClick={()=>openPage('overview')}><Icon name="arrow" size={15}/> Command center</button>}/><ApplicationErrorMonitor outlets={data.o||[]}/></section>}
    </main>
