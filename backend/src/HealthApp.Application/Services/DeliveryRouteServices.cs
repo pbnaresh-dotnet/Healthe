@@ -559,25 +559,29 @@ public sealed class DeliveryRouteService(
         if (usableDriverCount == 0)
             return new MultiDriverRoutePlan([]);
 
-        var angular = points
+        // Keep records with the same map pin together even when the OR-Tools
+        // matrix/solver is unavailable and the geographic fallback is used.
+        var locationGroups = points
+            .GroupBy(x => CoordinateKey(x.Address.Latitude, x.Address.Longitude))
             .OrderBy(x => Math.Atan2(
-                x.Address.Latitude - outlet.Latitude,
-                x.Address.Longitude - outlet.Longitude))
+                x.First().Address.Latitude - outlet.Latitude,
+                x.First().Address.Longitude - outlet.Longitude))
             .ThenBy(x => Haversine(
                 outlet.Latitude,
                 outlet.Longitude,
-                x.Address.Latitude,
-                x.Address.Longitude))
+                x.First().Address.Latitude,
+                x.First().Address.Longitude))
             .ToList();
 
-        var chunkSize = (int)Math.Ceiling(angular.Count / (double)usableDriverCount);
+        var chunkSize = (int)Math.Ceiling(locationGroups.Count / (double)usableDriverCount);
         var assignments = new List<DriverRouteAssignment>();
 
         for (var i = 0; i < usableDriverCount; i++)
         {
-            var stopIds = angular
+            var stopIds = locationGroups
                 .Skip(i * chunkSize)
                 .Take(chunkSize)
+                .SelectMany(x => x)
                 .Select(x => x.Address.Id)
                 .ToList();
 
@@ -613,6 +617,9 @@ public sealed class DeliveryRouteService(
 
     private static bool IsValidCoordinate(double latitude, double longitude)
         => latitude is >= -90 and <= 90 && longitude is >= -180 and <= 180 && (latitude != 0 || longitude != 0);
+
+    private static string CoordinateKey(double latitude, double longitude)
+        => $"{Math.Round(latitude, 6):F6}|{Math.Round(longitude, 6):F6}";
 
     private static double Haversine(double lat1, double lon1, double lat2, double lon2)
     {
