@@ -67,6 +67,7 @@ public interface IFinancePolicyService
 public interface IFinanceTaxRuleRepository
 {
     Task<FinanceTaxRule?> GetEffectiveAsync(FinanceSupplyType supplyType, TaxOperatingMode? taxOperatingMode, DateTime asOfUtc);
+    Task<FinanceTaxRule?> GetByIdAsync(Guid id);
 }
 
 public interface IFinanceTaxConfigurationService
