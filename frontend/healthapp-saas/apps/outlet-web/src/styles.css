@@ -693,3 +693,38 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
 .packageAddressControl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}.packageAddAddressBtn{border:1px solid #b9d3bf;background:#f2f8f3;color:#23643a;border-radius:8px;padding:8px 10px;font-size:9px;font-weight:800;white-space:nowrap;cursor:pointer}.packageAddAddressBtn:hover{background:#e8f4ea;border-color:#8fb79a}.packageAddressControl select{min-width:0}.packageCustomerPanel .packageAddressSummary{display:grid;gap:6px}.packageCustomerPanel .packageAddressSummary .linkBtn{justify-self:start}
 @media(max-width:760px){.packageAddressControl{grid-template-columns:1fr}.packageAddAddressBtn{width:100%;min-height:40px}.packageCustomerPanel .packageAddressSummary .linkBtn{min-height:40px}}
+
+/* Production modal baseline: mobile-first, single active dialog, touch-safe controls */
+.overlay{overscroll-behavior:contain}
+.overlay>.modal{overscroll-behavior:contain}
+.modalHead .iconBtn{flex:0 0 auto;min-width:40px;min-height:40px;display:grid;place-items:center}
+.modal input,.modal select,.modal textarea{min-height:42px}
+.modal button{min-height:42px}
+@media(max-width:760px){
+ .overlay{align-items:flex-end;justify-items:stretch;padding:0;background:rgba(11,23,16,.68)}
+ .modal,.modal.wide{width:100%;max-width:none;max-height:min(94dvh,760px);padding:16px;border-radius:18px 18px 0 0;box-shadow:0 -18px 50px rgba(0,0,0,.18);overflow:auto;-webkit-overflow-scrolling:touch}
+ .modalHead{position:sticky;top:-16px;z-index:30;margin:-16px -16px 14px;padding:12px 16px 11px;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border-bottom:1px solid #edf1ee}
+ .modalHead h3{font-size:16px;line-height:1.25}
+ .modal .formGrid{grid-template-columns:1fr;gap:10px}
+ .modal .field input,.modal .field select,.modal .field textarea{font-size:16px;line-height:1.25}
+ .modal .modalActions{position:sticky;bottom:-16px;z-index:30;margin:14px -16px -16px;padding:12px 16px;background:rgba(255,255,255,.98);backdrop-filter:blur(8px);display:grid;grid-template-columns:1fr 1fr;gap:8px}
+ .modal .modalActions button{width:100%;min-height:46px}
+ .customerProfileHero{grid-template-columns:42px minmax(0,1fr)!important;gap:10px}
+ .customerProfileAvatar{width:42px;height:42px}
+ .customerProfileHero .pill{grid-column:2;justify-self:start}
+ .customerProfileGrid{grid-template-columns:1fr!important;gap:12px;padding:13px 0}
+ .customerProfileStats{grid-template-columns:1fr 1fr!important}
+ .customerProfileFacts{grid-template-columns:1fr!important}
+ .customerProfileGrid section{padding:0}
+ .customerProfileAddresses>div{padding:11px}
+ .customerEditorIntro h3{font-size:15px}
+ .customerAllergyOptions{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+ .customerAllergyOptions label{min-height:42px;padding:9px}
+}
+@media(max-width:420px){
+ .modal,.modal.wide{padding:14px;border-radius:16px 16px 0 0;max-height:96dvh}
+ .modalHead{top:-14px;margin:-14px -14px 12px;padding:10px 14px}
+ .modal .modalActions{bottom:-14px;margin:12px -14px -14px;padding:10px 14px}
+ .customerProfileStats{grid-template-columns:1fr!important}
+ .customerAllergyOptions{grid-template-columns:1fr}
+}
