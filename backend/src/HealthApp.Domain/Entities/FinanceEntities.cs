@@ -349,3 +349,33 @@ public sealed class FinancePolicyDocumentSection
     public string ContentMarkdown { get; set; } = "";
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
+
+
+public sealed class FinanceCalculationSnapshot
+{
+    public Guid Id { get; set; }
+    public Guid OutletId { get; set; }
+    public string SourceType { get; set; } = "";
+    public Guid SourceId { get; set; }
+    public DateTime CalculatedAtUtc { get; set; } = DateTime.UtcNow;
+    public Guid? FinancePolicyDocumentVersionId { get; set; }
+    public Guid TaxProfileId { get; set; }
+    public Guid RestaurantTaxRuleId { get; set; }
+    public Guid PlatformTaxRuleId { get; set; }
+    public bool RestaurantTaxApplicable { get; set; }
+    public TaxOperatingMode RestaurantTaxOperatingMode { get; set; }
+    public GstMode RestaurantGstMode { get; set; }
+    public decimal RestaurantRate { get; set; }
+    public decimal RestaurantTaxableAmount { get; set; }
+    public decimal RestaurantTaxAmount { get; set; }
+    public decimal PlatformServiceFee { get; set; }
+    public decimal PlatformTaxRate { get; set; }
+    public decimal PlatformTaxAmount { get; set; }
+    public decimal CommissionBaseAmount { get; set; }
+    public decimal CommissionRatePercent { get; set; }
+    public decimal CommissionAmount { get; set; }
+    public string InputHash { get; set; } = "";
+    public string InputsJson { get; set; } = "";
+    public string ResultsJson { get; set; } = "";
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}
