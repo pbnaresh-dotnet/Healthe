@@ -611,10 +611,10 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var discountedMealAmount = Math.Round(gross - totalDiscount, 2);
         var delivery = await CalculateDeliveryAsync(outlet.Id, deliveryMode, meals, customerId);
         var taxConfig = await taxConfiguration.ResolveAsync(outlet.Id, DateTime.UtcNow);
-        var taxes = taxStrategy.Calculate(discountedMealAmount, 0m, taxConfig.Restaurant, taxConfig.PlatformService);
+        var taxes = taxStrategy.Calculate(discountedMealAmount, 0m, taxConfig.Restaurant, taxConfig.PlatformService, taxConfig.PlatformTaxApplicable);
         var net = taxes.RestaurantTaxableAmount;
         var service = platformFee.Calculate(discountedMealAmount);
-        taxes = taxStrategy.Calculate(discountedMealAmount, service, taxConfig.Restaurant, taxConfig.PlatformService);
+        taxes = taxStrategy.Calculate(discountedMealAmount, service, taxConfig.Restaurant, taxConfig.PlatformService, taxConfig.PlatformTaxApplicable);
         var commissionRate = await GetOutletCommissionAsync(outlet.Id);
         var commission = Math.Round(net * commissionRate, 2);
         var quotes = new List<DeliveryQuoteDto>();
@@ -662,7 +662,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var taxes = taxStrategy.Calculate(discountedMealAmount, 0m, taxConfig.Restaurant, taxConfig.PlatformService);
         var net = taxes.RestaurantTaxableAmount;
         var serviceFee = platformFee.Calculate(discountedMealAmount);
-        taxes = taxStrategy.Calculate(discountedMealAmount, serviceFee, taxConfig.Restaurant, taxConfig.PlatformService);
+        taxes = taxStrategy.Calculate(discountedMealAmount, serviceFee, taxConfig.Restaurant, taxConfig.PlatformService, taxConfig.PlatformTaxApplicable);
         net = taxes.RestaurantTaxableAmount;
         var commissionRate = await GetOutletCommissionAsync(outlet.Id);
         var commission = Math.Round(net * commissionRate, 2);
