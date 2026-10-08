@@ -41,7 +41,7 @@ public sealed class OutletSettingsService(
             outlet.DeliveryDays, outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString(),
             await BuildReadinessAsync(outlet), MapBranding(branding),
             outlet.DeliveryCoverageMode.ToString(), outlet.ServiceRadiusKm, outlet.Latitude, outlet.Longitude, outlet.Slug,
-            outlet.CustomPackagePricingMode, outlet.ShowPackagePriceToCustomer, outlet.ShowMealPriceToCustomer, outlet.ShowDeliveryFeeToCustomer);
+            outlet.CustomPackagePricingMode, outlet.ShowPackagePriceToCustomer, outlet.ShowMealPriceToCustomer, outlet.ShowDeliveryFeeToCustomer, outlet.LateSkipFee);
     }
 
     public async Task<IReadOnlyList<OutletDomainDto>> GetDomainsAsync()
@@ -404,6 +404,17 @@ public sealed class OutletSettingsService(
         outlet.ShowPackagePriceToCustomer = request.ShowPackagePriceToCustomer;
         outlet.ShowMealPriceToCustomer = request.ShowMealPriceToCustomer;
         outlet.ShowDeliveryFeeToCustomer = request.ShowDeliveryFeeToCustomer;
+        await outlets.UpdateAsync(outlet);
+        return await GetAsync();
+    }
+
+    public async Task<OutletSettingsDto?> UpdateLateSkipFeeAsync(UpdateOutletLateSkipFeeRequest request)
+    {
+        if (current.OutletId is not Guid outletId) return null;
+        var outlet = await outlets.GetByIdAsync(outletId) ?? throw new KeyNotFoundException("Outlet not found.");
+        if (request.LateSkipFee < 0m || request.LateSkipFee > 100000m)
+            throw new ArgumentException("Late-skip fee must be between ₹0 and ₹100,000.");
+        outlet.LateSkipFee = Math.Round(request.LateSkipFee, 2, MidpointRounding.AwayFromZero);
         await outlets.UpdateAsync(outlet);
         return await GetAsync();
     }
