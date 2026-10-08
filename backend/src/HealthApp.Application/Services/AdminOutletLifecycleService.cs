@@ -14,7 +14,7 @@ public sealed class AdminOutletLifecycleService(
 {
     public async Task<AdminOutletReactivationOptionsDto?> GetReactivationOptionsAsync(Guid outletId)
     {
-        _ = await outlets.GetByIdAsync(outletId)
+        var outlet = await outlets.GetByIdAsync(outletId)
             ?? throw new KeyNotFoundException("Outlet not found.");
 
         var subscription = await outletSubscriptions.GetAnyByOutletAsync(outletId);
@@ -38,10 +38,9 @@ public sealed class AdminOutletLifecycleService(
             string.Equals(subscriptionStatus, "Expired", StringComparison.OrdinalIgnoreCase) ||
             trial?.Status == TrialStatus.Expired;
 
-        var outlet = await outlets.GetByIdAsync(outletId)!;
         return new AdminOutletReactivationOptionsDto(
             outletId,
-            outlet!.Status.ToString(),
+            outlet.Status.ToString(),
             subscriptionStatus,
             trialStatus,
             subscription?.SaaSPlanId,
