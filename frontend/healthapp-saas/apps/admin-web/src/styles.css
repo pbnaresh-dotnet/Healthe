@@ -365,6 +365,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .pageIntro{margin-bottom:22px}
 }
 @media(max-width:719px){
+ .financePolicyMeta{grid-template-columns:1fr 1fr}.financePolicyHistory{overflow:auto}.financePolicyHistoryRow{min-width:620px}
+
  .pageIntro{align-items:flex-start}
  .pageIntroAction{display:none}
  .financeControl .pageIntroAction,.financeRulesPage .pageIntroAction{display:flex;flex:0 0 auto}
