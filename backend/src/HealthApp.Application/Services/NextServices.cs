@@ -498,6 +498,86 @@ public sealed class PaymentService(
         }
     }
 
+    public async Task RetryPendingAsync(Guid paymentId, CancellationToken cancellationToken = default)
+    {
+        var payment = await payments.GetAsync(paymentId);
+        if (payment is null ||
+            payment.Status != "Pending" ||
+            payment.PaymentType != "CustomerSubscription" ||
+            payment.SubscriptionId is not Guid subscriptionId)
+            return;
+
+        if (!string.Equals(payment.Provider, gateway.Provider, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"Payment provider '{payment.Provider}' is not the configured gateway '{gateway.Provider}'.");
+
+        var subscription = await subscriptions.GetAsync(subscriptionId)
+            ?? throw new KeyNotFoundException("Subscription not found.");
+
+        var customerId = payment.CustomerId
+            ?? throw new InvalidOperationException("Customer payment is missing its customer.");
+
+        var customer = await users.FindByIdAsync(customerId)
+            ?? throw new UnauthorizedAccessException("Customer account not found.");
+
+        var defaultAddress = (await addresses.GetByCustomerAsync(customerId))
+            .OrderByDescending(x => x.IsDefault)
+            .FirstOrDefault();
+
+        var customerPhone = NormalizePhone(customer.MobileNumber);
+        if (customerPhone.Length < 10)
+            customerPhone = NormalizePhone(defaultAddress?.ContactPhone);
+        if (customerPhone.Length < 10)
+            throw new InvalidOperationException("A valid customer mobile number is required before payment retry.");
+
+        try
+        {
+            payment.AttemptCount++;
+            payment.LastAttemptAtUtc = DateTime.UtcNow;
+            payment.ProcessingStatus = "RetryingProviderOrder";
+            await payments.UpdateAsync(payment);
+
+            var checkout = await gateway.CreateOrderAsync(
+                new PaymentGatewayCreateOrderRequest(
+                    payment.ProviderOrderId,
+                    payment.Amount,
+                    payment.Currency,
+                    customer.Id.ToString("N"),
+                    $"{customer.FirstName} {customer.LastName}".Trim(),
+                    customer.Email,
+                    customerPhone,
+                    await GetCustomerReturnUrlAsync(subscription.OutletId),
+                    gateway.WebhookUrl,
+                    $"Broccoly meal subscription {subscription.PlanName}",
+                    payment.IdempotencyKey),
+                cancellationToken);
+
+            payment.ProcessingStatus = "ProviderOrderCreated";
+            payment.NextRetryAtUtc = null;
+            payment.LastErrorCode = "";
+            payment.FailureReason = "";
+            payment.PaymentSessionId = checkout.PaymentSessionId;
+            payment.ProviderStatus = checkout.Status;
+            payment.GatewayResponseJson = JsonSerializer.Serialize(new
+            {
+                checkout.ProviderOrderId,
+                checkout.PaymentSessionId,
+                checkout.Status
+            });
+            await payments.UpdateAsync(payment);
+        }
+        catch (Exception ex)
+        {
+            payment.ProcessingStatus = "ProviderOrderCreationFailed";
+            payment.LastErrorCode = ex.GetType().Name;
+            payment.NextRetryAtUtc = DateTime.UtcNow.AddSeconds(
+                Math.Min(300, 10 * Math.Pow(2, Math.Max(0, payment.AttemptCount - 1))));
+            payment.Status = "Pending";
+            payment.FailureReason = ex.Message.Length > 900 ? ex.Message[..900] : ex.Message;
+            await payments.UpdateAsync(payment);
+            throw;
+        }
+    }
+
     public async Task<PaymentDto?> GetAsync(Guid id)
     {
         if (current.UserId is not Guid uid)
