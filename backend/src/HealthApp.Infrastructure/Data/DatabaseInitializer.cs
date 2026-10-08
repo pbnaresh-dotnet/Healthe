@@ -111,6 +111,35 @@ BEGIN
 END
 ", cancellationToken);
 
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.PaymentSettlementReconciliationExceptions','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.PaymentSettlementReconciliationExceptions
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_PaymentSettlementReconciliationExceptions PRIMARY KEY,
+        Provider nvarchar(50) NOT NULL,
+        ProviderPaymentId nvarchar(150) NOT NULL,
+        ProviderSettlementId nvarchar(150) NOT NULL,
+        ExceptionType nvarchar(80) NOT NULL,
+        Status nvarchar(30) NOT NULL,
+        ReportedGrossAmount decimal(18,2) NULL,
+        ReportedNetSettlementAmount decimal(18,2) NULL,
+        Currency nvarchar(10) NOT NULL,
+        RawRowJson nvarchar(max) NOT NULL,
+        ErrorMessage nvarchar(2000) NOT NULL,
+        AssignedTo nvarchar(200) NOT NULL,
+        ResolutionNotes nvarchar(4000) NOT NULL,
+        CreatedAtUtc datetime2 NOT NULL,
+        ResolvedAtUtc datetime2 NULL,
+        ResolvedBy nvarchar(200) NOT NULL
+    );
+    CREATE INDEX IX_PaymentSettlementReconciliationExceptions_Status_CreatedAtUtc
+        ON dbo.PaymentSettlementReconciliationExceptions(Status, CreatedAtUtc);
+    CREATE INDEX IX_PaymentSettlementReconciliationExceptions_ProviderPayment
+        ON dbo.PaymentSettlementReconciliationExceptions(Provider, ProviderPaymentId);
+END
+", cancellationToken);
+
     // ApplicationErrorLogs is persisted independently of the request DbContext so
         // production errors can be inspected by SuperAdmin even when an older database
         // predates the current EF model.
