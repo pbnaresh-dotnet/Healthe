@@ -589,14 +589,22 @@ public sealed class PaymentService(
                 !string.Equals(latest.Currency, payment.Currency, StringComparison.OrdinalIgnoreCase))
             {
                 payment.Status = "Failed";
-                payment.FailureReason = "Cashfree payment amount or currency does not match the Broccoly order.";
+                payment.FailureReason = $"{gateway.Provider} payment amount or currency does not match the Broccoly order.";
             }
             else
             {
                 payment.Status = "Paid";
+                payment.ProcessingStatus = "PaymentVerified";
                 payment.FailureReason = "";
+                payment.NextRetryAtUtc = null;
                 payment.PaidAtUtc ??= DateTime.UtcNow;
             }
+        }
+        else if (payment.Status == "Paid")
+        {
+            // Never downgrade a previously verified payment because a later webhook/status
+            // response is stale, delayed or represents a non-success attempt.
+            payment.ProcessingStatus = "PaymentVerified";
         }
         else if (normalized == "PENDING")
         {
