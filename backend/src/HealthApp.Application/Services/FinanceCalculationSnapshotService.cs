@@ -26,7 +26,10 @@ public sealed class FinanceCalculationSnapshotService(
         Guid? discountTierId = null,
         decimal discountPercent = 0m,
         decimal discountAmount = 0m,
-        string discountRuleSnapshotJson = "")
+        string discountRuleSnapshotJson = "",
+        Guid? discountCodeId = null,
+        decimal discountCodeAmount = 0m,
+        decimal totalDiscountAmount = 0m)
     {
         if (string.IsNullOrWhiteSpace(sourceType))
             throw new ArgumentException("Finance snapshot source type is required.", nameof(sourceType));
@@ -36,6 +39,8 @@ public sealed class FinanceCalculationSnapshotService(
             throw new ArgumentOutOfRangeException(nameof(commissionRatePercent), commissionRatePercent, "Commission rate must be between 0% and 100%.");
         if (discountPercent is < 0m or > 100m)
             throw new ArgumentOutOfRangeException(nameof(discountPercent), discountPercent, "Discount rate must be between 0% and 100%.");
+        if (discountCodeAmount < 0m || totalDiscountAmount < 0m)
+            throw new ArgumentOutOfRangeException(nameof(discountCodeAmount), "Discount amounts cannot be negative.");
         if (discountAmount < 0m)
             throw new ArgumentOutOfRangeException(nameof(discountAmount), discountAmount, "Discount amount cannot be negative.");
         if (platformServiceFeePercent is < 0m or > 100m)
@@ -63,6 +68,9 @@ public sealed class FinanceCalculationSnapshotService(
             discountPercent,
             discountAmount,
             discountRuleSnapshotJson,
+            discountCodeId,
+            discountCodeAmount,
+            totalDiscountAmount,
             restaurantProfileId = configuration.Restaurant.ProfileId,
             commissionTaxRuleId = configuration.PlatformCommission.Id,
             commissionTaxRuleCode = configuration.PlatformCommission.Code,
@@ -143,6 +151,9 @@ public sealed class FinanceCalculationSnapshotService(
             DiscountPercent = discountPercent,
             DiscountAmount = discountAmount,
             DiscountRuleSnapshotJson = discountRuleSnapshotJson ?? "",
+            DiscountCodeId = discountCodeId,
+            DiscountCodeAmount = discountCodeAmount,
+            TotalDiscountAmount = totalDiscountAmount,
             InputHash = inputHash,
             InputsJson = inputJson,
             ResultsJson = resultJson,
