@@ -178,6 +178,7 @@ public sealed class OutletPackageService(
     IDeliveryCalculator deliveryCalculator,
     IPlatformServiceFeeStrategy platformFee,
     ITaxStrategy taxStrategy,
+    IFinanceTaxConfigurationService taxConfiguration,
     IMealPriceStrategy mealPrice,
     IAllergySafetyService allergySafety,
     IOutletSubscriptionRepository outletSubscriptions,
@@ -630,7 +631,8 @@ public sealed class OutletPackageService(
         var totalDiscount = Math.Round(gross - discountedMealAmount, 2);
         var additionalOutletDiscount = Math.Max(0m, totalDiscount - baseDiscount);
         var serviceFee = platformFee.Calculate(discountedMealAmount);
-        var taxes = taxStrategy.Calculate(discountedMealAmount, serviceFee, outlet.RestaurantGstRate, outlet.RestaurantGstMode);
+        var taxConfig = await taxConfiguration.ResolveAsync(outletId, DateTime.UtcNow);
+        var taxes = taxStrategy.Calculate(discountedMealAmount, serviceFee, taxConfig.Restaurant, taxConfig.PlatformService);
         var net = taxes.RestaurantTaxableAmount;
         var commissionRate = subscription.OutletCommissionPercent;
         var commission = Math.Round(net * commissionRate, 2);
