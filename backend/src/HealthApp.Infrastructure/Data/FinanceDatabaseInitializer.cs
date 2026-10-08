@@ -753,6 +753,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion122Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion123Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion124Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion125Async(db, document, cancellationToken);
             return;
         }
 
@@ -813,6 +814,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion122Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion123Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion124Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion125Async(db, document, cancellationToken);
     }
 
     private static async Task SeedFinancePolicyVersion11Async(
@@ -1238,6 +1240,81 @@ WHERE NOT EXISTS
             ChangeSummary = "Add platform-fee/commission validation and snapshot the exact commercial rates used by each transaction.",
             ChangeReason = "Prevent invalid percentages and ensure historical finance calculations remain reproducible after commercial configuration changes.",
             SourceCodeReference = "FIN-Phase-2D-COMMERCIAL-RATE-GOVERNANCE",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedFinancePolicyVersion125Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.5",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.4")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode,
+            x.Title,
+            x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "governance" => x.ContentMarkdown + " Policy v1.2.5: the late-skip fee is an outlet-level configurable commercial charge. The production default is ₹50. Historical late-skip charges retain the configured amount captured at the time of the skip.",
+                "platform-charges" => x.ContentMarkdown + " Policy v1.2.5: a late-skip charge is debited from the customer's wallet ledger. If the wallet cannot cover the charge, the customer carries an outstanding late-skip receivable that is added to the next package payment. The recovery is not included in the original meal/package sale amount.",
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.2.5: recovered late-skip amounts are attributed to the original outlet and original late-skip package reference. The subsequent package payment clears the customer receivable and creates a separate LateSkipFeeRecovery transaction for reconciliation/settlement reporting.",
+                "audit-trace" => x.ContentMarkdown + " Late-skip fee amount, original subscription, meal selection and wallet debit are retained as immutable transaction history. Changes to an outlet's configured late-skip fee apply only to future skips.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder)
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.2.5",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Make late-skip fees outlet-configurable and govern wallet deduction, deferred recovery and original-outlet settlement attribution.",
+            ChangeReason = "Provide outlet-level commercial control while preserving auditable historical charges and preventing deferred late-skip recovery from being recognised as a new package sale.",
+            SourceCodeReference = "FIN-Phase-2D-LATE-SKIP-WALLET-RECOVERY",
             ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
             PreviousVersionId = previous.Id,
             CreatedAtUtc = now,
