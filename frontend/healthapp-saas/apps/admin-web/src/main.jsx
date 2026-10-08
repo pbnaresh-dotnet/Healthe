@@ -61,8 +61,7 @@ function App(){
  const[outletSearch,setOutletSearch]=useState('');
  const[selected360,setSelected360]=useState(null);
  const[outletStatus,setOutletStatus]=useState('');
- const[selectedOutlet,setSelectedOutlet]=useState(null);
- const[outletCity,setOutletCity]=useState('');
+  const[outletCity,setOutletCity]=useState('');
  const[domainStatus,setDomainStatus]=useState('');
  const[domainSearch,setDomainSearch]=useState('');
  const notify=m=>{setToast(m);setTimeout(()=>setToast(''),2600)};
