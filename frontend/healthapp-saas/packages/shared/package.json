@@ -1,1 +1,1 @@
-{"name":"@healthapp/shared","version":"1.0.0","private":true,"type":"module","exports":"./src/index.js","dependencies":{}}
+{"name":"@healthapp/shared","version":"1.0.0","private":true,"type":"module","exports":"./src/index.js","dependencies":{"react":"^18.3.1"}}
