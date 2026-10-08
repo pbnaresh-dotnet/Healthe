@@ -228,7 +228,7 @@ public sealed class PaymentSettlementAccountingService(
             .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? "";
 
     private static string NormalizeHeader(string value) =>
-        new(value.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+        new string(value.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
 
     private static decimal? ParseMoney(string value)
     {
