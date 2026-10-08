@@ -1769,8 +1769,7 @@ public sealed class AdminService(
         {
             var plan = await saasPlans.GetAsync(billing.SaaSPlanId);
             var included = plan?.IncludedActiveCustomers ?? 0;
-            var fee = plan?.AdditionalCustomerFee ?? billing.SetupFee;
-            billingDto = new OutletBillingDto(
+                 billingDto = new OutletBillingDto(
                 outletId,
                 billing.SaaSPlanId,
                 plan?.Name ?? "Unknown plan",
@@ -1842,7 +1841,7 @@ public sealed class AdminService(
     private static UserDto MapUser(User x) =>
         new(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId, x.IsDemo, x.DemoExpiresAtUtc, x.MobileNumber, x.MarketingOptIn, x.MarketingOptInAtUtc);
 
-    public async Task<IReadOnlyList<OutletDto>> GetOutletsAsync()=>(await outlets.GetAllAsync()).Select(x=>new OutletDto(x.Id,x.Name,x.Slug,x.Subdomain,x.City,x.State,x.Pincode,x.Status.ToString(),x.BillingPlan.ToString(),x.LogoUrl??string.Empty,x.HeroImageUrl??string.Empty,(x.HealthHighlights??string.Empty).Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToList(),x.PrimaryColor,x.Status==OutletStatus.Active,0,x.Rating,x.ReviewCount,x.About)).ToList();
+    public async Task<IReadOnlyList<OutletDto>> GetOutletsAsync()=>(await outlets.GetAllAsync()).Select(x=>new OutletDto(x.Id,x.Name,x.Slug,x.Subdomain,x.City,x.State,x.Pincode,x.Status.ToString(),x.BillingPlan.ToString(),x.LogoUrl??string.Empty,x.HeroImageUrl??string.Empty,(x.HealthHighlights??string.Empty).Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToList(),x.PrimaryColor,x.Status==OutletStatus.Active,0,x.Rating,x.ReviewCount,x.About,0,0,"","","",x.DeliveryCoverageMode.ToString(),x.ServiceRadiusKm,x.Branding?.FontFamily??"Inter",x.Branding?.ThemeStyle??"Fresh",x.Branding?.ButtonStyle??"Rounded",x.Branding?.CardStyle??"Soft",x.CustomPackagePricingMode,x.ShowPackagePriceToCustomer,x.ShowMealPriceToCustomer,x.ShowDeliveryFeeToCustomer,x.OutletGroupId)).ToList();
     public async Task<IReadOnlyList<UserDto>> GetUsersAsync()=>(await users.GetAllAsync()).Select(x=>new UserDto(x.Id,x.Email,x.FirstName,x.LastName,x.Role.ToString(),x.OutletId)).ToList();
     public async Task<object> GetDashboardAsync()=>new {
         outlets=(await outlets.GetAllAsync()).Count,
