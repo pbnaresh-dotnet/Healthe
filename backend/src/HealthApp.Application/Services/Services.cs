@@ -1152,7 +1152,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId, i.Ingredient.Name, i.Quantity, i.Unit, i.Ingredient.Allergens.Select(a => new AllergenDto(a.AllergenId, a.Allergen.Name)).OrderBy(a => a.Name).ToList(), i.LargeQuantity)).ToList(),
     x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams, string.IsNullOrWhiteSpace(x.MealType)?"Meal":x.MealType, x.SugarGrams);
 }
-public sealed class OutletService(ICurrentUser current,IOutletRepository outlets,IOutletSubscriptionRepository outletSubs,ISaaSPlanRepository saasPlans,IMealPlanRepository plans,IRecipeRepository recipes,IOutletMenuRepository menu,IUserRepository users,ISubscriptionRepository subscriptions,IOrderRepository orders,IDeliveryRepository deliveries,IIngredientRepository ingredients,IAllergenRepository allergens,ISubscriptionMealSelectionRepository selections,ICustomerAddressRepository addresses,ICityAreaRepository areas,IDeliveryLabelService deliveryLabels,IOutletTaxProfileRepository taxProfiles,IConfiguration configuration) : IOutletService
+public sealed class OutletService(ICurrentUser current,IOutletRepository outlets,IOutletSubscriptionRepository outletSubs,ISaaSPlanRepository saasPlans,IMealPlanRepository plans,IRecipeRepository recipes,IOutletMenuRepository menu,IUserRepository users,ISubscriptionRepository subscriptions,IOrderRepository orders,IDeliveryRepository deliveries,IIngredientRepository ingredients,IAllergenRepository allergens,ISubscriptionMealSelectionRepository selections,ICustomerAddressRepository addresses,ICityAreaRepository areas,IDeliveryLabelService deliveryLabels,IOutletTaxProfileRepository taxProfiles,IConfiguration configuration,ITrialRepository trials) : IOutletService
 {
     private static string NormalizeMealType(string? value)
     {
@@ -1471,33 +1471,74 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     }
     public async Task<OutletBillingDto?> GetBillingAsync() {
         if(current.OutletId is not Guid id)return null;
-        var os=await outletSubs.GetByOutletAsync(id);
+        var os=await outletSubs.GetAnyByOutletAsync(id);
         if(os is null)return null;
         var plan=await saasPlans.GetAsync(os.SaaSPlanId);
         if(plan is null)return null;
+        var trial=await trials.GetByOutletAsync(id);
+        if(trial is { Status: TrialStatus.Active } && trial.EndsAtUtc <= DateTime.UtcNow)
+        {
+            trial.Status=TrialStatus.Expired;
+            await trials.UpdateAsync(trial);
+            if(string.Equals(os.Status,"Active",StringComparison.OrdinalIgnoreCase))
+            {
+                os.Status="Expired";
+                await outletSubs.UpdateAsync(os);
+            }
+        }
         var count=(await subscriptions.GetByOutletAsync(id)).Count;
         var extra=Math.Max(0,count-plan.IncludedActiveCustomers)*plan.AdditionalCustomerFee;
-        return new(id,plan.Id,plan.Name,os.BillingCycle,os.SubscriptionFee,os.SetupFee,os.TransactionFeePercent,count,plan.IncludedActiveCustomers,plan.AdditionalCustomerFee,extra,os.RenewalDate,os.Status);
+        var isTrial=trial?.Status == TrialStatus.Active;
+        var trialEndsAt=trial?.Status is TrialStatus.Active or TrialStatus.Expired ? trial.EndsAtUtc : null;
+        var trialDaysRemaining=isTrial ? Math.Max(0,(int)Math.Ceiling((trial!.EndsAtUtc-DateTime.UtcNow).TotalDays)) : 0;
+        return new(id,plan.Id,plan.Name,os.BillingCycle,os.SubscriptionFee,os.SetupFee,os.TransactionFeePercent,count,plan.IncludedActiveCustomers,plan.AdditionalCustomerFee,extra,os.RenewalDate,os.Status,isTrial,trialEndsAt,trialDaysRemaining);
     }
     public async Task<IReadOnlyList<SaaSPlanDto>> GetSaaSPlansAsync()=>(await saasPlans.GetActiveAsync()).Select(x=>new SaaSPlanDto(x.Id,x.Name,x.MonthlyFee,x.AnnualFee,x.IncludedActiveCustomers,x.AdditionalCustomerFee,x.CustomerTransactionFeePercent,x.Description,x.IsActive)).ToList();
     public async Task<OutletBillingDto?> ChangeSubscriptionAsync(ChangeOutletSubscriptionRequest r) {
         if(current.OutletId is not Guid id)return null;
         var p=await saasPlans.GetAsync(r.SaaSPlanId)??throw new KeyNotFoundException("SaaS plan not found.");
-        var existing=await outletSubs.GetByOutletAsync(id);
-        var os=existing??new OutletSubscription {
-            Id=Guid.NewGuid(),
-            OutletId=id
-        };
+        if(!p.IsActive)throw new InvalidOperationException("The selected SaaS plan is not active.");
+        var cycle=string.Equals(r.BillingCycle,"Annual",StringComparison.OrdinalIgnoreCase)?"Annual":"Monthly";
+        if(!string.Equals(r.BillingCycle,"Annual",StringComparison.OrdinalIgnoreCase) &&
+           !string.Equals(r.BillingCycle,"Monthly",StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Billing cycle must be Monthly or Annual.");
+
+        var existing=await outletSubs.GetAnyByOutletAsync(id);
+        var trial=await trials.GetByOutletAsync(id);
+        var wasExpired=existing is { Status: "Expired" } || trial?.Status == TrialStatus.Expired;
+        var os=existing??new OutletSubscription { Id=Guid.NewGuid(), OutletId=id };
+
         os.SaaSPlanId=p.Id;
-        os.BillingCycle=r.BillingCycle;
-        os.SubscriptionFee=r.BillingCycle.Equals("Annual",StringComparison.OrdinalIgnoreCase)?p.AnnualFee:p.MonthlyFee;
-        if(os.SetupFee<=0)os.SetupFee=configuration.GetValue<decimal?>("Onboarding:SetupFee") ?? 5000m;
+        os.BillingCycle=cycle;
+        os.SubscriptionFee=cycle=="Annual"?p.AnnualFee:p.MonthlyFee;
+        // Reactivation reuses the existing outlet account and never charges the
+        // original setup fee again. A first-time subscription retains onboarding fee.
+        if(existing is null)
+            os.SetupFee=configuration.GetValue<decimal?>("Onboarding:SetupFee") ?? 5000m;
+        else if(wasExpired)
+            os.SetupFee=0m;
         os.TransactionFeePercent=p.CustomerTransactionFeePercent;
         os.StartDate=DateTime.UtcNow.Date;
-        os.RenewalDate=os.StartDate.AddMonths(r.BillingCycle.Equals("Annual",StringComparison.OrdinalIgnoreCase)?12:1);
+        os.RenewalDate=os.StartDate.AddMonths(cycle=="Annual"?12:1);
         os.Status="Active";
+
         if(existing is null)await outletSubs.AddAsync(os);
         else await outletSubs.UpdateAsync(os);
+
+        if(trial?.Status == TrialStatus.Expired)
+        {
+            trial.Status=TrialStatus.Converted;
+            trial.ConvertedAtUtc=DateTime.UtcNow;
+            await trials.UpdateAsync(trial);
+        }
+
+        var outlet=await outlets.GetByIdAsync(id);
+        if(outlet is not null && outlet.Status != OutletStatus.Live)
+        {
+            outlet.Status=OutletStatus.Live;
+            await outlets.UpdateAsync(outlet);
+        }
+
         return await GetBillingAsync();
     }
     public async Task<IReadOnlyList<MealPlanDto>> GetPlansAsync()=>current.OutletId is not Guid id?[]:(await plans.GetByOutletAsync(id)).Where(x=>x.IsActive).Select(x=>new MealPlanDto(x.Id,x.OutletId,x.Name,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Price,x.Currency,x.Description,x.IsActive)).ToList();
