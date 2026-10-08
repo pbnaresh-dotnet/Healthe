@@ -714,7 +714,6 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.OutletSettlementAmount).HasPrecision(18,2);
         e.Property(x => x.HealthAppRevenue).HasPrecision(18,2);
     }
-}
 
     private static void ConfigureApplicationError(EntityTypeBuilder<ApplicationErrorLog> e)
     {
