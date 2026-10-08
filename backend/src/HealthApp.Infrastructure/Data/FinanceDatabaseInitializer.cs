@@ -679,7 +679,7 @@ WHERE NOT EXISTS
             x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.0",
             cancellationToken))
         {
-            await db.SaveChangesAsync(cancellationToken);
+            await SeedFinancePolicyVersion11Async(db, document, cancellationToken);
             return;
         }
 
@@ -728,6 +728,80 @@ WHERE NOT EXISTS
                 SectionCode = section.Code,
                 Title = section.Title,
                 DisplayOrder = section.Order,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+        await SeedFinancePolicyVersion11Async(db, document, cancellationToken);
+    }
+
+    private static async Task SeedFinancePolicyVersion11Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.1",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.0")
+            .FirstAsync(cancellationToken);
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode,
+            x.Title,
+            x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "restaurant-tax-applicability" => "Direct and ECO restaurant tax applicability is resolved before pricing calculation. Direct + not GST registered means restaurant GST is zero; Direct + composition also does not add GST to the customer price. Direct + GST registered and not composition uses the effective restaurant FinanceTaxRule. ECO Section 9(5) remains a separate applicability path and requires approved legal/tax configuration.",
+                "inclusive-exclusive" => "The tax strategy first checks applicability, then applies the effective-dated tax rule. If tax is not applicable, taxable restaurant amount equals the configured meal amount and restaurant GST is zero regardless of Inclusive/Exclusive. If applicable, Exclusive calculates tax on the taxable amount; Inclusive derives taxable = gross × 100 / (100 + rate) and tax = gross − taxable. Invalid/missing tax rules fail closed instead of falling back to appsettings.",
+                "audit-trace" => "The target trace is business event → effective outlet tax profile → effective finance tax rule → tax calculation → financial document → payment allocation → settlement/refund → ledger → reporting. The calculation layer returns the rule/profile identifiers and applicability used so the next finance phase can snapshot them.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder)
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.1",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Tax calculation now resolves effective outlet profiles and finance tax rules before inclusive/exclusive calculation.",
+            ChangeReason = "Prevent unregistered direct outlets from being incorrectly charged restaurant GST and remove hidden appsettings tax fallbacks.",
+            SourceCodeReference = "FIN-Phase-2B-Tax-Engine",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
                 ContentMarkdown = section.Content,
                 CreatedAtUtc = now
             });
