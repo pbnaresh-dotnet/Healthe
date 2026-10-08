@@ -751,6 +751,8 @@ WHERE NOT EXISTS
             await SeedFinancePolicyVersion12Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion121Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion122Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion123Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion124Async(db, document, cancellationToken);
             return;
         }
 
@@ -1081,6 +1083,155 @@ WHERE NOT EXISTS
             ChangeSummary = "Ensure historical financial documents use the exact tax profiles captured by the immutable calculation snapshot.",
             ChangeReason = "Prevent later outlet/platform tax-profile changes from altering the identity or tax context of historical financial documents.",
             SourceCodeReference = "FIN-Phase-2C-HISTORICAL-PROFILE",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+
+    private static async Task SeedFinancePolicyVersion123Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.3",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.2")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode,
+            x.Title,
+            x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "platform-charges" => x.ContentMarkdown + " Policy v1.2.3: the default customer-facing HealthApp platform service fee is 5.00% of the configured net meal amount. Gateway processing costs are included within this platform-fee economics and are not added as a separate customer-facing gateway charge. Actual gateway costs remain separately recorded for payment settlement and accounting.",
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.2.3: actual gateway provider charges are internal payment-processing costs. They must not be duplicated as a customer charge when the configured platform fee already includes gateway-cost recovery.",
+                "audit-trace" => x.ContentMarkdown + " Platform fee rate and gateway-cost inclusion policy are captured in the immutable finance calculation snapshot so historical transactions remain reproducible after configuration changes.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder)
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.2.3",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Set the default platform service fee to 5% and include gateway processing costs within that customer-facing fee.",
+            ChangeReason = "Establish the approved platform-fee economics without exposing gateway processing as a separate customer charge.",
+            SourceCodeReference = "FIN-Phase-2D-PLATFORM-FEE-GATEWAY",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedFinancePolicyVersion124Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.4",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.3")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode,
+            x.Title,
+            x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "governance" => x.ContentMarkdown + " Policy v1.2.4: platform service fee and outlet commission percentages must be validated between 0% and 100%. Calculation snapshots retain the exact rates used; configuration changes apply only to new calculations.",
+                "commission" => x.ContentMarkdown + " The outlet commission rate is sourced from the outlet's active SaaS subscription transaction-fee configuration. The rate used for a customer package is captured in the finance snapshot and cannot be reconstructed from a later subscription setting.",
+                "audit-trace" => x.ContentMarkdown + " The immutable snapshot records platform service fee percentage, gateway-cost inclusion policy, commission percentage, effective tax configuration identifiers and finance policy version.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder)
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.2.4",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Add platform-fee/commission validation and snapshot the exact commercial rates used by each transaction.",
+            ChangeReason = "Prevent invalid percentages and ensure historical finance calculations remain reproducible after commercial configuration changes.",
+            SourceCodeReference = "FIN-Phase-2D-COMMERCIAL-RATE-GOVERNANCE",
             ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
             PreviousVersionId = previous.Id,
             CreatedAtUtc = now,
