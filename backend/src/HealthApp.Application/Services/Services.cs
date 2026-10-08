@@ -663,8 +663,6 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var discountedMealAmount = Math.Round(gross - totalDiscount, 2);
         var delivery = await CalculateDeliveryAsync(outlet.Id, deliveryMode, mealEntities, customerId);
         var taxConfig = await taxConfiguration.ResolveAsync(outlet.Id, DateTime.UtcNow);
-        var taxes = taxStrategy.Calculate(discountedMealAmount, 0m, taxConfig.Restaurant, taxConfig.PlatformService);
-        var net = taxes.RestaurantTaxableAmount;
         var serviceFee = platformFee.Calculate(discountedMealAmount);
         taxes = taxStrategy.Calculate(discountedMealAmount, serviceFee, taxConfig.Restaurant, taxConfig.PlatformService, taxConfig.PlatformTaxApplicable);
         net = taxes.RestaurantTaxableAmount;
@@ -779,7 +777,6 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 discountRule.Percent,
                 discountRule.Amount,
                 System.Text.Json.JsonSerializer.Serialize(new { discountRule.TierId, discountRule.TierMinMeals, discountRule.TierMaxMeals, discountRule.Percent, packageDiscountAmount, discountCode = discountCodeResult.AppliedCode, discountCodePercent = discountCodeResult.Percent, discountCodeMaxAmount = discountCodeResult.MaxAmount }),
-                null,
                 discountCodeResult.AppliedId,
                 discountCodeResult.Amount,
                 totalDiscount);
@@ -1155,7 +1152,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId, i.Ingredient.Name, i.Quantity, i.Unit, i.Ingredient.Allergens.Select(a => new AllergenDto(a.AllergenId, a.Allergen.Name)).OrderBy(a => a.Name).ToList())).ToList(),
     x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams, string.IsNullOrWhiteSpace(x.MealType)?"Meal":x.MealType, x.SugarGrams);
 }
-public sealed class OutletService(ICurrentUser current,IOutletRepository outlets,IOutletSubscriptionRepository outletSubs,ISaaSPlanRepository saasPlans,IMealPlanRepository plans,IRecipeRepository recipes,IOutletMenuRepository menu,IUserRepository users,ISubscriptionRepository subscriptions,IOrderRepository orders,IDeliveryRepository deliveries,IIngredientRepository ingredients,IAllergenRepository allergens,ISubscriptionMealSelectionRepository selections,ICustomerAddressRepository addresses,ICityAreaRepository areas,IDeliveryLabelService deliveryLabels,IOutletTaxProfileRepository taxProfiles) : IOutletService
+public sealed class OutletService(ICurrentUser current,IOutletRepository outlets,IOutletSubscriptionRepository outletSubs,ISaaSPlanRepository saasPlans,IMealPlanRepository plans,IRecipeRepository recipes,IOutletMenuRepository menu,IUserRepository users,ISubscriptionRepository subscriptions,IOrderRepository orders,IDeliveryRepository deliveries,IIngredientRepository ingredients,IAllergenRepository allergens,ISubscriptionMealSelectionRepository selections,ICustomerAddressRepository addresses,ICityAreaRepository areas,IDeliveryLabelService deliveryLabels,IOutletTaxProfileRepository taxProfiles,IConfiguration configuration) : IOutletService
 {
     private static string NormalizeMealType(string? value)
     {
