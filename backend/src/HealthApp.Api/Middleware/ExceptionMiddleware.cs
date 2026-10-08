@@ -113,13 +113,21 @@ public sealed class ExceptionMiddleware(
         var tenantSlug = tenant.OutletSlug ?? "";
         var activity = context.GetEndpoint()?.DisplayName
             ?? $"{context.Request.Method} {context.Request.Path}";
-        var message = $"Request returned HTTP {statusCode}.";
+        var validationDetails = context.Items.TryGetValue("HealthApp.ModelValidationErrors", out var validationValue)
+            ? validationValue?.ToString()
+            : null;
+        var message = string.IsNullOrWhiteSpace(validationDetails)
+            ? $"Request returned HTTP {statusCode}."
+            : $"Request returned HTTP {statusCode}. Validation: {validationDetails}";
+        var errorCode = !string.IsNullOrWhiteSpace(validationDetails)
+            ? "MODEL_VALIDATION"
+            : $"HTTP_{statusCode}";
 
         await applicationErrorLogger.LogAsync(
             BuildEntry(
                 context,
                 severity,
-                $"HTTP_{statusCode}",
+                errorCode,
                 activity,
                 "",
                 message,
