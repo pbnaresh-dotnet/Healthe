@@ -744,3 +744,4 @@ internal static class HealthAppModelBuilder
         e.HasIndex(x => new { x.StatusCode, x.OccurredAtUtc });
         e.HasIndex(x => x.Fingerprint);
     }
+}
