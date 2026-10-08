@@ -11,6 +11,6 @@ public interface IPlatformServiceFeeStrategy
 
 public sealed class ConfigurablePlatformServiceFeeStrategy(IConfiguration configuration) : IPlatformServiceFeeStrategy
 {
-    public decimal Percent => configuration.GetValue<decimal?>("PlatformFees:CustomerServiceFeePercent") ?? 3m;
+    public decimal Percent => configuration.GetValue<decimal?>("PlatformFees:CustomerServiceFeePercent") ?? 5m;
     public decimal Calculate(decimal netMealAmount) => Math.Round(netMealAmount * Percent / 100m, 2);
 }
