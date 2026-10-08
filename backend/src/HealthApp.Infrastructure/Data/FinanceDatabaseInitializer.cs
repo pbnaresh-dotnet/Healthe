@@ -760,6 +760,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion129Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion130Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion131Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion132Async(db, document, cancellationToken);
             return;
         }
 
@@ -1774,6 +1775,80 @@ WHERE NOT EXISTS
             ChangeSummary = "Make payment provider integration pluggable without changing commercial finance calculations.",
             ChangeReason = "Prevent provider-specific payment logic from becoming coupled to customer charging, settlement accounting or historical finance records.",
             SourceCodeReference = "FIN-Phase-2E-PAYMENT-GATEWAY-PLUGGABILITY",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedFinancePolicyVersion132Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.2",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.1")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode,
+            x.Title,
+            x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.3.2: payment creation uses a caller idempotency key plus a deterministic request fingerprint. Provider order creation reuses the same provider order ID and idempotency key after interrupted attempts. Transient provider failures use bounded exponential retry with provider Retry-After support where available.",
+                "governance" => x.ContentMarkdown + " Policy v1.3.2: verified Paid payments are never downgraded by stale or non-success status responses. Duplicate webhook delivery is safe because payment completion and package activation are state-guarded.",
+                "audit-trace" => x.ContentMarkdown + " Attempt count, last attempt, retry schedule, processing state and last error code are retained on the payment transaction for operational and audit traceability.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder)
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.3.2",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Harden payment idempotency, retries and payment state transitions for resilient gateway integration.",
+            ChangeReason = "Prevent duplicate charges and duplicate fulfilment when requests, webhooks or provider responses are retried or interrupted.",
+            SourceCodeReference = "FIN-Phase-2E-PAYMENT-RESILIENCE-IDEMPOTENCY",
             ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
             PreviousVersionId = previous.Id,
             CreatedAtUtc = now,
