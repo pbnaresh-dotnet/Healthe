@@ -41,7 +41,7 @@ public sealed class OutletSettingsService(
             outlet.DeliveryDays, outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString(),
             await BuildReadinessAsync(outlet), MapBranding(branding),
             outlet.DeliveryCoverageMode.ToString(), outlet.ServiceRadiusKm, outlet.Latitude, outlet.Longitude, outlet.Slug,
-            outlet.CustomPackagePricingMode, outlet.ShowPackagePriceToCustomer, outlet.ShowMealPriceToCustomer, outlet.ShowDeliveryFeeToCustomer, outlet.LateSkipFee);
+            outlet.CustomPackagePricingMode, outlet.ShowPackagePriceToCustomer, outlet.ShowMealPriceToCustomer, outlet.ShowDeliveryFeeToCustomer, outlet.LateSkipFee, outlet.SupportsLargePortion);
     }
 
     public async Task<IReadOnlyList<OutletDomainDto>> GetDomainsAsync()
@@ -404,6 +404,7 @@ public sealed class OutletSettingsService(
         outlet.ShowPackagePriceToCustomer = request.ShowPackagePriceToCustomer;
         outlet.ShowMealPriceToCustomer = request.ShowMealPriceToCustomer;
         outlet.ShowDeliveryFeeToCustomer = request.ShowDeliveryFeeToCustomer;
+        outlet.SupportsLargePortion = request.SupportsLargePortion;
         await outlets.UpdateAsync(outlet);
         return await GetAsync();
     }
