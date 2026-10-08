@@ -126,3 +126,35 @@ public sealed class FinanceCalculationSnapshotRepository(HealthAppDbContext db) 
         await SaveAsync();
     }
 }
+
+
+public sealed class FinancialDocumentRepository(HealthAppDbContext db) : EfRepository(db), IFinancialDocumentRepository
+{
+    public Task<FinancialDocument?> GetBySourceAsync(string sourceType, Guid sourceId)
+        => Context.FinancialDocuments.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.SourceType == sourceType && x.SourceId == sourceId);
+
+    public async Task<IReadOnlyList<FinancialDocument>> GetBySourcePrefixAsync(string sourceTypePrefix, Guid sourceId)
+        => await Context.FinancialDocuments.AsNoTracking()
+            .Where(x => x.SourceType.StartsWith(sourceTypePrefix) && x.SourceId == sourceId)
+            .OrderBy(x => x.CreatedAtUtc)
+            .ToListAsync();
+
+    public async Task AddAsync(FinancialDocument document)
+    {
+        Context.FinancialDocuments.Add(document);
+        await SaveAsync();
+    }
+
+    public async Task AddLineAsync(FinancialDocumentLine line)
+    {
+        Context.FinancialDocumentLines.Add(line);
+        await SaveAsync();
+    }
+
+    public async Task AddTaxComponentAsync(FinancialTaxComponent component)
+    {
+        Context.FinancialTaxComponents.Add(component);
+        await SaveAsync();
+    }
+}
