@@ -198,6 +198,9 @@ public interface IAdminService
     Task<PlatformRevenueDto> GetRevenueAsync();
     Task<IReadOnlyList<OutletDomainDto>> GetOutletDomainsAsync();
     Task<OutletDomainDto> SetOutletDomainStatusAsync(Guid domainId, OutletDomainStatus status);
+    Task<ApplicationErrorPageDto> GetErrorsAsync(ApplicationErrorQueryRequest request);
+    Task<ApplicationErrorDetailDto?> GetErrorAsync(Guid id);
+    Task<ApplicationErrorDetailDto?> ResolveErrorAsync(Guid id, string resolutionNotes);
 }
 
 
