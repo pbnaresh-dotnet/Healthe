@@ -1030,6 +1030,8 @@ public static class DatabaseSeeder
             ("White Rice","g"),
             ("Sona Masoori Rice","g"),
             ("Basmati Rice","g"),
+            ("Basmati Rice (Boiled)","g"),
+            ("Chicken Breast (Grilled)","g"),
             ("Whole Wheat Flour","g"),
             ("Toor Dal","g"),
             ("Black Lentils","g"),
