@@ -289,13 +289,13 @@ public sealed class CustomerCreditRepository(HealthAppDbContext db) : EfReposito
     }
     public async Task<decimal> GetOutstandingLateSkipAmountAsync(Guid customerId)
     {
-        var rows = await Context.CustomerCreditTransactions.AsNoTracking()
+        // Wallet-covered late skips are marked Paid by the domain event handler.
+        // Only pending late-skip receivables are carried into a future package.
+        return await Context.PlatformTransactions.AsNoTracking()
             .Where(x => x.CustomerId == customerId &&
-                (x.Reason.StartsWith("Late skip fee for package") || x.Reason.StartsWith("Recovery of late skip fees")))
-            .ToListAsync();
-        var debits = rows.Where(x => x.Type == CreditTransactionType.Debit).Sum(x => x.Amount);
-        var recoveries = rows.Where(x => x.Type == CreditTransactionType.Credit).Sum(x => x.Amount);
-        return Math.Max(0m, Math.Round(debits - recoveries, 2));
+                        x.Type == "LateSkipFee" &&
+                        x.Status == "Pending")
+            .SumAsync(x => x.GrossAmount);
     }
     public async Task<IReadOnlyList<CustomerCreditTransaction>> GetTransactionsAsync(Guid customerId)
     {
