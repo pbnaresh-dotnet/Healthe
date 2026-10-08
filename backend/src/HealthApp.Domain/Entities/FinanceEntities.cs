@@ -106,6 +106,7 @@ public sealed class FinancialDocument
     public bool ReverseCharge { get; set; }
     public bool IsEcoSection9_5 { get; set; }
     public Guid? OriginalDocumentId { get; set; }
+    public Guid? FinanceCalculationSnapshotId { get; set; }
 
     // Immutable issuer snapshot.
     public string SupplierLegalName { get; set; } = "";
