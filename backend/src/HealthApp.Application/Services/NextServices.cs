@@ -260,10 +260,21 @@ public sealed class OutletDeliveryService(ICurrentUser current,ICityAreaReposito
 public sealed class DiscountConfigurationService(ICurrentUser current,ISubscriptionDiscountTierRepository tiers) : IDiscountConfigurationService
 {
     public async Task<IReadOnlyList<SubscriptionDiscountTierDto>> GetTiersAsync()=>current.OutletId is not Guid id?[]:(await tiers.GetByOutletAsync(id)).Select(Map).ToList();
-    public async Task<SubscriptionDiscountTierDto?> AddTierAsync(SaveSubscriptionDiscountTierRequest r){if(current.OutletId is not Guid id)return null;Validate(r);var x=new SubscriptionDiscountTier{Id=Guid.NewGuid(),OutletId=id,MinMeals=r.MinMeals,MaxMeals=r.MaxMeals,OneWeekPercent=r.OneWeekPercent,TwoWeeksPercent=r.TwoWeeksPercent,OneMonthPercent=r.OneMonthPercent,IsActive=r.IsActive};await tiers.AddAsync(x);return Map(x);}
-    public async Task<SubscriptionDiscountTierDto?> UpdateTierAsync(Guid id,SaveSubscriptionDiscountTierRequest r){if(current.OutletId is not Guid oid)return null;var x=(await tiers.GetByOutletAsync(oid)).FirstOrDefault(y=>y.Id==id);if(x is null)return null;Validate(r);x.MinMeals=r.MinMeals;x.MaxMeals=r.MaxMeals;x.OneWeekPercent=r.OneWeekPercent;x.TwoWeeksPercent=r.TwoWeeksPercent;x.OneMonthPercent=r.OneMonthPercent;x.IsActive=r.IsActive;await tiers.UpdateAsync(x);return Map(x);}
+    public async Task<SubscriptionDiscountTierDto?> AddTierAsync(SaveSubscriptionDiscountTierRequest r){if(current.OutletId is not Guid id)return null;await ValidateAsync(id, r);var x=new SubscriptionDiscountTier{Id=Guid.NewGuid(),OutletId=id,MinMeals=r.MinMeals,MaxMeals=r.MaxMeals,OneWeekPercent=r.OneWeekPercent,TwoWeeksPercent=r.TwoWeeksPercent,OneMonthPercent=r.OneMonthPercent,IsActive=r.IsActive};await tiers.AddAsync(x);return Map(x);}
+    public async Task<SubscriptionDiscountTierDto?> UpdateTierAsync(Guid id,SaveSubscriptionDiscountTierRequest r){if(current.OutletId is not Guid oid)return null;var x=(await tiers.GetByOutletAsync(oid)).FirstOrDefault(y=>y.Id==id);if(x is null)return null;await ValidateAsync(oid, r, id);x.MinMeals=r.MinMeals;x.MaxMeals=r.MaxMeals;x.OneWeekPercent=r.OneWeekPercent;x.TwoWeeksPercent=r.TwoWeeksPercent;x.OneMonthPercent=r.OneMonthPercent;x.IsActive=r.IsActive;await tiers.UpdateAsync(x);return Map(x);}
     public async Task<bool> DeleteTierAsync(Guid id){if(current.OutletId is not Guid oid)return false;await tiers.DeleteAsync(oid,id);return true;}
-    private static void Validate(SaveSubscriptionDiscountTierRequest r){if(r.MinMeals<1||(r.MaxMeals.HasValue&&r.MaxMeals.Value<r.MinMeals)||new[]{r.OneWeekPercent,r.TwoWeeksPercent,r.OneMonthPercent}.Any(x=>x<0||x>100))throw new ArgumentException("Invalid discount tier.");}
+    private async Task ValidateAsync(Guid outletId, SaveSubscriptionDiscountTierRequest r, Guid? excludeId = null)
+    {
+        if (r.MinMeals < 1 || (r.MaxMeals.HasValue && r.MaxMeals.Value < r.MinMeals) ||
+            new[] { r.OneWeekPercent, r.TwoWeeksPercent, r.OneMonthPercent }.Any(x => x < 0m || x > 100m))
+            throw new ArgumentException("Invalid discount tier. Meal ranges must be valid and discount percentages must be between 0% and 100%.");
+
+        var existing = await tiers.GetByOutletAsync(outletId);
+        var candidateMax = r.MaxMeals ?? int.MaxValue;
+        if (existing.Any(x => x.IsActive && x.Id != excludeId &&
+            r.MinMeals <= (x.MaxMeals ?? int.MaxValue) && x.MinMeals <= candidateMax))
+            throw new ArgumentException("Discount meal ranges overlap an existing active tier. Use non-overlapping ranges.");
+    }
     private static SubscriptionDiscountTierDto Map(SubscriptionDiscountTier x)=>new(x.Id,x.OutletId,x.MinMeals,x.MaxMeals,x.OneWeekPercent,x.TwoWeeksPercent,x.OneMonthPercent,x.IsActive);
 }
 
