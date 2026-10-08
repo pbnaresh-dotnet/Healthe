@@ -1526,7 +1526,9 @@ public sealed class AdminService(
     IPlatformTransactionRepository transactions,
     IOutletDomainRepository domains,
     IOutletSubscriptionRepository outletSubscriptions,
-    ICloudflarePagesService cloudflarePages) : IAdminService
+    ICloudflarePagesService cloudflarePages,
+    IApplicationErrorRepository applicationErrors,
+    ICurrentUser currentUser) : IAdminService
 {
     public async Task<IReadOnlyList<OutletDto>> GetOutletsAsync()=>(await outlets.GetAllAsync()).Select(x=>new OutletDto(x.Id,x.Name,x.Slug,x.Subdomain,x.City,x.State,x.Pincode,x.Status.ToString(),x.BillingPlan.ToString(),x.LogoUrl??string.Empty,x.HeroImageUrl??string.Empty,(x.HealthHighlights??string.Empty).Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToList(),x.PrimaryColor,x.Status==OutletStatus.Active,0,x.Rating,x.ReviewCount,x.About)).ToList();
     public async Task<IReadOnlyList<UserDto>> GetUsersAsync()=>(await users.GetAllAsync()).Select(x=>new UserDto(x.Id,x.Email,x.FirstName,x.LastName,x.Role.ToString(),x.OutletId)).ToList();
@@ -1535,6 +1537,128 @@ public sealed class AdminService(
         users=(await users.GetAllAsync()).Count,
         revenue=(await GetRevenueAsync()).TotalRevenue
     };
+    public async Task<ApplicationErrorPageDto> GetErrorsAsync(ApplicationErrorQueryRequest request)
+    {
+        var normalized = request with
+        {
+            Page = Math.Max(1, request.Page),
+            PageSize = Math.Clamp(request.PageSize, 1, 200)
+        };
+
+        var result = await applicationErrors.QueryAsync(normalized);
+        var summary = await applicationErrors.GetSummaryAsync(normalized);
+
+        var outletIds = result.Items.Select(x => x.OutletId).Where(x => x.HasValue).Select(x => x!.Value).ToHashSet();
+        var userIds = result.Items.SelectMany(x => new[] { x.UserId, x.ResolvedByUserId }).Where(x => x.HasValue).Select(x => x!.Value).ToHashSet();
+
+        var outletMap = (await outlets.GetAllAsync())
+            .Where(x => outletIds.Contains(x.Id))
+            .ToDictionary(x => x.Id);
+
+        var userMap = (await users.GetAllAsync())
+            .Where(x => userIds.Contains(x.Id))
+            .ToDictionary(x => x.Id);
+
+        var items = result.Items.Select(x =>
+        {
+            var user = x.UserId.HasValue && userMap.TryGetValue(x.UserId.Value, out var u) ? u : null;
+            var outlet = x.OutletId.HasValue && outletMap.TryGetValue(x.OutletId.Value, out var o) ? o : null;
+
+            return new ApplicationErrorListItemDto(
+                x.Id,
+                x.OccurredAtUtc,
+                x.Severity,
+                x.ErrorCode,
+                x.Activity,
+                x.ExceptionType,
+                x.Message,
+                x.RequestPath,
+                x.HttpMethod,
+                x.StatusCode,
+                x.CorrelationId,
+                x.ElapsedMilliseconds,
+                x.UserId,
+                user is null ? (x.UserId?.ToString() ?? "Anonymous") : $"{user.FirstName} {user.LastName}".Trim(),
+                x.UserRole,
+                x.OutletId,
+                outlet?.Name ?? (x.OutletId?.ToString() ?? "Platform"),
+                x.TenantSlug,
+                x.IsResolved);
+        }).ToList();
+
+        var byOutlet = summary.ByOutlet.Select(x =>
+        {
+            var name = x.OutletId.HasValue && outletMap.TryGetValue(x.OutletId.Value, out var outlet)
+                ? outlet.Name
+                : x.OutletId.HasValue ? x.OutletId.Value.ToString() : "Platform / System";
+            return new ApplicationErrorOutletSummaryDto(x.OutletId, name, x.ErrorCount, x.UnresolvedCount);
+        }).ToList();
+
+        return new ApplicationErrorPageDto(
+            items,
+            result.TotalCount,
+            normalized.Page,
+            normalized.PageSize,
+            new ApplicationErrorSummaryDto(
+                summary.TotalCount,
+                summary.UnresolvedCount,
+                summary.Last24HoursCount,
+                byOutlet));
+    }
+
+    public async Task<ApplicationErrorDetailDto?> GetErrorAsync(Guid id)
+    {
+        var error = await applicationErrors.GetAsync(id);
+        if (error is null)
+            return null;
+
+        var user = error.UserId.HasValue ? await users.FindByIdAsync(error.UserId.Value) : null;
+        var resolvedBy = error.ResolvedByUserId.HasValue ? await users.FindByIdAsync(error.ResolvedByUserId.Value) : null;
+        var outlet = error.OutletId.HasValue ? await outlets.GetByIdAsync(error.OutletId.Value) : null;
+
+        return new ApplicationErrorDetailDto(
+            error.Id,
+            error.OccurredAtUtc,
+            error.Environment,
+            error.Severity,
+            error.ErrorCode,
+            error.Activity,
+            error.ExceptionType,
+            error.Message,
+            error.InnerExceptionMessage,
+            error.StackTrace,
+            error.RequestPath,
+            error.HttpMethod,
+            error.StatusCode,
+            error.CorrelationId,
+            error.TraceId,
+            error.ElapsedMilliseconds,
+            error.UserId,
+            user is null ? (error.UserId?.ToString() ?? "Anonymous") : $"{user.FirstName} {user.LastName}".Trim(),
+            error.UserRole,
+            error.OutletId,
+            outlet?.Name ?? (error.OutletId?.ToString() ?? "Platform / System"),
+            error.TenantSlug,
+            error.TenantHost,
+            error.ClientIpAddress,
+            error.UserAgent,
+            error.Fingerprint,
+            error.IsResolved,
+            error.ResolvedAtUtc,
+            error.ResolvedByUserId,
+            resolvedBy is null ? (error.ResolvedByUserId?.ToString() ?? "") : $"{resolvedBy.FirstName} {resolvedBy.LastName}".Trim(),
+            error.ResolutionNotes);
+    }
+
+    public async Task<ApplicationErrorDetailDto?> ResolveErrorAsync(Guid id, string resolutionNotes)
+    {
+        if (currentUser.UserId is not Guid adminId)
+            throw new UnauthorizedAccessException("The current Super Admin identity could not be determined.");
+
+        var error = await applicationErrors.ResolveAsync(id, adminId, resolutionNotes ?? "");
+        return error is null ? null : await GetErrorAsync(error.Id);
+    }
+
     public async Task<PlatformRevenueDto> GetRevenueAsync() {
         var tx=await transactions.GetAllAsync();
         var outlet=tx.Where(x=>x.Type=="OutletSubscription").Sum(x=>x.GrossAmount);
