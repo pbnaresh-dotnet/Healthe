@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text;
 using HealthApp.Application.Abstractions;
 using HealthApp.Domain.Entities;
 using HealthApp.Domain.Enums;
@@ -85,6 +86,35 @@ public sealed class OutletDemoService(
         outlet.PaymentPricingPromotionalTerms = DemoLegalPolicyTemplates.Payment(outlet.Name);
 
         await outlets.AddAsync(outlet);
+
+        var legalCanonical = string.Join("\n---\n", new[]
+        {
+            outlet.CustomerTermsAndConditions,
+            outlet.CustomerPrivacyPolicy,
+            outlet.CancellationRefundPolicy,
+            outlet.MealSkipReschedulePolicy,
+            outlet.DeliveryPolicy,
+            outlet.AllergenDietaryDisclaimer,
+            outlet.PaymentPricingPromotionalTerms
+        });
+        await legalPolicies.PublishVersionAsync(new OutletLegalPolicyVersion
+        {
+            Id = Guid.NewGuid(),
+            OutletId = outlet.Id,
+            Version = outlet.LegalVersion,
+            CustomerTermsAndConditions = outlet.CustomerTermsAndConditions,
+            CustomerPrivacyPolicy = outlet.CustomerPrivacyPolicy,
+            CancellationRefundPolicy = outlet.CancellationRefundPolicy,
+            MealSkipReschedulePolicy = outlet.MealSkipReschedulePolicy,
+            DeliveryPolicy = outlet.DeliveryPolicy,
+            AllergenDietaryDisclaimer = outlet.AllergenDietaryDisclaimer,
+            PaymentPricingPromotionalTerms = outlet.PaymentPricingPromotionalTerms,
+            ContentHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(legalCanonical))).ToLowerInvariant(),
+            EffectiveDateUtc = outlet.LegalEffectiveDateUtc ?? DateTime.UtcNow,
+            CreatedAtUtc = DateTime.UtcNow,
+            PublishedAtUtc = DateTime.UtcNow,
+            IsPublished = true
+        });
 
         var user = new User
         {
