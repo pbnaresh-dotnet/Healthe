@@ -605,6 +605,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var allergyWarnings = await allergySafety.GetWarningsAsync(customerId, selectedRecipes);
         await ValidateDeliveryAddressesAsync(customerId, deliveryCity, meals);
         var gross = isPreplanned ? selectedPlan!.Price : Math.Round(meals.Sum(x => x.MealPrice), 2);
+        var lateSkipRecovery = await credits.GetOutstandingLateSkipAmountAsync(customerId);
         var packageDiscountAmount = isPreplanned ? 0m : discountStrategy.Calculate(new(duration, meals), await discountTiers.GetByOutletAsync(outlet.Id)).Amount;
         var codeAmount = await CalculateDiscountCodeAmountAsync(outlet.Id, gross, r.DiscountCode);
         var totalDiscount = Math.Min(gross, packageDiscountAmount + codeAmount);
@@ -619,7 +620,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var commission = Math.Round(net * commissionRate, 2);
         var quotes = new List<DeliveryQuoteDto>();
         foreach (var addressId in meals.Select(x => x.AddressId!.Value).Distinct()) quotes.Add(await deliveryCalculator.QuoteAsync(outlet.Id, customerId, addressId));
-        var payable = Math.Round(net + taxes.RestaurantAmount + delivery + service + taxes.PlatformAmount, 2);
+        var payable = Math.Round(net + taxes.RestaurantAmount + delivery + service + taxes.PlatformAmount + lateSkipRecovery, 2);
         var requiresReview = !isPreplanned && pricingMode.Equals("ReviewRequired", StringComparison.OrdinalIgnoreCase);
         return new(gross, gross == 0 ? 0 : Math.Round(totalDiscount / gross * 100m, 4), totalDiscount, net, taxes.RestaurantAmount, delivery, service, taxes.PlatformAmount, payable, commissionRate, commission, service + commission, quotes, allergyWarnings, allergyWarnings.Count > 0 && !allergyWarnings.All(x => (r.ConfirmedAllergyRecipeIds ?? []).Contains(x.RecipeId)), taxes.RestaurantTaxableAmount, taxes.RestaurantRate, taxes.RestaurantMode.ToString(), isPreplanned, pricingMode, outlet.ShowPackagePriceToCustomer, outlet.ShowDeliveryFeeToCustomer, requiresReview, selectedPlan?.Id, taxes.RestaurantTaxApplicable);
     }
