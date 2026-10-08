@@ -25,7 +25,7 @@ public sealed class OutletOnboardingService(
     ITransactionalEmailService emails,
     IConfiguration configuration) : IOutletOnboardingService
 {
-    private const decimal SetupFee = 5000m;
+    private decimal SetupFee => configuration.GetValue<decimal?>("Onboarding:SetupFee") ?? 5000m;
 
     public async Task<IReadOnlyList<SaaSPlanDto>> GetPlansAsync() =>
         (await plans.GetActiveAsync()).Select(x => new SaaSPlanDto(
