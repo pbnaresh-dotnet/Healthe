@@ -22,6 +22,31 @@ const dayName=id=>DAYS[id]||'Day';
 const packageKey=(date,slot)=>date+'_'+slot;
 const packageItemKey=(date,slot,recipeId)=>date+'_'+slot+'_'+recipeId;
 const packageDurationDays={ThreeDays:3,FiveDays:5,OneWeek:7,TwoWeeks:14,OneMonth:28};
+
+function calculateRecipeNutrition(form, ingredients){
+ const byId=new Map((ingredients||[]).map(x=>[x.id,x]));
+ const totals={calories:0,proteinGrams:0,carbsGrams:0,fatGrams:0,fiberGrams:0,sugarGrams:0,missing:[]};
+ for(const row of (form?.ingredients||[])){
+  const item=byId.get(row.ingredientId);
+  const qty=Number(row.quantity);
+  if(!item||!Number.isFinite(qty)||qty<=0)continue;
+  const unit=String(row.unit||item.defaultUnit||'g').trim().toLowerCase();
+  const grams=unit==='kg'?qty*1000:['g','gram','grams'].includes(unit)?qty:null;
+  if(grams===null){totals.missing.push(`${item.name} (${row.unit||unit})`);continue;}
+  if(!item.nutritionSource){totals.missing.push(`${item.name} (nutrition reference not configured)`);continue;}
+  const factor=grams/100;
+  totals.calories+=Number(item.caloriesPer100g||0)*factor;
+  totals.proteinGrams+=Number(item.proteinGramsPer100g||0)*factor;
+  totals.carbsGrams+=Number(item.carbsGramsPer100g||0)*factor;
+  totals.fatGrams+=Number(item.fatGramsPer100g||0)*factor;
+  totals.fiberGrams+=Number(item.fiberGramsPer100g||0)*factor;
+  totals.sugarGrams+=Number(item.sugarGramsPer100g||0)*factor;
+ }
+ for(const key of ['calories','proteinGrams','carbsGrams','fatGrams','fiberGrams','sugarGrams'])
+  totals[key]=Math.round(totals[key]*10)/10;
+ totals.missing=[...new Set(totals.missing)];
+ return totals;
+}
 const OUTLET_ROLE_NAVS={
  OutletAdmin:['dashboard','kitchen','recipes','menu','customers','team','packages','subscriptions','orders','deliveries','routes','settings'],
  OutletManager:['dashboard','kitchen','recipes','menu','customers','packages','subscriptions','orders','deliveries','routes'],
@@ -177,7 +202,7 @@ function App(){
  const openNew=()=>{setEditRecipe(null);setRecipeForm({...emptyRecipe,ingredients:[],allergenIds:[]});setRecipeOpen(true)};
  const openEdit=r=>{setEditRecipe(r);setRecipeForm({...emptyRecipe,...r,ingredients:(r.ingredients||[]).map(x=>({ingredientId:x.ingredientId,quantity:x.quantity,unit:x.unit})),allergenIds:(r.allergens||[]).map(x=>x.id)});setRecipeOpen(true)};
  const upload=async file=>{if(!file)return;if(!file.type.startsWith('image/'))return fail({message:'Only image files are allowed.'});if(file.size>10000000)return fail({message:'Image must be 10 MB or smaller. It will be resized and compressed automatically.'});try{setUploading(true);const r=await outletAdmin.uploadRecipeImage(file);setRecipeForm(f=>({...f,imageUrl:r.url}));notify('Image uploaded')}catch(e){fail(e)}finally{setUploading(false)}};
- const saveRecipe=async e=>{e.preventDefault();try{const p={...recipeForm,calories:Number(recipeForm.calories)||0,proteinGrams:Number(recipeForm.proteinGrams)||0,carbsGrams:Number(recipeForm.carbsGrams)||0,fatGrams:Number(recipeForm.fatGrams)||0,pricePerMeal:Number(recipeForm.pricePerMeal)||0,largePricePerMeal:Number(recipeForm.largePricePerMeal)||0,ingredients:(recipeForm.ingredients||[]).filter(x=>x.ingredientId&&Number(x.quantity)>0).map(x=>({ingredientId:x.ingredientId,quantity:Number(x.quantity),unit:x.unit||ingredients.find(i=>i.id===x.ingredientId)?.defaultUnit||'g'})),allergenIds:recipeForm.allergenIds||[]};if(editRecipe)await outletAdmin.updateRecipe(editRecipe.id,p);else await outletAdmin.createRecipe(p);setRecipeOpen(false);await load('recipes');notify(editRecipe?'Recipe updated':'Recipe created')}catch(e){fail(e)}};
+ const saveRecipe=async e=>{e.preventDefault();try{const normalizedIngredients=(recipeForm.ingredients||[]).filter(x=>x.ingredientId&&Number(x.quantity)>0).map(x=>({ingredientId:x.ingredientId,quantity:Number(x.quantity),unit:x.unit||ingredients.find(i=>i.id===x.ingredientId)?.defaultUnit||'g'}));const nutrition=calculateRecipeNutrition({...recipeForm,ingredients:normalizedIngredients},ingredients);if(!normalizedIngredients.length)throw new Error('Add at least one ingredient so nutrition can be calculated.');if(nutrition.missing.length)throw new Error(`Nutrition cannot be calculated for: ${nutrition.missing.join(', ')}.`);try{const p={...recipeForm,calories:Math.round(nutrition.calories),proteinGrams:Math.round(nutrition.proteinGrams),carbsGrams:Math.round(nutrition.carbsGrams),fatGrams:Math.round(nutrition.fatGrams),fiberGrams:Math.round(nutrition.fiberGrams),sugarGrams:Math.round(nutrition.sugarGrams),pricePerMeal:Number(recipeForm.pricePerMeal)||0,largePricePerMeal:Number(recipeForm.largePricePerMeal)||0,ingredients:normalizedIngredients,allergenIds:recipeForm.allergenIds||[]};if(editRecipe)await outletAdmin.updateRecipe(editRecipe.id,p);else await outletAdmin.createRecipe(p);setRecipeOpen(false);await load('recipes');notify(editRecipe?'Recipe updated':'Recipe created')}finally{}}catch(e){fail(e)}};if(editRecipe)await outletAdmin.updateRecipe(editRecipe.id,p);else await outletAdmin.createRecipe(p);setRecipeOpen(false);await load('recipes');notify(editRecipe?'Recipe updated':'Recipe created')}catch(e){fail(e)}};
  const executeRemoveRecipe=async r=>{try{await outletAdmin.deleteRecipe(r.id);await load('recipes');notify('Recipe deleted')}catch(e){fail(e)}};
  const removeRecipe=r=>setConfirmDialog({variant:'danger',title:'Delete recipe?',message:`${r.name} will be removed from the outlet menu. This action cannot be undone.`,confirmLabel:'Delete recipe',onConfirm:()=>executeRemoveRecipe(r)});
  const addPrice=async e=>{e.preventDefault();const km=Number(priceForm.maxDistanceKm),fee=Number(priceForm.fee);if(km<=0)return fail({message:'Distance must be greater than 0.'});if(fee<0)return fail({message:'Fee cannot be negative.'});if(pricing.some(x=>Number(x.maxDistanceKm)===km))return fail({message:'This distance slab already exists.'});try{await outletAdmin.addPricingRule({maxDistanceKm:km,fee});setPricingOpen(false);setPriceForm({maxDistanceKm:'',fee:''});await load('pricing');notify('Delivery slab added')}catch(e){fail(e)}};
@@ -654,6 +679,8 @@ function RecipeForm({form,setForm,ingredients,allergens,upload,uploading,submit,
  const updateIngredient=(idx,k,v)=>set('ingredients',(form.ingredients||[]).map((x,i)=>i===idx?{...x,[k]:v}:x));
  const removeIngredient=idx=>set('ingredients',(form.ingredients||[]).filter((_,i)=>i!==idx));
  const toggleAllergen=id=>set('allergenIds',(form.allergenIds||[]).includes(id)?(form.allergenIds||[]).filter(x=>x!==id):[...(form.allergenIds||[]),id]);
+ const nutrition=calculateRecipeNutrition(form,ingredients);
+ const hasIngredients=(form.ingredients||[]).length>0;
  return <form onSubmit={submit}>
   <div className="recipeEditor">
    <div className="imageUpload"><div className="uploadPreview">{form.imageUrl?<img src={img(form.imageUrl)} alt="preview"/>:<div><span>＋</span><p>Upload menu item photo</p><small>JPG, PNG, WEBP · 10 MB upload limit · resized automatically</small></div>}</div><label className="uploadBtn">{uploading?'Uploading…':form.imageUrl?'Replace image':'Upload image'}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>upload(e.target.files?.[0])}/></label></div>
@@ -663,19 +690,41 @@ function RecipeForm({form,setForm,ingredients,allergens,upload,uploading,submit,
     <Field label="Dietary category"><select value={form.category} onChange={e=>set('category',e.target.value)}><option>Veg</option><option>NonVeg</option><option>Vegan</option></select></Field>
     <Field label="Regular price (₹)"><input type="number" min="0" step=".01" value={form.pricePerMeal} onChange={e=>set('pricePerMeal',e.target.value)}/></Field>
     <Field label="Large price (₹)"><input type="number" min="0" step=".01" value={form.largePricePerMeal} onChange={e=>set('largePricePerMeal',e.target.value)}/></Field>
-    <Field label="Calories"><input type="number" min="0" value={form.calories} onChange={e=>set('calories',e.target.value)}/></Field>
-    <Field label="Protein (g)"><input type="number" min="0" value={form.proteinGrams} onChange={e=>set('proteinGrams',e.target.value)}/></Field>
-    <Field label="Carbs (g)"><input type="number" min="0" value={form.carbsGrams} onChange={e=>set('carbsGrams',e.target.value)}/></Field>
-    <Field label="Fat (g)"><input type="number" min="0" value={form.fatGrams} onChange={e=>set('fatGrams',e.target.value)}/></Field>
-    <Field label="Fiber (g)"><input type="number" min="0" value={form.fiberGrams??0} onChange={e=>set('fiberGrams',e.target.value)}/></Field>
-    <div className="span2"><Field label="Description"><textarea value={form.description} onChange={e=>set('description',e.target.value)} placeholder="Describe the item, portion and customer-facing details…"/></Field></div>
-    <div className="span2 ingredientEditor"><div className="editorTitle"><div><b>Ingredients</b><small>Choose the ingredient master value and specify the quantity used in this menu item.</small></div><button type="button" className="secondary small" onClick={addIngredient}>+ Add ingredient</button></div>{(form.ingredients||[]).map((x,idx)=><div className="ingredientRow" key={idx}><select value={x.ingredientId} onChange={e=>{const item=ingredients.find(i=>i.id===e.target.value);updateIngredient(idx,'ingredientId',e.target.value);if(item)updateIngredient(idx,'unit',item.defaultUnit)}}><option value="">Choose ingredient</option>{ingredients.map(i=><option key={i.id} value={i.id}>{i.name}</option>)}</select><input type="number" min="0.001" step="0.001" value={x.quantity} onChange={e=>updateIngredient(idx,'quantity',e.target.value)} placeholder="Quantity"/><input value={x.unit} onChange={e=>updateIngredient(idx,'unit',e.target.value)} placeholder="Unit"/><button type="button" className="dangerText" onClick={()=>removeIngredient(idx)}>Remove</button></div>)}{!(form.ingredients||[]).length&&<div className="editorEmpty">No ingredients added yet.</div>}</div>
+    <div className="span2 recipeNutritionCalculated">
+      <div className="recipeNutritionHead"><div><span className="eyebrow">AUTO-CALCULATED NUTRITION</span><b>Based on ingredients & quantities</b><small>Values are recalculated as you change the ingredients. The API recalculates again when you save.</small></div><span className="recipeNutritionSource">Per meal</span></div>
+      <div className="recipeNutritionGrid">
+       <div><b>{nutrition.calories}</b><span>kcal</span></div>
+       <div><b>{nutrition.proteinGrams.toFixed(1)}g</b><span>protein</span></div>
+       <div><b>{nutrition.carbsGrams.toFixed(1)}g</b><span>carbs</span></div>
+       <div><b>{nutrition.fatGrams.toFixed(1)}g</b><span>fat</span></div>
+       <div><b>{nutrition.fiberGrams.toFixed(1)}g</b><span>fiber</span></div>
+       <div><b>{nutrition.sugarGrams.toFixed(1)}g</b><span>sugar</span></div>
+      </div>
+      {!hasIngredients&&<div className="recipeNutritionNotice">Add ingredients to calculate nutrition automatically.</div>}
+      {!!nutrition.missing.length&&<div className="recipeNutritionWarning">Nutrition is unavailable for: {nutrition.missing.join(', ')}. Use gram/kg quantities and configure the ingredient nutrition reference before saving.</div>}
+    </div>
+    <div className="span2 ingredientEditor">
+      <div className="editorTitle"><div><b>Ingredients</b><small>Quantities are for one customer meal/portion. Nutrition is calculated from the ingredient master per 100 g.</small></div><button type="button" className="secondary small" onClick={addIngredient}>+ Add ingredient</button></div>
+      {(form.ingredients||[]).map((x,idx)=>{
+       const item=ingredients.find(i=>i.id===x.ingredientId);
+       return <div className="ingredientRow" key={idx}>
+        <div className="ingredientSelectWrap"><select value={x.ingredientId} onChange={e=>{const next=ingredients.find(i=>i.id===e.target.value);updateIngredient(idx,'ingredientId',e.target.value);if(next)updateIngredient(idx,'unit',next.defaultUnit)}}><option value="">Choose ingredient</option>{ingredients.map(i=><option key={i.id} value={i.id}>{i.name}</option>)}</select>{item&&<small className="ingredientNutritionHint">{item.nutritionSource?i18nNutrition(item):'Nutrition reference not configured'}</small>}</div>
+        <input type="number" min="0.001" step="0.001" value={x.quantity} onChange={e=>updateIngredient(idx,'quantity',e.target.value)} placeholder="Quantity"/>
+        <input value={x.unit} onChange={e=>updateIngredient(idx,'unit',e.target.value)} placeholder="Unit"/>
+        <button type="button" className="dangerText" onClick={()=>removeIngredient(idx)}>Remove</button>
+       </div>
+      })}
+      {!(form.ingredients||[]).length&&<div className="editorEmpty">No ingredients added yet.</div>}
+    </div>
     <div className="span2 allergyEditor"><div className="editorTitle"><div><b>Recipe-level allergens</b><small>Additional explicit allergens. Ingredient-linked allergens are calculated automatically.</small></div></div><div className="allergenChoices">{allergens.map(a=><label key={a.id} className={(form.allergenIds||[]).includes(a.id)?'allergenChoice checked':'allergenChoice'}><input type="checkbox" checked={(form.allergenIds||[]).includes(a.id)} onChange={()=>toggleAllergen(a.id)}/><span>{a.name}</span></label>)}</div>{!allergens.length&&<div className="editorEmpty">No allergen master values available.</div>}</div>
     <Field label="Tags"><input value={form.tags||''} onChange={e=>set('tags',e.target.value)} placeholder="High protein, low carb…"/></Field><Field label="Image URL"><input value={form.imageUrl||''} onChange={e=>set('imageUrl',e.target.value)} placeholder="https://…"/></Field>
    </div>
   </div>
-  <div className="modalActions"><button type="button" className="secondary" onClick={cancel}>Cancel</button><button className="primary" disabled={uploading}>{form.id?'Save changes':'Create menu item'}</button></div>
+  <div className="modalActions"><button type="button" className="secondary" onClick={cancel}>Cancel</button><button className="primary" disabled={uploading||!hasIngredients||!!nutrition.missing.length}>{form.id?'Save changes':'Create menu item'}</button></div>
  </form>
+}
+function i18nNutrition(item){
+ return `${Number(item.caloriesPer100g||0)} kcal · ${Number(item.proteinGramsPer100g||0).toFixed(1)}g protein / 100g`;
 }
 
 function MenuPage({recipes,menu,setMenu,onSave}){
