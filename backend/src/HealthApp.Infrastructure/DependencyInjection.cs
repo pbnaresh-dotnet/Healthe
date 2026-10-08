@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.Configure<SmtpEmailOptions>(config.GetSection("Email"));
         services.Configure<CashfreeOptions>(config.GetSection("Cashfree"));
         services.Configure<PaymentGatewayOptions>(config.GetSection("PaymentGateway"));
+        services.Configure<PaymentRetryOptions>(config.GetSection("PaymentRetry"));
 
         var storageProvider = (config["Storage:Provider"] ?? "Local").Trim().ToLowerInvariant();
         switch (storageProvider)
@@ -208,6 +209,7 @@ public static class DependencyInjection
         services.AddScoped<IServiceCityAdminService, ServiceCityAdminService>();
         services.AddScoped<ICityAreaAdminService, CityAreaAdminService>();
         services.AddScoped<IPaymentService, PaymentService>();
+        services.AddHostedService<PaymentRetryWorker>();
         services.AddScoped<IDeliveryLabelService, DeliveryLabelService>();
         services.AddScoped<IDeliveryRouteService, DeliveryRouteService>();
         services.AddScoped<IOutletStaffService, OutletStaffService>();
