@@ -538,12 +538,22 @@ public sealed class OutletBranding
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
+public sealed class OutletGroup
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = "";
+    public string Description { get; set; } = "";
+    public bool IsActive { get; set; } = true;
+    public int SortOrder { get; set; }
+}
+
 public sealed class Outlet
 {
     public Guid Id {
         get;
         set;
     }
+    public Guid? OutletGroupId { get; set; }
     public string Name {
         get;
         set;
