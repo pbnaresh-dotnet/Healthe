@@ -326,6 +326,12 @@ public sealed class OrderRepository(HealthAppDbContext db) : EfRepository(db), I
 public sealed class DeliveryRepository(HealthAppDbContext db) : EfRepository(db), IDeliveryRepository
 {
     public async Task<IReadOnlyList<Delivery>> GetByOutletAsync(Guid id) => await Context.Deliveries.AsNoTracking().Where(x => x.OutletId == id).OrderBy(x => x.ScheduledDate).ToListAsync();
+    public async Task<IReadOnlyList<Delivery>> GetByOutletAndDateRangeAsync(Guid outletId, DateTime from, DateTime to) =>
+        await Context.Deliveries.AsNoTracking()
+            .Where(x => x.OutletId == outletId && x.ScheduledDate >= from && x.ScheduledDate < to)
+            .OrderBy(x => x.ScheduledDate)
+            .ThenBy(x => x.MealSlot)
+            .ToListAsync();
     public async Task AddAsync(Delivery delivery) {
         Context.Deliveries.Add(delivery);
         await SaveAsync();
