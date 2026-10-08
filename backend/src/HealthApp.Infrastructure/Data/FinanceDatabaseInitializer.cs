@@ -341,6 +341,54 @@ BEGIN
         RowVersion rowversion NOT NULL
     );
 END;
+IF OBJECT_ID('dbo.FinancePolicyDocuments','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.FinancePolicyDocuments
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_FinancePolicyDocuments PRIMARY KEY,
+        Code nvarchar(120) NOT NULL,
+        Title nvarchar(250) NOT NULL,
+        Description nvarchar(1000) NOT NULL DEFAULT '',
+        IsActive bit NOT NULL DEFAULT 1,
+        CreatedAtUtc datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAtUtc datetime2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END;
+IF OBJECT_ID('dbo.FinancePolicyDocumentVersions','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.FinancePolicyDocumentVersions
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_FinancePolicyDocumentVersions PRIMARY KEY,
+        FinancePolicyDocumentId uniqueidentifier NOT NULL,
+        Version nvarchar(30) NOT NULL,
+        Status int NOT NULL DEFAULT 1,
+        EffectiveFromUtc datetime2 NOT NULL,
+        EffectiveToUtc datetime2 NULL,
+        ChangeSummary nvarchar(1000) NOT NULL DEFAULT '',
+        ChangeReason nvarchar(2000) NOT NULL DEFAULT '',
+        SourceCodeReference nvarchar(200) NOT NULL DEFAULT '',
+        ContentHash nvarchar(128) NOT NULL DEFAULT '',
+        PreviousVersionId uniqueidentifier NULL,
+        CreatedByUserId uniqueidentifier NULL,
+        ReviewedByUserId uniqueidentifier NULL,
+        CreatedAtUtc datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        ReviewedAtUtc datetime2 NULL,
+        PublishedAtUtc datetime2 NULL
+    );
+END;
+IF OBJECT_ID('dbo.FinancePolicyDocumentSections','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.FinancePolicyDocumentSections
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_FinancePolicyDocumentSections PRIMARY KEY,
+        FinancePolicyDocumentVersionId uniqueidentifier NOT NULL,
+        SectionCode nvarchar(120) NOT NULL,
+        Title nvarchar(250) NOT NULL,
+        DisplayOrder int NOT NULL DEFAULT 0,
+        ContentMarkdown nvarchar(max) NOT NULL DEFAULT '',
+        CreatedAtUtc datetime2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END;
 ", cancellationToken);
 
         await db.Database.ExecuteSqlRawAsync(@"
@@ -494,6 +542,30 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_LedgerJournalLines_
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_DocumentNumberSequences_OwnerType_OwnerId_DocumentType_FiscalYearStart' AND object_id=OBJECT_ID('dbo.DocumentNumberSequences'))
     CREATE UNIQUE INDEX IX_DocumentNumberSequences_OwnerType_OwnerId_DocumentType_FiscalYearStart ON dbo.DocumentNumberSequences(OwnerType, OwnerId, DocumentType, FiscalYearStart);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancePolicyDocuments_Code' AND object_id=OBJECT_ID('dbo.FinancePolicyDocuments'))
+    CREATE UNIQUE INDEX IX_FinancePolicyDocuments_Code ON dbo.FinancePolicyDocuments(Code);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancePolicyDocuments_IsActive' AND object_id=OBJECT_ID('dbo.FinancePolicyDocuments'))
+    CREATE INDEX IX_FinancePolicyDocuments_IsActive ON dbo.FinancePolicyDocuments(IsActive);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancePolicyDocumentVersions_DocumentId_Version' AND object_id=OBJECT_ID('dbo.FinancePolicyDocumentVersions'))
+    CREATE UNIQUE INDEX IX_FinancePolicyDocumentVersions_DocumentId_Version ON dbo.FinancePolicyDocumentVersions(FinancePolicyDocumentId, Version);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancePolicyDocumentVersions_DocumentId_Status_EffectiveFromUtc' AND object_id=OBJECT_ID('dbo.FinancePolicyDocumentVersions'))
+    CREATE INDEX IX_FinancePolicyDocumentVersions_DocumentId_Status_EffectiveFromUtc ON dbo.FinancePolicyDocumentVersions(FinancePolicyDocumentId, Status, EffectiveFromUtc);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancePolicyDocumentVersions_PreviousVersionId' AND object_id=OBJECT_ID('dbo.FinancePolicyDocumentVersions'))
+    CREATE INDEX IX_FinancePolicyDocumentVersions_PreviousVersionId ON dbo.FinancePolicyDocumentVersions(PreviousVersionId);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancePolicyDocumentSections_VersionId_SectionCode' AND object_id=OBJECT_ID('dbo.FinancePolicyDocumentSections'))
+    CREATE UNIQUE INDEX IX_FinancePolicyDocumentSections_VersionId_SectionCode ON dbo.FinancePolicyDocumentSections(FinancePolicyDocumentVersionId, SectionCode);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancePolicyDocumentSections_VersionId_DisplayOrder' AND object_id=OBJECT_ID('dbo.FinancePolicyDocumentSections'))
+    CREATE INDEX IX_FinancePolicyDocumentSections_VersionId_DisplayOrder ON dbo.FinancePolicyDocumentSections(FinancePolicyDocumentVersionId, DisplayOrder);
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinancePolicyDocumentVersions_Documents' AND parent_object_id=OBJECT_ID('dbo.FinancePolicyDocumentVersions'))
+    ALTER TABLE dbo.FinancePolicyDocumentVersions ADD CONSTRAINT FK_FinancePolicyDocumentVersions_Documents FOREIGN KEY(FinancePolicyDocumentId) REFERENCES dbo.FinancePolicyDocuments(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinancePolicyDocumentVersions_PreviousVersion' AND parent_object_id=OBJECT_ID('dbo.FinancePolicyDocumentVersions'))
+    ALTER TABLE dbo.FinancePolicyDocumentVersions ADD CONSTRAINT FK_FinancePolicyDocumentVersions_PreviousVersion FOREIGN KEY(PreviousVersionId) REFERENCES dbo.FinancePolicyDocumentVersions(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinancePolicyDocumentVersions_CreatedByUser' AND parent_object_id=OBJECT_ID('dbo.FinancePolicyDocumentVersions'))
+    ALTER TABLE dbo.FinancePolicyDocumentVersions ADD CONSTRAINT FK_FinancePolicyDocumentVersions_CreatedByUser FOREIGN KEY(CreatedByUserId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinancePolicyDocumentVersions_ReviewedByUser' AND parent_object_id=OBJECT_ID('dbo.FinancePolicyDocumentVersions'))
+    ALTER TABLE dbo.FinancePolicyDocumentVersions ADD CONSTRAINT FK_FinancePolicyDocumentVersions_ReviewedByUser FOREIGN KEY(ReviewedByUserId) REFERENCES dbo.Users(Id) ON DELETE NO ACTION;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinancePolicyDocumentSections_Versions' AND parent_object_id=OBJECT_ID('dbo.FinancePolicyDocumentSections'))
+    ALTER TABLE dbo.FinancePolicyDocumentSections ADD CONSTRAINT FK_FinancePolicyDocumentSections_Versions FOREIGN KEY(FinancePolicyDocumentVersionId) REFERENCES dbo.FinancePolicyDocumentVersions(Id) ON DELETE NO ACTION;
 ", cancellationToken);
 
         // Bootstrap tax configuration for every existing outlet without changing its
@@ -582,5 +654,87 @@ WHERE NOT EXISTS
     WHERE a.OutletId IS NULL AND a.AccountCode=d.AccountCode
 );
 ", cancellationToken);
+        await SeedFinancePolicyAsync(db, cancellationToken);
+    }
+
+    private static async Task SeedFinancePolicyAsync(HealthAppDbContext db, CancellationToken cancellationToken)
+    {
+        const string code = "FINANCE-CALCULATION-POLICY";
+        var document = await db.FinancePolicyDocuments.FirstOrDefaultAsync(x => x.Code == code, cancellationToken);
+
+        if (document is null)
+        {
+            document = new FinancePolicyDocument
+            {
+                Id = Guid.NewGuid(),
+                Code = code,
+                Title = "Finance calculation and accounting policy",
+                Description = "Authoritative implementation record for configurable finance logic, tax calculation, payment, settlement, refund and ledger rules.",
+                IsActive = true
+            };
+            db.FinancePolicyDocuments.Add(document);
+        }
+
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.0",
+            cancellationToken))
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        var effective = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+        var sections = new (string Code, string Title, int Order, string Content)[]
+        {
+            ("governance", "Finance governance and version control", 10, "Finance logic is versioned and effective-dated. Published rules are not edited in place. Material finance changes create a new policy version with change summary, reason, effective date and source-code reference. Historical transactions remain reproducible from captured versions and snapshots."),
+            ("four-boundaries", "Four separate finance boundaries", 20, "Tax liability, economic revenue ownership, payment custody and settlement destination are separate concepts. Payment flow or bank destination does not by itself determine tax liability or revenue ownership."),
+            ("restaurant-tax-applicability", "Restaurant tax applicability", 30, "Direct outlet supplier mode: a non-GST-registered outlet does not have restaurant GST added to customer meal/package prices. Inclusive pricing is a pricing mode, not a tax trigger. GST-registered outlets may use inclusive or exclusive pricing according to approved configuration. ECO Section 9(5) is evaluated separately."),
+            ("inclusive-exclusive", "Inclusive and exclusive calculation", 40, "For applicable exclusive tax rate r: taxable = price and tax = taxable × r / 100. For applicable inclusive tax: taxable = gross × 100 / (100 + r) and tax = gross − taxable. Currency rounding is applied consistently and calculation inputs/results are snapshotted."),
+            ("platform-charges", "HealthApp platform charges", 50, "HealthApp setup fees, annual/SaaS fees and platform commissions are separate HealthApp supplies to the outlet. Their tax treatment is independently configured. Product default is 18% pending CA/tax-adviser approval of exact classification and SAC."),
+            ("commission", "Platform commission base", 60, "Product default commission base is restaurant taxable value rather than restaurant GST. The contractual commission basis is configurable and must be documented when changed."),
+            ("delivery-and-fees", "Delivery and other charges", 70, "Delivery charges, late-skip fees, gateway fees and their taxes are separate financial components and must be explicitly configured."),
+            ("payment-settlement", "Payment and settlement", 80, "Payment transactions, allocations, gateway charges, deductions, refunds and settlement adjustments are separate records linked to financial documents."),
+            ("refunds", "Refunds and credit notes", 90, "Refunds are immutable financial events linked to original documents. Original issued documents are not rewritten; credit/debit notes are used for document corrections where required."),
+            ("ledger", "Double-entry ledger", 100, "Financial events are posted through balanced double-entry journals. Tax components can be linked to journal lines for reconciliation."),
+            ("audit-trace", "Required audit trace", 110, "Target trace: business event → tax calculation → financial document → payment allocation → settlement/refund → ledger → reporting. Finance calculations must retain effective configuration/rule version and finance policy version."),
+            ("ca-boundary", "CA/accountant approval boundary", 120, "This records product implementation intent, not legal advice. GST registration, composition treatment, Section 9(5), SAC/classification, place of supply, invoicing and return reporting must be reviewed by the business's qualified tax/accounting adviser.")
+        };
+
+        var canonical = string.Join("\n---\n",
+            sections.OrderBy(x => x.Order).Select(x => $"{x.Code.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.0",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = effective,
+            ChangeSummary = "Initial authoritative finance implementation policy.",
+            ChangeReason = "Establish versioned finance governance before transaction-level tax and accounting automation.",
+            SourceCodeReference = "FIN-Phase-2A-Governance",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in sections)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.Code,
+                Title = section.Title,
+                DisplayOrder = section.Order,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     }
 }
