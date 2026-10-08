@@ -186,7 +186,6 @@ function App(){
    </main>
   </div>
 
-  {selectedOutlet&&<OutletQuickView outlet={selectedOutlet} onClose={()=>setSelectedOutlet(null)} onOutlets={()=>{setSelectedOutlet(null);openPage('outlets')}} />}
   {selectedVerification&&<VerificationModal item={selectedVerification} notes={verificationNotes} setNotes={setVerificationNotes} onClose={()=>setSelectedVerification(null)} onDocument={openProtectedDocument} onDecision={decide} loading={loading}/>}
   {toast&&<div className="toast"><Icon name="check" size={15}/>{toast}</div>}
  </div>;
