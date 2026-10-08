@@ -48,9 +48,9 @@ function calculateRecipeNutrition(form, ingredients){
  return totals;
 }
 const OUTLET_ROLE_NAVS={
- OutletAdmin:['dashboard','kitchen','recipes','menu','customers','team','packages','subscriptions','orders','deliveries','routes','settings'],
- OutletManager:['dashboard','kitchen','recipes','menu','customers','packages','subscriptions','orders','deliveries','routes'],
- KitchenStaff:['kitchen','recipes','menu'],
+ OutletAdmin:['dashboard','kitchen','ingredient-usage','recipes','menu','customers','team','packages','subscriptions','orders','deliveries','routes','settings'],
+ OutletManager:['dashboard','kitchen','ingredient-usage','recipes','menu','customers','packages','subscriptions','orders','deliveries','routes'],
+ KitchenStaff:['kitchen','ingredient-usage','recipes','menu'],
  Driver:['driver']
 };
 const OUTLET_ROLE_LABELS={OutletAdmin:'Outlet Admin',OutletManager:'Outlet Manager',KitchenStaff:'Kitchen Staff',Driver:'Driver'};
@@ -134,7 +134,7 @@ function App(){
  const legalDoc=(()=>{try{return new URLSearchParams(window.location.search).get('legal')||''}catch{return ''}})();
  const[user,setUser]=useState(currentUser()),[demoOpen,setDemoOpen]=useState(false),[login,setLogin]=useState({email:'',password:''}),[active,setActive]=useState('dashboard'),[dash,setDash]=useState(null),[deliveryFilter,setDeliveryFilter]=useState('all'),[showLogin,setShowLogin]=useState(false),[verificationApp,setVerificationApp]=useState(null),[verificationLoading,setVerificationLoading]=useState(false);
  const[recipes,setRecipes]=useState([]),[ingredients,setIngredients]=useState([]),[allergens,setAllergens]=useState([]),[pricing,setPricing]=useState([]),[areas,setAreas]=useState([]),[selectedAreas,setSelectedAreas]=useState([]),[tiers,setTiers]=useState([]);
- const[customers,setCustomers]=useState([]),[subs,setSubs]=useState([]),[orders,setOrders]=useState([]),[deliveries,setDeliveries]=useState([]),[menu,setMenu]=useState([]),[billing,setBilling]=useState(null),[selectedSub,setSelectedSub]=useState(null),[kitchen,setKitchen]=useState(null),[kitchenDate,setKitchenDate]=useState(new Date().toISOString().slice(0,10));
+ const[customers,setCustomers]=useState([]),[subs,setSubs]=useState([]),[orders,setOrders]=useState([]),[deliveries,setDeliveries]=useState([]),[menu,setMenu]=useState([]),[billing,setBilling]=useState(null),[selectedSub,setSelectedSub]=useState(null),[kitchen,setKitchen]=useState(null),[kitchenDate,setKitchenDate]=useState(new Date().toISOString().slice(0,10)),[ingredientConsumption,setIngredientConsumption]=useState(null),[ingredientConsumptionDate,setIngredientConsumptionDate]=useState(todayISO());
  const[customerEditorOpen,setCustomerEditorOpen]=useState(false),[customerEditorSaving,setCustomerEditorSaving]=useState(false),[customerEditorForm,setCustomerEditorForm]=useState({firstName:'',lastName:'',email:'',password:'',weightKg:'',heightCm:'',dateOfBirth:'',goal:'WeightLoss',activityLevel:'Moderate',diet:'',allergyIds:[]});
  const[customerProfile,setCustomerProfile]=useState(null),[customerProfileLoading,setCustomerProfileLoading]=useState(false),[customerProfileOpen,setCustomerProfileOpen]=useState(false);
  const[drivers,setDrivers]=useState([]),[routePlan,setRoutePlan]=useState(null),[deliveryRouteDate,setDeliveryRouteDate]=useState(new Date().toISOString().slice(0,10)),[deliveryRouteMealSlot,setDeliveryRouteMealSlot]=useState(2),[selectedDriverIds,setSelectedDriverIds]=useState([]),[driverOpen,setDriverOpen]=useState(false),[driverForm,setDriverForm]=useState({firstName:'',lastName:'',email:'',password:''});
@@ -154,6 +154,7 @@ function App(){
  const load=async p=>{setBusy(true);setError('');try{
   if(p==='dashboard'){setDash(await outletAdmin.dashboard());setRecipes(await outletAdmin.recipes());setPricing(await outletAdmin.pricingRules());}
   if(p==='kitchen')setKitchen(await outletAdmin.kitchen(kitchenDate));
+  if(p==='ingredient-usage')setIngredientConsumption(await outletAdmin.ingredientConsumption(ingredientConsumptionDate));
   if(p==='recipes'){const x=await Promise.all([outletAdmin.recipes(),catalog.ingredients(),catalog.allergens()]);setRecipes(x[0]);setIngredients(x[1]);setAllergens(x[2]);}
   if(p==='customers'){const x=await Promise.all([outletAdmin.customers(),catalog.allergens()]);setCustomers(x[0]||[]);setAllergens(x[1]||[]);}
   if(p==='subscriptions'){const x=await Promise.all([outletAdmin.subscriptions(),outletAdmin.customers()]);setSubs(x[0]);setCustomers(x[1])}
@@ -183,6 +184,7 @@ function App(){
 
  const openSubscription=async id=>{try{setBusy(true);setSelectedSub(await outletAdmin.subscriptionDetail(id))}catch(e){fail(e)}finally{setBusy(false)}};
  const refreshKitchen=async date=>{try{setBusy(true);setKitchen(await outletAdmin.kitchen(date))}catch(e){fail(e)}finally{setBusy(false)}};
+ const refreshIngredientConsumption=async date=>{try{setBusy(true);setIngredientConsumption(await outletAdmin.ingredientConsumption(date))}catch(e){fail(e)}finally{setBusy(false)}};
  const refreshRoutes=async(date,mealSlot=deliveryRouteMealSlot)=>{try{setBusy(true);const x=await Promise.all([outletAdmin.deliveryRoutes(date,mealSlot),outletAdmin.drivers()]);setRoutePlan(x[0]);setDrivers(x[1]);setSelectedDriverIds(ids=>ids.filter(id=>x[1].some(d=>d.id===id)));}catch(e){fail(e)}finally{setBusy(false)}};
  const refreshDriverRun=async(date,mealSlot=driverRunSlot)=>{try{setDriverRunLoading(true);setDriverRun(await outletAdmin.myDriverRoute(date,mealSlot))}catch(e){fail(e)}finally{setDriverRunLoading(false)}};
  const startDriverRoute=async routeId=>{try{setDriverRunLoading(true);setDriverRun(await outletAdmin.startDriverRoute(routeId))}catch(e){fail(e)}finally{setDriverRunLoading(false)}};
@@ -238,7 +240,7 @@ function App(){
  if(legalDoc&&['saas-terms','dpa','acceptable-use'].includes(legalDoc))return <OutletLegalDocuments documentId={legalDoc} outletName={dash?.outlet?.name||'Your outlet'} onBack={()=>{window.location.href=window.location.pathname}}/>;
   if(!user)return <><LandingPage onLogin={()=>{setError('');setShowLogin(true)}} onRegister={()=>{window.location.href=BROCCOLY_URL+'/register'}} onDemo={()=>setDemoOpen(true)}/>{demoOpen&&<DemoRequestModal onClose={()=>setDemoOpen(false)}/>}</>;
 
- const navs=[['dashboard','⌂','Dashboard'],['kitchen','▦','Kitchen'],['recipes','◈','Recipes'],['menu','☷','Weekly Menu'],['customers','♙','Customers'],['team','♟','Team'],['packages','✚','Create Package'],['subscriptions','◫','Subscriptions'],['orders','▤','Orders'],['deliveries','⌁','Deliveries'],['routes','⇢','Delivery Routes'],['settings','⚙','Settings']];
+ const navs=[['dashboard','⌂','Dashboard'],['kitchen','▦','Kitchen'],['ingredient-usage','◉','Ingredient Usage'],['recipes','◈','Recipes'],['menu','☷','Weekly Menu'],['customers','♙','Customers'],['team','♟','Team'],['packages','✚','Create Package'],['subscriptions','◫','Subscriptions'],['orders','▤','Orders'],['deliveries','⌁','Deliveries'],['routes','⇢','Delivery Routes'],['settings','⚙','Settings']];
  const outletRole=String(user?.role||'OutletAdmin');
  const allowedNavs=OUTLET_ROLE_NAVS[outletRole]||OUTLET_ROLE_NAVS.OutletAdmin;
  const visibleNavs=navs.filter(n=>allowedNavs.includes(n[0]));
@@ -255,6 +257,7 @@ function App(){
  {effectiveActive==='customers'&&<CustomersPage customers={customers} onCreate={openCreateCustomer} onOpen={openCustomerProfile}/>}
  {effectiveActive==='driver'&&<DriverRunPage data={driverRun} loading={driverRunLoading} date={driverRunDate} setDate={d=>{setDriverRunDate(d);refreshDriverRun(d,driverRunSlot)}} mealSlot={driverRunSlot} setMealSlot={s=>{setDriverRunSlot(s);refreshDriverRun(driverRunDate,s)}} onStart={startDriverRoute} onCompleteStop={completeDriverStop}/>} {effectiveActive==='team'&&<TeamPage staff={staff} loading={staffLoading} onRefresh={()=>load('team')} search={staffSearch} setSearch={setStaffSearch} roleFilter={staffRoleFilter} setRoleFilter={setStaffRoleFilter} onCreate={openCreateStaff} onEdit={openEditStaff}/>} {effectiveActive==='packages'&&<OutletPackageBuilder customers={pkgCustomers} recipes={pkgRecipes} menu={pkgMenu} customerId={pkgCustomerId} addresses={pkgAddresses} duration={pkgDuration} setDuration={setPkgDuration} deliveryMode={pkgDeliveryMode} setDeliveryMode={setPkgDeliveryMode} startDate={pkgStartDate} setStartDate={setPkgStartDate} dates={packageDates} selections={pkgSelections} setSelections={setPkgSelections} dayAddresses={pkgDayAddresses} setDayAddresses={setPkgDayAddresses} mealAddresses={pkgMealAddresses} setMealAddresses={setPkgMealAddresses} portions={pkgPortions} setPortions={setPkgPortions} discountType={pkgDiscountType} setDiscountType={setPkgDiscountType} discountValue={pkgDiscountValue} setDiscountValue={setPkgDiscountValue} discountReason={pkgDiscountReason} setDiscountReason={setPkgDiscountReason} quote={pkgQuote} selectedCount={selectedPackageCount} onCustomerChange={loadPackageAddresses} onNewCustomer={()=>setPkgNewCustomerOpen(true)} quotePackage={packageQuote} createPackage={createPackage} confirmedAllergies={pkgConfirmedAllergies} setConfirmedAllergies={setPkgConfirmedAllergies} onAddAddress={()=>{const cst=pkgCustomers.find(x=>x.id===pkgCustomerId);setPkgAddressForm({city:dash?.outlet?.city||'',pincode:'',locality:'',label:'Home',addressLine1:'',addressLine2:'',contactName:[cst?.firstName,cst?.lastName].filter(Boolean).join(' '),contactPhone:'',latitude:'',longitude:'',cityAreaId:null,isDefault:false});setPkgAddressOpen(true)}}/>} {effectiveActive==='subscriptions'&&<SubscriptionsPage items={subs} customers={customers} onOpen={openSubscription} onMarkPaid={openMarkPaid} onConfirm={openReviewPackage} onCreate={()=>nav('packages')}/>} 
  {effectiveActive==='kitchen'&&<KitchenPage data={kitchen} date={kitchenDate} setDate={setKitchenDate} refresh={refreshKitchen}/>}
+ {effectiveActive==='ingredient-usage'&&<IngredientConsumptionPage data={ingredientConsumption} date={ingredientConsumptionDate} setDate={d=>{setIngredientConsumptionDate(d);refreshIngredientConsumption(d)}} refresh={()=>refreshIngredientConsumption(ingredientConsumptionDate)}/>}
  {effectiveActive==='orders'&&<Page title="Orders" text="Orders generated from customer subscriptions." content={<Table columns={['Order','Customer','Status','Delivery date','Total']} rows={orders.map(x=>[String(x.id).slice(0,8)+'…',String(x.customerId).slice(0,8)+'…',x.status,new Date(x.deliveryDate).toLocaleDateString(),money(x.total)])} empty="No orders yet."/>}/>}
  {effectiveActive==='deliveries'&&<Page title={deliveryFilter==='pending'?'Pending deliveries':'Deliveries'} text={deliveryFilter==='pending'?'Deliveries that still need action today.':'Scheduled delivery jobs for this outlet.'} content={<div className="deliveryPageContent"><div className="deliveryFilterBar"><div><b>{deliveryFilter==='pending'?'Pending deliveries':'All deliveries'}</b><small>{deliveryFilter==='pending'?deliveries.filter(x=>['Scheduled','Preparing','OutForDelivery'].includes(x.status)).length+' deliveries need action':deliveries.length+' scheduled delivery jobs'}</small></div>{deliveryFilter==='pending'&&<button className="secondary smallBtn" onClick={()=>setDeliveryFilter('all')}>Show all deliveries</button>}</div><Table columns={['Customer','Address','Date','Slot','Fee','Status']} rows={deliveries.filter(x=>deliveryFilter!=='pending'||['Scheduled','Preparing','OutForDelivery'].includes(x.status)).map(x=>[x.customerName,x.address,new Date(x.scheduledDate).toLocaleDateString(),x.mealSlot,money(x.deliveryFee),x.status])} empty={deliveryFilter==='pending'?'No pending deliveries today.':'No deliveries yet.'}/></div>}/>}
  {effectiveActive==='routes'&&<DeliveryRoutesPage plan={routePlan} drivers={drivers} date={deliveryRouteDate} mealSlot={deliveryRouteMealSlot} setDate={d=>{setDeliveryRouteDate(d);refreshRoutes(d,deliveryRouteMealSlot)}} setMealSlot={s=>{setDeliveryRouteMealSlot(s);refreshRoutes(deliveryRouteDate,s)}} selectedDriverIds={selectedDriverIds} setSelectedDriverIds={setSelectedDriverIds} planRoutes={planRoutes} dispatchRoute={dispatchRoute} manualPlanRoutes={manualPlanRoutes} addDriver={()=>setDriverOpen(true)}/>}
@@ -568,6 +571,28 @@ function KitchenPage({data,date,setDate,refresh}) {
     <div className="printChoice"><div><b>Meal-box labels</b><small>{selectedLabels.length} concise labels for the selected windows.</small></div><button className="primary" onClick={()=>doPrint('labels')} disabled={!selectedLabels.length}>Print labels</button></div>
    </div>
   </Modal>}
+ </div>
+}
+
+
+function IngredientConsumptionPage({data,date,setDate,refresh}) {
+ return <div className="page">
+  <div className="pageHead no-print">
+   <div><span className="eyebrow">KITCHEN & STOCK REPORTING</span><h1>Ingredient Usage</h1><p>Ingredient quantities attributable to meals that were actually delivered on {new Date(date).toLocaleDateString()}.</p></div>
+   <div className="pageActions"><input type="date" value={date} onChange={e=>{setDate(e.target.value)}}/><button className="secondary" onClick={refresh}>Refresh</button></div>
+  </div>
+  {!data?<Empty title="No usage report loaded" text="Select a date and refresh the report."/>:<>
+   <div className="statGrid no-print">
+    <div className="statCard static"><div><span>Delivered deliveries</span><b>{data.deliveredDeliveryCount}</b></div></div>
+    <div className="statCard static"><div><span>Delivered meals</span><b>{data.deliveredMealCount}</b></div></div>
+    <div className="statCard static"><div><span>Ingredients used</span><b>{data.ingredients?.length||0}</b></div></div>
+   </div>
+   <section className="panel">
+    <div className="panelHead"><div><h3>Daily ingredient consumption</h3><p>Calculated from delivered delivery records and their scheduled recipe selections. Skipped, cancelled, rescheduled, expired and unused meals are excluded.</p></div><span className="pill green">{data.outletName}</span></div>
+    {data.ingredients?.length?<div className="ingredientUsageTable"><div className="ingredientUsageRow header"><span>Ingredient</span><span>Quantity used</span><span>Meals</span><span>Deliveries</span><span>Recipes</span></div>{data.ingredients.map(x=><div className="ingredientUsageRow" key={x.ingredientId}><b>{x.ingredientName}</b><strong>{Number(x.quantity||0).toLocaleString('en-IN',{maximumFractionDigits:3})} {x.unit}</strong><span>{x.mealCount}</span><span>{x.deliveryCount}</span><small>{(x.recipeNames||[]).join(', ')}</small></div>)}</div>:<Empty title="No delivered meals for this date" text="Ingredient usage appears here once delivery status reaches Delivered."/>}
+   </section>
+   <section className="panel no-print usageFutureNote"><span className="eyebrow">READY FOR INVENTORY</span><b>This report is the consumption layer for future stock management.</b><p>When inventory is added, these same quantities can be posted as stock consumption transactions without changing the recipe or delivery workflow.</p></section>
+  </>}
  </div>
 }
 
