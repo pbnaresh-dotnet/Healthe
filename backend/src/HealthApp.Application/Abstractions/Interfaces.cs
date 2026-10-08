@@ -254,6 +254,7 @@ public interface IOutletSettingsService
     Task<OutletDomainDto> VerifyDomainAsync(Guid domainId, bool activateIfReady = true);
     Task<OutletSettingsDto?> UpdateDeliveryDaysAsync(UpdateOutletSettingsRequest request);
     Task<OutletSettingsDto?> UpdatePackageSettingsAsync(UpdateOutletPackageSettingsRequest request);
+    Task<OutletSettingsDto?> UpdateLateSkipFeeAsync(UpdateOutletLateSkipFeeRequest request);
     Task<OutletLegalPoliciesDto?> GetLegalPoliciesAsync();
     Task<OutletLegalPoliciesDto?> UpdateLegalPoliciesAsync(UpdateOutletLegalPoliciesRequest request);
     Task<OutletBrandingDto?> UpdateBrandingAsync(UpdateOutletBrandingRequest request);
