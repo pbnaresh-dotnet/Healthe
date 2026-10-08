@@ -73,6 +73,13 @@ public sealed class AdminController(IAdminService service, IAdminOutletLifecycle
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
 
+    [HttpGet("outlets/{outletId:guid}/reactivation-options")]
+    public async Task<IActionResult> ReactivationOptions(Guid outletId)
+    {
+        try { return Ok(await lifecycle.GetReactivationOptionsAsync(outletId)); }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+    }
+
     [HttpPost("outlets/{outletId:guid}/reactivate")]
     public async Task<IActionResult> ReactivateOutlet(Guid outletId, AdminOutletReactivationRequest request)
     {
