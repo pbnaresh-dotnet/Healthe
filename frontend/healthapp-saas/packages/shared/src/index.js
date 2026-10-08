@@ -5,8 +5,9 @@ const API_BASE=(CONFIGURED_API_BASE||LOCAL_API_BASE).replace(/\/$/,'');
 export const API_URL=API_BASE;
 export const CUSTOMER_URL=import.meta.env.VITE_CUSTOMER_URL||'http://localhost:5173';
 export const TENANT_OUTLET_SLUG=String(import.meta.env.VITE_OUTLET_SLUG||'').trim().toLowerCase();
+const DEMO_OUTLET_SLUG=(()=>{try{return new URLSearchParams(window.location.search).get('demo')?.trim().toLowerCase()||''}catch{return ''}})();
 
-let runtimeTenantSlug=TENANT_OUTLET_SLUG;
+let runtimeTenantSlug=DEMO_OUTLET_SLUG||TENANT_OUTLET_SLUG;
 let runtimeTenantHost=TENANT_OUTLET_SLUG?HOSTNAME:'';
 export const getTenantOutletSlug=()=>{
   if(runtimeTenantSlug&&(!runtimeTenantHost||runtimeTenantHost===HOSTNAME))return runtimeTenantSlug;
