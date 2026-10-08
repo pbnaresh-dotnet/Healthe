@@ -331,6 +331,8 @@ public sealed record PaymentGatewaySettlementInput(
 public interface IPaymentSettlementAccountingService
 {
     Task<PaymentGatewaySettlement> RecordSettlementAsync(PaymentGatewaySettlementInput input, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PaymentGatewaySettlement>> GetUnreconciledAsync(Guid? outletId = null, CancellationToken cancellationToken = default);
+    Task<PaymentSettlementImportResultDto> ImportCsvAsync(string provider, Stream csv, string reconciledBy, CancellationToken cancellationToken = default);
 }
 
 public interface IPaymentGatewaySettlementRepository
