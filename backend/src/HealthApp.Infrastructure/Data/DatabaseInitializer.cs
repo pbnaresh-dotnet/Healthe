@@ -1392,6 +1392,40 @@ IF COL_LENGTH('dbo.Users','MarketingOptInAtUtc') IS NULL
     ALTER TABLE dbo.Users ADD MarketingOptInAtUtc datetime2 NULL;
 ", cancellationToken);
 
+        // Trial lifecycle support for existing standalone databases.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.Trials','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Trials
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_Trials PRIMARY KEY,
+        OutletSubscriptionId uniqueidentifier NOT NULL,
+        OutletId uniqueidentifier NOT NULL,
+        StartedAtUtc datetime2 NOT NULL,
+        EndsAtUtc datetime2 NOT NULL,
+        Status int NOT NULL,
+        ConvertedAtUtc datetime2 NULL,
+        CancelledAtUtc datetime2 NULL,
+        CancellationReason nvarchar(500) NULL,
+        DurationDays int NOT NULL CONSTRAINT DF_Trials_DurationDays DEFAULT 30
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Trials_OutletId' AND object_id = OBJECT_ID('dbo.Trials'))
+    CREATE UNIQUE INDEX UX_Trials_OutletId ON dbo.Trials(OutletId);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Trials_OutletSubscriptionId' AND object_id = OBJECT_ID('dbo.Trials'))
+    CREATE UNIQUE INDEX UX_Trials_OutletSubscriptionId ON dbo.Trials(OutletSubscriptionId);
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Trials_OutletSubscriptions')
+    ALTER TABLE dbo.Trials ADD CONSTRAINT FK_Trials_OutletSubscriptions
+        FOREIGN KEY (OutletSubscriptionId) REFERENCES dbo.OutletSubscriptions(Id);
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Trials_Outlets')
+    ALTER TABLE dbo.Trials ADD CONSTRAINT FK_Trials_Outlets
+        FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id);
+", cancellationToken);
+
         // Keep the old text columns harmless for older databases; normalized values are now authoritative.
         await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(), cancellationToken);
 
