@@ -17,12 +17,10 @@ public sealed class FinanceTaxConfigurationService(
         var profile = await profiles.GetCurrentAsync(outletId, asOfUtc);
         if (profile is null)
         {
-            // Existing legacy outlets created before finance governance can still be read
-            // safely. They are treated as direct, non-GST-registered until an admin
-            // explicitly creates/publishes their tax profile.
-            profile = new Domain.Entities.OutletTaxProfile
+            // Existing/new outlets created outside the finance onboarding path receive a
+            // real initial profile before any transaction can depend on it.
+            var initial = new Domain.Entities.OutletTaxProfile
             {
-                Id = Guid.Empty,
                 OutletId = outletId,
                 LegalName = outlet.Name,
                 TradeName = outlet.Name,
@@ -34,10 +32,11 @@ public sealed class FinanceTaxConfigurationService(
                 IsComposition = false,
                 RestaurantGstRate = outlet.RestaurantGstRate,
                 RestaurantGstMode = outlet.RestaurantGstMode,
-                TaxOperatingMode = TaxOperatingMode.DirectOutletSupplier,
-                EffectiveFromUtc = asOfUtc,
-                IsActive = true
+                TaxOperatingMode = TaxOperatingMode.DirectOutletSupplier
             };
+            await profiles.AddVersionAsync(initial, asOfUtc);
+            profile = await profiles.GetCurrentAsync(outletId, asOfUtc)
+                ?? throw new InvalidOperationException("Unable to create the outlet's initial finance tax profile.");
         }
 
         var restaurantRule = await taxRules.GetEffectiveAsync(
