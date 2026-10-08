@@ -761,6 +761,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion130Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion131Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion132Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion133Async(db, document, cancellationToken);
             return;
         }
 
@@ -827,6 +828,9 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion128Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion129Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion130Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion131Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion132Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion133Async(db, document, cancellationToken);
     }
 
     private static async Task SeedFinancePolicyVersion11Async(
@@ -1871,5 +1875,80 @@ WHERE NOT EXISTS
         document.UpdatedAtUtc = now;
         await db.SaveChangesAsync(cancellationToken);
     }
+
+    private static async Task SeedFinancePolicyVersion133Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.3",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.2")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode,
+            x.Title,
+            x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.3.3: provider settlement reconciliation is persisted transactionally. A reconciliation import is matched to the paid payment transaction before gateway deductions are recorded. Existing settlement records are reused rather than duplicated.",
+                "governance" => x.ContentMarkdown + " Policy v1.3.3: a settlement acknowledgement is not considered successful unless its reconciliation record is persisted. Provider settlement records are immutable evidence of the actual provider deduction and net settlement.",
+                "audit-trace" => x.ContentMarkdown + " Settlement persistence retains provider settlement ID, provider payment ID, gross amount, actual gateway fee and tax, provider adjustments, net settlement, source evidence and reconciliation metadata.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder)
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.3.3",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Harden gateway settlement reconciliation persistence and duplicate protection.",
+            ChangeReason = "Ensure provider settlement reconciliation cannot report success without durable accounting evidence and prevent duplicate settlement deductions.",
+            SourceCodeReference = "FIN-Phase-2E-SETTLEMENT-RECONCILIATION-PERSISTENCE",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
 
 }
