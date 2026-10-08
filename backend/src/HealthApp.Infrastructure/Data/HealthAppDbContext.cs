@@ -62,6 +62,9 @@ public sealed class HealthAppDbContext(DbContextOptions<HealthAppDbContext> opti
     public DbSet<LedgerJournal> LedgerJournals => Set<LedgerJournal>();
     public DbSet<LedgerJournalLine> LedgerJournalLines => Set<LedgerJournalLine>();
     public DbSet<DocumentNumberSequence> DocumentNumberSequences => Set<DocumentNumberSequence>();
+    public DbSet<FinancePolicyDocument> FinancePolicyDocuments => Set<FinancePolicyDocument>();
+    public DbSet<FinancePolicyDocumentVersion> FinancePolicyDocumentVersions => Set<FinancePolicyDocumentVersion>();
+    public DbSet<FinancePolicyDocumentSection> FinancePolicyDocumentSections => Set<FinancePolicyDocumentSection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
         => HealthAppModelBuilder.Configure(modelBuilder);
