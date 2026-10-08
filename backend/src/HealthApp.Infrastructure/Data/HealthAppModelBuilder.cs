@@ -393,6 +393,7 @@ internal static class HealthAppModelBuilder
         e.ToTable("RecipeIngredients");
         e.HasKey(x => x.Id);
         e.Property(x => x.Quantity).HasPrecision(18,3);
+        e.Property(x => x.LargeQuantity).HasPrecision(18,3);
         e.Property(x => x.Unit).HasMaxLength(20).IsRequired();
         e.HasIndex(x => new {
             x.RecipeId, x.IngredientId
