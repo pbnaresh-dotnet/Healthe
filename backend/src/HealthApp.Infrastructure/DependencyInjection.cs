@@ -41,8 +41,7 @@ public static class DependencyInjection
         services.Configure<CloudflarePagesSettings>(config.GetSection("CloudflarePages"));
         services.Configure<SmtpEmailOptions>(config.GetSection("Email"));
         services.Configure<CashfreeOptions>(config.GetSection("Cashfree"));
-        var paymentGatewayOptions = config.GetSection("PaymentGateway").Get<PaymentGatewayOptions>() ?? new PaymentGatewayOptions();
-        services.AddSingleton(paymentGatewayOptions);
+        services.Configure<PaymentGatewayOptions>(config.GetSection("PaymentGateway"));
 
         var storageProvider = (config["Storage:Provider"] ?? "Local").Trim().ToLowerInvariant();
         switch (storageProvider)
@@ -107,10 +106,11 @@ public static class DependencyInjection
             client.BaseAddress = new Uri(baseUrl + "/");
             client.Timeout = TimeSpan.FromSeconds(20);
         });
+        services.AddScoped<IPaymentGatewayAdapter>(sp => sp.GetRequiredService<CashfreePaymentGateway>());
         services.AddScoped<IPaymentGatewayFactory, PaymentGatewayFactory>();
         services.AddScoped<IPaymentGateway>(sp =>
             sp.GetRequiredService<IPaymentGatewayFactory>().Get(
-                sp.GetRequiredService<PaymentGatewayOptions>().Provider));
+                sp.GetRequiredService<IOptions<PaymentGatewayOptions>>().Value.Provider));
 
         services.AddHttpClient<ICloudflarePagesService, CloudflarePagesService>((sp, client) =>
         {
