@@ -27,6 +27,7 @@ internal static class FinanceModelBuilder
         ConfigureFinancePolicyDocument(b.Entity<FinancePolicyDocument>());
         ConfigureFinancePolicyDocumentVersion(b.Entity<FinancePolicyDocumentVersion>());
         ConfigureFinancePolicyDocumentSection(b.Entity<FinancePolicyDocumentSection>());
+        ConfigureFinanceCalculationSnapshot(b.Entity<FinanceCalculationSnapshot>());
     }
 
     private static void ConfigureOutletTaxProfile(EntityTypeBuilder<OutletTaxProfile> e)
@@ -373,4 +374,37 @@ internal static class FinanceModelBuilder
         e.HasIndex(x => new { x.FinancePolicyDocumentVersionId, x.DisplayOrder });
         e.HasOne<FinancePolicyDocumentVersion>().WithMany().HasForeignKey(x => x.FinancePolicyDocumentVersionId).OnDelete(DeleteBehavior.NoAction);
     }
+    private static void ConfigureFinanceCalculationSnapshot(EntityTypeBuilder<FinanceCalculationSnapshot> e)
+    {
+        e.ToTable("FinanceCalculationSnapshots");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.SourceType).HasMaxLength(100).IsRequired();
+        e.Property(x => x.RestaurantTaxOperatingMode).HasConversion<int>();
+        e.Property(x => x.RestaurantGstMode).HasConversion<int>();
+        e.Property(x => x.RestaurantRate).HasPrecision(9,4);
+        e.Property(x => x.RestaurantTaxableAmount).HasPrecision(18,2);
+        e.Property(x => x.RestaurantTaxAmount).HasPrecision(18,2);
+        e.Property(x => x.PlatformServiceFee).HasPrecision(18,2);
+        e.Property(x => x.PlatformTaxRate).HasPrecision(9,4);
+        e.Property(x => x.PlatformTaxAmount).HasPrecision(18,2);
+        e.Property(x => x.CommissionBaseAmount).HasPrecision(18,2);
+        e.Property(x => x.CommissionRatePercent).HasPrecision(9,4);
+        e.Property(x => x.CommissionAmount).HasPrecision(18,2);
+        e.Property(x => x.InputHash).HasMaxLength(128).IsRequired();
+        e.Property(x => x.InputsJson).HasColumnType("nvarchar(max)").IsRequired();
+        e.Property(x => x.ResultsJson).HasColumnType("nvarchar(max)").IsRequired();
+        e.HasIndex(x => new { x.SourceType, x.SourceId }).IsUnique();
+        e.HasIndex(x => new { x.OutletId, x.CalculatedAtUtc });
+        e.HasIndex(x => x.FinancePolicyDocumentVersionId);
+        e.HasIndex(x => x.TaxProfileId);
+        e.HasIndex(x => x.RestaurantTaxRuleId);
+        e.HasIndex(x => x.PlatformTaxRuleId);
+        e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<FinancePolicyDocumentVersion>().WithMany().HasForeignKey(x => x.FinancePolicyDocumentVersionId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<OutletTaxProfile>().WithMany().HasForeignKey(x => x.TaxProfileId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<FinanceTaxRule>().WithMany().HasForeignKey(x => x.RestaurantTaxRuleId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<FinanceTaxRule>().WithMany().HasForeignKey(x => x.PlatformTaxRuleId).OnDelete(DeleteBehavior.NoAction);
+    }
+
+
 }
