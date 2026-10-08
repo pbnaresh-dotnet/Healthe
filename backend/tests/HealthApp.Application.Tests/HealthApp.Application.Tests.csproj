@@ -18,5 +18,6 @@
     <ProjectReference Include="..\src\HealthApp.Application\HealthApp.Application.csproj" />
     <ProjectReference Include="..\src\HealthApp.Domain\HealthApp.Domain.csproj" />
     <ProjectReference Include="..\src\HealthApp.Shared\HealthApp.Shared.csproj" />
+    <ProjectReference Include="..\src\HealthApp.Infrastructure\HealthApp.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
