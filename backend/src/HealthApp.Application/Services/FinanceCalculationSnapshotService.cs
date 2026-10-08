@@ -22,7 +22,11 @@ public sealed class FinanceCalculationSnapshotService(
         decimal platformServiceFeePercent,
         bool gatewayCostsIncludedInPlatformFee,
         decimal commissionRatePercent,
-        decimal commissionAmount)
+        decimal commissionAmount,
+        Guid? discountTierId = null,
+        decimal discountPercent = 0m,
+        decimal discountAmount = 0m,
+        string discountRuleSnapshotJson = "")
     {
         if (string.IsNullOrWhiteSpace(sourceType))
             throw new ArgumentException("Finance snapshot source type is required.", nameof(sourceType));
@@ -30,6 +34,10 @@ public sealed class FinanceCalculationSnapshotService(
             throw new ArgumentException("Finance snapshot source id is required.", nameof(sourceId));
         if (commissionRatePercent is < 0m or > 100m)
             throw new ArgumentOutOfRangeException(nameof(commissionRatePercent), commissionRatePercent, "Commission rate must be between 0% and 100%.");
+        if (discountPercent is < 0m or > 100m)
+            throw new ArgumentOutOfRangeException(nameof(discountPercent), discountPercent, "Discount rate must be between 0% and 100%.");
+        if (discountAmount < 0m)
+            throw new ArgumentOutOfRangeException(nameof(discountAmount), discountAmount, "Discount amount cannot be negative.");
         if (platformServiceFeePercent is < 0m or > 100m)
             throw new ArgumentOutOfRangeException(nameof(platformServiceFeePercent), platformServiceFeePercent, "Platform service fee rate must be between 0% and 100%.");
 
@@ -51,6 +59,10 @@ public sealed class FinanceCalculationSnapshotService(
             platformServiceFeePercent,
             gatewayCostsIncludedInPlatformFee,
             commissionRatePercent,
+            discountTierId,
+            discountPercent,
+            discountAmount,
+            discountRuleSnapshotJson,
             restaurantProfileId = configuration.Restaurant.ProfileId,
             commissionTaxRuleId = configuration.PlatformCommission.Id,
             commissionTaxRuleCode = configuration.PlatformCommission.Code,
@@ -85,6 +97,9 @@ public sealed class FinanceCalculationSnapshotService(
             commissionBaseAmount = calculation.RestaurantTaxableAmount,
             commissionRatePercent,
             commissionAmount,
+            discountTierId,
+            discountPercent,
+            discountAmount,
             commissionTaxRuleCode = configuration.PlatformCommission.Code,
             commissionTaxRate = configuration.PlatformCommission.TaxRatePercent,
             commissionTaxAmount = configuration.PlatformTaxApplicable ? Math.Round(commissionAmount * configuration.PlatformCommission.TaxRatePercent / 100m, 2) : 0m
@@ -124,6 +139,10 @@ public sealed class FinanceCalculationSnapshotService(
             CommissionBaseAmount = calculation.RestaurantTaxableAmount,
             CommissionRatePercent = commissionRatePercent,
             CommissionAmount = commissionAmount,
+            DiscountTierId = discountTierId,
+            DiscountPercent = discountPercent,
+            DiscountAmount = discountAmount,
+            DiscountRuleSnapshotJson = discountRuleSnapshotJson ?? "",
             InputHash = inputHash,
             InputsJson = inputJson,
             ResultsJson = resultJson,
