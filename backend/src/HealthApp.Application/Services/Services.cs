@@ -319,7 +319,7 @@ public sealed class MarketplaceService(IOutletRepository outlets, IMealPlanRepos
     private static MealPlanDto Map(MealPlan x) => new(x.Id, x.OutletId, x.Name, x.Frequency, x.MealsPerDay, x.MealsPerWeek, x.Price, x.Currency, x.Description, x.IsActive, x.IsPreplanned, x.AvailableCity, x.DurationDays);
     private static RecipeDto Map(Recipe x) => MapRecipeForCustomer(x, true);
     private static RecipeDto MapRecipeForCustomer(Recipe x, bool showMealPrice) => new(x.Id,x.OutletId,x.Name,x.Calories,x.ProteinGrams,x.CarbsGrams,x.FatGrams,x.Category.ToString(),showMealPrice?x.PricePerMeal:0m,showMealPrice?x.LargePricePerMeal:0m,x.Description,x.ImageUrl,x.Tags,x.IsActive,
-    x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId,i.Ingredient.Name,i.Quantity,i.Unit,i.Ingredient.Allergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).OrderBy(a=>a.Name).ToList())).ToList(),
+    x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId,i.Ingredient.Name,i.Quantity,i.Unit,i.Ingredient.Allergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).OrderBy(a=>a.Name).ToList(), i.LargeQuantity)).ToList(),
     x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams, string.IsNullOrWhiteSpace(x.MealType)?"Meal":x.MealType, x.SugarGrams);
     private static OutletDto ToDto(Outlet x, double distance)
     {
@@ -1149,7 +1149,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         return(sub?.TransactionFeePercent??0m)/100m;
     }
     private static RecipeDto MapRecipe(Recipe x, bool showMealPrice)=>new(x.Id,x.OutletId,x.Name,x.Calories,x.ProteinGrams,x.CarbsGrams,x.FatGrams,x.Category.ToString(),showMealPrice?x.PricePerMeal:0m,showMealPrice?x.LargePricePerMeal:0m,x.Description,x.ImageUrl,x.Tags,x.IsActive,
-    x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId, i.Ingredient.Name, i.Quantity, i.Unit, i.Ingredient.Allergens.Select(a => new AllergenDto(a.AllergenId, a.Allergen.Name)).OrderBy(a => a.Name).ToList())).ToList(),
+    x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId, i.Ingredient.Name, i.Quantity, i.Unit, i.Ingredient.Allergens.Select(a => new AllergenDto(a.AllergenId, a.Allergen.Name)).OrderBy(a => a.Name).ToList(), i.LargeQuantity)).ToList(),
     x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams, string.IsNullOrWhiteSpace(x.MealType)?"Meal":x.MealType, x.SugarGrams);
 }
 public sealed class OutletService(ICurrentUser current,IOutletRepository outlets,IOutletSubscriptionRepository outletSubs,ISaaSPlanRepository saasPlans,IMealPlanRepository plans,IRecipeRepository recipes,IOutletMenuRepository menu,IUserRepository users,ISubscriptionRepository subscriptions,IOrderRepository orders,IDeliveryRepository deliveries,IIngredientRepository ingredients,IAllergenRepository allergens,ISubscriptionMealSelectionRepository selections,ICustomerAddressRepository addresses,ICityAreaRepository areas,IDeliveryLabelService deliveryLabels,IOutletTaxProfileRepository taxProfiles,IConfiguration configuration) : IOutletService
@@ -1551,6 +1551,12 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             FatGrams=r.FatGrams,
             FiberGrams=nutrition.FiberGrams,
             SugarGrams=nutrition.SugarGrams,
+            LargeCalories=nutrition.LargeCalories,
+            LargeProteinGrams=nutrition.LargeProteinGrams,
+            LargeCarbsGrams=nutrition.LargeCarbsGrams,
+            LargeFatGrams=nutrition.LargeFatGrams,
+            LargeFiberGrams=nutrition.LargeFiberGrams,
+            LargeSugarGrams=nutrition.LargeSugarGrams,
             PricePerMeal=r.PricePerMeal,
             LargePricePerMeal=r.LargePricePerMeal,
             Description=r.Description,
@@ -1558,7 +1564,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             Tags=r.Tags
         };
         foreach(var i in r.Ingredients??[])x.RecipeIngredients.Add(new RecipeIngredient {
-            Id=Guid.NewGuid(),RecipeId=x.Id,IngredientId=i.IngredientId,Quantity=i.Quantity,Unit=string.IsNullOrWhiteSpace(i.Unit)?validIngredients.First(v=>v.Id==i.IngredientId).DefaultUnit:i.Unit.Trim()
+            Id=Guid.NewGuid(),RecipeId=x.Id,IngredientId=i.IngredientId,Quantity=i.Quantity,LargeQuantity=i.LargeQuantity.GetValueOrDefault(i.Quantity),Unit=string.IsNullOrWhiteSpace(i.Unit)?validIngredients.First(v=>v.Id==i.IngredientId).DefaultUnit:i.Unit.Trim()
         });
         foreach(var a in allergenIds)x.RecipeAllergens.Add(new RecipeAllergen {
             RecipeId=x.Id,AllergenId=a
@@ -1589,6 +1595,12 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
         x.FatGrams=r.FatGrams;
         x.FiberGrams=nutrition.FiberGrams;
         x.SugarGrams=nutrition.SugarGrams;
+        x.LargeCalories=nutrition.LargeCalories;
+        x.LargeProteinGrams=nutrition.LargeProteinGrams;
+        x.LargeCarbsGrams=nutrition.LargeCarbsGrams;
+        x.LargeFatGrams=nutrition.LargeFatGrams;
+        x.LargeFiberGrams=nutrition.LargeFiberGrams;
+        x.LargeSugarGrams=nutrition.LargeSugarGrams;
         x.PricePerMeal=r.PricePerMeal;
         x.LargePricePerMeal=r.LargePricePerMeal;
         x.Description=r.Description;
@@ -1614,43 +1626,48 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
         int CarbsGrams,
         int FatGrams,
         int FiberGrams,
-        int SugarGrams);
+        int SugarGrams,
+        int LargeCalories,
+        int LargeProteinGrams,
+        int LargeCarbsGrams,
+        int LargeFatGrams,
+        int LargeFiberGrams,
+        int LargeSugarGrams);
 
     private static CalculatedRecipeNutrition CalculateRecipeNutrition(
         IReadOnlyList<RecipeIngredientInput> inputs,
         IReadOnlyList<Ingredient> validIngredients)
     {
         var byId = validIngredients.ToDictionary(x => x.Id);
-        decimal calories = 0m;
-        decimal protein = 0m;
-        decimal carbs = 0m;
-        decimal fat = 0m;
-        decimal fiber = 0m;
-        decimal sugar = 0m;
+        decimal calories = 0m, protein = 0m, carbs = 0m, fat = 0m, fiber = 0m, sugar = 0m;
+        decimal largeCalories = 0m, largeProtein = 0m, largeCarbs = 0m, largeFat = 0m, largeFiber = 0m, largeSugar = 0m;
         var unsupported = new List<string>();
 
         foreach (var input in inputs)
         {
             if (!byId.TryGetValue(input.IngredientId, out var ingredient))
                 throw new ArgumentException("One or more ingredients are invalid.");
-
             if (input.Quantity <= 0)
                 throw new ArgumentException($"Quantity for {ingredient.Name} must be greater than zero.");
 
             var unit = (input.Unit ?? "").Trim().ToLowerInvariant();
-            var grams = unit switch
+            decimal ToGrams(decimal quantity) => unit switch
             {
-                "g" or "gram" or "grams" => input.Quantity,
-                "kg" or "kilogram" or "kilograms" => input.Quantity * 1000m,
+                "g" or "gram" or "grams" => quantity,
+                "kg" or "kilogram" or "kilograms" => quantity * 1000m,
                 _ => 0m
             };
 
-            if (grams <= 0m)
+            var grams = ToGrams(input.Quantity);
+            var largeQuantity = input.LargeQuantity.GetValueOrDefault(input.Quantity);
+            if (largeQuantity <= 0) largeQuantity = input.Quantity;
+            var largeGrams = ToGrams(largeQuantity);
+
+            if (grams <= 0m || largeGrams <= 0m)
             {
                 unsupported.Add($"{ingredient.Name} ({input.Unit})");
                 continue;
             }
-
             if (string.IsNullOrWhiteSpace(ingredient.NutritionSource))
             {
                 unsupported.Add($"{ingredient.Name} (nutrition reference not configured)");
@@ -1658,19 +1675,25 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             }
 
             var factor = grams / 100m;
+            var largeFactor = largeGrams / 100m;
             calories += ingredient.CaloriesPer100g * factor;
             protein += ingredient.ProteinGramsPer100g * factor;
             carbs += ingredient.CarbsGramsPer100g * factor;
             fat += ingredient.FatGramsPer100g * factor;
             fiber += ingredient.FiberGramsPer100g * factor;
             sugar += ingredient.SugarGramsPer100g * factor;
+            largeCalories += ingredient.CaloriesPer100g * largeFactor;
+            largeProtein += ingredient.ProteinGramsPer100g * largeFactor;
+            largeCarbs += ingredient.CarbsGramsPer100g * largeFactor;
+            largeFat += ingredient.FatGramsPer100g * largeFactor;
+            largeFiber += ingredient.FiberGramsPer100g * largeFactor;
+            largeSugar += ingredient.SugarGramsPer100g * largeFactor;
         }
 
         if (unsupported.Count > 0)
         {
             var details = string.Join(", ", unsupported.Distinct(StringComparer.OrdinalIgnoreCase));
-            throw new ArgumentException(
-                $"Nutrition cannot be calculated for: {details}. Use a gram/kg quantity and ensure the ingredient has a nutrition reference.");
+            throw new ArgumentException($"Nutrition cannot be calculated for: {details}. Use a gram/kg quantity and ensure the ingredient has a nutrition reference.");
         }
 
         return new(
@@ -1679,7 +1702,13 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             (int)Math.Round(carbs, MidpointRounding.AwayFromZero),
             (int)Math.Round(fat, MidpointRounding.AwayFromZero),
             (int)Math.Round(fiber, MidpointRounding.AwayFromZero),
-            (int)Math.Round(sugar, MidpointRounding.AwayFromZero));
+            (int)Math.Round(sugar, MidpointRounding.AwayFromZero),
+            (int)Math.Round(largeCalories, MidpointRounding.AwayFromZero),
+            (int)Math.Round(largeProtein, MidpointRounding.AwayFromZero),
+            (int)Math.Round(largeCarbs, MidpointRounding.AwayFromZero),
+            (int)Math.Round(largeFat, MidpointRounding.AwayFromZero),
+            (int)Math.Round(largeFiber, MidpointRounding.AwayFromZero),
+            (int)Math.Round(largeSugar, MidpointRounding.AwayFromZero));
     }
 
     public async Task<bool> DeleteRecipeAsync(Guid id) {
