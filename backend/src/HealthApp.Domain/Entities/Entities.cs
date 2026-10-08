@@ -918,6 +918,10 @@ public sealed class Recipe
         get;
         set;
     }
+    public int SugarGrams {
+        get;
+        set;
+    }
     public RecipeCategory Category {
         get;
         set;
@@ -979,6 +983,18 @@ public sealed class Ingredient
         set;
     }
     = "g";
+
+    // Nutrition reference values are stored per 100 g of the stated edible/cooked ingredient.
+    // Recipe ingredient quantities are interpreted as grams (or kilograms) of this reference state.
+    public decimal CaloriesPer100g { get; set; }
+    public decimal ProteinGramsPer100g { get; set; }
+    public decimal CarbsGramsPer100g { get; set; }
+    public decimal FatGramsPer100g { get; set; }
+    public decimal FiberGramsPer100g { get; set; }
+    public decimal SugarGramsPer100g { get; set; }
+    public string NutritionSource { get; set; } = "";
+    public string NutritionReferenceId { get; set; } = "";
+
     public bool IsActive {
         get;
         set;
