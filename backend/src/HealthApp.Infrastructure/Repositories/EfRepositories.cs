@@ -585,6 +585,24 @@ public sealed class MealSelectionHistoryRepository(HealthAppDbContext db) : EfRe
     public async Task<IReadOnlyList<MealSelectionHistory>> GetBySelectionAsync(Guid selectionId) => await Context.MealSelectionHistories.AsNoTracking().Where(x=>x.MealSelectionId==selectionId).OrderByDescending(x=>x.OccurredAtUtc).ToListAsync();
 }
 
+public sealed class PaymentGatewaySettlementRepository(HealthAppDbContext db) : EfRepository(db), IPaymentGatewaySettlementRepository
+{
+    public Task<PaymentGatewaySettlement?> GetByPaymentTransactionAsync(Guid id) =>
+        Context.PaymentGatewaySettlements.FirstOrDefaultAsync(x => x.PaymentTransactionId == id);
+
+    public Task<PaymentGatewaySettlement?> GetByProviderPaymentIdAsync(string provider, string paymentId) =>
+        Context.PaymentGatewaySettlements.FirstOrDefaultAsync(x => x.Provider == provider && x.ProviderPaymentId == paymentId);
+
+    public async Task AddAsync(PaymentGatewaySettlement settlement) => await Context.PaymentGatewaySettlements.AddAsync(settlement);
+    public Task UpdateAsync(PaymentGatewaySettlement settlement) { Context.PaymentGatewaySettlements.Update(settlement); return Task.CompletedTask; }
+
+    public async Task<IReadOnlyList<PaymentGatewaySettlement>> GetUnreconciledAsync(Guid? outletId = null) =>
+        await Context.PaymentGatewaySettlements.AsNoTracking()
+            .Where(x => x.Status != "Reconciled" && (!outletId.HasValue || x.OutletId == outletId))
+            .OrderBy(x => x.CreatedAtUtc)
+            .ToListAsync();
+}
+
 public sealed class PaymentTransactionRepository(HealthAppDbContext db) : EfRepository(db), IPaymentTransactionRepository
 {
     public Task<PaymentTransaction?> GetAsync(Guid id) =>
