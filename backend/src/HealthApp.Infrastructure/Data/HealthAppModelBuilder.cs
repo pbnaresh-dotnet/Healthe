@@ -15,6 +15,7 @@ internal static class HealthAppModelBuilder
         ConfigureOutletDomain(b.Entity<OutletDomain>());
         ConfigureSaaSPlan(b.Entity<SaaSPlan>());
         ConfigureOutletSubscription(b.Entity<OutletSubscription>());
+        ConfigureTrial(b.Entity<Trial>());
         ConfigureOutletOnboarding(b.Entity<OutletOnboardingApplication>());
         ConfigurePlatformTransaction(b.Entity<PlatformTransaction>());
         ConfigureMealPlan(b.Entity<MealPlan>());
@@ -56,6 +57,7 @@ internal static class HealthAppModelBuilder
     private static void ConfigureOutletForeignKeys(ModelBuilder b)
     {
         b.Entity<OutletSubscription>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<Trial>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
         b.Entity<PlatformTransaction>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
         b.Entity<MealPlan>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
         b.Entity<Recipe>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
@@ -263,6 +265,21 @@ internal static class HealthAppModelBuilder
         e.HasIndex(x => x.OutletId).IsUnique();
         e.HasIndex(x => x.SaaSPlanId);
     }
+    private static void ConfigureTrial(EntityTypeBuilder<Trial> e)
+    {
+        e.ToTable("Trials");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Status).HasConversion<int>().IsRequired();
+        e.Property(x => x.DurationDays).IsRequired();
+        e.Property(x => x.CancellationReason).HasMaxLength(500);
+        e.Property(x => x.StartedAtUtc).IsRequired();
+        e.Property(x => x.EndsAtUtc).IsRequired();
+        e.HasIndex(x => x.OutletId).IsUnique().HasDatabaseName("UX_Trials_OutletId");
+        e.HasIndex(x => x.OutletSubscriptionId).IsUnique().HasDatabaseName("UX_Trials_OutletSubscriptionId");
+        e.HasOne(x => x.OutletSubscription).WithOne(x => x.Trial)
+            .HasForeignKey<Trial>(x => x.OutletSubscriptionId).OnDelete(DeleteBehavior.NoAction);
+    }
+
     private static void ConfigureOutletOnboarding(EntityTypeBuilder<OutletOnboardingApplication> e)
     {
         e.ToTable("OutletOnboardingApplications");
