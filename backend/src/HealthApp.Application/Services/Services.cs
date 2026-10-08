@@ -895,6 +895,8 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     public async Task<IReadOnlyList<MealSelectionDto>> SkipDayAsync(Guid subscriptionId,DateTime date,SkipDayRequest r)
     {
         var s=await GetOwnedSubscription(subscriptionId);
+        var outlet=await outlets.GetByIdAsync(s.OutletId)??throw new KeyNotFoundException("Outlet not found.");
+        if(!outlet.AllowMealSkipping)throw new InvalidOperationException("This outlet does not allow meal skipping.");
         var items=(await selections.GetBySubscriptionAndDateRangeAsync(s.Id,date.Date,date.Date.AddDays(1))).Where(x=>x.Status==MealSelectionStatus.Scheduled).ToList();
         if(items.Count==0)throw new InvalidOperationException("There are no scheduled meals to skip for this day.");
         var now=DateTime.UtcNow;
