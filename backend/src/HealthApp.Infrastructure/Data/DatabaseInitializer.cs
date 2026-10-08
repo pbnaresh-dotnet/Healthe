@@ -355,6 +355,15 @@ BEGIN
 
     IF NOT EXISTS (
         SELECT 1 FROM sys.indexes
+        WHERE name='UX_PaymentTransactions_ProviderPaymentId'
+          AND object_id=OBJECT_ID('dbo.PaymentTransactions')
+    )
+        CREATE UNIQUE INDEX UX_PaymentTransactions_ProviderPaymentId
+        ON dbo.PaymentTransactions(Provider, ProviderPaymentId)
+        WHERE ProviderPaymentId IS NOT NULL AND ProviderPaymentId <> '';
+
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
         WHERE name='IX_PaymentTransactions_OnboardingApplicationId'
           AND object_id=OBJECT_ID('dbo.PaymentTransactions')
     )
