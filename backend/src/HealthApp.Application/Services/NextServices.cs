@@ -487,11 +487,10 @@ public sealed class PaymentService(
 
     public async Task<PaymentWebhookResultDto> HandleWebhookAsync(
         string rawBody,
-        string signature,
-        string timestamp,
+        IReadOnlyDictionary<string, string> headers,
         CancellationToken cancellationToken = default)
     {
-        if (!gateway.VerifyWebhookSignature(signature, timestamp, rawBody))
+        if (!gateway.VerifyWebhookSignature(headers, rawBody))
             throw new UnauthorizedAccessException("Invalid Cashfree webhook signature.");
 
         var webhook = gateway.ParseWebhook(rawBody);
