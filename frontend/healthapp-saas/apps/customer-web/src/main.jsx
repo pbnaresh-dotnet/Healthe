@@ -686,62 +686,6 @@ function CustomerOutletHome({outlet,menu,busy,error,onBuild,onViewPlan}){
  </div></>;
 }
 
-function GuestMealMultiSelect({options,selectedIds,onChange,showMealPrice}){
- const [open,setOpen]=useState(false);
- const rootRef=useRef(null);
- useEffect(()=>{
-   if(!open)return;
-   const close=e=>{if(!rootRef.current?.contains(e.target))setOpen(false)};
-   document.addEventListener('mousedown',close);
-   return()=>document.removeEventListener('mousedown',close);
- },[open]);
- const selected=(selectedIds||[]).map(id=>options.find(x=>x.recipeId===id)).filter(Boolean);
- const groups=useMemo(()=>{
-   const map={};
-   for(const item of options){
-     const group=String(item.optionGroup||'Meal').trim()||'Meal';
-     (map[group]??=[]).push(item);
-   }
-   return map;
- },[options]);
- const toggle=id=>{
-   const current=selectedIds||[];
-   if(current.includes(id)){onChange(current.filter(x=>x!==id));return;}
-   const item=options.find(x=>x.recipeId===id);
-   if(!item)return;
-   const group=String(item.optionGroup||'Meal').trim()||'Meal';
-   const groupItems=groups[group]||[];
-   const max=Math.max(1,...groupItems.map(x=>Number(x.maxSelections||1)));
-   const selectedInGroup=current.filter(x=>groupItems.some(g=>g.recipeId===x));
-   if(selectedInGroup.length>=max)return;
-   onChange([...current,id]);
- };
- return <div className={'guestMealMultiSelect '+(open?'open':'')} ref={rootRef}>
-   <div className="guestMealMultiTrigger" role="button" tabIndex={0} aria-expanded={open} onClick={()=>setOpen(v=>!v)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setOpen(v=>!v)}}}>
-     {selected.length?<div className="guestMealSelectedList">{selected.map(item=><span className="guestMealSelectedChip" key={item.recipeId}>{item.recipeName}<button type="button" aria-label={'Remove '+item.recipeName} onClick={e=>{e.stopPropagation();toggle(item.recipeId)}}>×</button></span>)}</div>:<span className="guestMealPlaceholder">Choose meal, juice, snack, curd…</span>}
-     <span className="guestMealChevron">{open?'⌃':'⌄'}</span>
-   </div>
-   {open&&<div className="guestMealMultiMenu">
-     <div className="guestMealMultiHint">Select items from each configured group. One item per group is the recommended setup; the outlet can allow more.</div>
-     {Object.entries(groups).map(([group,items])=>{
-       const max=Math.max(1,...items.map(x=>Number(x.maxSelections||1)));
-       const count=(selectedIds||[]).filter(id=>items.some(x=>x.recipeId===id)).length;
-       return <section className="guestMealGroup" key={group}>
-         <div className="guestMealGroupHead"><div><b>{group}</b><small>{items.some(x=>x.isRequired)?'Required':'Optional'} · up to {max}</small></div><strong>{count}/{max}</strong></div>
-         <div className="guestMealOptions">{items.map(item=>{
-           const active=(selectedIds||[]).includes(item.recipeId);
-           const atLimit=!active&&count>=max;
-           return <button type="button" key={item.recipeId} className={active?'guestMealOption active':'guestMealOption'} disabled={atLimit} onClick={()=>toggle(item.recipeId)}>
-             <span className="guestMealOptionCheck">{active?'✓':'+'}</span>
-             <span className="guestMealOptionText"><b>{item.recipeName}</b><small>{item.mealType||group}{showMealPrice?' · '+money(item.pricePerMeal):''}</small></span>
-           </button>;
-         })}</div>
-       </section>;
-     })}
-   </div>}
- </div>;
-}
-
 function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDate,setStartDate,selections,setSelections,selectedCount,onClose,onContinue}){
  const showMealPrice=outlet?.showMealPriceToCustomer!==false;
  const days=useMemo(()=>{
