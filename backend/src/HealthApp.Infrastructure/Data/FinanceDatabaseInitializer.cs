@@ -762,6 +762,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion131Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion132Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion133Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion134Async(db, document, cancellationToken);
             return;
         }
 
@@ -1950,5 +1951,76 @@ WHERE NOT EXISTS
         await db.SaveChangesAsync(cancellationToken);
     }
 
+
+    private static async Task SeedFinancePolicyVersion134Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.4",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.3")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode, x.Title, x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.3.4: settlement reconciliation supports protected administrator reconciliation and CSV import. CSV rows must match a provider payment ID; amount-only matching is prohibited. Duplicate provider payment IDs are rejected at the database boundary.",
+                "governance" => x.ContentMarkdown + " Policy v1.3.4: imported settlement rows that cannot be matched to a payment remain explicit exceptions for review and are never silently reconciled.",
+                "audit-trace" => x.ContentMarkdown + " Settlement imports retain provider, payment ID, settlement ID, fee/tax/adjustment values, reconciliation metadata and import exceptions.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder).Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.3.4",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Add protected settlement reconciliation API and deterministic CSV import matching.",
+            ChangeReason = "Operationalize settlement reconciliation while preventing amount-only matches and duplicate provider payment records.",
+            SourceCodeReference = "FIN-Phase-2E-SETTLEMENT-RECONCILIATION-API-IMPORT",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
 
 }
