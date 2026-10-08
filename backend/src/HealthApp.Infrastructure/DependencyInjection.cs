@@ -11,6 +11,7 @@ using HealthApp.Infrastructure.Storage;
 using HealthApp.Infrastructure.Geocoding;
 using HealthApp.Infrastructure.Email;
 using HealthApp.Infrastructure.Payments;
+using HealthApp.Infrastructure.Logging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -76,6 +77,8 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordService, PasswordService>();
         services.AddSingleton<ITokenService, JwtTokenService>();
 
+        services.AddScoped<IApplicationErrorRepository, ApplicationErrorRepository>();
+        services.AddScoped<IApplicationErrorLogger, SqlApplicationErrorLogger>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IOutletRepository, OutletRepository>();
         services.AddScoped<IOutletLegalPolicyRepository, OutletLegalPolicyRepository>();
