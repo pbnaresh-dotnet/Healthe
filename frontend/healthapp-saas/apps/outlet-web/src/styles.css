@@ -690,3 +690,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
  .packageBuilderActions{position:sticky;bottom:0;background:#fff;padding:10px 0;z-index:15}
  .packageBuilderActions button{flex:1;min-height:46px}
 }
+
+.packageAddressControl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}.packageAddAddressBtn{border:1px solid #b9d3bf;background:#f2f8f3;color:#23643a;border-radius:8px;padding:8px 10px;font-size:9px;font-weight:800;white-space:nowrap;cursor:pointer}.packageAddAddressBtn:hover{background:#e8f4ea;border-color:#8fb79a}.packageAddressControl select{min-width:0}.packageCustomerPanel .packageAddressSummary{display:grid;gap:6px}.packageCustomerPanel .packageAddressSummary .linkBtn{justify-self:start}
+@media(max-width:760px){.packageAddressControl{grid-template-columns:1fr}.packageAddAddressBtn{width:100%;min-height:40px}.packageCustomerPanel .packageAddressSummary .linkBtn{min-height:40px}}
