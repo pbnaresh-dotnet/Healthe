@@ -755,6 +755,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion124Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion125Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion126Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion127Async(db, document, cancellationToken);
             return;
         }
 
@@ -1392,6 +1393,81 @@ WHERE NOT EXISTS
             ChangeSummary = "Remove hidden discount fallback logic and snapshot outlet discount configuration and discount-code inputs.",
             ChangeReason = "Ensure commercial discounts are explicitly configurable per outlet and historically reproducible for CA/auditor review.",
             SourceCodeReference = "FIN-Phase-2D-DISCOUNT-CONFIGURATION-GOVERNANCE",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedFinancePolicyVersion127Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.7",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.2.6")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode,
+            x.Title,
+            x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "governance" => x.ContentMarkdown + " Policy v1.2.7: outlet package confirmation discounts are calculated from the subscription's persisted discount amount. A discount percentage is never treated as a currency amount.",
+                "platform-charges" => x.ContentMarkdown + " Policy v1.2.7: an outlet-confirmation discount is applied after the package gross amount is reconstructed and is separately identifiable from the original subscription discount. Fixed and percentage discount inputs are validated before calculation.",
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.2.7: the corrected discount basis flows through the customer payable amount, restaurant tax calculation, platform service fee and outlet commission/settlement. The exact confirmation discount inputs are included in the finance calculation snapshot.",
+                "audit-trace" => x.ContentMarkdown + " The finance snapshot records the outlet discount type, requested value, calculated discount, final meal amount and reason so the CA/auditor can reproduce the confirmation calculation.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder)
+                .Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.2.7",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Correct outlet confirmation discount basis and snapshot the complete confirmation discount calculation.",
+            ChangeReason = "Prevent percentage values from being interpreted as currency and ensure the resulting financial calculation is reproducible.",
+            SourceCodeReference = "FIN-Phase-2D-OUTLET-CONFIRMATION-DISCOUNT-CORRECTION",
             ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
             PreviousVersionId = previous.Id,
             CreatedAtUtc = now,
