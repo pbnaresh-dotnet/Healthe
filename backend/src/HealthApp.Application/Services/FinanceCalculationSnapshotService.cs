@@ -108,6 +108,9 @@ public sealed class FinanceCalculationSnapshotService(
             discountTierId,
             discountPercent,
             discountAmount,
+            discountCodeId,
+            discountCodeAmount,
+            totalDiscountAmount,
             commissionTaxRuleCode = configuration.PlatformCommission.Code,
             commissionTaxRate = configuration.PlatformCommission.TaxRatePercent,
             commissionTaxAmount = configuration.PlatformTaxApplicable ? Math.Round(commissionAmount * configuration.PlatformCommission.TaxRatePercent / 100m, 2) : 0m
