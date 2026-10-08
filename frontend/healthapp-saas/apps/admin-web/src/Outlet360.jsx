@@ -24,7 +24,7 @@ export default function Outlet360({outletId,onBack}){
  const[reactivationCycle,setReactivationCycle]=useState('Monthly');
  const[reactivationReason,setReactivationReason]=useState('Super Admin reactivation');
  const[reactivating,setReactivating]=useState(false);
- useEffect(()=>{let active=true;(async()=>{try{setLoading(true);setError('');const[x,options]=await Promise.all([admin.outlet360(outletId),admin.reactivationOptions(outletId)]);if(active){setData(x);setReactivation(options);if(options?.currentSaaSPlanId)setReactivationPlan(options.currentSaaSPlanId);else if(options?.availablePlans?.length)setReactivationPlan(options.availablePlans[0].id)}}}catch(e){if(active)setError(e.message||'Unable to load Outlet 360')}finally{if(active)setLoading(false)}})();return()=>{active=false}},[outletId]);
+ useEffect(()=>{let active=true;(async()=>{try{setLoading(true);setError('');const[x,options]=await Promise.all([admin.outlet360(outletId),admin.reactivationOptions(outletId)]);if(active){setData(x);setReactivation(options);if(options?.currentSaaSPlanId)setReactivationPlan(options.currentSaaSPlanId);else if(options?.availablePlans?.length)setReactivationPlan(options.availablePlans[0].id)}}catch(e){if(active)setError(e.message||'Unable to load Outlet 360')}finally{if(active)setLoading(false)}})();return()=>{active=false}},[outletId]);
  const tabs=useMemo(()=>[
   ['overview','Overview'],['business','Business'],['users','Users'],['customers','Customers'],['subscriptions','Subscriptions'],['operations','Operations'],['kitchen','Kitchen'],['finance','Finance'],['domain','Domain'],['legal','Legal']
  ],[]);
