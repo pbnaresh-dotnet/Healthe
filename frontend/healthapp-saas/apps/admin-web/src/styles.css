@@ -348,6 +348,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media(max-width:719px){
  .pageIntro{align-items:flex-start}
  .pageIntroAction{display:none}
+ .financeControl .pageIntroAction,.financeRulesPage .pageIntroAction{display:flex;flex:0 0 auto}
+ .financePageActions,.financeRulesActions{justify-content:flex-start}
  .topbarActions .ghostBtn{padding:0 10px}
  .content{padding-top:17px}
  .outletTable{margin-top:0}
