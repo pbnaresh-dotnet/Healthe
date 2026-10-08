@@ -317,6 +317,14 @@ public interface ICustomerAddressRepository { Task<IReadOnlyList<CustomerAddress
 public interface ICustomerLikedMealRepository { Task<IReadOnlyList<CustomerLikedMeal>> GetByCustomerAsync(Guid customerId); Task<bool> ExistsAsync(Guid customerId, Guid recipeId); Task AddAsync(CustomerLikedMeal meal); Task RemoveAsync(Guid customerId, Guid recipeId); }
 public interface ISubscriptionDiscountTierRepository { Task<IReadOnlyList<SubscriptionDiscountTier>> GetByOutletAsync(Guid outletId); Task AddAsync(SubscriptionDiscountTier tier); Task UpdateAsync(SubscriptionDiscountTier tier); Task DeleteAsync(Guid outletId, Guid id); }
 public interface IMealSelectionHistoryRepository { Task AddAsync(MealSelectionHistory history); Task<IReadOnlyList<MealSelectionHistory>> GetBySelectionAsync(Guid selectionId); }
+public interface IPaymentGatewaySettlementRepository
+{
+    Task<PaymentGatewaySettlement?> GetByPaymentTransactionAsync(Guid paymentTransactionId);
+    Task<PaymentGatewaySettlement?> GetByProviderPaymentIdAsync(string provider, string providerPaymentId);
+    Task AddAsync(PaymentGatewaySettlement settlement);
+    Task UpdateAsync(PaymentGatewaySettlement settlement);
+    Task<IReadOnlyList<PaymentGatewaySettlement>> GetUnreconciledAsync(Guid? outletId = null);
+}
 public interface IPaymentTransactionRepository
 {
     Task<PaymentTransaction?> GetAsync(Guid id);
