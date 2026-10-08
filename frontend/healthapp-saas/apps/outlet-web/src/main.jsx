@@ -550,6 +550,7 @@ function OutletPackageBuilder({customers,recipes,menu,customerId,addresses,durat
   showAddresses={true}
   showPortion={true}
   showPrice={true}
+  showLargePortion={dash?.outlet?.supportsLargePortion!==false}
   money={money}
   onAddAddress={onAddAddress}
   title="Build the package, meal by meal."
@@ -761,7 +762,7 @@ function Recipes({items,total,search,setSearch,category,setCategory,openNew,open
  </div>
 }
 
-function RecipeForm({form,setForm,ingredients,allergens,upload,uploading,submit,cancel}){
+function RecipeForm({form,setForm,ingredients,allergens,upload,uploading,submit,cancel,showLargePortion=true}){
  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
  const addIngredient=()=>set('ingredients',[...(form.ingredients||[]),{ingredientId:ingredients[0]?.id||'',quantity:100,unit:ingredients[0]?.defaultUnit||'g'}]);
  const updateIngredient=(idx,k,v)=>set('ingredients',(form.ingredients||[]).map((x,i)=>i===idx?{...x,[k]:v}:x));
@@ -775,7 +776,7 @@ function RecipeForm({form,setForm,ingredients,allergens,upload,uploading,submit,
     <Field label="Meal type" help="This controls whether the item is a Meal, Juice, Snack, Starter, etc."><select value={form.mealType||'Meal'} onChange={e=>set('mealType',e.target.value)}>{MEAL_TYPES.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></Field>
     <Field label="Dietary category"><select value={form.category} onChange={e=>set('category',e.target.value)}><option>Veg</option><option>NonVeg</option><option>Vegan</option></select></Field>
     <Field label="Regular price (₹)"><input type="number" min="0" step=".01" value={form.pricePerMeal} onChange={e=>set('pricePerMeal',e.target.value)}/></Field>
-    <Field label="Large price (₹)"><input type="number" min="0" step=".01" value={form.largePricePerMeal} onChange={e=>set('largePricePerMeal',e.target.value)}/></Field>
+    {showLargePortion&&<Field label="Large price (₹)"><input type="number" min="0" step=".01" value={form.largePricePerMeal} onChange={e=>set('largePricePerMeal',e.target.value)}/></Field>}
     <Field label="Calories"><input type="number" min="0" value={form.calories} onChange={e=>set('calories',e.target.value)}/></Field>
     <Field label="Protein (g)"><input type="number" min="0" value={form.proteinGrams} onChange={e=>set('proteinGrams',e.target.value)}/></Field>
     <Field label="Carbs (g)"><input type="number" min="0" value={form.carbsGrams} onChange={e=>set('carbsGrams',e.target.value)}/></Field>
