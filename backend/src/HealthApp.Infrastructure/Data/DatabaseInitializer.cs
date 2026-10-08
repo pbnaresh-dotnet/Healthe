@@ -918,6 +918,21 @@ BEGIN
     );
     CREATE UNIQUE INDEX IX_Allergens_Name ON dbo.Allergens(Name);
 END;
+IF COL_LENGTH('dbo.Recipes','LargeCalories') IS NULL
+    ALTER TABLE dbo.Recipes ADD LargeCalories int NOT NULL CONSTRAINT DF_Recipes_LargeCalories_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Recipes','LargeProteinGrams') IS NULL
+    ALTER TABLE dbo.Recipes ADD LargeProteinGrams int NOT NULL CONSTRAINT DF_Recipes_LargeProteinGrams_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Recipes','LargeCarbsGrams') IS NULL
+    ALTER TABLE dbo.Recipes ADD LargeCarbsGrams int NOT NULL CONSTRAINT DF_Recipes_LargeCarbsGrams_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Recipes','LargeFatGrams') IS NULL
+    ALTER TABLE dbo.Recipes ADD LargeFatGrams int NOT NULL CONSTRAINT DF_Recipes_LargeFatGrams_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Recipes','LargeFiberGrams') IS NULL
+    ALTER TABLE dbo.Recipes ADD LargeFiberGrams int NOT NULL CONSTRAINT DF_Recipes_LargeFiberGrams_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Recipes','LargeSugarGrams') IS NULL
+    ALTER TABLE dbo.Recipes ADD LargeSugarGrams int NOT NULL CONSTRAINT DF_Recipes_LargeSugarGrams_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.RecipeIngredients','LargeQuantity') IS NULL
+    ALTER TABLE dbo.RecipeIngredients ADD LargeQuantity decimal(18,3) NOT NULL CONSTRAINT DF_RecipeIngredients_LargeQuantity_Compat DEFAULT 0 WITH VALUES;
+
 IF OBJECT_ID('dbo.RecipeIngredients','U') IS NULL
 BEGIN
     CREATE TABLE dbo.RecipeIngredients(
@@ -925,6 +940,7 @@ BEGIN
         RecipeId uniqueidentifier NOT NULL,
         IngredientId uniqueidentifier NOT NULL,
         Quantity decimal(18,3) NOT NULL,
+        LargeQuantity decimal(18,3) NOT NULL CONSTRAINT DF_RecipeIngredients_LargeQuantity DEFAULT 0,
         Unit nvarchar(20) NOT NULL,
         CONSTRAINT FK_RecipeIngredients_Recipes FOREIGN KEY(RecipeId) REFERENCES dbo.Recipes(Id) ON DELETE CASCADE,
         CONSTRAINT FK_RecipeIngredients_Ingredients FOREIGN KEY(IngredientId) REFERENCES dbo.Ingredients(Id)
