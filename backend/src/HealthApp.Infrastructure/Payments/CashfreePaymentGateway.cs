@@ -120,8 +120,7 @@ public sealed class CashfreePaymentGateway(
     public bool VerifyWebhookSignature(IReadOnlyDictionary<string, string> headers, string rawBody)
     {
         var signature = headers.TryGetValue("x-webhook-signature", out var sig) ? sig : "";
-        var timestamp = headers.TryGetValue("x-webhook-timestamp", out var ts) ? ts : ""
-    {
+        var timestamp = headers.TryGetValue("x-webhook-timestamp", out var ts) ? ts : "";
         if (!options.Enabled ||
             string.IsNullOrWhiteSpace(signature) ||
             string.IsNullOrWhiteSpace(timestamp) ||
