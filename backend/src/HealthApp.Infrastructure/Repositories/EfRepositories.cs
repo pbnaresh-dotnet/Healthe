@@ -585,6 +585,40 @@ public sealed class MealSelectionHistoryRepository(HealthAppDbContext db) : EfRe
     public async Task<IReadOnlyList<MealSelectionHistory>> GetBySelectionAsync(Guid selectionId) => await Context.MealSelectionHistories.AsNoTracking().Where(x=>x.MealSelectionId==selectionId).OrderByDescending(x=>x.OccurredAtUtc).ToListAsync();
 }
 
+public sealed class PaymentSettlementReconciliationExceptionRepository(HealthAppDbContext db) : EfRepository(db), IPaymentSettlementReconciliationExceptionRepository
+{
+    public Task<PaymentSettlementReconciliationException?> GetOpenAsync(string provider, string providerPaymentId, string providerSettlementId, string exceptionType) =>
+        Context.PaymentSettlementReconciliationExceptions.FirstOrDefaultAsync(x =>
+            x.Provider == provider &&
+            x.ProviderPaymentId == providerPaymentId &&
+            x.ProviderSettlementId == providerSettlementId &&
+            x.ExceptionType == exceptionType &&
+            x.Status == "Open");
+
+    public async Task AddAsync(PaymentSettlementReconciliationException exception)
+    {
+        Context.PaymentSettlementReconciliationExceptions.Add(exception);
+        await SaveAsync();
+    }
+
+    public async Task UpdateAsync(PaymentSettlementReconciliationException exception)
+    {
+        Context.PaymentSettlementReconciliationExceptions.Update(exception);
+        await SaveAsync();
+    }
+
+    public async Task<IReadOnlyList<PaymentSettlementReconciliationException>> GetOpenAsync(string? provider = null, Guid? outletId = null) =>
+        await (from ex in Context.PaymentSettlementReconciliationExceptions.AsNoTracking()
+               join payment in Context.PaymentTransactions.AsNoTracking()
+                   on new { Provider = ex.Provider, ProviderPaymentId = ex.ProviderPaymentId }
+                   equals new { Provider = payment.Provider, ProviderPaymentId = payment.ProviderPaymentId }
+               where ex.Status == "Open"
+                  && (string.IsNullOrWhiteSpace(provider) || ex.Provider == provider)
+                  && (!outletId.HasValue || payment.OutletId == outletId)
+               orderby ex.CreatedAtUtc
+               select ex).ToListAsync();
+}
+
 public sealed class PaymentGatewaySettlementRepository(HealthAppDbContext db) : EfRepository(db), IPaymentGatewaySettlementRepository
 {
     public Task<PaymentGatewaySettlement?> GetByPaymentTransactionAsync(Guid id) =>
