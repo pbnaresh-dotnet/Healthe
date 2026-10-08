@@ -96,6 +96,20 @@ public interface IFinanceCalculationSnapshotService
         decimal commissionAmount);
 }
 
+public interface IFinancialDocumentRepository
+{
+    Task<FinancialDocument?> GetBySourceAsync(string sourceType, Guid sourceId);
+    Task<IReadOnlyList<FinancialDocument>> GetBySourcePrefixAsync(string sourceTypePrefix, Guid sourceId);
+    Task AddAsync(FinancialDocument document);
+    Task AddLineAsync(FinancialDocumentLine line);
+    Task AddTaxComponentAsync(FinancialTaxComponent component);
+}
+
+public interface IFinancialDocumentService
+{
+    Task<IReadOnlyList<FinancialDocument>> CreateDraftsForSubscriptionAsync(Guid subscriptionId, CancellationToken cancellationToken = default);
+}
+
 public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); Task<Outlet?> GetByIdAsync(Guid id); Task<Outlet?> GetBySlugAsync(string slug); Task<Outlet?> GetBySubdomainAsync(string subdomain); Task AddAsync(Outlet outlet); Task UpdateAsync(Outlet outlet); }
 public interface IOutletLegalPolicyRepository
 {
