@@ -283,6 +283,14 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID
         await db.Database.ExecuteSqlRawAsync(@"
 IF OBJECT_ID('dbo.PaymentTransactions','U') IS NOT NULL
 BEGIN
+    IF EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE name='UX_PaymentTransactions_IdempotencyKey'
+          AND object_id=OBJECT_ID('dbo.PaymentTransactions')
+    )
+        DROP INDEX UX_PaymentTransactions_IdempotencyKey ON dbo.PaymentTransactions;
+
+
     IF COL_LENGTH('dbo.PaymentTransactions','OutletId') IS NULL
         ALTER TABLE dbo.PaymentTransactions ADD OutletId uniqueidentifier NULL;
     IF COL_LENGTH('dbo.PaymentTransactions','OutletOnboardingApplicationId') IS NULL
