@@ -534,7 +534,7 @@ public sealed class PaymentService(
         CancellationToken cancellationToken = default)
     {
         if (!gateway.VerifyWebhookSignature(headers, rawBody))
-            throw new UnauthorizedAccessException("Invalid Cashfree webhook signature.");
+            throw new UnauthorizedAccessException("Invalid payment gateway webhook signature.");
 
         var webhook = gateway.ParseWebhook(rawBody);
         if (webhook is null || string.IsNullOrWhiteSpace(webhook.ProviderOrderId))
