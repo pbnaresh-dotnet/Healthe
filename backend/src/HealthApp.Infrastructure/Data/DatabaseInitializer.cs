@@ -870,6 +870,28 @@ IF COL_LENGTH('dbo.CustomerAddresses','CityAreaId') IS NOT NULL
 
         // Development/demo compatibility: normalized catalog tables are created explicitly because
         // EnsureCreatedAsync does not evolve an already-existing database.
+        // Large-portion schema changes must be applied in a separate SQL batch.
+        // SQL Server compiles a batch before executing it; if these columns are referenced
+        // later in the same batch as their ALTER TABLE statements, existing databases can
+        // fail with "Invalid column name".
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Recipes','LargeCalories') IS NULL
+    ALTER TABLE dbo.Recipes ADD LargeCalories int NOT NULL CONSTRAINT DF_Recipes_LargeCalories_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Recipes','LargeProteinGrams') IS NULL
+    ALTER TABLE dbo.Recipes ADD LargeProteinGrams int NOT NULL CONSTRAINT DF_Recipes_LargeProteinGrams_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Recipes','LargeCarbsGrams') IS NULL
+    ALTER TABLE dbo.Recipes ADD LargeCarbsGrams int NOT NULL CONSTRAINT DF_Recipes_LargeCarbsGrams_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Recipes','LargeFatGrams') IS NULL
+    ALTER TABLE dbo.Recipes ADD LargeFatGrams int NOT NULL CONSTRAINT DF_Recipes_LargeFatGrams_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Recipes','LargeFiberGrams') IS NULL
+    ALTER TABLE dbo.Recipes ADD LargeFiberGrams int NOT NULL CONSTRAINT DF_Recipes_LargeFiberGrams_Compat DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.Recipes','LargeSugarGrams') IS NULL
+    ALTER TABLE dbo.Recipes ADD LargeSugarGrams int NOT NULL CONSTRAINT DF_Recipes_LargeSugarGrams_Compat DEFAULT 0 WITH VALUES;
+IF OBJECT_ID('dbo.RecipeIngredients','U') IS NOT NULL
+   AND COL_LENGTH('dbo.RecipeIngredients','LargeQuantity') IS NULL
+    ALTER TABLE dbo.RecipeIngredients ADD LargeQuantity decimal(18,3) NOT NULL CONSTRAINT DF_RecipeIngredients_LargeQuantity_Compat DEFAULT 0 WITH VALUES;
+", cancellationToken);
+
         await db.Database.ExecuteSqlRawAsync(@"
 IF OBJECT_ID('dbo.Ingredients','U') IS NULL
 BEGIN
@@ -918,21 +940,6 @@ BEGIN
     );
     CREATE UNIQUE INDEX IX_Allergens_Name ON dbo.Allergens(Name);
 END;
-IF COL_LENGTH('dbo.Recipes','LargeCalories') IS NULL
-    ALTER TABLE dbo.Recipes ADD LargeCalories int NOT NULL CONSTRAINT DF_Recipes_LargeCalories_Compat DEFAULT 0 WITH VALUES;
-IF COL_LENGTH('dbo.Recipes','LargeProteinGrams') IS NULL
-    ALTER TABLE dbo.Recipes ADD LargeProteinGrams int NOT NULL CONSTRAINT DF_Recipes_LargeProteinGrams_Compat DEFAULT 0 WITH VALUES;
-IF COL_LENGTH('dbo.Recipes','LargeCarbsGrams') IS NULL
-    ALTER TABLE dbo.Recipes ADD LargeCarbsGrams int NOT NULL CONSTRAINT DF_Recipes_LargeCarbsGrams_Compat DEFAULT 0 WITH VALUES;
-IF COL_LENGTH('dbo.Recipes','LargeFatGrams') IS NULL
-    ALTER TABLE dbo.Recipes ADD LargeFatGrams int NOT NULL CONSTRAINT DF_Recipes_LargeFatGrams_Compat DEFAULT 0 WITH VALUES;
-IF COL_LENGTH('dbo.Recipes','LargeFiberGrams') IS NULL
-    ALTER TABLE dbo.Recipes ADD LargeFiberGrams int NOT NULL CONSTRAINT DF_Recipes_LargeFiberGrams_Compat DEFAULT 0 WITH VALUES;
-IF COL_LENGTH('dbo.Recipes','LargeSugarGrams') IS NULL
-    ALTER TABLE dbo.Recipes ADD LargeSugarGrams int NOT NULL CONSTRAINT DF_Recipes_LargeSugarGrams_Compat DEFAULT 0 WITH VALUES;
-IF COL_LENGTH('dbo.RecipeIngredients','LargeQuantity') IS NULL
-    ALTER TABLE dbo.RecipeIngredients ADD LargeQuantity decimal(18,3) NOT NULL CONSTRAINT DF_RecipeIngredients_LargeQuantity_Compat DEFAULT 0 WITH VALUES;
-
 IF OBJECT_ID('dbo.RecipeIngredients','U') IS NULL
 BEGIN
     CREATE TABLE dbo.RecipeIngredients(
