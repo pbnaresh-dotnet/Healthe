@@ -185,6 +185,7 @@ public sealed class OutletPackageService(
     IOutletPackageActivationService activation,
     IUnitOfWork unitOfWork,
     IFinanceCalculationSnapshotService financeSnapshots,
+    IFinancialDocumentService financialDocuments,
     IOutletLegalPolicyRepository legalPolicies,
     ITransactionalEmailService emails,
     IOutletUrlService outletUrls,
@@ -706,6 +707,7 @@ public sealed class OutletPackageService(
                     serviceFee,
                     commissionRate * 100m,
                     commission);
+                await financialDocuments.CreateDraftsForSubscriptionAsync(subscription.Id);
             }
         });
 
