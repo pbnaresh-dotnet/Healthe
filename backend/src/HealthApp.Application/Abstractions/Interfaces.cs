@@ -74,6 +74,21 @@ public interface IFinanceCalculationSnapshotRepository
     Task AddAsync(FinanceCalculationSnapshot snapshot);
 }
 
+public interface IFinanceCalculationSnapshotService
+{
+    Task<FinanceCalculationSnapshot> CreateAsync(
+        Guid outletId,
+        string sourceType,
+        Guid sourceId,
+        DateTime calculatedAtUtc,
+        FinanceTaxCalculationConfiguration configuration,
+        TaxBreakdown calculation,
+        decimal restaurantBaseAmount,
+        decimal platformServiceFee,
+        decimal commissionRatePercent,
+        decimal commissionAmount);
+}
+
 public interface IOutletRepository { Task<IReadOnlyList<Outlet>> GetAllAsync(); Task<Outlet?> GetByIdAsync(Guid id); Task<Outlet?> GetBySlugAsync(string slug); Task<Outlet?> GetBySubdomainAsync(string subdomain); Task AddAsync(Outlet outlet); Task UpdateAsync(Outlet outlet); }
 public interface IOutletLegalPolicyRepository
 {
