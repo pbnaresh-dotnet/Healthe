@@ -1,4 +1,4 @@
-using System.Text;
+using HealthApp.Application.Services;\nusing System.Text;
 using HealthApp.Api.Middleware;
 using HealthApp.Application.Abstractions;
 using HealthApp.Infrastructure;
@@ -48,7 +48,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(builder.Configuration);\nbuilder.Services.AddScoped<ITrialService, TrialLifecycleService>();
 
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key));
