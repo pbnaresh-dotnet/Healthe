@@ -274,6 +274,18 @@ public sealed class CashfreePaymentGateway(
         throw new InvalidOperationException("Cashfree request retry policy exhausted.");
     }
 
+    private static string? ExtractString(JsonElement element, params string[] path)
+    {
+        var current = element;
+        foreach (var segment in path)
+        {
+            if (current.ValueKind != JsonValueKind.Object || !current.TryGetProperty(segment, out current))
+                return null;
+        }
+
+        return current.ValueKind == JsonValueKind.String ? current.GetString() : current.ToString();
+    }
+
     private static bool ShouldRetry(System.Net.HttpStatusCode statusCode) =>
         statusCode == System.Net.HttpStatusCode.RequestTimeout ||
         (int)statusCode == 429 ||
