@@ -129,6 +129,7 @@ public static class DependencyInjection
         services.AddScoped<ITransactionalEmailService, TransactionalEmailService>();
         services.AddScoped<IOutletUrlService, OutletUrlService>();
         services.AddScoped<IOutletSubscriptionRepository, OutletSubscriptionRepository>();
+        services.AddScoped<ITrialRepository, TrialRepository>();
         services.AddScoped<IPlatformTransactionRepository, PlatformTransactionRepository>();
         services.AddScoped<IAdminFinanceRepository, AdminFinanceRepository>();
         services.AddScoped<IIngredientRepository, IngredientRepository>();
