@@ -710,7 +710,6 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.LastErrorCode).HasMaxLength(100).IsRequired();
         e.HasIndex(x => new { x.Provider, x.IdempotencyKey }).IsUnique();
         e.HasIndex(x => new { x.Provider, x.ProviderOrderId }).IsUnique();
-        e.HasIndex(x => x.IdempotencyKey).IsUnique();
         e.HasIndex(x => x.ProviderOrderId).IsUnique().HasFilter("[ProviderOrderId] IS NOT NULL AND [ProviderOrderId] <> ''");
         e.HasIndex(x => x.OutletOnboardingApplicationId);
         e.HasIndex(x => new { x.OutletId, x.CreatedAtUtc });
