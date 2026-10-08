@@ -79,7 +79,39 @@ IF COL_LENGTH('dbo.FinanceCalculationSnapshots','DiscountCodeAmount') IS NULL AL
 IF COL_LENGTH('dbo.FinanceCalculationSnapshots','TotalDiscountAmount') IS NULL ALTER TABLE dbo.FinanceCalculationSnapshots ADD TotalDiscountAmount decimal(18,2) NOT NULL CONSTRAINT DF_FinanceSnapshots_TotalDiscountAmount DEFAULT 0 WITH VALUES;
 ", cancellationToken);
 
-        // ApplicationErrorLogs is persisted independently of the request DbContext so
+            await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.PaymentGatewaySettlements','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.PaymentGatewaySettlements
+    (
+        Id uniqueidentifier NOT NULL PRIMARY KEY,
+        PaymentTransactionId uniqueidentifier NOT NULL,
+        OutletId uniqueidentifier NULL,
+        Provider nvarchar(50) NOT NULL,
+        ProviderPaymentId nvarchar(150) NOT NULL,
+        ProviderSettlementId nvarchar(150) NOT NULL,
+        GrossAmount decimal(18,2) NOT NULL,
+        GatewayFeeAmount decimal(18,2) NOT NULL,
+        GatewayFeeTaxAmount decimal(18,2) NOT NULL,
+        OtherProviderAdjustmentAmount decimal(18,2) NOT NULL,
+        NetSettlementAmount decimal(18,2) NOT NULL,
+        Currency nvarchar(10) NOT NULL,
+        Status nvarchar(30) NOT NULL,
+        ReconciliationReference nvarchar(200) NOT NULL,
+        SourceDataJson nvarchar(max) NOT NULL,
+        SettledAtUtc datetime2 NULL,
+        CreatedAtUtc datetime2 NOT NULL,
+        ReconciledAtUtc datetime2 NULL,
+        ReconciledBy nvarchar(200) NOT NULL
+    );
+    CREATE UNIQUE INDEX UX_PaymentGatewaySettlements_PaymentTransactionId ON dbo.PaymentGatewaySettlements(PaymentTransactionId);
+    CREATE UNIQUE INDEX UX_PaymentGatewaySettlements_ProviderPaymentId ON dbo.PaymentGatewaySettlements(Provider, ProviderPaymentId);
+    CREATE INDEX IX_PaymentGatewaySettlements_Status_OutletId ON dbo.PaymentGatewaySettlements(Status, OutletId);
+    ALTER TABLE dbo.PaymentGatewaySettlements ADD CONSTRAINT FK_PaymentGatewaySettlements_PaymentTransactions FOREIGN KEY (PaymentTransactionId) REFERENCES dbo.PaymentTransactions(Id) ON DELETE NO ACTION;
+END
+", cancellationToken);
+
+    // ApplicationErrorLogs is persisted independently of the request DbContext so
         // production errors can be inspected by SuperAdmin even when an older database
         // predates the current EF model.
         await db.Database.ExecuteSqlRawAsync(@"
