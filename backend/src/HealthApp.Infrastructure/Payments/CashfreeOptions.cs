@@ -16,3 +16,11 @@ public sealed class CashfreeOptions
     public string OutletReturnUrl { get; set; } = "https://broccoly.in/payment";
     public string WebhookUrl { get; set; } = "https://api.broccoly.in/api/payments/cashfree/webhook";
 }
+
+public sealed class PaymentRetryOptions
+{
+    public bool Enabled { get; set; } = true;
+    public int PollIntervalSeconds { get; set; } = 15;
+    public int MaxAttempts { get; set; } = 6;
+    public int BatchSize { get; set; } = 20;
+}
