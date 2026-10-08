@@ -764,6 +764,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion133Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion134Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion135Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion136Async(db, document, cancellationToken);
             return;
         }
 
@@ -2095,5 +2096,76 @@ WHERE NOT EXISTS
         await db.SaveChangesAsync(cancellationToken);
     }
 
+
+    private static async Task SeedFinancePolicyVersion136Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.6",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.5")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode, x.Title, x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.3.6: failed provider-order creation may be retried by the durable payment worker only after the persisted retry time has elapsed and only while the bounded attempt limit permits it. Retry success creates no financial posting by itself.",
+                "governance" => x.ContentMarkdown + " Policy v1.3.6: retry candidates are atomically claimed before provider communication and reuse the original provider order ID and idempotency key, preventing concurrent duplicate recovery attempts.",
+                "audit-trace" => x.ContentMarkdown + " Policy v1.3.6: payment retry attempts retain attempt count, last-attempt time, next-retry time, processing state and error code against the original payment transaction.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder).Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.3.6",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 8, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Add durable, atomically claimed payment-provider retry recovery.",
+            ChangeReason = "Recover transient provider-order creation failures without creating duplicate payment requests or changing financial calculations.",
+            SourceCodeReference = "FIN-Phase-2F-DURABLE-PAYMENT-RETRY",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
 
 }
