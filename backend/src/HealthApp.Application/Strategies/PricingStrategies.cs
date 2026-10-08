@@ -4,7 +4,7 @@ namespace HealthApp.Application.Strategies;
 
 public sealed record PackagePricingContext(SubscriptionDuration Duration, IReadOnlyCollection<SubscriptionMealSelection> Meals);
 
-public sealed record PackageDiscount(decimal Percent, decimal Amount);
+public sealed record PackageDiscount(decimal Percent, decimal Amount, Guid? TierId = null, int? TierMinMeals = null, int? TierMaxMeals = null);
 
 public interface IPackageDiscountStrategy
 {
@@ -14,75 +14,36 @@ public interface IPackageDiscountStrategy
 
 public sealed class DurationAndVolumeDiscountStrategy : IPackageDiscountStrategy
 {
-    private static readonly decimal[,] Matrix =
-    {
-        {
-            0m,
-            0m,
-            0m
-        },
-        {
-            3m,
-            3m,
-            2m
-        },
-        {
-            4m,
-            5m,
-            3m
-        },
-        {
-            5m,
-            6m,
-            5m
-        },
-        {
-            6m,
-            7m,
-            6m
-        }
-    };
     public PackageDiscount Calculate(PackagePricingContext context, IReadOnlyList<SubscriptionDiscountTier>? tiers = null)
     {
         var count = context.Meals.Count;
-        if (tiers is {
-            Count: > 0
-        })
-        {
-            var tier = tiers.FirstOrDefault(x => count >= x.MinMeals && (!x.MaxMeals.HasValue || count <= x.MaxMeals.Value));
-            if (tier is not null)
-            {
-                var grossConfigured = Math.Round(context.Meals.Sum(x => x.MealPrice), 2);
-                var configuredPercent = context.Duration switch {
-                    SubscriptionDuration.OneWeek => tier.OneWeekPercent,
-                    SubscriptionDuration.TwoWeeks => tier.TwoWeeksPercent,
-                    SubscriptionDuration.OneMonth => tier.OneMonthPercent,
-                    SubscriptionDuration.ThreeDays => 0m,
-                    SubscriptionDuration.FiveDays => 0m,
-                    _ => 0m
-                };
-                return new(configuredPercent, Math.Round(grossConfigured * configuredPercent / 100m, 2));
-            }
-        }
-        var row = count switch {
-            < 10 => 0,
-            < 20 => 1,
-            < 30 => 2,
-            < 50 => 3,
-            _ => 4
-        };
-        var column = context.Duration switch
-        {
-            SubscriptionDuration.OneWeek => 0,
-            SubscriptionDuration.TwoWeeks => 1,
-            SubscriptionDuration.OneMonth => 2,
-            SubscriptionDuration.ThreeDays => 0,
-            SubscriptionDuration.FiveDays => 0,
-            _ => throw new ArgumentOutOfRangeException()
-        };
+        var activeTiers = (tiers ?? []).Where(x => x.IsActive).OrderBy(x => x.MinMeals).ToList();
+        if (activeTiers.Count == 0)
+            return new(0m, 0m);
+
+        var tier = activeTiers.FirstOrDefault(x => count >= x.MinMeals && (!x.MaxMeals.HasValue || count <= x.MaxMeals.Value));
+        if (tier is null)
+            return new(0m, 0m);
+
         var gross = Math.Round(context.Meals.Sum(x => x.MealPrice), 2);
-        var percent = Matrix[row, column];
-        return new(percent, Math.Round(gross * percent / 100m, 2));
+        var configuredPercent = context.Duration switch {
+            SubscriptionDuration.OneWeek => tier.OneWeekPercent,
+            SubscriptionDuration.TwoWeeks => tier.TwoWeeksPercent,
+            SubscriptionDuration.OneMonth => tier.OneMonthPercent,
+            SubscriptionDuration.ThreeDays => 0m,
+            SubscriptionDuration.FiveDays => 0m,
+            _ => 0m
+        };
+
+        if (configuredPercent < 0m || configuredPercent > 100m)
+            throw new InvalidOperationException("The selected outlet discount tier contains an invalid discount percentage.");
+
+        return new(
+            configuredPercent,
+            Math.Round(gross * configuredPercent / 100m, 2),
+            tier.Id,
+            tier.MinMeals,
+            tier.MaxMeals);
     }
 }
 
