@@ -682,6 +682,8 @@ public sealed class Outlet
     public bool ShowPackagePriceToCustomer { get; set; } = true;
     public bool ShowMealPriceToCustomer { get; set; } = true;
     public bool ShowDeliveryFeeToCustomer { get; set; } = true;
+    /// <summary>Whether this outlet offers a Large portion in addition to Regular.</summary>
+    public bool SupportsLargePortion { get; set; } = true;
 
     public decimal RestaurantGstRate {
         get;
