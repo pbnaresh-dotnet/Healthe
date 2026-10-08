@@ -653,6 +653,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         await allergySafety.EnsureConfirmedAsync(customerId, selectedRecipes, r.ConfirmedAllergyRecipeIds);
         await ValidateDeliveryAddressesAsync(customerId, deliveryCity, mealEntities);
         var gross = isPreplanned ? selectedPlan!.Price : Math.Round(mealEntities.Sum(x => x.MealPrice), 2);
+        var lateSkipRecovery = await credits.GetOutstandingLateSkipAmountAsync(customerId);
         var packageDiscountAmount = isPreplanned ? 0m : discountStrategy.Calculate(new(duration, mealEntities), await discountTiers.GetByOutletAsync(outlet.Id)).Amount;
         var discountCodeResult = await CalculateDiscountCodeAsync(outlet.Id, gross, r.DiscountCode);
         var totalDiscount = Math.Min(gross, packageDiscountAmount + discountCodeResult.Amount);
@@ -706,11 +707,12 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             RestaurantTaxableAmount=taxes.RestaurantTaxableAmount,
             RestaurantGstAmount=taxes.RestaurantAmount,
             LateSkipFee=0,
-            Price=net,
+            LateSkipRecoveryAmount=lateSkipRecovery,
+            Price=net;
             DeliveryFee=delivery,
             CustomerTransactionFeePercent=0,
             TransactionFee=0,
-            TotalCharged=net+taxes.RestaurantAmount+delivery+serviceFee+taxes.PlatformAmount,
+            TotalCharged=net+taxes.RestaurantAmount+delivery+serviceFee+taxes.PlatformAmount+lateSkipRecovery,
             OutletAmount=net+taxes.RestaurantAmount-commission,
             OutletCommissionPercent=commissionRate,
             OutletCommissionAmount=commission,
@@ -755,7 +757,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             }
 
             await orderFinancials.AddAsync(new OrderFinancialBreakdown {
-                Id=Guid.NewGuid(),OrderId=order.Id,GrossMealAmount=gross,DiscountAmount=totalDiscount,NetMealAmount=net,DeliveryAmount=delivery,PlatformServiceFee=serviceFee,PlatformServiceGst=taxes.PlatformAmount,RestaurantGstRate=taxes.RestaurantRate,RestaurantGstMode=taxes.RestaurantMode,RestaurantTaxableAmount=taxes.RestaurantTaxableAmount,RestaurantGstAmount=taxes.RestaurantAmount,LateSkipFee=0,CustomerPayable=subscription.TotalCharged,OutletCommission=commission,OutletCommissionGst=0,OutletSettlementAmount=subscription.OutletAmount,HealthAppRevenue=serviceFee+commission
+                Id=Guid.NewGuid(),OrderId=order.Id,GrossMealAmount=gross,DiscountAmount=totalDiscount,NetMealAmount=net,DeliveryAmount=delivery,PlatformServiceFee=serviceFee,PlatformServiceGst=taxes.PlatformAmount,RestaurantGstRate=taxes.RestaurantRate,RestaurantGstMode=taxes.RestaurantMode,RestaurantTaxableAmount=taxes.RestaurantTaxableAmount,RestaurantGstAmount=taxes.RestaurantAmount,LateSkipFee=lateSkipRecovery,CustomerPayable=subscription.TotalCharged,OutletCommission=commission,OutletCommissionGst=0,OutletSettlementAmount=subscription.OutletAmount,HealthAppRevenue=serviceFee+commission+lateSkipRecovery
             });
             await financeSnapshots.CreateAsync(
                 outlet.Id,
@@ -787,6 +789,11 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
             await transactions.AddAsync(new PlatformTransaction {
                 Id=Guid.NewGuid(),CustomerId=customerId,OutletId=outlet.Id,SubscriptionId=subscription.Id,Type="CustomerSubscription",GrossAmount=subscription.TotalCharged,PlatformFee=serviceFee,OutletAmount=subscription.OutletAmount,FeePercent=platformFee.Percent,Currency="INR",Status="Pending"
             });
+            if (lateSkipRecovery > 0m) {
+                await transactions.AddAsync(new PlatformTransaction {
+                    Id=Guid.NewGuid(),CustomerId=customerId,OutletId=outlet.Id,SubscriptionId=subscription.Id,Type="LateSkipFeeRecovery",ReferenceId=$"late-skip-recovery:{subscription.Id:N}",GrossAmount=lateSkipRecovery,PlatformFee=lateSkipRecovery,OutletAmount=0m,FeePercent=0m,Currency="INR",Status="Pending"
+                });
+            }
             await transactions.AddAsync(new PlatformTransaction {
                 Id=Guid.NewGuid(),CustomerId=customerId,OutletId=outlet.Id,SubscriptionId=subscription.Id,Type="OutletCommission",GrossAmount=commission,PlatformFee=commission,OutletAmount=0,FeePercent=commissionRate*100m,Currency="INR",Status="Pending"
             });
