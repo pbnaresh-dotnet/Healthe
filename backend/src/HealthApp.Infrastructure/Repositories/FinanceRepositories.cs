@@ -1,5 +1,6 @@
 using HealthApp.Application.Abstractions;
 using HealthApp.Domain.Entities;
+using HealthApp.Domain.Enums;
 using HealthApp.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
