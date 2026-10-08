@@ -89,7 +89,9 @@ function App(){
    setFinanceReport(await admin.finance(normalized));
   }catch(e){setError(e.message||'Unable to load finance report')}finally{setFinanceLoading(false)}
  };
- useEffect(()=>{if(u&&page==='finance')loadFinance(financeFilters)},[u,page]);\n const loadFinancePolicy=async()=>{try{setError('');setFinancePolicy(await admin.financePolicy())}catch(e){setError(e.message||'Unable to load finance policy')}};\n useEffect(()=>{if(u&&page==='finance-rules')loadFinancePolicy()},[u,page]);
+ useEffect(()=>{if(u&&page==='finance')loadFinance(financeFilters)},[u,page]);
+ const loadFinancePolicy=async()=>{try{setError('');setFinancePolicy(await admin.financePolicy())}catch(e){setError(e.message||'Unable to load finance policy')}};
+ useEffect(()=>{if(u&&page==='finance-rules')loadFinancePolicy()},[u,page]);
  const sign=async e=>{e.preventDefault();try{setLoading(true);const x=await auth.login(login);setU(x.user);notify('Welcome back')}catch(e){setError(e.message||'Sign in failed')}finally{setLoading(false)}};
 
  const openProtectedDocument=async url=>{
