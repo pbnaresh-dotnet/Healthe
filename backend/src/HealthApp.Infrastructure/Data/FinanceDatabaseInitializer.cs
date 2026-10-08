@@ -411,6 +411,9 @@ BEGIN
         PlatformServiceFee decimal(18,2) NOT NULL,
         PlatformTaxRate decimal(9,4) NOT NULL,
         PlatformTaxAmount decimal(18,2) NOT NULL,
+        CommissionTaxRuleId uniqueidentifier NOT NULL,
+        CommissionTaxRate decimal(9,4) NOT NULL,
+        CommissionTaxAmount decimal(18,2) NOT NULL,
         CommissionBaseAmount decimal(18,2) NOT NULL,
         CommissionRatePercent decimal(9,4) NOT NULL,
         CommissionAmount decimal(18,2) NOT NULL,
@@ -423,6 +426,12 @@ END;
 ", cancellationToken);
 
         await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.FinanceCalculationSnapshots','CommissionTaxRuleId') IS NULL
+    ALTER TABLE dbo.FinanceCalculationSnapshots ADD CommissionTaxRuleId uniqueidentifier NULL;
+IF COL_LENGTH('dbo.FinanceCalculationSnapshots','CommissionTaxRate') IS NULL
+    ALTER TABLE dbo.FinanceCalculationSnapshots ADD CommissionTaxRate decimal(9,4) NOT NULL CONSTRAINT DF_FinanceCalculationSnapshots_CommissionTaxRate DEFAULT 0;
+IF COL_LENGTH('dbo.FinanceCalculationSnapshots','CommissionTaxAmount') IS NULL
+    ALTER TABLE dbo.FinanceCalculationSnapshots ADD CommissionTaxAmount decimal(18,2) NOT NULL CONSTRAINT DF_FinanceCalculationSnapshots_CommissionTaxAmount DEFAULT 0;
 IF COL_LENGTH('dbo.PaymentTransactions','MerchantAccountId') IS NULL
     ALTER TABLE dbo.PaymentTransactions ADD MerchantAccountId uniqueidentifier NULL;
 IF COL_LENGTH('dbo.PaymentTransactions','Purpose') IS NULL
@@ -587,7 +596,9 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationS
     ALTER TABLE dbo.FinanceCalculationSnapshots ADD CONSTRAINT FK_FinanceCalculationSnapshots_RestaurantRule FOREIGN KEY(RestaurantTaxRuleId) REFERENCES dbo.FinanceTaxRules(Id) ON DELETE NO ACTION;
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationSnapshots_PlatformRule' AND parent_object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
     ALTER TABLE dbo.FinanceCalculationSnapshots ADD CONSTRAINT FK_FinanceCalculationSnapshots_PlatformRule FOREIGN KEY(PlatformTaxRuleId) REFERENCES dbo.FinanceTaxRules(Id) ON DELETE NO ACTION;
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancePolicyDocuments_Code' AND object_id=OBJECT_ID('dbo.FinancePolicyDocuments'))
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_FinanceCalculationSnapshots_CommissionRule' AND parent_object_id=OBJECT_ID('dbo.FinanceCalculationSnapshots'))
+    ALTER TABLE dbo.FinanceCalculationSnapshots ADD CONSTRAINT FK_FinanceCalculationSnapshots_CommissionRule FOREIGN KEY(CommissionTaxRuleId) REFERENCES dbo.FinanceTaxRules(Id) ON DELETE NO ACTION;IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancePolicyDocuments_Code' AND object_id=OBJECT_ID('dbo.FinancePolicyDocuments'))
     CREATE UNIQUE INDEX IX_FinancePolicyDocuments_Code ON dbo.FinancePolicyDocuments(Code);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancePolicyDocuments_IsActive' AND object_id=OBJECT_ID('dbo.FinancePolicyDocuments'))
     CREATE INDEX IX_FinancePolicyDocuments_IsActive ON dbo.FinancePolicyDocuments(IsActive);
