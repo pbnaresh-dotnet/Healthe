@@ -48,6 +48,7 @@ internal static class HealthAppModelBuilder
         ConfigureOutletLegalPolicyVersion(b.Entity<OutletLegalPolicyVersion>());
         ConfigureCustomerLegalAcceptance(b.Entity<CustomerLegalAcceptance>());
         ConfigureApplicationError(b.Entity<ApplicationErrorLog>());
+        FinanceModelBuilder.Configure(b);
         ConfigureOutletForeignKeys(b);
     }
 
