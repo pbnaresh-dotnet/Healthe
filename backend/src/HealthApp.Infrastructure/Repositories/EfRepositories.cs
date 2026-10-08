@@ -690,7 +690,7 @@ public sealed class PaymentTransactionRepository(HealthAppDbContext db) : EfRepo
                         ((x.ProcessingStatus == "ProviderOrderCreationFailed" &&
                           x.NextRetryAtUtc != null && x.NextRetryAtUtc <= utcNow) ||
                          (x.ProcessingStatus == "RetryingProviderOrder" &&
-                          x.LastAttemptAtUtc != null && x.LastAttemptAtUtc <= utcNow))
+                          x.LastAttemptAtUtc != null && x.LastAttemptAtUtc <= utcNow)))
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(x => x.ProcessingStatus, "RetryingProviderOrder")
                 .SetProperty(x => x.LastAttemptAtUtc, utcNow));
