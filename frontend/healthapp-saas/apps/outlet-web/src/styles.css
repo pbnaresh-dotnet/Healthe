@@ -589,3 +589,57 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .teamSummary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:0 0 14px}.teamSummary>div{padding:14px 16px;border:1px solid #dfe8e2;border-radius:14px;background:#fff;display:flex;flex-direction:column;gap:4px;box-shadow:0 5px 15px #173b2408}.teamSummary b{font-size:20px;line-height:1;color:#123b24}.teamSummary span{font-size:10px;color:#6c7b72;font-weight:700}.teamToolbar{display:grid;grid-template-columns:minmax(220px,1fr) 170px auto;gap:10px;align-items:center;margin-bottom:14px}.teamToolbar input,.teamToolbar select{width:100%;min-height:40px}.teamToolbar>span{font-size:10px;color:#75847a;text-align:right}.teamLoading{display:flex;align-items:center;justify-content:center;gap:10px;min-height:140px;color:#5f7065;font-size:12px}.teamSpinner{width:18px;height:18px;border:2px solid #dce8df;border-top-color:#277a45;border-radius:50%;animation:teamSpin .8s linear infinite}@keyframes teamSpin{to{transform:rotate(360deg)}}
 @media(max-width:900px){.teamSummary{grid-template-columns:repeat(3,minmax(0,1fr))}.teamToolbar{grid-template-columns:1fr 150px}.teamToolbar>span{grid-column:1/-1;text-align:left}}
 @media(max-width:640px){.teamSummary{grid-template-columns:repeat(2,minmax(0,1fr))}.teamToolbar{grid-template-columns:1fr}.teamToolbar>span{grid-column:auto}}
+
+/* Demo onboarding: workflow-first, not a configuration checklist */
+.demoOnboarding{display:grid;gap:13px}
+.demoHeroCard{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:14px;padding:19px;border-radius:18px;border:1px solid #d7e8da;background:radial-gradient(circle at 85% 20%,#dff4e6 0,#eef8f1 30%,#fff 70%);box-shadow:0 14px 36px rgba(22,86,44,.07)}
+.demoHeroCopy h2{font-size:clamp(23px,3vw,34px);line-height:1.06;letter-spacing:-.04em;margin:8px 0}
+.demoHeroCopy p{font-size:10px;line-height:1.65;color:#647269;margin:0;max-width:760px}
+.demoHeroMeta{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.demoHeroMeta span{padding:6px 8px;border:1px solid #d7e7da;background:#fff;border-radius:999px;color:#366245;font-size:7px;font-weight:800}
+.demoExpiryCard{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:16px;border-radius:15px;background:#123b24;color:#fff;box-shadow:0 12px 25px rgba(18,59,36,.18)}
+.demoExpiryCard span{font-size:7px;letter-spacing:.12em;color:#b7d8c1;font-weight:900}
+.demoExpiryCard strong{font-size:24px;margin-top:7px}
+.demoExpiryCard small{font-size:7px;color:#c9dfcf;line-height:1.4;margin-top:4px}
+.demoProgressCard{padding:14px 16px;border:1px solid #dfe9e2;border-radius:14px;background:#fff}
+.demoProgressCard>div:first-child{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.demoProgressCard h3{font-size:13px;margin:5px 0 0}
+.demoProgressPct{font-size:21px;color:#1c7541}
+.demoProgressTrack{height:8px;margin:11px 0 7px;border-radius:99px;background:#e9f1eb;overflow:hidden}
+.demoProgressTrack span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#2d9a58,#74c18d);transition:width .35s ease}
+.demoProgressCard>small{font-size:7px;color:#78857d}
+.demoActivitySection{padding:17px;border:1px solid #dfe9e2;border-radius:16px;background:#fff}
+.demoSectionHead{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:11px}
+.demoSectionHead h3{font-size:15px;margin:7px 0 4px}
+.demoSectionHead p{font-size:8px;color:#7a877f;margin:0;line-height:1.5}
+.demoLivePill{padding:6px 8px;border-radius:999px;background:#e8f6eb;color:#25713e;font-size:7px;font-weight:900;white-space:nowrap}
+.demoActivityGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.demoActivityCard{position:relative;display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:9px;align-items:center;text-align:left;padding:11px;border:1px solid #e1e9e2;border-radius:12px;background:#fbfdfb;color:#26392d;overflow:hidden}
+.demoActivityCard:hover{border-color:#8fbf9d;background:#f6fbf7;box-shadow:0 7px 18px rgba(29,85,45,.06);transform:translateY(-1px)}
+.demoActivityNumber{position:absolute;right:7px;top:6px;font-size:6px;color:#afbbb2;font-weight:900}
+.demoActivityIcon{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:#e9f6ec;color:#247542;font-size:15px}
+.demoActivityCard>div{min-width:0}
+.demoActivityCard b{display:block;font-size:9px}
+.demoActivityCard p{font-size:7px;line-height:1.45;color:#75827a;margin:3px 0 0}
+.demoActivityCard>strong{font-size:8px;color:#277441;white-space:nowrap}
+.demoTipCard{display:flex;align-items:flex-start;gap:10px;padding:13px 15px;border-radius:14px;background:linear-gradient(135deg,#fffaf0,#fff);border:1px solid #efe2bf}
+.demoTipIcon{width:30px;height:30px;flex:0 0 auto;display:grid;place-items:center;border-radius:9px;background:#fff0cb;color:#a36b08;font-weight:900}
+.demoTipCard b,.demoTipCard p{display:block}
+.demoTipCard b{font-size:9px}
+.demoTipCard p{font-size:8px;line-height:1.5;color:#7a817b;margin:3px 0 0}
+@media(max-width:900px){
+ .demoHeroCard{grid-template-columns:1fr}
+ .demoExpiryCard{align-items:flex-start;text-align:left}
+ .demoActivityGrid{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+ .demoHeroCard{padding:15px}
+ .demoHeroCopy h2{font-size:25px}
+ .demoHeroMeta span{font-size:6.5px}
+ .demoProgressCard{padding:12px}
+ .demoSectionHead{flex-direction:column}
+ .demoLivePill{align-self:flex-start}
+ .demoActivityCard{grid-template-columns:34px minmax(0,1fr) auto;padding:10px}
+ .demoActivityCard p{font-size:7.5px}
+ .demoTipCard{padding:11px}
+}
