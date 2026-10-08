@@ -5,12 +5,33 @@ using HealthApp.Infrastructure;
 using HealthApp.Infrastructure.Authentication;
 using HealthApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var details = string.Join(
+            " | ",
+            context.ModelState
+                .Where(x => x.Value?.Errors.Count > 0)
+                .SelectMany(x => x.Value!.Errors.Select(error =>
+                    string.IsNullOrWhiteSpace(error.ErrorMessage)
+                        ? error.Exception?.Message ?? "Invalid value."
+                        : error.ErrorMessage))
+                .Take(20));
+
+        context.HttpContext.Items["HealthApp.ModelValidationErrors"] =
+            details.Length > 3800 ? details[..3800] : details;
+
+        return new BadRequestObjectResult(new ValidationProblemDetails(context.ModelState));
+    };
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
