@@ -54,6 +54,13 @@ public sealed class AdminController(IAdminService service):ControllerBase
     [HttpGet("dashboard")] public async Task<IActionResult> Dashboard()=>Ok(await service.GetDashboardAsync());
     [HttpGet("outlets")] public async Task<IActionResult> Outlets()=>Ok(await service.GetOutletsAsync());
     [HttpGet("users")] public async Task<IActionResult> Users()=>Ok(await service.GetUsersAsync());
+    [HttpGet("reports/finance")]
+    public async Task<IActionResult> Finance([FromQuery] AdminFinanceReportRequest request)
+    {
+        try { return Ok(await service.GetFinanceReportAsync(request, HttpContext.RequestAborted)); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
     [HttpGet("reports/revenue")] public async Task<IActionResult> Revenue()=>Ok(await service.GetRevenueAsync());
     [HttpGet("domains")] public async Task<IActionResult> Domains()=>Ok(await service.GetOutletDomainsAsync());
     [HttpPut("domains/{id:guid}/status")] public async Task<IActionResult> SetDomainStatus(Guid id, SetOutletDomainStatusRequest request)
