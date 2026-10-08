@@ -1,4 +1,5 @@
 using HealthApp.Application.Abstractions;
+using HealthApp.Infrastructure.Data;
 using HealthApp.Shared.DTOs;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,8 +34,6 @@ public sealed class AdminFinanceRepository(HealthAppDbContext db) : IAdminFinanc
                 s.PlanName,
                 s.StartDate,
                 s.PaidAtUtc,
-                s.Status.ToString(),
-                s.PackageStatus,
                 s.GrossMealAmount,
                 s.SubscriptionDiscountAmount + s.DiscountCodeAmount,
                 s.NetMealAmount,
