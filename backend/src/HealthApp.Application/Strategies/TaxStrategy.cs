@@ -76,8 +76,9 @@ public sealed class ConfigurableTaxStrategy : ITaxStrategy
         }
 
         var platformGross = Math.Round(Math.Max(0m, platformServiceFee), 2);
-        var platformTax = Math.Round(
-            platformGross * platformServiceTaxRule.TaxRatePercent / 100m, 2);
+        var platformTax = platformServiceTaxRule.TaxRatePercent == 0m || !restaurant.PlatformTaxApplicable
+            ? 0m
+            : Math.Round(platformGross * platformServiceTaxRule.TaxRatePercent / 100m, 2);
 
         var effectiveRestaurantRate = restaurant.IsApplicable ? restaurant.Rule.TaxRatePercent : 0m;
 
@@ -86,7 +87,7 @@ public sealed class ConfigurableTaxStrategy : ITaxStrategy
             restaurant.PricingMode,
             restaurantTaxable,
             restaurantTax,
-            platformServiceTaxRule.TaxRatePercent,
+            restaurant.PlatformTaxApplicable ? platformServiceTaxRule.TaxRatePercent : 0m,
             platformTax,
             restaurant.IsApplicable,
             restaurant.Rule.Id,
@@ -96,8 +97,8 @@ public sealed class ConfigurableTaxStrategy : ITaxStrategy
             restaurant.IsApplicable ? restaurant.Rule.CgstRatePercent : 0m,
             restaurant.IsApplicable ? restaurant.Rule.SgstRatePercent : 0m,
             restaurant.IsApplicable ? restaurant.Rule.IgstRatePercent : 0m,
-            platformServiceTaxRule.CgstRatePercent,
-            platformServiceTaxRule.SgstRatePercent,
-            platformServiceTaxRule.IgstRatePercent);
+            restaurant.PlatformTaxApplicable ? platformServiceTaxRule.CgstRatePercent : 0m,
+            restaurant.PlatformTaxApplicable ? platformServiceTaxRule.SgstRatePercent : 0m,
+            restaurant.PlatformTaxApplicable ? platformServiceTaxRule.IgstRatePercent : 0m);
     }
 }
