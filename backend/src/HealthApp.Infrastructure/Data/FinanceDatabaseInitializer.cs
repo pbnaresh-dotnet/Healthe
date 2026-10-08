@@ -377,8 +377,12 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_PaymentMerchantAccounts_
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_PaymentMerchantAccounts_Outlets' AND parent_object_id=OBJECT_ID('dbo.PaymentMerchantAccounts'))
     ALTER TABLE dbo.PaymentMerchantAccounts ADD CONSTRAINT FK_PaymentMerchantAccounts_Outlets FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id) ON DELETE NO ACTION;
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancialDocuments_IssuerType_IssuerId_FiscalYearStart_InvoiceNumber' AND object_id=OBJECT_ID('dbo.FinancialDocuments'))
-    CREATE UNIQUE INDEX IX_FinancialDocuments_IssuerType_IssuerId_FiscalYearStart_InvoiceNumber ON dbo.FinancialDocuments(IssuerType, IssuerId, FiscalYearStart, InvoiceNumber);
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancialDocuments_IssuerType_IssuerId_FiscalYearStart_InvoiceNumber' AND object_id=OBJECT_ID('dbo.FinancialDocuments'))
+    DROP INDEX IX_FinancialDocuments_IssuerType_IssuerId_FiscalYearStart_InvoiceNumber ON dbo.FinancialDocuments;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_FinancialDocuments_IssuerType_IssuerId_FiscalYearStart_InvoiceNumber' AND object_id=OBJECT_ID('dbo.FinancialDocuments'))
+    CREATE UNIQUE INDEX UX_FinancialDocuments_IssuerType_IssuerId_FiscalYearStart_InvoiceNumber
+    ON dbo.FinancialDocuments(IssuerType, IssuerId, FiscalYearStart, InvoiceNumber)
+    WHERE InvoiceNumber <> '';
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancialDocuments_OutletId_IssueDateUtc' AND object_id=OBJECT_ID('dbo.FinancialDocuments'))
     CREATE INDEX IX_FinancialDocuments_OutletId_IssueDateUtc ON dbo.FinancialDocuments(OutletId, IssueDateUtc);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_FinancialDocuments_SourceType_SourceId' AND object_id=OBJECT_ID('dbo.FinancialDocuments'))
@@ -442,8 +446,12 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_SettlementLines_Pay
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_SettlementLines_FinancialDocuments' AND parent_object_id=OBJECT_ID('dbo.SettlementLines'))
     ALTER TABLE dbo.SettlementLines ADD CONSTRAINT FK_SettlementLines_FinancialDocuments FOREIGN KEY(FinancialDocumentId) REFERENCES dbo.FinancialDocuments(Id) ON DELETE NO ACTION;
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_RefundTransactions_ProviderRefundId' AND object_id=OBJECT_ID('dbo.RefundTransactions'))
-    CREATE UNIQUE INDEX IX_RefundTransactions_ProviderRefundId ON dbo.RefundTransactions(ProviderRefundId);
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_RefundTransactions_ProviderRefundId' AND object_id=OBJECT_ID('dbo.RefundTransactions'))
+    DROP INDEX IX_RefundTransactions_ProviderRefundId ON dbo.RefundTransactions;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_RefundTransactions_ProviderRefundId' AND object_id=OBJECT_ID('dbo.RefundTransactions'))
+    CREATE UNIQUE INDEX UX_RefundTransactions_ProviderRefundId
+    ON dbo.RefundTransactions(ProviderRefundId)
+    WHERE ProviderRefundId <> '';
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_RefundTransactions_PaymentTransactionId_Status' AND object_id=OBJECT_ID('dbo.RefundTransactions'))
     CREATE INDEX IX_RefundTransactions_PaymentTransactionId_Status ON dbo.RefundTransactions(PaymentTransactionId, Status);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_RefundTransactions_OutletId_RequestedAtUtc' AND object_id=OBJECT_ID('dbo.RefundTransactions'))
