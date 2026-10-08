@@ -9,12 +9,14 @@ namespace HealthApp.Api.Middleware;
 
 public sealed class ExceptionMiddleware(
     RequestDelegate next,
-    ILogger<ExceptionMiddleware> logger,
-    IApplicationErrorLogger applicationErrorLogger,
-    ICurrentUser currentUser,
-    ITenantContext tenant)
+    ILogger<ExceptionMiddleware> logger)
 {
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(
+        HttpContext context,
+        IApplicationErrorLogger applicationErrorLogger,
+        ICurrentUser currentUser,
+        ITenantContext tenant,
+        IHostEnvironment hostEnvironment)
     {
         var stopwatch = Stopwatch.StartNew();
         var correlationId = GetCorrelationId(context);
@@ -29,32 +31,32 @@ public sealed class ExceptionMiddleware(
         catch (KeyNotFoundException ex)
         {
             exceptionLogged = true;
-            await LogExceptionAsync(context, ex, 404, correlationId, stopwatch);
+            await LogExceptionAsync(context, ex, 404, correlationId, stopwatch, applicationErrorLogger, currentUser, tenant, hostEnvironment);
             await Write(context, 404, ex.Message, correlationId);
         }
         catch (UnauthorizedAccessException ex)
         {
             exceptionLogged = true;
-            await LogExceptionAsync(context, ex, 401, correlationId, stopwatch);
+            await LogExceptionAsync(context, ex, 401, correlationId, stopwatch, applicationErrorLogger, currentUser, tenant, hostEnvironment);
             await Write(context, 401, ex.Message, correlationId);
         }
         catch (ArgumentException ex)
         {
             exceptionLogged = true;
-            await LogExceptionAsync(context, ex, 400, correlationId, stopwatch);
+            await LogExceptionAsync(context, ex, 400, correlationId, stopwatch, applicationErrorLogger, currentUser, tenant, hostEnvironment);
             await Write(context, 400, ex.Message, correlationId);
         }
         catch (InvalidOperationException ex)
         {
             exceptionLogged = true;
-            await LogExceptionAsync(context, ex, 409, correlationId, stopwatch);
+            await LogExceptionAsync(context, ex, 409, correlationId, stopwatch, applicationErrorLogger, currentUser, tenant, hostEnvironment);
             await Write(context, 409, ex.Message, correlationId);
         }
         catch (Exception ex)
         {
             exceptionLogged = true;
             logger.LogError(ex, "Unhandled API exception. CorrelationId={CorrelationId}", correlationId);
-            await LogExceptionAsync(context, ex, 500, correlationId, stopwatch);
+            await LogExceptionAsync(context, ex, 500, correlationId, stopwatch, applicationErrorLogger, currentUser, tenant, hostEnvironment);
             await Write(context, 500, "An unexpected error occurred.", correlationId);
         }
         finally
@@ -66,7 +68,7 @@ public sealed class ExceptionMiddleware(
             // that do not throw an application exception.
             if (!exceptionLogged && context.Response.StatusCode >= 400)
             {
-                await LogResponseAsync(context, correlationId, stopwatch);
+                await LogResponseAsync(context, correlationId, stopwatch, applicationErrorLogger, currentUser, tenant, hostEnvironment);
             }
         }
     }
@@ -76,7 +78,11 @@ public sealed class ExceptionMiddleware(
         Exception exception,
         int statusCode,
         string correlationId,
-        Stopwatch stopwatch)
+        Stopwatch stopwatch,
+        IApplicationErrorLogger applicationErrorLogger,
+        ICurrentUser currentUser,
+        ITenantContext tenant,
+        IHostEnvironment hostEnvironment)
     {
         var message = exception.Message ?? exception.GetType().Name;
         var errorCode = "EXC_" + exception.GetType().Name;
@@ -99,13 +105,18 @@ public sealed class ExceptionMiddleware(
                 correlationId,
                 stopwatch.ElapsedMilliseconds,
                 outletId,
-                tenantSlug));
+                tenantSlug,
+                hostEnvironment.EnvironmentName));
     }
 
     private async Task LogResponseAsync(
         HttpContext context,
         string correlationId,
-        Stopwatch stopwatch)
+        Stopwatch stopwatch,
+        IApplicationErrorLogger applicationErrorLogger,
+        ICurrentUser currentUser,
+        ITenantContext tenant,
+        IHostEnvironment hostEnvironment)
     {
         var statusCode = context.Response.StatusCode;
         var severity = statusCode >= 500 ? "Error" : "Warning";
@@ -137,7 +148,8 @@ public sealed class ExceptionMiddleware(
                 correlationId,
                 stopwatch.ElapsedMilliseconds,
                 outletId,
-                tenantSlug));
+                tenantSlug,
+                hostEnvironment.EnvironmentName));
     }
 
     private static ApplicationErrorLogEntry BuildEntry(
@@ -153,7 +165,8 @@ public sealed class ExceptionMiddleware(
         string correlationId,
         long elapsedMilliseconds,
         Guid? outletId,
-        string tenantSlug)
+        string tenantSlug,
+        string environment)
     {
         var userId = Guid.TryParse(
             context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
@@ -168,7 +181,7 @@ public sealed class ExceptionMiddleware(
 
         return new ApplicationErrorLogEntry(
             DateTime.UtcNow,
-            context.RequestServices.GetRequiredService<IHostEnvironment>().EnvironmentName,
+            environment,
             severity,
             errorCode,
             activity,
