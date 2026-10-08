@@ -361,7 +361,8 @@ public sealed record PaymentGatewayCreateOrderRequest(
     string CustomerPhone,
     string ReturnUrl,
     string NotifyUrl,
-    string OrderNote);
+    string OrderNote,
+    string IdempotencyKey);
 public sealed record PaymentGatewayCheckoutSession(string ProviderOrderId, string PaymentSessionId, string Status);
 public sealed record PaymentGatewayTransactionStatus(
     string ProviderPaymentId,
