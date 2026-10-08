@@ -1525,7 +1525,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
         if(existing is null)await outletSubs.AddAsync(os);
         else await outletSubs.UpdateAsync(os);
 
-        if(trial?.Status == TrialStatus.Expired)
+        if(trial?.Status is TrialStatus.Active or TrialStatus.Expired)
         {
             trial.Status=TrialStatus.Converted;
             trial.ConvertedAtUtc=DateTime.UtcNow;
