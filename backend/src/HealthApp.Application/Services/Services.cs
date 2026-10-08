@@ -766,6 +766,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
                 taxes,
                 discountedMealAmount,
                 serviceFee,
+                platformFee.Percent,
                 commissionRate * 100m,
                 commission);
             await financialDocuments.CreateDraftsForSubscriptionAsync(subscription.Id);
