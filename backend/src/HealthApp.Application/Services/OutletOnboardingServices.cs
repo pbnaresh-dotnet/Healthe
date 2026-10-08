@@ -23,6 +23,7 @@ public sealed class OutletOnboardingService(
     IPaymentTransactionRepository payments,
     IPaymentGateway paymentGateway,
     ITransactionalEmailService emails,
+    IServiceCityRepository serviceCities,
     IConfiguration configuration) : IOutletOnboardingService
 {
     private decimal SetupFee
@@ -54,6 +55,9 @@ public sealed class OutletOnboardingService(
             throw new InvalidOperationException("An account already exists for this email address. Please sign in instead.");
 
         ValidateInitialBusinessDetails(request);
+        var serviceCity = await serviceCities.GetByCityAsync(request.City.Trim());
+        if (serviceCity is null || !serviceCity.IsEnabled)
+            throw new ArgumentException("Please select an enabled HealthApp service city.");
 
         var id = Guid.NewGuid();
         var accessKey = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
@@ -65,8 +69,8 @@ public sealed class OutletOnboardingService(
             Name = request.OutletName.Trim(),
             Slug = await CreateUniqueSlugAsync(request.OutletName),
             Subdomain = "",
-            City = request.City.Trim(),
-            State = request.State.Trim(),
+            City = serviceCity.City,
+            State = serviceCity.State,
             Pincode = request.Pincode.Trim(),
             Status = OutletStatus.Pending,
             BillingPlan = MapBillingPlan(plan.Name),
