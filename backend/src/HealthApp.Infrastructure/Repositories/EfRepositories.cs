@@ -666,6 +666,7 @@ public sealed class PaymentTransactionRepository(HealthAppDbContext db) : EfRepo
     public async Task<IReadOnlyList<PaymentTransaction>> GetRetryableAsync(DateTime utcNow, int maxAttempts, int batchSize) =>
         await Context.PaymentTransactions
             .Where(x => x.Status == "Pending" &&
+                        x.PaymentType == "CustomerSubscription" &&
                         x.ProcessingStatus == "ProviderOrderCreationFailed" &&
                         x.NextRetryAtUtc != null &&
                         x.NextRetryAtUtc <= utcNow &&
