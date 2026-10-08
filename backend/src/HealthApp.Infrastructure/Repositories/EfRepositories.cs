@@ -120,6 +120,10 @@ public sealed class PlatformTransactionRepository(HealthAppDbContext db) : EfRep
         Context.PlatformTransactions.Add(transaction);
         await SaveAsync();
     }
+    public async Task UpdateAsync(PlatformTransaction transaction) {
+        Context.PlatformTransactions.Update(transaction);
+        await SaveAsync();
+    }
     public async Task<IReadOnlyList<PlatformTransaction>> GetAllAsync() => await Context.PlatformTransactions.AsNoTracking().OrderByDescending(x => x.CreatedAt).ToListAsync();
     public Task<bool> ExistsByReferenceAsync(string referenceId) => Context.PlatformTransactions.AnyAsync(x => x.ReferenceId == referenceId);
 }
