@@ -113,6 +113,7 @@ public static class DependencyInjection
         services.AddScoped<IOutletUrlService, OutletUrlService>();
         services.AddScoped<IOutletSubscriptionRepository, OutletSubscriptionRepository>();
         services.AddScoped<IPlatformTransactionRepository, PlatformTransactionRepository>();
+        services.AddScoped<IAdminFinanceRepository, AdminFinanceRepository>();
         services.AddScoped<IIngredientRepository, IngredientRepository>();
         services.AddScoped<IAllergenRepository, AllergenRepository>();
         services.AddScoped<ICustomerAllergyRepository, CustomerAllergyRepository>();
