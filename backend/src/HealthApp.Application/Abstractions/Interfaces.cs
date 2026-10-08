@@ -1,3 +1,4 @@
+using HealthApp.Application.Strategies;
 using HealthApp.Domain.Entities;
 using HealthApp.Domain.Enums;
 using HealthApp.Shared.DTOs;
