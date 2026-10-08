@@ -72,3 +72,24 @@ public sealed class FinancePolicyRepository(HealthAppDbContext db) : EfRepositor
             .ThenBy(x => x.SectionCode)
             .ToListAsync();
 }
+
+
+public sealed class FinanceTaxRuleRepository(HealthAppDbContext db) : EfRepository(db), IFinanceTaxRuleRepository
+{
+    public Task<FinanceTaxRule?> GetEffectiveAsync(
+        FinanceSupplyType supplyType,
+        TaxOperatingMode? taxOperatingMode,
+        DateTime asOfUtc)
+        => Context.FinanceTaxRules
+            .AsNoTracking()
+            .Where(x => x.SupplyType == supplyType &&
+                        x.IsActive &&
+                        x.EffectiveFromUtc <= asOfUtc &&
+                        (!x.EffectiveToUtc.HasValue || x.EffectiveToUtc.Value > asOfUtc) &&
+                        (x.TaxOperatingMode == taxOperatingMode || x.TaxOperatingMode == null))
+            .OrderByDescending(x => x.TaxOperatingMode.HasValue)
+            .ThenByDescending(x => x.Priority)
+            .ThenByDescending(x => x.EffectiveFromUtc)
+            .ThenByDescending(x => x.IsDefault)
+            .FirstOrDefaultAsync();
+}
