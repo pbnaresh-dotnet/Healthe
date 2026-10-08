@@ -97,7 +97,7 @@ public sealed class SaaSPlanRepository(HealthAppDbContext db) : EfRepository(db)
 
 public sealed class OutletSubscriptionRepository(HealthAppDbContext db) : EfRepository(db), IOutletSubscriptionRepository
 {
-    public Task<OutletSubscription?> GetByOutletAsync(Guid outletId) => Context.OutletSubscriptions.FirstOrDefaultAsync(x => x.OutletId == outletId && x.Status == "Active");
+    public Task<OutletSubscription?> GetByOutletAsync(Guid outletId) => Context.OutletSubscriptions.Include(x => x.Trial).FirstOrDefaultAsync(x => x.OutletId == outletId && x.Status == "Active" && (x.Trial == null || (x.Trial.Status == TrialStatus.Active && x.Trial.EndsAtUtc > DateTime.UtcNow)));\n    public Task<OutletSubscription?> GetAnyByOutletAsync(Guid outletId) => Context.OutletSubscriptions.FirstOrDefaultAsync(x => x.OutletId == outletId);
     public async Task<IReadOnlySet<Guid>> GetActiveOutletIdsAsync() =>
         (await Context.OutletSubscriptions.AsNoTracking()
             .Where(x => x.Status == "Active")
@@ -113,7 +113,7 @@ public sealed class OutletSubscriptionRepository(HealthAppDbContext db) : EfRepo
         await SaveAsync();
     }
 }
-
+\npublic sealed class TrialRepository(HealthAppDbContext db) : EfRepository(db), ITrialRepository\n{\n    public Task<Trial?> GetByOutletAsync(Guid outletId) => Context.Trials.FirstOrDefaultAsync(x => x.OutletId == outletId);\n    public async Task AddAsync(Trial trial) { Context.Trials.Add(trial); await SaveAsync(); }\n    public async Task UpdateAsync(Trial trial) { Context.Trials.Update(trial); await SaveAsync(); }\n}\n
 public sealed class PlatformTransactionRepository(HealthAppDbContext db) : EfRepository(db), IPlatformTransactionRepository
 {
     public async Task AddAsync(PlatformTransaction transaction) {
