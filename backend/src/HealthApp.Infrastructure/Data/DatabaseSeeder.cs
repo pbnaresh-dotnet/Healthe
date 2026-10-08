@@ -1086,6 +1086,11 @@ public static class DatabaseSeeder
             Id=Guid.NewGuid(),Name=item.Item1,DefaultUnit=item.Item2
         });
         await db.SaveChangesAsync(ct);
+
+        // Populate the static nutrition reference values after the ingredient catalog
+        // exists. Existing rows are updated idempotently on each application initialization.
+        await NutritionReferenceData.ApplyAsync(db, ct);
+
         var all=await db.Allergens.ToDictionaryAsync(x=>x.Name,StringComparer.OrdinalIgnoreCase,ct);
         var ing=await db.Ingredients
             .GroupBy(x=>x.Name)
