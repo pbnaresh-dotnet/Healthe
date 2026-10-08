@@ -61,6 +61,31 @@ public sealed class TrialLifecycleService(ICurrentUser current,IOutletSubscripti
         return await MapAsync(trial);
     }
 
+    public async Task<TrialDto?> ConvertAsync(ChangeOutletSubscriptionRequest request)
+    {
+        if(current.OutletId is not Guid outletId) return null;
+        var trial=await trials.GetByOutletAsync(outletId);
+        if(trial is null) throw new InvalidOperationException("No trial exists for this outlet.");
+        await ExpireIfNeededAsync(trial);
+        if(trial.Status!=TrialStatus.Active) throw new InvalidOperationException("The trial is no longer active.");
+
+        var plan=await plans.GetAsync(request.SaaSPlanId)??throw new KeyNotFoundException("SaaS plan not found.");
+        var subscription=await subscriptions.GetAnyByOutletAsync(outletId)??throw new InvalidOperationException("The outlet does not have a trial subscription.");
+        subscription.SaaSPlanId=plan.Id;
+        subscription.BillingCycle=request.BillingCycle;
+        subscription.SubscriptionFee=request.BillingCycle.Equals("Annual",StringComparison.OrdinalIgnoreCase)?plan.AnnualFee:plan.MonthlyFee;
+        subscription.TransactionFeePercent=plan.CustomerTransactionFeePercent;
+        subscription.StartDate=DateTime.UtcNow.Date;
+        subscription.RenewalDate=subscription.StartDate.AddMonths(request.BillingCycle.Equals("Annual",StringComparison.OrdinalIgnoreCase)?12:1);
+        subscription.Status="Active";
+        await subscriptions.UpdateAsync(subscription);
+
+        trial.Status=TrialStatus.Converted;
+        trial.ConvertedAtUtc=DateTime.UtcNow;
+        await trials.UpdateAsync(trial);
+        return await MapAsync(trial);
+    }
+
     public async Task<TrialDto?> CancelAsync(string reason="Cancelled by outlet administrator")
     {
         if(current.OutletId is not Guid outletId)return null;
