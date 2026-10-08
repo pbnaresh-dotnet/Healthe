@@ -711,12 +711,15 @@ public sealed class PaymentService(
         if (payment.Status != "Paid" || payment.SubscriptionId is not Guid subscriptionId)
             return;
 
+        // Payment completion is deliberately idempotent: activation itself is state-guarded
+        // and will return safely when the package is already active.
+
         var subscription = await subscriptions.GetAsync(subscriptionId)
             ?? throw new KeyNotFoundException("Subscription not found.");
 
         if (subscription.PackageStatus == "PaymentPending")
         {
-            await outletPackageActivation.ActivateAsync(subscription.Id, "Cashfree", payment.CustomerId!.Value);
+            await outletPackageActivation.ActivateAsync(subscription.Id, gateway.Provider, payment.CustomerId!.Value);
             return;
         }
 
