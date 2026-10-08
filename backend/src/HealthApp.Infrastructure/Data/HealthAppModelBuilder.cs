@@ -154,6 +154,7 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.HealthHighlights).HasMaxLength(2000);
         e.Property(x => x.PrimaryColor).HasMaxLength(20);
         e.Property(x => x.RestaurantGstRate).HasPrecision(9,4);
+        e.Property(x => x.LateSkipFee).HasPrecision(18,2);
         e.Property(x => x.RestaurantGstMode).HasConversion<int>();
         e.HasIndex(x => x.Slug).IsUnique();
         e.HasIndex(x => x.Subdomain).IsUnique();
