@@ -1531,14 +1531,16 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     public async Task<RecipeDto?> CreateRecipeAsync(CreateRecipeRequest r) {
         if(current.OutletId is not Guid id)return null;
         var cat=Enum.TryParse<RecipeCategory>(r.Category,true,out var c)?c:RecipeCategory.Veg;
-        var ingredientIds=(r.Ingredients??[]).Select(x=>x.IngredientId).Distinct().ToList();
+        var requestedIngredients=r.Ingredients??[];
+        EnsureUniqueRecipeIngredients(requestedIngredients);
+        var ingredientIds=requestedIngredients.Select(x=>x.IngredientId).Distinct().ToList();
         var allergenIds=(r.AllergenIds??[]).Distinct().ToList();
         var validIngredients=await ingredients.GetByIdsAsync(ingredientIds);
         if(validIngredients.Count!=ingredientIds.Count)throw new ArgumentException("One or more ingredients are invalid.");
         var validAllergens=await allergens.GetByIdsAsync(allergenIds);
         if(validAllergens.Count!=allergenIds.Count)throw new ArgumentException("One or more allergens are invalid.");
 
-        var nutrition = CalculateRecipeNutrition(r.Ingredients ?? [], validIngredients);
+        var nutrition = CalculateRecipeNutrition(requestedIngredients, validIngredients);
         var x=new Recipe {
             Id=Guid.NewGuid(),
             OutletId=id,
@@ -1563,7 +1565,7 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             ImageUrl=r.ImageUrl,
             Tags=r.Tags
         };
-        foreach(var i in r.Ingredients??[])x.RecipeIngredients.Add(new RecipeIngredient {
+        foreach(var i in requestedIngredients)x.RecipeIngredients.Add(new RecipeIngredient {
             Id=Guid.NewGuid(),RecipeId=x.Id,IngredientId=i.IngredientId,Quantity=i.Quantity,LargeQuantity=i.LargeQuantity.GetValueOrDefault(i.Quantity),Unit=string.IsNullOrWhiteSpace(i.Unit)?validIngredients.First(v=>v.Id==i.IngredientId).DefaultUnit:i.Unit.Trim()
         });
         foreach(var a in allergenIds)x.RecipeAllergens.Add(new RecipeAllergen {
@@ -1578,14 +1580,16 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
         if(current.OutletId is not Guid outletId)return null;
         var x=await recipes.GetForOutletAsync(id, outletId);
         if(x is null)return null;
-        var ingredientIds=(r.Ingredients??[]).Select(v=>v.IngredientId).Distinct().ToList();
+        var requestedIngredients=r.Ingredients??[];
+        EnsureUniqueRecipeIngredients(requestedIngredients);
+        var ingredientIds=requestedIngredients.Select(v=>v.IngredientId).Distinct().ToList();
         var allergenIds=(r.AllergenIds??[]).Distinct().ToList();
         var validIngredients=await ingredients.GetByIdsAsync(ingredientIds);
         if(validIngredients.Count!=ingredientIds.Count)throw new ArgumentException("One or more ingredients are invalid.");
         var validAllergens=await allergens.GetByIdsAsync(allergenIds);
         if(validAllergens.Count!=allergenIds.Count)throw new ArgumentException("One or more allergens are invalid.");
 
-        var nutrition = CalculateRecipeNutrition(r.Ingredients ?? [], validIngredients);
+        var nutrition = CalculateRecipeNutrition(requestedIngredients, validIngredients);
         x.Name=r.Name.Trim();
         x.Category=Enum.TryParse<RecipeCategory>(r.Category,true,out var c)?c:x.Category;
         x.MealType=NormalizeMealType(r.MealType);
@@ -1607,11 +1611,36 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
         x.ImageUrl=r.ImageUrl;
         x.Tags=r.Tags;
         x.IsActive=r.IsActive;
-        x.RecipeIngredients.Clear();
+        var incomingByIngredient=requestedIngredients.ToDictionary(v=>v.IngredientId);
+        foreach(var existing in x.RecipeIngredients.ToList())
+        {
+            if(!incomingByIngredient.TryGetValue(existing.IngredientId,out var incoming))
+            {
+                x.RecipeIngredients.Remove(existing);
+                continue;
+            }
+
+            existing.Quantity=incoming.Quantity;
+            existing.LargeQuantity=incoming.LargeQuantity.GetValueOrDefault(incoming.Quantity);
+            existing.Unit=string.IsNullOrWhiteSpace(incoming.Unit)
+                ? validIngredients.First(v=>v.Id==incoming.IngredientId).DefaultUnit
+                : incoming.Unit.Trim();
+            incomingByIngredient.Remove(existing.IngredientId);
+        }
+
+        foreach(var i in incomingByIngredient.Values)
+        {
+            x.RecipeIngredients.Add(new RecipeIngredient {
+                Id=Guid.NewGuid(),
+                RecipeId=x.Id,
+                IngredientId=i.IngredientId,
+                Quantity=i.Quantity,
+                LargeQuantity=i.LargeQuantity.GetValueOrDefault(i.Quantity),
+                Unit=string.IsNullOrWhiteSpace(i.Unit)?validIngredients.First(v=>v.Id==i.IngredientId).DefaultUnit:i.Unit.Trim()
+            });
+        }
+
         x.RecipeAllergens.Clear();
-        foreach(var i in r.Ingredients??[])x.RecipeIngredients.Add(new RecipeIngredient {
-            Id=Guid.NewGuid(),RecipeId=x.Id,IngredientId=i.IngredientId,Quantity=i.Quantity,Unit=string.IsNullOrWhiteSpace(i.Unit)?validIngredients.First(v=>v.Id==i.IngredientId).DefaultUnit:i.Unit.Trim()
-        });
         foreach(var a in allergenIds)x.RecipeAllergens.Add(new RecipeAllergen {
             RecipeId=x.Id,AllergenId=a
         });
@@ -1620,6 +1649,18 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             ? Map(saved)
             : Map(x);
     }
+    private static void EnsureUniqueRecipeIngredients(IReadOnlyList<RecipeIngredientInput> inputs)
+    {
+        var duplicateNames=inputs
+            .GroupBy(x=>x.IngredientId)
+            .Where(g=>g.Count()>1)
+            .Select(g=>g.Key)
+            .ToList();
+
+        if(duplicateNames.Count>0)
+            throw new ArgumentException("Each ingredient can only appear once in a recipe. Remove the duplicate ingredient row and try again.");
+    }
+
     private sealed record CalculatedRecipeNutrition(
         int Calories,
         int ProteinGrams,
