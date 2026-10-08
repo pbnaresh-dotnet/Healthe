@@ -301,6 +301,18 @@ BEGIN
         ALTER TABLE dbo.PaymentTransactions ADD FailureReason nvarchar(1000) NOT NULL CONSTRAINT DF_PaymentTransactions_FailureReason_Compat DEFAULT '' WITH VALUES;
     IF COL_LENGTH('dbo.PaymentTransactions','GatewayResponseJson') IS NULL
         ALTER TABLE dbo.PaymentTransactions ADD GatewayResponseJson nvarchar(max) NOT NULL CONSTRAINT DF_PaymentTransactions_GatewayResponseJson_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.PaymentTransactions','RequestFingerprint') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD RequestFingerprint nvarchar(128) NOT NULL CONSTRAINT DF_PaymentTransactions_RequestFingerprint_Compat DEFAULT '' WITH VALUES;
+    IF COL_LENGTH('dbo.PaymentTransactions','AttemptCount') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD AttemptCount int NOT NULL CONSTRAINT DF_PaymentTransactions_AttemptCount_Compat DEFAULT 0 WITH VALUES;
+    IF COL_LENGTH('dbo.PaymentTransactions','LastAttemptAtUtc') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD LastAttemptAtUtc datetime2 NULL;
+    IF COL_LENGTH('dbo.PaymentTransactions','NextRetryAtUtc') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD NextRetryAtUtc datetime2 NULL;
+    IF COL_LENGTH('dbo.PaymentTransactions','ProcessingStatus') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD ProcessingStatus nvarchar(30) NOT NULL CONSTRAINT DF_PaymentTransactions_ProcessingStatus_Compat DEFAULT 'NotStarted' WITH VALUES;
+    IF COL_LENGTH('dbo.PaymentTransactions','LastErrorCode') IS NULL
+        ALTER TABLE dbo.PaymentTransactions ADD LastErrorCode nvarchar(100) NOT NULL CONSTRAINT DF_PaymentTransactions_LastErrorCode_Compat DEFAULT '' WITH VALUES;
 
     IF EXISTS (
         SELECT 1
@@ -316,6 +328,14 @@ END;
         await db.Database.ExecuteSqlRawAsync(@"
 IF OBJECT_ID('dbo.PaymentTransactions','U') IS NOT NULL
 BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE name='UX_PaymentTransactions_IdempotencyKey'
+          AND object_id=OBJECT_ID('dbo.PaymentTransactions')
+    )
+        CREATE UNIQUE INDEX UX_PaymentTransactions_IdempotencyKey
+        ON dbo.PaymentTransactions(Provider, IdempotencyKey);
+
     IF NOT EXISTS (
         SELECT 1 FROM sys.indexes
         WHERE name='UX_PaymentTransactions_ProviderOrderId'
