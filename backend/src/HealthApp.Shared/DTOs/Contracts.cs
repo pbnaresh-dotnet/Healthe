@@ -54,7 +54,8 @@ public record OutletSettingsDto(
     string CustomPackagePricingMode = "Calculated",
     bool ShowPackagePriceToCustomer = true,
     bool ShowMealPriceToCustomer = true,
-    bool ShowDeliveryFeeToCustomer = true);
+    bool ShowDeliveryFeeToCustomer = true,
+    decimal LateSkipFee = 50m);
 
 public record OutletLegalPolicyVersionDto(
     Guid Id,
@@ -98,6 +99,7 @@ public record UpdateOutletLegalPoliciesRequest(
 
 
 public record UpdateOutletSettingsRequest(string DeliveryDays, string DeliveryCoverageMode = "Radius", double? ServiceRadiusKm = null);
+public record UpdateOutletLateSkipFeeRequest(decimal LateSkipFee);
 public record UpdateOutletPackageSettingsRequest(string CustomPackagePricingMode = "Calculated", bool ShowPackagePriceToCustomer = true, bool ShowDeliveryFeeToCustomer = true, bool ShowMealPriceToCustomer = true);
 
 public record OutletReadinessItemDto(
