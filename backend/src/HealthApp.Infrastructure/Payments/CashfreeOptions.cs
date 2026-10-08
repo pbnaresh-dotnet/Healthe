@@ -1,5 +1,10 @@
 namespace HealthApp.Infrastructure.Payments;
 
+public sealed class PaymentGatewayOptions
+{
+    public string Provider { get; set; } = "Cashfree";
+}
+
 public sealed class CashfreeOptions
 {
     public bool Enabled { get; set; }
