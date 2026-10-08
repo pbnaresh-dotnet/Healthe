@@ -7,6 +7,7 @@ namespace HealthApp.Application.Services;
 public sealed class FinanceTaxConfigurationService(
     IOutletRepository outlets,
     IOutletTaxProfileRepository profiles,
+    IPlatformTaxProfileRepository platformProfiles,
     IFinanceTaxRuleRepository taxRules) : IFinanceTaxConfigurationService
 {
     public async Task<FinanceTaxCalculationConfiguration> ResolveAsync(Guid outletId, DateTime asOfUtc)
@@ -53,6 +54,8 @@ public sealed class FinanceTaxConfigurationService(
             ?? throw new InvalidOperationException(
                 $"No effective HealthApp platform-service tax rule is configured for {asOfUtc:O}.");
 
+        var platformProfile = await platformProfiles.GetCurrentAsync(asOfUtc);
+
         var commissionRule = await taxRules.GetEffectiveAsync(
             FinanceSupplyType.PlatformCommission,
             null,
@@ -78,7 +81,9 @@ public sealed class FinanceTaxConfigurationService(
         return new FinanceTaxCalculationConfiguration(
             restaurant,
             ToSnapshot(platformRule),
-            ToSnapshot(commissionRule));
+            ToSnapshot(commissionRule),
+            platformProfile?.IsGstRegistered == true,
+            platformProfile?.Id);
     }
 
     private static FinanceTaxRuleSnapshot ToSnapshot(HealthApp.Domain.Entities.FinanceTaxRule rule)
