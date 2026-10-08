@@ -1291,6 +1291,8 @@ public sealed class Subscription
         get;
         set;
     }
+    /// <summary>Outstanding late-skip fees recovered through a later package payment. This is not part of the outlet's package sale amount.</summary>
+    public decimal LateSkipRecoveryAmount { get; set; }
     public decimal Price {
         get;
         set;
