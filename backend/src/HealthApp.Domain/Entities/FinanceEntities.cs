@@ -362,6 +362,7 @@ public sealed class FinanceCalculationSnapshot
     public Guid TaxProfileId { get; set; }
     public Guid RestaurantTaxRuleId { get; set; }
     public Guid PlatformTaxRuleId { get; set; }
+    public Guid CommissionTaxRuleId { get; set; }
     public bool RestaurantTaxApplicable { get; set; }
     public TaxOperatingMode RestaurantTaxOperatingMode { get; set; }
     public GstMode RestaurantGstMode { get; set; }
@@ -371,6 +372,8 @@ public sealed class FinanceCalculationSnapshot
     public decimal PlatformServiceFee { get; set; }
     public decimal PlatformTaxRate { get; set; }
     public decimal PlatformTaxAmount { get; set; }
+    public decimal CommissionTaxRate { get; set; }
+    public decimal CommissionTaxAmount { get; set; }
     public decimal CommissionBaseAmount { get; set; }
     public decimal CommissionRatePercent { get; set; }
     public decimal CommissionAmount { get; set; }
