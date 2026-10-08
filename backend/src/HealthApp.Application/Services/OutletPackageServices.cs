@@ -184,6 +184,7 @@ public sealed class OutletPackageService(
     IOutletSubscriptionRepository outletSubscriptions,
     IOutletPackageActivationService activation,
     IUnitOfWork unitOfWork,
+    IFinanceCalculationSnapshotService financeSnapshots,
     IOutletLegalPolicyRepository legalPolicies,
     ITransactionalEmailService emails,
     IOutletUrlService outletUrls,
@@ -694,6 +695,17 @@ public sealed class OutletPackageService(
                 financial.HealthAppRevenue = serviceFee + commission;
                 // OrderFinancialRepository currently exposes insert-only persistence.
                 // The tracked entity is updated by EF on the unit-of-work SaveChanges.
+                await financeSnapshots.CreateAsync(
+                    outletId,
+                    "OutletPackageConfirmed",
+                    subscription.Id,
+                    DateTime.UtcNow,
+                    taxConfig,
+                    taxes,
+                    discountedMealAmount,
+                    serviceFee,
+                    commissionRate * 100m,
+                    commission);
             }
         });
 
