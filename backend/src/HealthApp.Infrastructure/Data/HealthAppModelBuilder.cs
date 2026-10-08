@@ -337,6 +337,12 @@ internal static class HealthAppModelBuilder
         e.Property(x => x.Description).HasMaxLength(2000);
         e.Property(x => x.ImageUrl).HasMaxLength(1000);
         e.Property(x => x.Tags).HasMaxLength(1000);
+        e.Property(x => x.Calories).IsRequired();
+        e.Property(x => x.ProteinGrams).IsRequired();
+        e.Property(x => x.CarbsGrams).IsRequired();
+        e.Property(x => x.FatGrams).IsRequired();
+        e.Property(x => x.FiberGrams).IsRequired();
+        e.Property(x => x.SugarGrams).IsRequired();
         e.HasIndex(x => new {
             x.OutletId, x.IsActive
         });
@@ -347,6 +353,14 @@ internal static class HealthAppModelBuilder
         e.HasKey(x => x.Id);
         e.Property(x => x.Name).HasMaxLength(200).IsRequired();
         e.Property(x => x.DefaultUnit).HasMaxLength(20).IsRequired();
+        e.Property(x => x.CaloriesPer100g).HasPrecision(10,3).IsRequired();
+        e.Property(x => x.ProteinGramsPer100g).HasPrecision(10,3).IsRequired();
+        e.Property(x => x.CarbsGramsPer100g).HasPrecision(10,3).IsRequired();
+        e.Property(x => x.FatGramsPer100g).HasPrecision(10,3).IsRequired();
+        e.Property(x => x.FiberGramsPer100g).HasPrecision(10,3).IsRequired();
+        e.Property(x => x.SugarGramsPer100g).HasPrecision(10,3).IsRequired();
+        e.Property(x => x.NutritionSource).HasMaxLength(200).IsRequired();
+        e.Property(x => x.NutritionReferenceId).HasMaxLength(100).IsRequired();
         e.HasIndex(x => x.Name).IsUnique();
     }
     private static void ConfigureAllergen(EntityTypeBuilder<Allergen> e)
