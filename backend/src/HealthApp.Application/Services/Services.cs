@@ -1115,7 +1115,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
     x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId, i.Ingredient.Name, i.Quantity, i.Unit, i.Ingredient.Allergens.Select(a => new AllergenDto(a.AllergenId, a.Allergen.Name)).OrderBy(a => a.Name).ToList())).ToList(),
     x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams, string.IsNullOrWhiteSpace(x.MealType)?"Meal":x.MealType, x.SugarGrams);
 }
-public sealed class OutletService(ICurrentUser current,IOutletRepository outlets,IOutletSubscriptionRepository outletSubs,ISaaSPlanRepository saasPlans,IMealPlanRepository plans,IRecipeRepository recipes,IOutletMenuRepository menu,IUserRepository users,ISubscriptionRepository subscriptions,IOrderRepository orders,IDeliveryRepository deliveries,IIngredientRepository ingredients,IAllergenRepository allergens,ISubscriptionMealSelectionRepository selections,ICustomerAddressRepository addresses,ICityAreaRepository areas,IDeliveryLabelService deliveryLabels) : IOutletService
+public sealed class OutletService(ICurrentUser current,IOutletRepository outlets,IOutletSubscriptionRepository outletSubs,ISaaSPlanRepository saasPlans,IMealPlanRepository plans,IRecipeRepository recipes,IOutletMenuRepository menu,IUserRepository users,ISubscriptionRepository subscriptions,IOrderRepository orders,IDeliveryRepository deliveries,IIngredientRepository ingredients,IAllergenRepository allergens,ISubscriptionMealSelectionRepository selections,ICustomerAddressRepository addresses,ICityAreaRepository areas,IDeliveryLabelService deliveryLabels,IOutletTaxProfileRepository taxProfiles) : IOutletService
 {
     private static string NormalizeMealType(string? value)
     {
@@ -1128,30 +1128,89 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     {
         if (current.OutletId is not Guid id) return null;
         var outlet = await outlets.GetByIdAsync(id);
-        return outlet is null ? null : new(
-            outlet.RestaurantGstRate,
-            outlet.RestaurantGstMode.ToString(),
-            false,
-            false,
-            TaxOperatingMode.DirectOutletSupplier.ToString(),
-            "",
-            "",
-            DateTime.UtcNow);
+        if (outlet is null) return null;
+
+        var profile = await taxProfiles.GetCurrentAsync(id, DateTime.UtcNow);
+        if (profile is null)
+        {
+            profile = new OutletTaxProfile
+            {
+                OutletId = id,
+                LegalName = outlet.Name,
+                TradeName = outlet.Name,
+                City = outlet.City,
+                State = outlet.State,
+                PostalCode = outlet.Pincode,
+                Country = "India",
+                IsGstRegistered = false,
+                IsComposition = false,
+                RestaurantGstRate = outlet.RestaurantGstRate,
+                RestaurantGstMode = outlet.RestaurantGstMode,
+                TaxOperatingMode = TaxOperatingMode.DirectOutletSupplier,
+                EffectiveFromUtc = DateTime.UtcNow,
+                IsActive = true
+            };
+        }
+
+        return new(
+            profile.RestaurantGstRate,
+            profile.RestaurantGstMode.ToString(),
+            profile.IsGstRegistered,
+            profile.IsComposition,
+            profile.TaxOperatingMode.ToString(),
+            profile.Gstin,
+            profile.Pan,
+            profile.EffectiveFromUtc);
     }
 
     public async Task<OutletTaxSettingsDto?> UpdateTaxSettingsAsync(UpdateOutletTaxSettingsRequest request)
     {
         if (current.OutletId is not Guid id) return null;
+
         if (request.RestaurantGstRate < 0m || request.RestaurantGstRate > 100m)
             throw new ArgumentException("Restaurant GST rate must be between 0% and 100%.");
         if (!Enum.TryParse<GstMode>(request.RestaurantGstMode, true, out var mode))
             throw new ArgumentException("GST mode must be Inclusive or Exclusive.");
+        if (!Enum.TryParse<TaxOperatingMode>(request.TaxOperatingMode, true, out var taxMode))
+            throw new ArgumentException("Tax operating mode must be DirectOutletSupplier or EcoSection9_5.");
+        if (request.IsGstRegistered && string.IsNullOrWhiteSpace(request.Gstin))
+            throw new ArgumentException("GSTIN is required when the outlet is GST registered.");
+        if (request.IsComposition && !request.IsGstRegistered)
+            throw new ArgumentException("A composition tax profile must be GST registered.");
 
         var outlet = await outlets.GetByIdAsync(id) ?? throw new KeyNotFoundException("Outlet not found.");
-        outlet.RestaurantGstRate = Math.Round(request.RestaurantGstRate, 4);
-        outlet.RestaurantGstMode = mode;
-        await outlets.UpdateAsync(outlet);
-        return new(outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString());
+        var effectiveFrom = (request.EffectiveFromUtc ?? DateTime.UtcNow).ToUniversalTime();
+
+        var profile = new OutletTaxProfile
+        {
+            OutletId = id,
+            LegalName = outlet.Name,
+            TradeName = outlet.Name,
+            City = outlet.City,
+            State = outlet.State,
+            PostalCode = outlet.Pincode,
+            Country = "India",
+            Gstin = request.Gstin.Trim().ToUpperInvariant(),
+            Pan = request.Pan.Trim().ToUpperInvariant(),
+            IsGstRegistered = request.IsGstRegistered,
+            IsComposition = request.IsComposition,
+            RestaurantGstRate = Math.Round(request.RestaurantGstRate, 4),
+            RestaurantGstMode = mode,
+            TaxOperatingMode = taxMode
+        };
+
+        await taxProfiles.AddVersionAsync(profile, effectiveFrom);
+
+        // Preserve the legacy outlet fields as a compatibility projection for older
+        // screens/records. Only an immediately effective version changes the projection.
+        if (effectiveFrom <= DateTime.UtcNow)
+        {
+            outlet.RestaurantGstRate = profile.RestaurantGstRate;
+            outlet.RestaurantGstMode = profile.RestaurantGstMode;
+            await outlets.UpdateAsync(outlet);
+        }
+
+        return await GetTaxSettingsAsync();
     }
 
     public async Task<OutletDashboardDto> GetDashboardAsync()
