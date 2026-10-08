@@ -1949,7 +1949,7 @@ public sealed class AdminService(
         var tenantOrders = await orders.GetByOutletAsync(outletId);
         var tenantDeliveries = await deliveries.GetByOutletAsync(outletId);
         var domainsForOutlet = await domains.GetByOutletAsync(outletId);
-        var billing = await outletSubscriptions.GetByOutletAsync(outletId);
+        var billing = await outletSubscriptions.GetAnyByOutletAsync(outletId);
         var allTransactions = await transactions.GetAllAsync();
         var tenantMealPlans = await mealPlans.GetByOutletAsync(outletId);
         var tenantRecipes = await recipes.GetByOutletAsync(outletId);
