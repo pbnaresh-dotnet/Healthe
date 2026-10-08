@@ -1768,7 +1768,6 @@ public sealed class AdminService(
             groupDto = new OutletGroupDto(group.Id, group.Name, group.Description, group.IsActive, group.SortOrder, count);
         }
 
-        var billing = await billingTask;
         OutletBillingDto? billingDto = null;
         if (billing is not null)
         {
