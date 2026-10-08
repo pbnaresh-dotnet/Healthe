@@ -614,8 +614,8 @@ public sealed class PaymentTransactionRepository(HealthAppDbContext db) : EfRepo
             .OrderByDescending(x => x.CreatedAtUtc)
             .FirstOrDefaultAsync();
 
-    public Task<PaymentTransaction?> GetByIdempotencyKeyAsync(string key) =>
-        Context.PaymentTransactions.FirstOrDefaultAsync(x => x.IdempotencyKey == key);
+    public Task<PaymentTransaction?> GetByIdempotencyKeyAsync(string provider, string key) =>
+        Context.PaymentTransactions.FirstOrDefaultAsync(x => x.Provider == provider && x.IdempotencyKey == key);
 
     public Task<PaymentTransaction?> GetByProviderOrderIdAsync(string providerOrderId) =>
         Context.PaymentTransactions.FirstOrDefaultAsync(x => x.ProviderOrderId == providerOrderId);
