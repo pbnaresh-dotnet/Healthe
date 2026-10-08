@@ -468,7 +468,8 @@ public sealed class PaymentService(
                     customerPhone,
                     await GetCustomerReturnUrlAsync(subscription.OutletId),
                     gateway.WebhookUrl,
-                    $"Broccoly meal subscription {subscription.PlanName}"),
+                    $"Broccoly meal subscription {subscription.PlanName}",
+                    payment.IdempotencyKey),
                 cancellationToken);
 
             payment.ProcessingStatus = "ProviderOrderCreated";
