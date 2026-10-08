@@ -20,9 +20,9 @@ public sealed class PaymentWebhookController(IPaymentService payments) : Control
         var signature = Request.Headers["x-webhook-signature"].ToString();
         var timestamp = Request.Headers["x-webhook-timestamp"].ToString();
         if (string.IsNullOrWhiteSpace(signature) || string.IsNullOrWhiteSpace(timestamp))
-            return Unauthorized(new { message = "Cashfree webhook signature headers are required." });
+            return Unauthorized(new { message = "payment gateway webhook signature headers are required." });
 
-        var result = await payments.HandleCashfreeWebhookAsync(
+        var result = await payments.HandleWebhookAsync(
             rawBody,
             signature,
             timestamp,
