@@ -24,6 +24,9 @@ internal static class FinanceModelBuilder
         ConfigureLedgerJournal(b.Entity<LedgerJournal>());
         ConfigureLedgerJournalLine(b.Entity<LedgerJournalLine>());
         ConfigureDocumentNumberSequence(b.Entity<DocumentNumberSequence>());
+        ConfigureFinancePolicyDocument(b.Entity<FinancePolicyDocument>());
+        ConfigureFinancePolicyDocumentVersion(b.Entity<FinancePolicyDocumentVersion>());
+        ConfigureFinancePolicyDocumentSection(b.Entity<FinancePolicyDocumentSection>());
     }
 
     private static void ConfigureOutletTaxProfile(EntityTypeBuilder<OutletTaxProfile> e)
@@ -329,3 +332,46 @@ internal static class FinanceModelBuilder
         e.HasIndex(x => new { x.OwnerType, x.OwnerId, x.DocumentType, x.FiscalYearStart }).IsUnique();
     }
 }
+
+
+    private static void ConfigureFinancePolicyDocument(EntityTypeBuilder<FinancePolicyDocument> e)
+    {
+        e.ToTable("FinancePolicyDocuments");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Code).HasMaxLength(120).IsRequired();
+        e.Property(x => x.Title).HasMaxLength(250).IsRequired();
+        e.Property(x => x.Description).HasMaxLength(1000).IsRequired();
+        e.HasIndex(x => x.Code).IsUnique();
+        e.HasIndex(x => x.IsActive);
+    }
+
+    private static void ConfigureFinancePolicyDocumentVersion(EntityTypeBuilder<FinancePolicyDocumentVersion> e)
+    {
+        e.ToTable("FinancePolicyDocumentVersions");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.Version).HasMaxLength(30).IsRequired();
+        e.Property(x => x.Status).HasConversion<int>();
+        e.Property(x => x.ChangeSummary).HasMaxLength(1000).IsRequired();
+        e.Property(x => x.ChangeReason).HasMaxLength(2000).IsRequired();
+        e.Property(x => x.SourceCodeReference).HasMaxLength(200).IsRequired();
+        e.Property(x => x.ContentHash).HasMaxLength(128).IsRequired();
+        e.HasIndex(x => new { x.FinancePolicyDocumentId, x.Version }).IsUnique();
+        e.HasIndex(x => new { x.FinancePolicyDocumentId, x.Status, x.EffectiveFromUtc });
+        e.HasIndex(x => x.PreviousVersionId);
+        e.HasOne<FinancePolicyDocument>().WithMany().HasForeignKey(x => x.FinancePolicyDocumentId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<FinancePolicyDocumentVersion>().WithMany().HasForeignKey(x => x.PreviousVersionId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<User>().WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<User>().WithMany().HasForeignKey(x => x.ReviewedByUserId).OnDelete(DeleteBehavior.NoAction);
+    }
+
+    private static void ConfigureFinancePolicyDocumentSection(EntityTypeBuilder<FinancePolicyDocumentSection> e)
+    {
+        e.ToTable("FinancePolicyDocumentSections");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.SectionCode).HasMaxLength(120).IsRequired();
+        e.Property(x => x.Title).HasMaxLength(250).IsRequired();
+        e.Property(x => x.ContentMarkdown).HasColumnType("nvarchar(max)").IsRequired();
+        e.HasIndex(x => new { x.FinancePolicyDocumentVersionId, x.SectionCode }).IsUnique();
+        e.HasIndex(x => new { x.FinancePolicyDocumentVersionId, x.DisplayOrder });
+        e.HasOne<FinancePolicyDocumentVersion>().WithMany().HasForeignKey(x => x.FinancePolicyDocumentVersionId).OnDelete(DeleteBehavior.NoAction);
+    }
