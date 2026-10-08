@@ -51,7 +51,6 @@ internal static class FinanceModelBuilder
         e.HasIndex(x => new { x.OutletId, x.EffectiveFromUtc }).IsUnique();
         e.HasIndex(x => new { x.OutletId, x.IsActive });
         e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
-        e.HasOne<FinanceCalculationSnapshot>().WithMany().HasForeignKey(x => x.FinanceCalculationSnapshotId).OnDelete(DeleteBehavior.NoAction);
     }
 
     private static void ConfigurePlatformTaxProfile(EntityTypeBuilder<PlatformTaxProfile> e)
@@ -152,6 +151,7 @@ internal static class FinanceModelBuilder
         e.HasIndex(x => new { x.SupplyType, x.IssueDateUtc });
         e.HasIndex(x => new { x.IsEcoSection9_5, x.IssueDateUtc });
         e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<FinanceCalculationSnapshot>().WithMany().HasForeignKey(x => x.FinanceCalculationSnapshotId).OnDelete(DeleteBehavior.NoAction);
         e.HasOne<FinancialDocument>().WithMany().HasForeignKey(x => x.OriginalDocumentId).OnDelete(DeleteBehavior.NoAction);
     }
 
