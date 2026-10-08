@@ -47,6 +47,7 @@ public interface IApplicationErrorRepository
 {
     Task AddAsync(ApplicationErrorLog error, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<ApplicationErrorLog> Items, int TotalCount)> QueryAsync(ApplicationErrorQueryRequest request, CancellationToken cancellationToken = default);
+    Task<ApplicationErrorSummaryData> GetSummaryAsync(ApplicationErrorQueryRequest request, CancellationToken cancellationToken = default);
     Task<ApplicationErrorLog?> GetAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ApplicationErrorLog?> ResolveAsync(Guid id, Guid resolvedByUserId, string notes, CancellationToken cancellationToken = default);
 }
