@@ -816,6 +816,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion123Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion124Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion125Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion126Async(db, document, cancellationToken);
     }
 
     private static async Task SeedFinancePolicyVersion11Async(
