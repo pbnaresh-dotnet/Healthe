@@ -733,7 +733,7 @@ function RecipeForm({form,setForm,ingredients,allergens,upload,uploading,submit,
  const addIngredient=()=>{const first=ingredients[0];set('ingredients',[...(form.ingredients||[]),{ingredientId:first?.id||'',quantity:100,largeQuantity:125,unit:first?.defaultUnit||'g'}])};
  const updateIngredient=(idx,k,v)=>set('ingredients',(form.ingredients||[]).map((x,i)=>i===idx?{...x,[k]:v}:x));
  const removeIngredient=idx=>set('ingredients',(form.ingredients||[]).filter((_,i)=>i!==idx));
- const chooseIngredient=(idx,item)=>{updateIngredient(idx,'ingredientId',item.id);setTimeout(()=>{},0);const current=(form.ingredients||[])[idx];if(!current?.unit||current.unit==='g')updateIngredient(idx,'unit',item.defaultUnit||'g')};
+ const chooseIngredient=(idx,item)=>{updateIngredient(idx,'ingredientId',item.id);updateIngredient(idx,'unit',item.defaultUnit||'g')};
  const toggleAllergen=id=>set('allergenIds',(form.allergenIds||[]).includes(id)?(form.allergenIds||[]).filter(x=>x!==id):[...(form.allergenIds||[]),id]);
  const nutrition=calculateRecipeNutrition(form,ingredients);
  const hasIngredients=(form.ingredients||[]).some(x=>x.ingredientId&&Number(x.quantity)>0);
