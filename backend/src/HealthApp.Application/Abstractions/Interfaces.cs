@@ -101,7 +101,10 @@ public interface IFinanceCalculationSnapshotService
         Guid? discountTierId = null,
         decimal discountPercent = 0m,
         decimal discountAmount = 0m,
-        string discountRuleSnapshotJson = "");
+        string discountRuleSnapshotJson = "",
+        Guid? discountCodeId = null,
+        decimal discountCodeAmount = 0m,
+        decimal totalDiscountAmount = 0m);
 }
 
 public interface IFinancialDocumentRepository
