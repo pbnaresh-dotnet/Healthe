@@ -118,7 +118,7 @@ public record OutletReadinessDto(
     IReadOnlyList<OutletReadinessItemDto> Items,
     string Message);
 
-public record OutletBillingDto(Guid OutletId, Guid SaaSPlanId, string PlanName, string BillingCycle, decimal SubscriptionFee, decimal SetupFee, decimal TransactionFeePercent, int ActiveCustomers, int IncludedActiveCustomers, decimal AdditionalCustomerFee, decimal EstimatedAdditionalCustomerFee, DateTime RenewalDate, string Status);
+public record OutletBillingDto(Guid OutletId, Guid SaaSPlanId, string PlanName, string BillingCycle, decimal SubscriptionFee, decimal SetupFee, decimal TransactionFeePercent, int ActiveCustomers, int IncludedActiveCustomers, decimal AdditionalCustomerFee, decimal EstimatedAdditionalCustomerFee, DateTime RenewalDate, string Status, bool IsTrial = false, DateTime? TrialEndsAtUtc = null, int TrialDaysRemaining = 0);
 public record IngredientConsumptionRowDto(
     Guid IngredientId,
     string IngredientName,
@@ -190,6 +190,8 @@ public record CreditBalanceDto(decimal Balance);
 public record CreditTransactionDto(Guid Id, decimal Amount, string Type, string Reason, DateTime CreatedAt);
 public record AvailabilityResponse(bool ServiceAvailable, string Message, IReadOnlyList<OutletDto> Outlets);
 public record ChangeOutletSubscriptionRequest(Guid SaaSPlanId, string BillingCycle = "Monthly");
+public record StartTrialRequest(Guid SaaSPlanId, string BillingCycle = "Monthly", int DurationDays = 30);
+public record TrialDto(Guid Id, Guid OutletId, Guid OutletSubscriptionId, Guid SaaSPlanId, string PlanName, string BillingCycle, DateTime StartedAtUtc, DateTime EndsAtUtc, string Status, int DurationDays, int DaysRemaining, DateTime? ConvertedAtUtc = null, DateTime? CancelledAtUtc = null, string CancellationReason = "");
 public record RequestOutletDemoRequest(string Email, string? BusinessName = null);
 public record OutletDemoRequestDto(bool Created, string Message, DateTime DemoExpiresAtUtc);
 public record OutletOnboardingPaymentRequest(Guid SaaSPlanId, string BillingCycle, string BusinessType, string OutletName, string City, string State, string Pincode, string AddressLine1, string AddressLine2, string OwnerName, string Email, string OwnerPhone, string Password);
