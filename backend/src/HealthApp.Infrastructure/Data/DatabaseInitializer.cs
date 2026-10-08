@@ -947,6 +947,14 @@ BEGIN
     );
     CREATE UNIQUE INDEX IX_RecipeIngredients_Recipe_Ingredient ON dbo.RecipeIngredients(RecipeId,IngredientId);
 END;
+-- Existing recipes were created before separate Large quantities/macros existed.
+-- Preserve their previous nutrition as the Large baseline until an outlet edits the portion.
+IF COL_LENGTH('dbo.RecipeIngredients','LargeQuantity') IS NOT NULL
+    UPDATE dbo.RecipeIngredients SET LargeQuantity = Quantity WHERE LargeQuantity = 0;
+IF COL_LENGTH('dbo.Recipes','LargeCalories') IS NOT NULL
+    UPDATE dbo.Recipes SET LargeCalories = Calories, LargeProteinGrams = ProteinGrams, LargeCarbsGrams = CarbsGrams, LargeFatGrams = FatGrams, LargeFiberGrams = FiberGrams, LargeSugarGrams = SugarGrams
+    WHERE LargeCalories = 0 AND LargeProteinGrams = 0 AND LargeCarbsGrams = 0 AND LargeFatGrams = 0 AND LargeFiberGrams = 0 AND LargeSugarGrams = 0;
+
 IF OBJECT_ID('dbo.RecipeAllergens','U') IS NULL
 BEGIN
     CREATE TABLE dbo.RecipeAllergens(
