@@ -1126,7 +1126,15 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     {
         if (current.OutletId is not Guid id) return null;
         var outlet = await outlets.GetByIdAsync(id);
-        return outlet is null ? null : new(outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString());
+        return outlet is null ? null : new(
+            outlet.RestaurantGstRate,
+            outlet.RestaurantGstMode.ToString(),
+            false,
+            false,
+            TaxOperatingMode.DirectOutletSupplier.ToString(),
+            "",
+            "",
+            DateTime.UtcNow);
     }
 
     public async Task<OutletTaxSettingsDto?> UpdateTaxSettingsAsync(UpdateOutletTaxSettingsRequest request)
