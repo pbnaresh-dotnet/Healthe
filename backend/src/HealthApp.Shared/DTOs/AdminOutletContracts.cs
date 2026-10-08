@@ -33,6 +33,12 @@ public record AdminOutlet360Dto(
     DateTime? LegalEffectiveDateUtc,
     IReadOnlyList<OutletDomainDto> Domains,
     IReadOnlyList<UserDto> Staff,
+    IReadOnlyList<UserDto> Customers,
+    int MealPlanCount,
+    int ActiveMealPlanCount,
+    int RecipeCount,
+    int ActiveRecipeCount,
+    int MenuItemCount,
     IReadOnlyList<SubscriptionDto> RecentSubscriptions,
     IReadOnlyList<OrderDto> RecentOrders,
     IReadOnlyList<DeliveryDto> RecentDeliveries);
