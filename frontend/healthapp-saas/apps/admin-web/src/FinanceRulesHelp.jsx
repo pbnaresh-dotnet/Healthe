@@ -89,9 +89,13 @@ const EXAMPLE_ROWS = [
   ['Who issues the restaurant invoice?', 'Outlet', 'ECO']
 ];
 
+function HelpPageIntro({eyebrow,title,text,action}){
+  return <div className="pageIntro"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{text}</p></div>{action&&<div className="pageIntroAction">{action}</div>}</div>;
+}
+
 export default function FinanceRulesHelp({onBack, onFinance}) {
   return <section className="financeRulesPage">
-    <PageIntro
+    <HelpPageIntro
       eyebrow="FINANCE RULES & HELP"
       title="How finance calculations work"
       text="This page documents the calculation boundaries the product follows. Tax rates are effective-dated configuration, financial documents are snapshotted, and accounting is posted independently from payment settlement."
