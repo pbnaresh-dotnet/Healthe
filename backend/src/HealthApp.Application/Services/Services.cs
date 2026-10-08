@@ -12,13 +12,14 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
     public async Task<AuthResponse?> LoginAsync(LoginRequest r)
     {
         Guid? outletId = null;
+        Outlet? scopedOutlet = null;
         if (!string.IsNullOrWhiteSpace(r.OutletSlug))
         {
-            var outlet = await outlets.GetBySlugAsync(r.OutletSlug.Trim().ToLowerInvariant());
-            if (outlet is null || outlet.Status != OutletStatus.Live)
+            scopedOutlet = await outlets.GetBySlugAsync(r.OutletSlug.Trim().ToLowerInvariant());
+            if (scopedOutlet is null)
                 return null;
 
-            outletId = outlet.Id;
+            outletId = scopedOutlet.Id;
         }
 
         User? user;
@@ -36,7 +37,11 @@ public sealed class AuthService(IUserRepository users, ITokenService tokens, IPa
 
         if (user is null || !user.IsActive || !passwords.Verify(r.Password, user.PasswordHash))
             return null;
-        if (user.Role == UserRole.Customer && !user.OutletId.HasValue)
+
+        // Customer access is only valid for a live outlet. Outlet admins/staff must
+        // be able to sign in to Active workspaces (onboarding and demo environments)
+        // before the customer storefront is made Live.
+        if (user.Role == UserRole.Customer && (!user.OutletId.HasValue || scopedOutlet?.Status != OutletStatus.Live))
             return null;
         if (user.IsDemo && user.DemoExpiresAtUtc.HasValue && user.DemoExpiresAtUtc.Value <= DateTime.UtcNow)
             throw new UnauthorizedAccessException("Your 7-day demo has expired. Request a new demo account to continue exploring HealthApp.");
