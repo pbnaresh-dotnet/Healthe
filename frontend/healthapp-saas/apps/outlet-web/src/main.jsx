@@ -48,12 +48,21 @@ function calculateRecipeNutrition(form, ingredients){
  return totals;
 }
 const OUTLET_ROLE_NAVS={
- OutletAdmin:['dashboard','kitchen','ingredient-usage','recipes','menu','customers','team','packages','subscriptions','orders','deliveries','routes','settings'],
- OutletManager:['dashboard','kitchen','ingredient-usage','recipes','menu','customers','packages','subscriptions','orders','deliveries','routes'],
- KitchenStaff:['kitchen','ingredient-usage','recipes','menu'],
+ OutletAdmin:['dashboard','kitchen','recipes','menu','ingredient-usage','customers','packages','subscriptions','orders','deliveries','routes','team','settings'],
+ OutletManager:['dashboard','kitchen','recipes','menu','ingredient-usage','customers','packages','subscriptions','orders','deliveries','routes','settings'],
+ KitchenStaff:['kitchen','recipes','menu','ingredient-usage'],
  Driver:['driver']
 };
 const OUTLET_ROLE_LABELS={OutletAdmin:'Outlet Admin',OutletManager:'Outlet Manager',KitchenStaff:'Kitchen Staff',Driver:'Driver'};
+const OUTLET_NAV_GROUPS=[
+ {key:'workspace',label:'Workspace',items:['dashboard']},
+ {key:'kitchen',label:'Kitchen',items:['kitchen','recipes','menu','ingredient-usage']},
+ {key:'management',label:'Management',items:['customers','packages','subscriptions','orders']},
+ {key:'delivery',label:'Delivery Operations',items:['deliveries','routes']},
+ {key:'admin',label:'Owner / Admin',roles:['OutletAdmin'],items:['team','settings']},
+ {key:'manager-settings',label:'Manager',roles:['OutletManager'],items:['settings']},
+ {key:'driver',label:'Driver',roles:['Driver'],items:['driver']}
+];
 
 
 function StandardConfirmModal({request,onClose,onConfirm}){return <div className="standardConfirmBackdrop" role="dialog" aria-modal="true" aria-labelledby="standard-confirm-title" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><div className={'standardConfirmModal '+(request.variant==='danger'?'danger':'')}><div className={'standardConfirmIcon '+(request.variant||'warning')}>{request.variant==='danger'?'×':'!'}</div><div className="standardConfirmContent"><span className={'standardConfirmEyebrow '+(request.variant||'warning')}>{request.variant==='danger'?'CONFIRM ACTION':'PLEASE CONFIRM'}</span><h3 id="standard-confirm-title">{request.title}</h3><p>{request.message}</p><div className="standardConfirmActions"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button type="button" className={request.variant==='danger'?'dangerAction':'primary'} onClick={onConfirm}>{request.confirmLabel||'Continue'}</button></div></div></div></div>}
@@ -240,15 +249,14 @@ function App(){
  if(legalDoc&&['saas-terms','dpa','acceptable-use'].includes(legalDoc))return <OutletLegalDocuments documentId={legalDoc} outletName={dash?.outlet?.name||'Your outlet'} onBack={()=>{window.location.href=window.location.pathname}}/>;
   if(!user)return <><LandingPage onLogin={()=>{setError('');setShowLogin(true)}} onRegister={()=>{window.location.href=BROCCOLY_URL+'/register'}} onDemo={()=>setDemoOpen(true)}/>{demoOpen&&<DemoRequestModal onClose={()=>setDemoOpen(false)}/>}</>;
 
- const navs=[['dashboard','⌂','Dashboard'],['kitchen','▦','Kitchen'],['ingredient-usage','◉','Ingredient Usage'],['recipes','◈','Recipes'],['menu','☷','Weekly Menu'],['customers','♙','Customers'],['team','♟','Team'],['packages','✚','Create Package'],['subscriptions','◫','Subscriptions'],['orders','▤','Orders'],['deliveries','⌁','Deliveries'],['routes','⇢','Delivery Routes'],['settings','⚙','Settings']];
+ const navs=[['dashboard','⌂','Dashboard'],['kitchen','▦','Kitchen'],['recipes','◈','Recipes'],['menu','☷','Weekly Menu'],['ingredient-usage','◉','Ingredient Usage'],['customers','♙','Customers'],['packages','✚','Create Package'],['subscriptions','◫','Subscriptions'],['orders','▤','Orders'],['deliveries','⌁','Deliveries'],['routes','⇢','Delivery Routes'],['team','♟','Team'],['settings','⚙','Settings'],['driver','⌖','My Deliveries']];
  const outletRole=String(user?.role||'OutletAdmin');
  const allowedNavs=OUTLET_ROLE_NAVS[outletRole]||OUTLET_ROLE_NAVS.OutletAdmin;
- const visibleNavs=navs.filter(n=>allowedNavs.includes(n[0]));
  const defaultPage=allowedNavs[0]||'dashboard';
 
  const effectiveActive=allowedNavs.includes(active)?active:defaultPage;
  const title=navs.find(n=>n[0]===effectiveActive)?.[2]||'Dashboard';
- return <div className="appShell"><aside className="sidebar"><div className="sideBrand"><span className="brandMark">{(dash?.outlet?.name||"H").slice(0,1).toUpperCase()}</span><div><b>{dash?.outlet?.name||"HealthApp"}</b><small>Outlet portal</small></div></div><div className="outletMini"><div className="avatar">{(dash?.outlet?.name||'F')[0]}</div><div><b>{dash?.outlet?.name||'FitFood Bengaluru'}</b><span>{OUTLET_ROLE_LABELS[outletRole]||'Outlet staff'}</span></div></div><div className="navLabel">Workspace</div>{visibleNavs.filter(n=>n[0]!=='settings').map(n=><button className={effectiveActive===n[0]?'navItem active':'navItem'} key={n[0]} onClick={()=>nav(n[0])}><span>{n[1]}</span>{n[2]}</button>)}<div className="navLabel">Business setup</div>{visibleNavs.filter(n=>n[0]==='settings').map(n=><button className={effectiveActive===n[0]?'navItem active':'navItem'} key={n[0]} onClick={()=>nav(n[0])}><span>{n[1]}</span>{n[2]}</button>)}<div className="sideBottom"><div className="secure">● API connected</div><button className="logoutBtn" onClick={()=>{auth.logout();setUser(null)}}>Log out</button></div></aside>
+ return <div className="appShell"><aside className="sidebar"><div className="sideBrand"><span className="brandMark">{(dash?.outlet?.name||"H").slice(0,1).toUpperCase()}</span><div><b>{dash?.outlet?.name||"HealthApp"}</b><small>Outlet portal</small></div></div><div className="outletMini"><div className="avatar">{(dash?.outlet?.name||'F')[0]}</div><div><b>{dash?.outlet?.name||'FitFood Bengaluru'}</b><span>{OUTLET_ROLE_LABELS[outletRole]||'Outlet staff'}</span></div></div><div className="sidebarNavGroups">{OUTLET_NAV_GROUPS.map(group=>{const items=group.items.filter(id=>allowedNavs.includes(id)&&(!group.roles||group.roles.includes(outletRole)));if(!items.length)return null;return <div className="navGroup" key={group.key}><div className="navLabel">{group.label}</div>{items.map(id=>{const n=navs.find(x=>x[0]===id);return n?<button className={effectiveActive===n[0]?'navItem active':'navItem'} key={n[0]} onClick={()=>nav(n[0])}><span>{n[1]}</span>{n[2]}</button>:null})}</div>})}</div><div className="sideBottom"><div className="secure">● API connected</div><button className="logoutBtn" onClick={()=>{auth.logout();setUser(null)}}>Log out</button></div></aside>
  <section className="main"><header className="topbar"><div><h2>{title}</h2><span>{dash?.outlet?.city||'Bengaluru'}, {dash?.outlet?.state||'Karnataka'}</span></div><div className="topbarRight">{user?.isDemo&&<span className="demoModePill">● DEMO MODE</span>}<div className="topUser"><div className="avatar sm">{(user.firstName||'A')[0]}</div><div><b>{user.firstName} {user.lastName}</b><span>{user.email}</span></div></div></div></header>
  <main className="content">{error&&<div className="statusBanner error"><span><b>⚠ Something needs attention</b>{error}</span><button onClick={()=>setError('')}>×</button></div>}
  {effectiveActive==='dashboard'&&<Dashboard dash={dash} recipes={recipes} pricing={pricing} nav={nav} openSubscription={openSubscription} onOpenPending={openPendingDeliveries}/>}
