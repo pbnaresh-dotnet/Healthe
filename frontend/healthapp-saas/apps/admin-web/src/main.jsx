@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState}from'react';
 import{createRoot}from'react-dom/client';
-import{auth,admin,currentUser,money,API_URL}from'@healthapp/shared';
+import{auth,admin,currentUser,money,API_URL,AppFeedbackProvider,useFeedback,AppAlert}from'@healthapp/shared';
 import'./styles.css';
 import ApplicationErrorMonitor from './ApplicationErrorMonitor.jsx';
 import OutletGroups from './OutletGroups.jsx';
@@ -43,6 +43,7 @@ const statusTone=s=>String(s||'').toLowerCase().includes('live')?'success':Strin
 const roleLabel=s=>String(s||'').replace('OutletAdmin','Outlet Admin').replace('SuperAdmin','Super Admin').replace('OutletManager','Manager').replace('KitchenStaff','Kitchen Staff');
 
 function App(){
+ const {notify}=useFeedback();
  const[u,setU]=useState(currentUser());
  const[page,setPage]=useState('overview');
  const[sidebarOpen,setSidebarOpen]=useState(false);
@@ -54,7 +55,6 @@ function App(){
  const[form,setForm]=useState({city:'Hyderabad',state:'Telangana',country:'India',latitude:17.385,longitude:78.4867,isEnabled:true});
  const[areaForm,setAreaForm]=useState({city:'Hyderabad',state:'Telangana',name:'',pincode:'',latitude:17.385,longitude:78.4867});
  const[error,setError]=useState('');
- const[toast,setToast]=useState('');
  const[loading,setLoading]=useState(false);
  const[selectedVerification,setSelectedVerification]=useState(null);
  const[verificationNotes,setVerificationNotes]=useState('');
@@ -68,7 +68,6 @@ function App(){
  const[financeFilters,setFinanceFilters]=useState(()=>{const d=new Date();d.setDate(d.getDate()-29);return {fromDate:d.toISOString().slice(0,10),toDate:new Date().toISOString().slice(0,10),outletGroupId:'',outletId:'',city:'',mealPlanId:''}});
  const[financeReport,setFinanceReport]=useState(null); const[financePolicy,setFinancePolicy]=useState(null);
  const[financeLoading,setFinanceLoading]=useState(false);
- const notify=m=>{setToast(m);setTimeout(()=>setToast(''),2600)};
  const fileUrl=url=>{if(!url)return'';return url.startsWith('http')?url:(API_URL?new URL(API_URL).origin+url:url)};
  const openPage=(next,filter='')=>{setPage(next);setSidebarOpen(false);if(next==='outlets'&&filter)setOutletStatus(filter)};
  const reload=async()=>{
@@ -168,7 +167,7 @@ function App(){
   {label:'Outlets not yet Live',count:(data.o||[]).filter(x=>x.status!=='Live').length,action:()=>openPage('outlets','Active')}
  ];
 
- if(!u)return <div className="auth"><form className="authCard" onSubmit={sign}><div className="brandMark"><span>H</span><div><b>HealthApp</b><small>Platform control</small></div></div><div><span className="eyebrow">SECURE ACCESS</span><h1>Super Admin</h1><p>Manage outlets, onboarding, domains, operations and platform health from one workspace.</p></div><label>Email<input autoComplete="username" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})} placeholder="Admin email"/></label><label>Password<input autoComplete="current-password" type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} placeholder="Password"/></label><button className="primaryBtn authSubmit" disabled={loading}>Sign in</button><div className="demoHint">Demo account <code>admin@healthapp.test</code> / <code>demo</code></div>{error&&<div className="errorBanner"><span>{error}</span><button type="button" onClick={()=>setError('')}><Icon name="close" size={15}/></button></div>}</form></div>;
+ if(!u)return <div className="auth"><form className="authCard" onSubmit={sign}><div className="brandMark"><span>H</span><div><b>HealthApp</b><small>Platform control</small></div></div><div><span className="eyebrow">SECURE ACCESS</span><h1>Super Admin</h1><p>Manage outlets, onboarding, domains, operations and platform health from one workspace.</p></div><label>Email<input autoComplete="username" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})} placeholder="Admin email"/></label><label>Password<input autoComplete="current-password" type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} placeholder="Password"/></label><button className="primaryBtn authSubmit" disabled={loading}>Sign in</button><div className="demoHint">Demo account <code>admin@healthapp.test</code> / <code>demo</code></div>{error&&<AppAlert type="error" message={error} onDismiss={()=>setError('')} className="errorBanner"/>}</form></div>;
 
  return <div className="adminApp">
   <header className="topbar">
@@ -186,7 +185,7 @@ function App(){
    {sidebarOpen&&<button className="navScrim" aria-label="Close navigation" onClick={()=>setSidebarOpen(false)}></button>}
 
    <main className="content">
-    {error&&<div className="errorBanner pageError"><span>{error}</span><button type="button" onClick={()=>setError('')}><Icon name="close" size={15}/></button></div>}
+    {error&&<AppAlert type="error" message={error} onDismiss={()=>setError('')} className="errorBanner pageError"/>}
     {loading&&<div className="loadingBar"><span/></div>}
 
     {page==='overview'&&<Dashboard openPage={openPage} data={data} cities={cities} domains={domains} verification={verification} filteredOutlets={filteredOutlets} customerCount={customerCount} liveOutlets={liveOutlets} activeWorkspaces={activeWorkspaces} domainsActive={domainsActive} domainIssues={domainIssues} revenue={revenue} attention={attention} revenueRows={revenueRows}/>}
@@ -203,7 +202,7 @@ function App(){
   </div>
 
   {selectedVerification&&<VerificationModal item={selectedVerification} notes={verificationNotes} setNotes={setVerificationNotes} onClose={()=>setSelectedVerification(null)} onDocument={openProtectedDocument} onDecision={decide} loading={loading}/>}
-  {toast&&<div className="toast"><Icon name="check" size={15}/>{toast}</div>}
+  
  </div>;
 }
 
@@ -344,4 +343,4 @@ function VerificationModal({item,notes,setNotes,onClose,onDocument,onDecision,lo
  return <div className="modalBackdrop"><div className="modalShell verificationShell"><div className="modalHead"><div><span className="eyebrow">OUTLET APPLICATION</span><h2>{item.outletName||'Unnamed outlet'}</h2><p>{item.planName||'Plan'} · {item.billingCycle||'Billing cycle'} · {item.paymentStatus||'Payment'}</p></div><button type="button" className="iconBtn" onClick={onClose}><Icon name="close"/></button></div><div className="verifyGrid"><section><h3>Business details</h3><div className="facts"><span>Type</span><b>{item.businessType||'—'}</b><span>Location</span><b>{[item.city,item.state,item.pincode].filter(Boolean).join(', ')||'—'}</b><span>Address</span><b>{[item.addressLine1,item.addressLine2].filter(Boolean).join(', ')||'—'}</b><span>Description</span><b>{item.description||'—'}</b></div></section><section><h3>Owner & identity</h3><div className="facts"><span>Owner</span><b>{item.ownerName||'—'}</b><span>Email</span><b>{item.ownerEmail||'—'}</b><span>Phone</span><b>{item.ownerPhone||'—'}</b><span>Aadhaar</span><b>XXXX XXXX {String(item.aadhaarNumber||'').slice(-4)||'—'}</b><span>Business PAN</span><b>{item.businessPan||'—'}</b><span>GST</span><b>{item.gstNumber||'—'}</b></div></section><section className="verifyDocs"><h3>Uploaded documents</h3><div className="docGrid">{docs.map(([label,url])=><button type="button" className="docRow" key={label} onClick={()=>onDocument(url)}><span className="docCheck"><Icon name="check" size={12}/></span><span><b>{label}</b><small>Open protected document</small></span><Icon name="arrow" size={14}/></button>)}{!docs.length&&<Empty text="No protected documents were uploaded."/>}</div></section><section className="decisionBox"><h3>Verification decision</h3><textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Add verification notes. Notes are required when rejecting."/><div className="verifyActions"><button type="button" className="secondaryBtn dangerBtn" disabled={loading||!notes.trim()} onClick={()=>onDecision(false)}>Reject</button><button type="button" className="primaryBtn" disabled={loading} onClick={()=>onDecision(true)}>Approve & activate <Icon name="check" size={13}/></button></div></section></div></div></div>;
 }
 
-createRoot(document.getElementById('root')).render(<App/>);
+createRoot(document.getElementById('root')).render(<AppFeedbackProvider><App/></AppFeedbackProvider>);
