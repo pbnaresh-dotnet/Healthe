@@ -601,7 +601,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var menuItems = await menu.GetByOutletAsync(outlet.Id);
         var meals = BuildSelections(r.Selections, outlet.Id, menuItems, rs);
         ValidateDeliveryMode(deliveryMode, meals);
-        ValidateSelectionWindow(duration, meals);
+        ValidateSelectionWindow(duration, outlet.DeliveryDays, outlet.ClosureDatesJson, meals);
         ValidateConfiguredDeliveryDays(outlet.DeliveryDays, outlet.ClosureDatesJson, meals);
         var selectedRecipes = meals.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
         var allergyWarnings = await allergySafety.GetWarningsAsync(customerId, selectedRecipes);
@@ -650,7 +650,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var rs = (await recipes.GetByOutletAsync(outlet.Id)).Where(x => x.IsActive).ToDictionary(x => x.Id);
         var mealEntities = BuildSelections(r.Selections, outlet.Id, await menu.GetByOutletAsync(outlet.Id), rs);
         ValidateDeliveryMode(deliveryMode, mealEntities);
-        ValidateSelectionWindow(duration, mealEntities);
+        ValidateSelectionWindow(duration, outlet.DeliveryDays, outlet.ClosureDatesJson, mealEntities);
         ValidateConfiguredDeliveryDays(outlet.DeliveryDays, outlet.ClosureDatesJson, mealEntities);
         var selectedRecipes = mealEntities.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
         await allergySafety.EnsureConfirmedAsync(customerId, selectedRecipes, r.ConfirmedAllergyRecipeIds);
@@ -1081,7 +1081,34 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         _=>7
     };
 
-    private static void ValidateSelectionWindow(SubscriptionDuration duration,IReadOnlyList<SubscriptionMealSelection> meals) {
+    private static void ValidateSelectionWindow(SubscriptionDuration duration, string configuredDays, string closureDatesJson, IReadOnlyList<SubscriptionMealSelection> meals) {
+        if(meals.Count==0)throw new ArgumentException("At least one meal is required.");
+        var requiredDays=duration switch {
+            SubscriptionDuration.ThreeDays=>3,
+            SubscriptionDuration.FiveDays=>5,
+            SubscriptionDuration.OneWeek=>7,
+            SubscriptionDuration.TwoWeeks=>14,
+            SubscriptionDuration.OneMonth=>28,
+            _=>1
+        };
+        var openDays=(configuredDays??"").Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)
+            .Select(x=>Enum.TryParse<DayOfWeek>(x,true,out var day)?(DayOfWeek?)day:null)
+            .Where(x=>x.HasValue).Select(x=>x!.Value).ToHashSet();
+        if(openDays.Count==0)throw new InvalidOperationException("This outlet has not configured its delivery days.");
+        List<OutletClosureDto> closures;
+        try { closures=System.Text.Json.JsonSerializer.Deserialize<List<OutletClosureDto>>(string.IsNullOrWhiteSpace(closureDatesJson)?"[]":closureDatesJson)??[]; }
+        catch(System.Text.Json.JsonException){closures=[];}
+        var start=meals.Min(x=>x.MealDate).Date;
+        var end=start;var validDays=0;
+        for(var offset=0;offset<370&&validDays<requiredDays;offset++){
+            var date=start.AddDays(offset);
+            var closed=closures.Any(closure=>DateOnly.TryParse(closure.StartDate,out var from)&&DateOnly.TryParse(closure.EndDate,out var to)&&DateOnly.FromDateTime(date)>=from&&DateOnly.FromDateTime(date)<=to);
+            if(openDays.Contains(date.DayOfWeek)&&!closed){validDays++;end=date;}
+        }
+        if(validDays<requiredDays)throw new InvalidOperationException("The outlet does not have enough configured delivery days to complete this package duration.");
+        if(meals.Any(x=>x.MealDate.Date<start||x.MealDate.Date>end))throw new ArgumentException("Selected meals are outside the package's valid delivery-day duration.");
+        foreach(var g in meals.GroupBy(x=>(x.MealDate.Date-start).Days/7))if(g.Select(x=>x.MealDate.Date).Distinct().Count()>7)throw new ArgumentException("A package can contain at most seven active days in a week.");
+    }
         if(meals.Count==0)throw new ArgumentException("At least one meal is required.");
         var start=meals.Min(x=>x.MealDate).Date;
         var end=duration switch {
