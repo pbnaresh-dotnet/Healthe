@@ -381,7 +381,12 @@ public sealed class DeliveryRouteService(
             throw new UnauthorizedAccessException("This route is not assigned to the current driver.");
 
         if (route.Status == RouteStatus.Dispatched)
+        {
+            var notPickedUp = route.Stops.Where(x => x.Status != DeliveryStatus.PickedUp).ToList();
+            if (notPickedUp.Count > 0)
+                throw new InvalidOperationException($"Mark every delivery stop as picked up before starting the route. {notPickedUp.Count} stop(s) remain.");
             route.Status = RouteStatus.InProgress;
+        }
         else if (route.Status != RouteStatus.InProgress)
             throw new InvalidOperationException($"This route cannot be started from status {route.Status}. Dispatch it from the outlet first.");
 
@@ -395,6 +400,46 @@ public sealed class DeliveryRouteService(
             await deliveries.UpdateAsync(delivery);
         }
 
+        return await GetDriverPlanAsync(route.DeliveryDate.Date, (int)route.MealSlot);
+    }
+
+    public async Task<DeliveryRoutePlanDto?> PickUpDriverStopAsync(Guid stopId)
+    {
+        if (current.OutletId is not Guid outletId || current.UserId is not Guid driverId)
+            throw new UnauthorizedAccessException("Driver context is required.");
+
+        var route = (await routes.GetByOutletAndDateAsync(outletId, DateTime.UtcNow.Date, MealSlot.Afternoon))
+            .FirstOrDefault(x => x.Stops.Any(s => s.Id == stopId) && x.DriverId == driverId);
+        if (route is null)
+        {
+            foreach (var date in new[] { DateTime.UtcNow.Date, DateTime.UtcNow.Date.AddDays(1), DateTime.UtcNow.Date.AddDays(-1) })
+            foreach (var slot in Enum.GetValues<MealSlot>())
+            {
+                route = (await routes.GetByOutletAndDateAsync(outletId, date, slot))
+                    .FirstOrDefault(x => x.Stops.Any(s => s.Id == stopId) && x.DriverId == driverId);
+                if (route is not null) break;
+            }
+        }
+
+        if (route is null)
+            throw new KeyNotFoundException("Delivery stop not found for the current driver.");
+        if (route.Status != RouteStatus.Dispatched)
+            throw new InvalidOperationException("Stops can only be marked picked up before the dispatched route starts.");
+        var stop = route.Stops.First(x => x.Id == stopId);
+        if (stop.Status == DeliveryStatus.Delivered)
+            throw new InvalidOperationException("A delivered stop cannot be marked picked up.");
+        if (stop.Status != DeliveryStatus.PickedUp)
+        {
+            stop.Status = DeliveryStatus.PickedUp;
+            route.UpdatedAtUtc = DateTime.UtcNow;
+            await routes.UpdateAsync(route);
+            var deliveryRows = await deliveries.GetByOutletAsync(outletId);
+            foreach (var delivery in deliveryRows.Where(x => x.RouteStopId == stopId && x.Status != DeliveryStatus.Delivered))
+            {
+                delivery.Status = DeliveryStatus.PickedUp;
+                await deliveries.UpdateAsync(delivery);
+            }
+        }
         return await GetDriverPlanAsync(route.DeliveryDate.Date, (int)route.MealSlot);
     }
 
