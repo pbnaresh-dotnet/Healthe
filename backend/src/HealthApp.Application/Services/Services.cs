@@ -651,7 +651,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var mealEntities = BuildSelections(r.Selections, outlet.Id, await menu.GetByOutletAsync(outlet.Id), rs);
         ValidateDeliveryMode(deliveryMode, mealEntities);
         ValidateSelectionWindow(duration, mealEntities);
-        ValidateConfiguredDeliveryDays(outlet.DeliveryDays, mealEntities);
+        ValidateConfiguredDeliveryDays(outlet.DeliveryDays, outlet.ClosureDatesJson, mealEntities);
         var selectedRecipes = mealEntities.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
         await allergySafety.EnsureConfirmedAsync(customerId, selectedRecipes, r.ConfirmedAllergyRecipeIds);
         await ValidateDeliveryAddressesAsync(customerId, deliveryCity, mealEntities);
