@@ -435,7 +435,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
            <label className="authLoginField"><span>Password</span><div className="authInputWrap authPasswordWrap"><i>▣</i><input type="password" value={authForm.password} onChange={e=>setAuthForm({...authForm,password:e.target.value})} required/><button type="button" className="authPasswordToggle" onClick={e=>{const input=e.currentTarget.parentElement?.querySelector('input');if(input)input.type=input.type==='password'?'text':'password'}}>◉</button></div></label>
            <button className="primary big authSubmit">Sign in <span>→</span></button>
          </>}
-         {error&&<div className="error authFormError">{error}</div>}
+         {error&&<AppAlert type="error" message={error} className="authFormError"/>}
          <div className="authSwitch">{isRegister?'Already have an account?':'New to '+brandName+'?'} <button type="button" className="linkBtn" onClick={()=>{setError('');setAuthMode(isRegister?'login':'register')}}>{isRegister?'Sign in':'Create account'}</button></div>
          {!isRegister&&<small className="authDemo">Demo: customer@healthapp.test / demo</small>}
        </form>
