@@ -55,6 +55,7 @@ const formatDate=iso=>new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'shor
 const shortDate=iso=>new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short',timeZone:'UTC'}).format(dateObj(iso));
 const dayId=iso=>dateObj(iso).getUTCDay();
 const slotName=id=>SLOT.find(x=>x.id===Number(id))?.label||'Meal';
+const isPackageAddOn=item=>['Juice','Snack','Curd','Starter','Side','Add-on','Soup','Salad','Dessert','Drink','Other'].includes(String(item?.mealType||'').trim());
 const dayName=id=>DAYS.find(x=>x.id===id)?.label||'Day';
 const key=(date,slot)=>date+'_'+slot;
 const IMAGE_FALLBACKS={hero:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1400&q=85',logo:'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=240&q=85',veg:'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=85',nonveg:'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=85',vegan:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=85'};
@@ -267,7 +268,6 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    const start=guestStartDate||todayISO();
    return Array.from({length:d.days},(_,i)=>({date:addDays(start,i),index:i}));
  };
- const isPackageAddOn=item=>['Juice','Snack','Curd','Starter','Side','Add-on','Soup','Salad','Dessert','Drink','Other'].includes(String(item?.mealType||'').trim());
  const publicMenuFor=(date,slot)=>{
    const day=dayId(date);
    const configured=(publicOutletMenu||[]).filter(x=>Number(x.dayOfWeek)===Number(day));
@@ -706,7 +706,14 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
    const start=startDate||todayISO();
    return Array.from({length:d.days},(_,i)=>({date:addDays(start,i),index:i}));
  },[duration,startDate]);
- const menuFor=(date,slot)=>(menu||[]).filter(x=>Number(x.dayOfWeek)===Number(dayId(date))&&Number(x.mealSlotValue)===Number(slot));
+ const menuFor=(date,slot)=>{
+   const day=Number(dayId(date));
+   const configured=(menu||[]).filter(x=>Number(x.dayOfWeek)===day);
+   const slotItems=configured.filter(x=>Number(x.mealSlotValue)===Number(slot));
+   const addOns=configured.filter(x=>isPackageAddOn(x)&&Number(x.mealSlotValue)!==Number(slot))
+     .map(x=>({...x,optionGroup:!x.optionGroup||x.optionGroup==='Main'?String(x.mealType||'Add-on'):x.optionGroup,isRequired:false}));
+   return [...new Map([...slotItems,...addOns].map(x=>[x.recipeId,x])).values()];
+ };
  const selectedIdsFor=(date,slot)=>{
    const value=selections[key(date,slot)];
    return Array.isArray(value)?value.filter(Boolean).map(x=>typeof x==='string'?x:x.recipeId):(value?[value.recipeId||value]:[]);
