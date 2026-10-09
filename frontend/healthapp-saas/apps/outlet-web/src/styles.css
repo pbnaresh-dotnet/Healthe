@@ -1024,3 +1024,25 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
  .recipeEditor .ingredientRow input{font-size:16px}
  .recipeEditor .formGrid>.field input,.recipeEditor .formGrid>.field select,.recipeEditor .formGrid>.field textarea{font-size:16px;min-height:44px}
 }
+
+
+/* Make per-portion nutrition prominent and keep it aligned in the recipe form */
+.recipeEditor .nutritionSection{display:block!important;grid-column:1/-1!important;width:100%;min-width:0;padding:15px;border:1px solid #d8e6dc;border-radius:14px;background:#f7fbf8}
+.recipeEditor .nutritionSection .editorTitle{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.recipeEditor .nutritionAutoBadge{flex:0 0 auto;border-radius:999px;padding:5px 8px;background:#e4f4e8;color:#236c3b;font-size:8px;font-weight:850;letter-spacing:.04em}
+.recipeEditor .nutritionSection .nutritionPreview{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:stretch;gap:12px!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important}
+.recipeEditor .nutritionSection .nutritionPreview>div{min-width:0;border:1px solid #dfe9e1;border-radius:11px;background:#fff;padding:13px}
+.recipeEditor .nutritionSection .nutritionPreview>div>b{display:block;font-size:11px;color:#43584a}
+.recipeEditor .nutritionCalories{display:block;margin-top:8px;font-size:26px;line-height:1.1;letter-spacing:-.04em;color:#1b5730}
+.recipeEditor .nutritionCalories small{font-size:10px;letter-spacing:0;color:#6d7e72}
+.recipeEditor .nutritionMetricGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:12px}
+.recipeEditor .nutritionMetricGrid>span{min-width:0;display:block;text-align:center;padding:8px 3px;background:#f5f8f5;border:1px solid #edf1ed;border-radius:8px}
+.recipeEditor .nutritionMetricGrid b,.recipeEditor .nutritionMetricGrid small{display:block}
+.recipeEditor .nutritionMetricGrid b{font-size:10px;color:#294a34;overflow-wrap:anywhere}
+.recipeEditor .nutritionMetricGrid small{font-size:8px;color:#7a877f;margin-top:3px}
+.recipeEditor .nutritionMissingNotice{grid-column:1/-1;border:1px solid #efd6a5;background:#fff8eb;color:#80551a;border-radius:9px;padding:10px 11px;font-size:10px;line-height:1.45}
+@media(max-width:680px){
+ .recipeEditor .nutritionSection .nutritionPreview{grid-template-columns:minmax(0,1fr)!important}
+ .recipeEditor .nutritionMetricGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+ .recipeEditor .nutritionSection .editorTitle{flex-direction:column}
+}
