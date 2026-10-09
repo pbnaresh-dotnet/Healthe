@@ -680,6 +680,7 @@ function KitchenPage({data,date,setDate,refresh}) {
       <div className="labelMealCompact"><b>{l.mealName}</b><span>{l.category} · {l.portionSize}</span></div>
       <div className="labelMetaRow"><span>{l.mealSlotName}</span><b>{l.deliveryWindow}</b></div>
       <div className="labelAddressCompact"><b>{l.address}</b><span>{[l.areaName,l.pincode].filter(Boolean).join(' · ')}</span>{l.customerPhone&&<span>☎ {l.customerPhone}</span>}</div>
+      <div className="labelBarcode"><img alt={'Barcode '+l.selectionId} src={'https://bwipjs-api.metafloor.com/?bcid=code128&scale=2&height=10&includetext&text='+encodeURIComponent(String(l.selectionId))}/><small>{String(l.selectionId)}</small></div>
       <div className="labelFooterCompact"><span>HealthApp</span><b>#{String(l.selectionId).slice(0,6).toUpperCase()}</b></div>
     </article>)}</div>
    </section>
@@ -691,6 +692,25 @@ function KitchenPage({data,date,setDate,refresh}) {
     <div className="printChoice"><div><b>Meal-box labels</b><small>{selectedLabels.length} concise labels for the selected windows.</small></div><button className="primary" onClick={()=>doPrint('labels')} disabled={!selectedLabels.length}>Print labels</button></div>
    </div>
   </Modal>}
+ </div>
+}
+
+function DriverRunPage({data,loading,date,setDate,mealSlot,setMealSlot,onStart,onCompleteStop}){
+ const [scanValue,setScanValue]=useState('');
+ const [scanMessage,setScanMessage]=useState('');
+ const inputRef=useRef(null);
+ const route=(data?.routes||[]).find(r=>['Dispatched','InProgress'].includes(String(r.status)));
+ const stops=(route?.stops||[]).slice().sort((a,b)=>(a.stopSequence||0)-(b.stopSequence||0));
+ const status=s=>String(s?.status||'Scheduled').toLowerCase();
+ const completed=stops.filter(s=>['delivered','completed'].includes(status(s))).length;
+ const submitScan=e=>{e.preventDefault();const code=scanValue.trim();if(!code)return;const stop=stops.find(s=>String(s.id).toLowerCase()===code.toLowerCase());if(!stop){setScanMessage('Barcode not recognized for this assigned route. Scan a route stop barcode or select the stop below.');return;}if(['delivered','completed'].includes(status(stop))){setScanMessage('This delivery is already completed.');return;}onCompleteStop(stop.id);setScanMessage('Delivery confirmation submitted.');setScanValue('');};
+ return <div className="page driverRunPage"><div className="pageHead"><div><span className="eyebrow">DRIVER WORKSPACE</span><h1>My deliveries</h1><p>Pickup, navigate, and confirm each delivery on your assigned route.</p></div><div className="pageActions"><input type="date" value={date} onChange={e=>setDate(e.target.value)}/><select value={mealSlot} onChange={e=>setMealSlot(Number(e.target.value))}>{SLOTS.map(x=><option value={x[1]} key={x[1]}>{x[0]}</option>)}</select></div></div>
+ {loading&&<div className="notice">Loading your route…</div>}
+ {!loading&&!data&&<Empty title="No route assigned" text="There is no route assigned to you for this date and meal window. Ask your outlet manager to dispatch a route."/>}
+ {data&&<><section className="driverProgressCard"><div><span>Assigned stops</span><b>{stops.length}</b></div><div><span>Delivered</span><b>{completed}</b></div><div><span>Remaining</span><b>{Math.max(0,stops.length-completed)}</b></div><div className="driverProgressTrack"><i style={{width:(stops.length?completed/stops.length*100:0)+'%'}}/></div></section>
+ {route?<><div className="driverRouteIntro"><div><b>{route.driverName||'Assigned route'}</b><span>{route.totalDistanceKm??'—'} km · {Math.round(route.totalDurationMinutes||0)} min estimated</span></div><span className="pill green">{route.status}</span></div>{String(route.status).toLowerCase()==='dispatched'&&<button className="primary driverStartButton" onClick={()=>onStart(route.id)} disabled={loading}>Start route</button>}
+ <section className="panel driverScanPanel"><h3>Scan delivery barcode</h3><p>Use a Bluetooth/USB barcode scanner (it types into this field), or enter the scanned code manually.</p><form onSubmit={submitScan}><input ref={inputRef} value={scanValue} onChange={e=>setScanValue(e.target.value)} placeholder="Scan barcode / enter stop ID" autoComplete="off"/><button className="primary" type="submit" disabled={!scanValue.trim()}>Confirm scan</button></form>{scanMessage&&<small role="status">{scanMessage}</small>}</section>
+ <div className="driverStopsList">{stops.map((stop,index)=>{const done=['delivered','completed'].includes(status(stop));return <article className={'driverStopCard '+(done?'done':'')} key={stop.id}><div className="driverStopNumber">{done?'✓':index+1}</div><div className="driverStopDetails"><div className="driverStopTitle"><b>{stop.customerName||'Customer'}</b><span className="pill">{stop.status||'Scheduled'}</span></div><p>{stop.address}</p><small>{stop.deliveryCount||1} meal box(es) · Stop {stop.stopSequence||index+1}</small>{stop.latitude&&stop.longitude&&<a href={'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(stop.latitude+','+stop.longitude)} target="_blank" rel="noreferrer">Navigate to stop ↗</a>}</div>{!done&&<button className="primary driverCompleteButton" onClick={()=>onCompleteStop(stop.id)} disabled={loading}>Confirm delivery</button>}</article>})}{!stops.length&&<Empty title="No stops on this route" text="Contact the outlet manager to check the dispatch."/>}</div></>:<Empty title="Route not dispatched" text="Your route will appear here once the outlet assigns and dispatches it."/>}</>}
  </div>
 }
 
