@@ -37,6 +37,11 @@ public sealed class OutletDeliveryRoutesController(IDeliveryRouteService service
     public async Task<IActionResult> Start(Guid routeId)
         => Ok(await service.StartDriverRouteAsync(routeId));
 
+    [HttpPost("stops/{stopId:guid}/pickup")]
+    [Authorize(Roles = "Driver")]
+    public async Task<IActionResult> PickUpStop(Guid stopId)
+        => Ok(await service.PickUpDriverStopAsync(stopId));
+
     [HttpPost("stops/{stopId:guid}/complete")]
     [Authorize(Roles = "Driver")]
     public async Task<IActionResult> CompleteStop(Guid stopId)
