@@ -883,8 +883,12 @@ function App(){
      setHomeBusy(true);
      setHomeError('');
      try{
-       const outlet=TENANT_OUTLET_SLUG?await outlets.get(TENANT_OUTLET_SLUG):(global.outlets[0]||await outlets.get(global.outlets[0]?.slug||''));
-       if(!outlet)throw new Error('Unable to load the outlet home.');
+       const outlet=TENANT_OUTLET_SLUG?await outlets.get(TENANT_OUTLET_SLUG):(global.outlets[0]||null);
+       if(!outlet?.id){
+         setHomeOutlet(null);
+         setHomeMenu([]);
+         throw new Error('No outlet is available for this customer portal yet. Please check the outlet URL or outlet setup.');
+       }
        const m=await menu.outlet(outlet.id);
        if(disposed)return;
        setHomeOutlet(outlet);
