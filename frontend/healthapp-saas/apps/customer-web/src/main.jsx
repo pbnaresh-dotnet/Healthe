@@ -710,9 +710,11 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
    const day=Number(dayId(date));
    const configured=(menu||[]).filter(x=>Number(x.dayOfWeek)===day);
    const slotItems=configured.filter(x=>Number(x.mealSlotValue)===Number(slot));
-   const addOns=configured.filter(x=>isPackageAddOn(x)&&Number(x.mealSlotValue)!==Number(slot))
-     .map(x=>({...x,optionGroup:!x.optionGroup||x.optionGroup==='Main'?String(x.mealType||'Add-on'):x.optionGroup,isRequired:false}));
-   return [...new Map([...slotItems,...addOns].map(x=>[x.recipeId,x])).values()];
+   const addOns=configured.filter(x=>isPackageAddOn(x)&&Number(x.mealSlotValue)!==Number(slot));
+   const unique=[...new Map([...slotItems,...addOns].map(x=>[x.recipeId,x])).values()];
+   return unique.map(x=>isPackageAddOn(x)
+     ?({...x,optionGroup:!x.optionGroup||x.optionGroup==='Main'?String(x.mealType||'Add-on'):x.optionGroup,isRequired:false})
+     :x);
  };
  const selectedIdsFor=(date,slot)=>{
    const value=selections[key(date,slot)];
