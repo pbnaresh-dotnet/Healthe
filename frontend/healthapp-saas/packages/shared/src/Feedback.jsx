@@ -49,6 +49,8 @@ export function AppFeedbackProvider({children}){
   </FeedbackContext.Provider>;
 }
 
+export function AppAlert({type='info',title,message,children,onDismiss,className=''}){const kind=['success','error','warning','info'].includes(type)?type:'info';return <div className={['ha-alert','ha-alert-'+kind,className].filter(Boolean).join(' ')} role={kind==='error'?'alert':'status'}><span className="ha-alertMark" aria-hidden="true">{kind==='success'?'✓':kind==='error'?'!':kind==='warning'?'⚠':'i'}</span><div className="ha-alertBody">{title&&<strong>{title}</strong>}<div>{message??children}</div></div>{onDismiss&&<button type="button" className="ha-alertClose" onClick={onDismiss} aria-label="Dismiss message">×</button>}</div>}
+
 export function useFeedback(){
   const value=useContext(FeedbackContext);
   if(!value)throw new Error('useFeedback must be used inside AppFeedbackProvider');
