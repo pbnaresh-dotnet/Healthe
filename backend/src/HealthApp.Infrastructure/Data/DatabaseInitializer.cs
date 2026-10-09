@@ -56,6 +56,12 @@ IF NOT EXISTS (
     FOREIGN KEY(OutletGroupId) REFERENCES dbo.OutletGroups(Id) ON DELETE NO ACTION;
 ", cancellationToken);
 
+        // Outlet holiday/closure periods are stored as JSON and reconciled for existing SQL Server databases.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Outlets','ClosureDatesJson') IS NULL
+    ALTER TABLE dbo.Outlets ADD ClosureDatesJson nvarchar(max) NOT NULL CONSTRAINT DF_Outlets_ClosureDatesJson DEFAULT '[]' WITH VALUES;
+", cancellationToken);
+
         // Outlet late-skip fee is tenant-owned commercial configuration. Existing databases receive the production default of ₹50.
         await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.Outlets','LateSkipFee') IS NULL
