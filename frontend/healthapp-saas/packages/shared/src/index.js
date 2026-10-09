@@ -122,3 +122,5 @@ export function distanceKm(lat1,lon1,lat2,lon2){const R=6371,dLat=(lat2-lat1)*Ma
 export {default as PackageBuilder} from './PackageBuilder.jsx';
 
 export {AppFeedbackProvider,useFeedback,AppModal} from './Feedback.jsx';
+
+export {AppFeedbackProvider,useFeedback,AppModal,AppAlert} from './Feedback.jsx';
