@@ -293,19 +293,17 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    const start=Array.from({length:120},(_,i)=>addDays(tomorrowISO(),i)).find(date=>isOutletDeliveryDay(targetOutlet,date))||tomorrowISO();
    setGuestStartDate(start);
    setGuestBuilderOutlet(targetOutlet);
-   const days=(()=>{
-     const d=DURATIONS.find(x=>x.id===guestDuration)||DURATIONS[2];
-     return Array.from({length:d.days},(_,i)=>({date:addDays(start,i),index:i}));
-   })();
+   const durationConfig=DURATIONS.find(x=>x.id===guestDuration)||DURATIONS[2];
+   const days=Array.from({length:durationConfig.days},(_,i)=>({date:addDays(start,i),index:i}));
    const first={};
    for(const d of days){
-     if(outletClosureFor(outlet,d.date))continue;
+     if(outletClosureFor(targetOutlet,d.date))continue;
      for(const s of SLOT){
-       const opts=publicMenuFor(d.date,s.id);
-       if(opts.length&&guestSelections[key(d.date,s.id)]===undefined) first[key(d.date,s.id)]=[];
+       const opts=(publicOutletMenu||[]).filter(x=>Number(x.dayOfWeek)===Number(dayId(d.date))&&Number(x.mealSlotValue)===Number(s.id));
+       if(opts.length)first[key(d.date,s.id)]=[];
      }
    }
-   setGuestSelections(g=>({...first,...g}));
+   setGuestSelections(first);
    setGuestBuilderOpen(true);
    setPublicOutlet(null);
  };
