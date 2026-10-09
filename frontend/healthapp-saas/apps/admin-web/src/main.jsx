@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState}from'react';
 import{createRoot}from'react-dom/client';
-import{auth,admin,currentUser,money,API_URL,AppFeedbackProvider,useFeedback,AppAlert}from'@healthapp/shared';
+import{auth,admin,currentUser,money,API_URL,AppFeedbackProvider,useFeedback,AppAlert,AppModal}from'@healthapp/shared';
 import'./styles.css';
 import ApplicationErrorMonitor from './ApplicationErrorMonitor.jsx';
 import OutletGroups from './OutletGroups.jsx';
