@@ -298,6 +298,7 @@ function App(){
  <section className="main"><header className="topbar"><div><h2>{title}</h2><span>{dash?.outlet?.city||'Bengaluru'}, {dash?.outlet?.state||'Karnataka'}</span></div><div className="topbarRight">{user?.isDemo&&<span className="demoModePill">● DEMO MODE</span>}<div className="topUser"><div className="avatar sm">{(user.firstName||'A')[0]}</div><div><b>{user.firstName} {user.lastName}</b><span>{user.email}</span></div></div></div></header>
  <main className="content">{error&&<AppAlert type="error" title="Something needs attention" message={error} onDismiss={()=>setError('')} className="statusBanner"/>}
  {effectiveActive==='dashboard'&&<Dashboard dash={dash} recipes={recipes} pricing={pricing} nav={nav} openSubscription={openSubscription} onOpenPending={openPendingDeliveries}/>}
+ {effectiveActive==='ingredient-usage'&&<IngredientUsagePage report={ingredientConsumption} date={ingredientConsumptionDate} setDate={setIngredientConsumptionDate} refresh={d=>load('ingredient-usage')} loading={busy}/>} 
  {effectiveActive==='recipes'&&<Recipes items={filtered} total={recipes.length} search={search} setSearch={setSearch} category={category} setCategory={setCategory} openNew={openNew} openEdit={openEdit} remove={removeRecipe}/>}
  {effectiveActive==='menu'&&<MenuPage recipes={recipes} menu={menu} setMenu={setMenu} onSave={async()=>{try{await outletAdmin.saveMenu(menu.map(x=>({recipeId:x.recipeId,dayOfWeek:Number(x.dayOfWeek),mealSlot:Number(x.mealSlotValue||({'Morning':1,'Afternoon':2,'Evening':3,'Night':4}[x.mealSlot]||0)),isAvailable:x.isAvailable,displayOrder:x.displayOrder||0,optionGroup:x.optionGroup||'Main',isRequired:x.isRequired!==false,maxSelections:Math.max(1,Number(x.maxSelections)||1)})));notify('Weekly menu saved')}catch(e){fail(e)}}}/>}
  {effectiveActive==='customers'&&<CustomersPage customers={customers} onCreate={openCreateCustomer} onOpen={openCustomerProfile}/>}
@@ -585,6 +586,38 @@ function SubscriptionDetail({data}) {
    {data.meals.map(m=><div className="scheduleRow" key={m.selectionId}><span>{new Date(m.mealDate).toLocaleDateString()}</span><span>{m.mealSlotName}<small>{m.deliveryWindow}</small></span><span><b>{m.mealName}</b><small>{m.category}</small></span><span>{m.portionSize}</span><span><b>{m.addressLabel||'Address'}</b><small>{m.address + (m.areaName ? ', ' + m.areaName : '') + (m.pincode ? ' ' + m.pincode : '')}</small><small>{m.contactPhone}</small></span><span className="pill">{m.status}</span></div>)}
   </div>
  </div>
+}
+
+function IngredientUsagePage({report,date,setDate,refresh,loading}) {
+ const rows=Array.isArray(report?.ingredients)?report.ingredients:[];
+ const quantity=value=>Number(value||0).toLocaleString('en-IN',{maximumFractionDigits:3});
+ return <div className="page ingredientUsagePage">
+  <div className="pageHead">
+   <div><span className="eyebrow">KITCHEN OPERATIONS</span><h1>Ingredient Usage</h1><p>Estimate ingredients associated with meals marked as delivered for the selected date.</p></div>
+   <div className="pageActions"><label className="field"><span>Report date</span><input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><button type="button" className="secondary" onClick={()=>refresh(date)} disabled={loading}>{loading?'Refreshing…':'Refresh report'}</button></div>
+  </div>
+  {report&&<div className="statGrid">
+   <div className="statCard static"><div><span>Delivered meals</span><b>{Number(report.deliveredMealCount||0).toLocaleString('en-IN')}</b></div></div>
+   <div className="statCard static"><div><span>Deliveries</span><b>{Number(report.deliveredDeliveryCount||0).toLocaleString('en-IN')}</b></div></div>
+   <div className="statCard static"><div><span>Ingredients used</span><b>{rows.length.toLocaleString('en-IN')}</b></div></div>
+  </div>}
+  <section className="panel">
+   <div className="panelHead"><div><h3>{report?.outletName||'Daily ingredient summary'}</h3><p>Quantities are calculated from delivered meal selections and the ingredient quantities configured on recipes.</p></div><span className="pill">{date}</span></div>
+   {loading&&!report?<div className="empty"><h3>Loading ingredient report…</h3><p>Fetching the daily delivery and recipe data.</p></div>:!report?<Empty title="Ingredient report unavailable" text="Refresh to retry. If the report still fails, check the error message above."/>:!rows.length?<Empty title="No ingredient usage for this date" text="There are no delivered meals with recipe ingredients recorded for the selected date."/>:
+    <div className="dataTable ingredientUsageTable">
+     <div className="dataRow header"><span>Ingredient</span><span>Planned quantity</span><span>Meals</span><span>Deliveries</span><span>Recipes</span></div>
+     {rows.map((item,index)=><div className="dataRow" key={item.ingredientId||item.ingredientName||index}>
+      <span><b>{item.ingredientName||'Unnamed ingredient'}</b></span>
+      <span><strong>{quantity(item.quantity)} {item.unit||''}</strong></span>
+      <span>{Number(item.mealCount||0).toLocaleString('en-IN')}</span>
+      <span>{Number(item.deliveryCount||0).toLocaleString('en-IN')}</span>
+      <span>{Array.isArray(item.recipeNames)&&item.recipeNames.length?item.recipeNames.join(', '):'—'}</span>
+     </div>)}
+    </div>
+   }
+   <div className="panelCallout"><b>Planning note</b><span>This is a consumption estimate, not a live stock balance. Waste, spoilage, opening stock and manual adjustments are not deducted here.</span></div>
+  </section>
+ </div>;
 }
 
 function KitchenPage({data,date,setDate,refresh}) {
