@@ -55,7 +55,7 @@ export function useFeedback(){
   return value;
 }
 
-export function AppModal({title,onClose,children,wide=false,backdropClass='modalBackdrop',modalClass='modal',bodyClass='modalBody',showClose=true}){
+export function AppModal({title,onClose,children,wide=false,backdropClass='modalBackdrop',modalClass='modal',bodyClass='modalBody',showClose=true,showHeader=true}){
   const titleId=useId(),closeRef=useRef(null),previousFocus=useRef(null),onCloseRef=useRef(onClose);
   onCloseRef.current=onClose;
   useEffect(()=>{
