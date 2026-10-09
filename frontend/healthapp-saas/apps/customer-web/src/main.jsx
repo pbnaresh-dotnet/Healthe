@@ -290,7 +290,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  };
  const openGuestBuilder=(targetOutlet=publicOutlet)=>{
    if(!targetOutlet)return;
-   const start=tomorrowISO();
+   const start=Array.from({length:120},(_,i)=>addDays(tomorrowISO(),i)).find(date=>isOutletDeliveryDay(targetOutlet,date))||tomorrowISO();
    setGuestStartDate(start);
    setGuestBuilderOutlet(targetOutlet);
    const days=(()=>{
@@ -718,7 +718,7 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
  },[outlet?.deliveryDays,outlet?.closures]);
  const days=useMemo(()=>{
    const d=DURATIONS.find(x=>x.id===duration)||DURATIONS[2];
-   const start=startDate||startDateOptions[0]||tomorrowISO();
+   const start=startDateOptions.includes(startDate)?startDate:(startDateOptions[0]||tomorrowISO());
    const result=[];let validDeliveryDays=0;
    for(let offset=0;offset<180&&validDeliveryDays<d.days;offset++){
      const date=addDays(start,offset),warning=outletClosureFor(outlet,date);
