@@ -1109,19 +1109,6 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if(meals.Any(x=>x.MealDate.Date<start||x.MealDate.Date>end))throw new ArgumentException("Selected meals are outside the package's valid delivery-day duration.");
         foreach(var g in meals.GroupBy(x=>(x.MealDate.Date-start).Days/7))if(g.Select(x=>x.MealDate.Date).Distinct().Count()>7)throw new ArgumentException("A package can contain at most seven active days in a week.");
     }
-        if(meals.Count==0)throw new ArgumentException("At least one meal is required.");
-        var start=meals.Min(x=>x.MealDate).Date;
-        var end=duration switch {
-            SubscriptionDuration.ThreeDays=>start.AddDays(2),
-            SubscriptionDuration.FiveDays=>start.AddDays(4),
-            SubscriptionDuration.OneWeek=>start.AddDays(6),
-            SubscriptionDuration.TwoWeeks=>start.AddDays(13),
-            SubscriptionDuration.OneMonth=>start.AddDays(27),
-            _=>start
-        };
-        if(meals.Any(x=>x.MealDate.Date<start||x.MealDate.Date>end))throw new ArgumentException("Selected meals are outside the package duration.");
-        foreach(var g in meals.GroupBy(x=>(x.MealDate.Date-start).Days/7))if(g.Select(x=>x.MealDate.Date).Distinct().Count()>7)throw new ArgumentException("A package can contain at most seven active days in a week.");
-    }
     private static void ValidateConfiguredDeliveryDays(string configuredDays, string closureDatesJson, IReadOnlyList<SubscriptionMealSelection> meals)
     {
         var days = (configuredDays ?? "")
