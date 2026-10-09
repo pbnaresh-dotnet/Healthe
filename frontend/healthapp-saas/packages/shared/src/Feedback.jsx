@@ -27,8 +27,8 @@ export function AppFeedbackProvider({children}){
   }),[]);
   const finishConfirm=useCallback(value=>{setConfirmation(null);const resolve=confirmResolver.current;confirmResolver.current=null;resolve?.(value)},[]);
   useEffect(()=>()=>{timers.current.forEach(clearTimeout);timers.current.clear();confirmResolver.current?.(false)},[]);
-  const titleId=useId();
-  useEffect(()=>{if(!confirmation)return;const onKey=e=>{if(e.key==='Escape'){e.preventDefault();finishConfirm(false)}};document.addEventListener('keydown',onKey);return()=>document.removeEventListener('keydown',onKey)},[confirmation,finishConfirm]);
+  const titleId=useId(),confirmationRef=useRef(null);
+  useEffect(()=>{if(!confirmation)return;const frame=requestAnimationFrame(()=>confirmationRef.current?.querySelector('button')?.focus());const onKey=e=>{if(e.key==='Escape'){e.preventDefault();finishConfirm(false);return}if(e.key==='Tab'&&confirmationRef.current){const nodes=[...confirmationRef.current.querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(n=>n.offsetParent!==null);if(!nodes.length){e.preventDefault();return}const first=nodes[0],last=nodes[nodes.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}};document.addEventListener('keydown',onKey);return()=>{cancelAnimationFrame(frame);document.removeEventListener('keydown',onKey)}},[confirmation,finishConfirm]);
   return <FeedbackContext.Provider value={{notify,confirm}}>
     {children}
     <div className="ha-feedbackViewport" aria-live="polite" aria-relevant="additions text">
@@ -39,7 +39,7 @@ export function AppFeedbackProvider({children}){
       </div>)}
     </div>
     {confirmation&&<div className="ha-dialogBackdrop" role="presentation" onMouseDown={e=>e.target===e.currentTarget&&finishConfirm(false)}>
-      <section className={'ha-dialog '+(confirmation.variant==='danger'?'ha-dialogDanger':'')} role="alertdialog" aria-modal="true" aria-labelledby={titleId}>
+      <section ref={confirmationRef} className={'ha-dialog '+(confirmation.variant==='danger'?'ha-dialogDanger':'')} role="alertdialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="ha-dialogIcon" aria-hidden="true">{confirmation.variant==='danger'?'!':'?'}</div>
         <div className="ha-dialogContent"><h2 id={titleId}>{confirmation.title}</h2><p>{confirmation.message}</p>
           <div className="ha-dialogActions"><button type="button" className="ha-dialogCancel" onClick={()=>finishConfirm(false)}>{confirmation.cancelLabel}</button><button type="button" className={'ha-dialogConfirm '+(confirmation.variant==='danger'?'danger':'')} onClick={()=>finishConfirm(true)}>{confirmation.confirmLabel}</button></div>
@@ -65,7 +65,7 @@ export function AppModal({title,onClose,children,wide=false,backdropClass='modal
     const oldOverflow=document.body.style.overflow;
     document.body.style.overflow='hidden';
     const frame=requestAnimationFrame(()=>{const target=closeRef.current||dialogRef.current;target?.focus()});
-    const onKey=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();onCloseRef.current?.()}};
+    const onKey=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();onCloseRef.current?.();return}if(e.key==='Tab'&&dialogRef.current){const nodes=[...dialogRef.current.querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(n=>n.offsetParent!==null);if(!nodes.length){e.preventDefault();dialogRef.current.focus();return}const first=nodes[0],last=nodes[nodes.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}};
     document.addEventListener('keydown',onKey);
     return()=>{cancelAnimationFrame(frame);document.removeEventListener('keydown',onKey);document.body.style.overflow=oldOverflow;const target=previousFocus.current;if(target&&document.contains(target)&&typeof target.focus==='function')requestAnimationFrame(()=>target.focus())};
   },[]);
