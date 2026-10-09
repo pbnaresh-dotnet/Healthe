@@ -1,7 +1,7 @@
 
 import React,{useEffect,useId,useMemo,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
-import{auth,outletAdmin,outletStaff,catalog,locations,currentUser,money,API_URL,outletDemo,PackageBuilder,AppFeedbackProvider,AppModal}from'@healthapp/shared';
+import{auth,outletAdmin,outletStaff,catalog,locations,currentUser,money,API_URL,outletDemo,PackageBuilder,AppFeedbackProvider,useFeedback,AppModal}from'@healthapp/shared';
 import{MapContainer,TileLayer,CircleMarker,Popup,Polyline,useMap,useMapEvents}from'react-leaflet';
 import'leaflet/dist/leaflet.css';
 import'./styles.css';
@@ -143,6 +143,7 @@ function LandingPage({onLogin,onRegister,onDemo}){
 
 
 function App(){
+ const {notify:sharedNotify}=useFeedback();
  const legalDoc=(()=>{try{return new URLSearchParams(window.location.search).get('legal')||''}catch{return ''}})();
  const[user,setUser]=useState(currentUser()),[demoOpen,setDemoOpen]=useState(false),[login,setLogin]=useState({email:'',password:''}),[active,setActive]=useState('dashboard'),[dash,setDash]=useState(null),[deliveryFilter,setDeliveryFilter]=useState('all'),[showLogin,setShowLogin]=useState(false),[verificationApp,setVerificationApp]=useState(null),[verificationLoading,setVerificationLoading]=useState(false);
  const[recipes,setRecipes]=useState([]),[ingredients,setIngredients]=useState([]),[ingredientCatalogLoading,setIngredientCatalogLoading]=useState(false),[ingredientCatalogError,setIngredientCatalogError]=useState(''),[allergens,setAllergens]=useState([]),[allergenCatalogError,setAllergenCatalogError]=useState(''),[pricing,setPricing]=useState([]),[areas,setAreas]=useState([]),[selectedAreas,setSelectedAreas]=useState([]),[tiers,setTiers]=useState([]);
@@ -162,7 +163,7 @@ function App(){
  const[pkgCustomers,setPkgCustomers]=useState([]),[pkgRecipes,setPkgRecipes]=useState([]),[pkgMenu,setPkgMenu]=useState([]);
  const[manualPaymentPackageId,setManualPaymentPackageId]=useState(''),[manualPaymentMethod,setManualPaymentMethod]=useState('Cash'),[reviewPackageId,setReviewPackageId]=useState(''),[reviewPackageForm,setReviewPackageForm]=useState({finalMealAmount:'',discountReason:''});
  const[pkgCustomerId,setPkgCustomerId]=useState(''),[pkgAddresses,setPkgAddresses]=useState([]),[pkgDuration,setPkgDuration]=useState('OneWeek'),[pkgDeliveryMode,setPkgDeliveryMode]=useState('OneDeliveryPerDay'),[pkgStartDate,setPkgStartDate]=useState(todayISO()),[pkgSelections,setPkgSelections]=useState({}),[pkgDayAddresses,setPkgDayAddresses]=useState({}),[pkgMealAddresses,setPkgMealAddresses]=useState({}),[pkgPortions,setPkgPortions]=useState({}),[pkgDiscountType,setPkgDiscountType]=useState('None'),[pkgDiscountValue,setPkgDiscountValue]=useState(''),[pkgDiscountReason,setPkgDiscountReason]=useState(''),[pkgQuote,setPkgQuote]=useState(null),[pkgConfirmedAllergies,setPkgConfirmedAllergies]=useState([]),[pkgAddressOpen,setPkgAddressOpen]=useState(false),[pkgAddressTarget,setPkgAddressTarget]=useState(null),[pkgAddressForm,setPkgAddressForm]=useState({city:'',pincode:'',locality:'',label:'Home',addressLine1:'',addressLine2:'',contactName:'',contactPhone:'',latitude:'',longitude:'',cityAreaId:null,isDefault:false}),[pkgNewCustomerOpen,setPkgNewCustomerOpen]=useState(false),[pkgNewCustomerForm,setPkgNewCustomerForm]=useState({firstName:'',lastName:'',email:'',password:''});
- const notify=(m,type='success')=>{setToast(m);setToastType(type);setTimeout(()=>setToast(''),2500)},fail=e=>setError(e?.message||'Unexpected error.');
+ const notify=(m,type='success')=>sharedNotify(m,type),fail=e=>setError(e?.message||'Unexpected error.');
  const load=async p=>{setBusy(true);setError('');try{
   if(p==='dashboard'){setDash(await outletAdmin.dashboard());setRecipes(await outletAdmin.recipes());setPricing(await outletAdmin.pricingRules());}
   if(p==='kitchen')setKitchen(await outletAdmin.kitchen(kitchenDate));
@@ -313,7 +314,7 @@ function App(){
  {effectiveActive==='billing'&&<Billing billing={billing}/>} 
  {effectiveActive==='settings'&&<OutletSettings user={user} onNavigate={nav}/>} 
  {busy&&<div className="loadingBar"><span/></div>}</main></section>
- {confirmDialog&&<StandardConfirmModal request={confirmDialog} onClose={()=>setConfirmDialog(null)} onConfirm={async()=>{const fn=confirmDialog.onConfirm;setConfirmDialog(null);await fn()}}/>} {toast&&<div className={'statusToast '+toastType}><span>{toastType==='success'?'✓':toastType==='warning'?'⚠':toastType==='info'?'ℹ':'×'}</span><div><b>{toastType==='success'?'Success':toastType==='warning'?'Warning':toastType==='info'?'Info':'Error'}</b><small>{toast}</small></div><button onClick={()=>setToast('')}>×</button></div>}
+ {confirmDialog&&<StandardConfirmModal request={confirmDialog} onClose={()=>setConfirmDialog(null)} onConfirm={async()=>{const fn=confirmDialog.onConfirm;setConfirmDialog(null);await fn()}}/>} 
  {customerEditorOpen&&<CustomerEditorModal form={customerEditorForm} setForm={setCustomerEditorForm} allergens={allergens} saving={customerEditorSaving} editing={Boolean(customerProfile)} onClose={()=>setCustomerEditorOpen(false)} onSave={saveCustomer}/>}
  {customerProfileOpen&&<CustomerProfileModal profile={customerProfile} loading={customerProfileLoading} onClose={()=>setCustomerProfileOpen(false)} onEdit={editCustomerProfile} onCreatePackage={()=>{setCustomerProfileOpen(false);nav('packages')}}/>}
  {recipeOpen&&<Modal title={editRecipe?'Edit recipe':'Create new recipe'} onClose={()=>setRecipeOpen(false)} wide><RecipeForm form={recipeForm} setForm={setRecipeForm} ingredients={ingredients} allergens={allergens} allergenCatalogError={allergenCatalogError} ingredientCatalogLoading={ingredientCatalogLoading} ingredientCatalogError={ingredientCatalogError} retryIngredientCatalog={ensureIngredientCatalog} upload={upload} uploading={uploading} submit={saveRecipe} cancel={()=>setRecipeOpen(false)}/></Modal>}
