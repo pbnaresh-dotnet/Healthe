@@ -2,6 +2,8 @@ import React,{useEffect,useMemo,useState}from'react';
 import{createRoot}from'react-dom/client';
 import{locations,money,outletDemo,outletOnboarding,openCashfreeCheckout}from'@healthapp/shared';
 import'./styles.css';
+import'./type-scale.css';
+import'../../../packages/shared/src/theme-v2.css';
 
 const OUTLET_APP_URL=import.meta.env.VITE_OUTLET_APP_URL||'https://outlet.broccoly.in';
 

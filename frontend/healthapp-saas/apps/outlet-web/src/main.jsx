@@ -1,10 +1,12 @@
 
 import React,{useEffect,useId,useMemo,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
-import{auth,outletAdmin,outletStaff,catalog,locations,currentUser,money,API_URL,outletDemo,PackageBuilder}from'@healthapp/shared';
+import{auth,outletAdmin,outletStaff,catalog,locations,currentUser,money,API_URL,outletDemo,PackageBuilder,NavIcon}from'@healthapp/shared';
 import{MapContainer,TileLayer,CircleMarker,Popup,Polyline,useMap,useMapEvents}from'react-leaflet';
 import'leaflet/dist/leaflet.css';
 import'./styles.css';
+import'./type-scale.css';
+import'../../../packages/shared/src/theme-v2.css';
 import OutletVerificationCenter from'./OutletVerificationCenter.jsx';
 import OutletSettings from'./OutletSettings.jsx';
 import OutletLegalDocuments from'./OutletLegalDocuments.jsx';
@@ -294,7 +296,7 @@ function App(){
 
  const effectiveActive=allowedNavs.includes(active)?active:defaultPage;
  const title=navs.find(n=>n[0]===effectiveActive)?.[2]||'Dashboard';
- return <div className="appShell"><aside className="sidebar"><div className="sideBrand"><span className="brandMark">{(dash?.outlet?.name||"H").slice(0,1).toUpperCase()}</span><div><b>{dash?.outlet?.name||"HealthApp"}</b><small>Outlet portal</small></div></div><div className="outletMini"><div className="avatar">{(dash?.outlet?.name||'F')[0]}</div><div><b>{dash?.outlet?.name||'FitFood Bengaluru'}</b><span>{OUTLET_ROLE_LABELS[outletRole]||'Outlet staff'}</span></div></div><div className="sidebarNavGroups">{OUTLET_NAV_GROUPS.map(group=>{const items=group.items.filter(id=>allowedNavs.includes(id)&&(!group.roles||group.roles.includes(outletRole)));if(!items.length)return null;return <div className="navGroup" key={group.key}><div className="navLabel">{group.label}</div>{items.map(id=>{const n=navs.find(x=>x[0]===id);return n?<button className={effectiveActive===n[0]?'navItem active':'navItem'} key={n[0]} onClick={()=>nav(n[0])}><span>{n[1]}</span>{n[2]}</button>:null})}</div>})}</div><div className="sideBottom"><div className="secure">● API connected</div><button className="logoutBtn" onClick={()=>{auth.logout();setUser(null)}}>Log out</button></div></aside>
+ return <div className="appShell"><aside className="sidebar"><div className="sideBrand"><span className="brandMark">{(dash?.outlet?.name||"H").slice(0,1).toUpperCase()}</span><div><b>{dash?.outlet?.name||"HealthApp"}</b><small>Outlet portal</small></div></div><div className="outletMini"><div className="avatar">{(dash?.outlet?.name||'F')[0]}</div><div><b>{dash?.outlet?.name||'FitFood Bengaluru'}</b><span>{OUTLET_ROLE_LABELS[outletRole]||'Outlet staff'}</span></div></div><div className="sidebarNavGroups">{OUTLET_NAV_GROUPS.map(group=>{const items=group.items.filter(id=>allowedNavs.includes(id)&&(!group.roles||group.roles.includes(outletRole)));if(!items.length)return null;return <div className="navGroup" key={group.key}><div className="navLabel">{group.label}</div>{items.map(id=>{const n=navs.find(x=>x[0]===id);return n?<button className={effectiveActive===n[0]?'navItem active':'navItem'} key={n[0]} onClick={()=>nav(n[0])}><span><NavIcon id={n[0]}/></span>{n[2]}</button>:null})}</div>})}</div><div className="sideBottom"><div className="secure">● API connected</div><button className="logoutBtn" onClick={()=>{auth.logout();setUser(null)}}>Log out</button></div></aside>
  <section className="main"><header className="topbar"><div><h2>{title}</h2><span>{dash?.outlet?.city||'Bengaluru'}, {dash?.outlet?.state||'Karnataka'}</span></div><div className="topbarRight">{user?.isDemo&&<span className="demoModePill">● DEMO MODE</span>}<div className="topUser"><div className="avatar sm">{(user.firstName||'A')[0]}</div><div><b>{user.firstName} {user.lastName}</b><span>{user.email}</span></div></div></div></header>
  <main className="content">{error&&<div className="statusBanner error"><span><b>⚠ Something needs attention</b>{error}</span><button onClick={()=>setError('')}>×</button></div>}
  {effectiveActive==='dashboard'&&<Dashboard dash={dash} recipes={recipes} pricing={pricing} nav={nav} openSubscription={openSubscription} onOpenPending={openPendingDeliveries}/>}

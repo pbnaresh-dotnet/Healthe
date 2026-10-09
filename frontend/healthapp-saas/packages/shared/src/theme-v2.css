@@ -1,0 +1,58 @@
+/* Healthe UI theme v2: same green palette, tidier scale for type, spacing, icons and images.
+   Loaded after each app's styles.css, so it only overrides. No backend or markup changes needed. */
+:root{
+ --hv-brand:#176534;--hv-brand-dark:#123b24;--hv-accent:#3aac6a;
+ --hv-bg:#f5f8f6;--hv-line:#e2eae4;--hv-text:#17251c;--hv-muted:#66756b;
+ --hv-r-sm:8px;--hv-r-md:12px;--hv-r-lg:16px;
+ --hv-control:40px;
+}
+body{line-height:1.45;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--hv-accent);outline-offset:2px}
+
+/* Headings: one clear scale */
+.pageHead h1,.hero h1{font-size:26px;line-height:1.2;letter-spacing:-.01em}
+.pageHead p,.hero p{font-size:14px;line-height:1.55}
+.panelHead h3,.panel h3{font-size:16px;line-height:1.3}
+.panelHead p{font-size:12px;line-height:1.45}
+.topbar h2{font-size:18px}
+.eyebrow{font-size:11px;letter-spacing:.1em}
+
+/* Buttons and form controls: one comfortable height and radius */
+.primary,.secondary,.dangerText,.linkBtn{min-height:var(--hv-control);padding:0 16px;font-size:13px;border-radius:var(--hv-r-sm);display:inline-flex;align-items:center;justify-content:center;gap:8px;line-height:1}
+.linkBtn{padding:0 8px}
+.smallBtn{min-height:32px;padding:0 12px;font-size:12px}
+.field{font-size:12px;gap:6px;font-weight:600;color:#4a5a50}
+.field small{font-size:11px;font-weight:400}
+.field input,.field select,.field textarea,.toolbar input,.toolbar select,.menuControls select{min-height:var(--hv-control);font-size:13px;border-radius:var(--hv-r-sm)}
+.field textarea{min-height:88px}
+
+/* Cards and badges */
+.panel,.statCard{border-radius:var(--hv-r-lg);padding:20px}
+.statCard span{font-size:12px}.statCard b{font-size:26px;line-height:1.2}
+.pill,.badge{font-size:11px;padding:4px 10px;line-height:1.3;font-weight:700}
+.modal{border-radius:var(--hv-r-lg);padding:24px}.modalHead h3{font-size:18px}
+
+/* Icons: one outline set, one box size */
+.hvIcon{display:block;flex:none}
+
+/* Sidebar (desktop only, so the collapsed rail on small screens keeps working) */
+@media(min-width:901px){
+ .navItem{min-height:var(--hv-control);font-size:14px;gap:12px;padding:0 12px;border-radius:10px;font-weight:550}
+ .navItem span{width:20px;height:20px;display:grid;place-items:center;flex:none;font-size:0}
+ .sideBrand .brandMark{width:40px;height:40px;border-radius:12px;font-size:18px}
+ .sideBrand b{font-size:15px}.sideBrand small{font-size:12px}
+ .navLabel,.sideSection{font-size:11px;letter-spacing:.1em;margin:18px 12px 8px}
+}
+@media(max-width:900px){.navItem span{display:grid;place-items:center}.navItem svg{width:20px;height:20px}}
+
+/* Images: consistent shapes instead of mixed pixel heights */
+.recipeImage{height:auto;aspect-ratio:4/3}
+.recipeImage img,.recipeImage .placeholderImage{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.thumb{width:44px;height:44px;flex:none;border-radius:var(--hv-r-sm)}.thumb img{object-fit:cover}
+.menuMealImage,.wireMealImage,.screenshotMealImage,.publicOutletMealImage{position:relative;height:auto;aspect-ratio:4/3;overflow:hidden}
+.menuMealImage img,.wireMealImage img,.screenshotMealImage img,.publicOutletMealImage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.outletHeroThumb,.wireOutletCard .outletHeroThumb{height:auto;aspect-ratio:16/10}
+.outletHeroThumb img{width:100%;height:100%;object-fit:cover}
+.outletListView .outletHeroThumb{height:100%;aspect-ratio:auto}
+.todayMealImage,.summaryMealImage{width:48px;height:48px;flex:none;border-radius:10px}
+.publicNearbyOutlet img{width:48px;height:48px;border-radius:10px;object-fit:cover}

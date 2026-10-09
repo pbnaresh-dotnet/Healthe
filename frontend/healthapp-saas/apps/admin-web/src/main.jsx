@@ -2,6 +2,8 @@ import React,{useEffect,useMemo,useState}from'react';
 import{createRoot}from'react-dom/client';
 import{auth,admin,currentUser,money,API_URL}from'@healthapp/shared';
 import'./styles.css';
+import'./type-scale.css';
+import'../../../packages/shared/src/theme-v2.css';
 import ApplicationErrorMonitor from './ApplicationErrorMonitor.jsx';
 import OutletGroups from './OutletGroups.jsx';
 import Outlet360 from './Outlet360.jsx';
