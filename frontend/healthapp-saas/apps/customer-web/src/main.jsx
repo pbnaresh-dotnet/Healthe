@@ -1567,6 +1567,8 @@ function ReviewConfirm({quote,selectionPayload,menuMap,addresses,outlet,duration
 function Builder({guestPackageReady,profile,likedMeals,builder,setBuilder,days,menuMap,recipes,customerAllergies,addresses,selectedCount,selectionPayload,missingAddresses,quote,picker,setPicker,setSelection,toggleDay,copyWeek,setDayAddress,setMealAddress,setBuilderDuration,builderStartOptions,quoteBuilder,subscribeBuilder,setActive,openBuilderAddress}){
  const weeks=Array.from({length:builder.weeks},(_,i)=>i+1);
  const isActiveDay=(week,date)=>Boolean(builder.weekActiveDays?.[week]?.includes(dayId(date)));
+ const normalizeSelectionValue=value=>Array.isArray(value)?value.filter(Boolean):(value?[value]:[]);
+ const builderDateIndex=(date,start)=>Math.round((dateObj(start).getTime()===dateObj(date).getTime()?0:(dateObj(date).getTime()-dateObj(start).getTime())/86400000));
  const deliveryAddresses=addresses.filter(a=>a.city?.toLowerCase()===(builder.deliveryCity||builder.outlet?.city||'').toLowerCase());
  const normalize=values=>Array.isArray(values)?values.filter(Boolean):(values?[values]:[]);
  const recommendations=(builder.recommendedPlans||[]).filter(x=>x.isPreplanned);
