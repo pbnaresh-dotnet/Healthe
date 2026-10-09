@@ -602,7 +602,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var meals = BuildSelections(r.Selections, outlet.Id, menuItems, rs);
         ValidateDeliveryMode(deliveryMode, meals);
         ValidateSelectionWindow(duration, meals);
-        ValidateConfiguredDeliveryDays(outlet.DeliveryDays, meals);
+        ValidateConfiguredDeliveryDays(outlet.DeliveryDays, outlet.ClosureDatesJson, meals);
         var selectedRecipes = meals.Select(x=>rs[x.RecipeId]).DistinctBy(x=>x.Id).ToList();
         var allergyWarnings = await allergySafety.GetWarningsAsync(customerId, selectedRecipes);
         await ValidateDeliveryAddressesAsync(customerId, deliveryCity, meals);
@@ -1095,7 +1095,7 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         if(meals.Any(x=>x.MealDate.Date<start||x.MealDate.Date>end))throw new ArgumentException("Selected meals are outside the package duration.");
         foreach(var g in meals.GroupBy(x=>(x.MealDate.Date-start).Days/7))if(g.Select(x=>x.MealDate.Date).Distinct().Count()>7)throw new ArgumentException("A package can contain at most seven active days in a week.");
     }
-    private static void ValidateConfiguredDeliveryDays(string configuredDays, IReadOnlyList<SubscriptionMealSelection> meals)
+    private static void ValidateConfiguredDeliveryDays(string configuredDays, string closureDatesJson, IReadOnlyList<SubscriptionMealSelection> meals)
     {
         var days = (configuredDays ?? "")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -1110,6 +1110,25 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         var invalid = meals.Select(x => x.MealDate.DayOfWeek).Distinct().Where(day => !days.Contains(day)).ToList();
         if (invalid.Count > 0)
             throw new InvalidOperationException("One or more selected delivery dates are outside this outlet's configured delivery days.");
+        List<OutletClosureDto> closures;
+        try { closures = System.Text.Json.JsonSerializer.Deserialize<List<OutletClosureDto>>(string.IsNullOrWhiteSpace(closureDatesJson) ? "[]" : closureDatesJson) ?? []; }
+        catch (System.Text.Json.JsonException) { closures = []; }
+        var closedSelections = meals.Where(meal => closures.Any(closure =>
+            DateOnly.TryParse(closure.StartDate, out var start) &&
+            DateOnly.TryParse(closure.EndDate, out var end) &&
+            DateOnly.FromDateTime(meal.MealDate) >= start &&
+            DateOnly.FromDateTime(meal.MealDate) <= end)).ToList();
+        if (closedSelections.Count > 0)
+        {
+            var reason = closures.FirstOrDefault(closure => closedSelections.Any(meal =>
+                DateOnly.TryParse(closure.StartDate, out var start) &&
+                DateOnly.TryParse(closure.EndDate, out var end) &&
+                DateOnly.FromDateTime(meal.MealDate) >= start &&
+                DateOnly.FromDateTime(meal.MealDate) <= end))?.Reason;
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(reason)
+                ? "One or more selected dates are marked as outlet closures."
+                : $"One or more selected dates are unavailable: {reason}.");
+        }
     }
 
     private static void ValidateDeliveryMode(SubscriptionDeliveryMode mode,IReadOnlyList<SubscriptionMealSelection> meals) {
