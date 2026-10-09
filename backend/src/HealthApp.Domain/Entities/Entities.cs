@@ -608,6 +608,8 @@ public sealed class Outlet
         set;
     }
     public string DeliveryDays { get; set; } = "";
+    /// <summary>Outlet-specific closures/holidays serialized as JSON for public package scheduling.</summary>
+    public string ClosureDatesJson { get; set; } = "[]";
     public BillingPlan BillingPlan {
         get;
         set;
