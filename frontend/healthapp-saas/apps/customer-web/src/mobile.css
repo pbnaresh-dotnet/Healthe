@@ -1,0 +1,36 @@
+/* Customer app: phone-first layer (loaded last).
+   The base rules below are the phone layout. @media (min-width:821px), the app's existing
+   breakpoint, restores the desktop values. Rules that need !important or a max-width query
+   are marked, because the legacy styles.css is desktop-first and wins on specificity. */
+:root{--hv-control:44px;--hv-nav-h:64px;--hv-safe-b:env(safe-area-inset-bottom,0px)}
+@media(min-width:821px){:root{--hv-control:40px}}
+
+html{-webkit-text-size-adjust:100%}
+button,a,select,input,textarea{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+img,svg,video{max-width:100%}
+.content{overflow-x:clip}
+
+/* Modals: bottom sheet on phones, centred dialog on desktop */
+.modalBackdrop{place-items:end center;padding:0}
+.modal{width:100%;max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);border-radius:20px 20px 0 0;padding-bottom:var(--hv-safe-b)}
+@media(min-width:821px){
+ .modalBackdrop{place-items:center;padding:25px}
+ .modal{width:min(900px,100%);max-height:calc(100vh - 50px);border-radius:var(--hv-r-lg,16px);padding-bottom:0}
+}
+
+@media(max-width:820px){
+ /* iOS Safari zooms the page when a field under 16px gets focus (!important beats legacy field rules) */
+ input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important}
+ .iconBtn{min-width:var(--hv-control);min-height:var(--hv-control)}
+ .navItem{min-height:var(--hv-control)}
+
+ /* Bottom tab bar: safe-area aware, readable labels, clear active marker */
+ .mobileBottomNav{height:calc(var(--hv-nav-h) + var(--hv-safe-b));padding-bottom:var(--hv-safe-b)}
+ .mobileBottomItem{min-height:var(--hv-nav-h);gap:4px;font-weight:700;position:relative}
+ .mobileBottomItem small{font-size:11px}
+ .mobileBottomItem.active::before{content:'';position:absolute;top:0;left:28%;right:28%;height:3px;border-radius:0 0 3px 3px;background:#1c713d}
+
+ /* Keep content and toasts clear of the tab bar */
+ .content{padding-bottom:calc(var(--hv-nav-h) + var(--hv-safe-b) + 24px)}
+ .statusToast{left:12px;right:12px;bottom:calc(var(--hv-nav-h) + var(--hv-safe-b) + 12px);min-width:0;max-width:none}
+}

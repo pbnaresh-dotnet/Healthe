@@ -6,6 +6,7 @@ import'leaflet/dist/leaflet.css';
 import'./styles.css';
 import'./type-scale.css';
 import'../../../packages/shared/src/theme-v2.css';
+import'./mobile.css';
 import LegalDocuments from'./LegalDocuments.jsx';
 
 const SLOT=[{id:1,label:'Morning',icon:'☀️'},{id:2,label:'Afternoon',icon:'🥗'},{id:3,label:'Evening',icon:'🍲'},{id:4,label:'Night',icon:'🌙'}];
