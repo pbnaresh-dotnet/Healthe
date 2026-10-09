@@ -1127,3 +1127,7 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
  .driverStopTitle{align-items:flex-start}
  .driverRouteIntro{align-items:flex-start}
 }
+
+
+.labelSequence{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #dce7dd;border-bottom:1px solid #dce7dd;padding:3px 0;margin:4px 0;font-size:8px;font-weight:800;letter-spacing:.09em;color:#355b42}
+.labelSequence strong{font-size:17px;line-height:1;color:#176a35}
