@@ -119,3 +119,11 @@ html{scroll-padding-top:76px}body{overflow-x:hidden}img,video,svg{max-width:100%
 @media(min-width:1081px){
  .nav{padding:16px clamp(18px,4vw,56px)}.nav nav,.nav.navOpen nav{gap:22px;font-size:12px}.hero{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);max-width:1320px;padding:84px clamp(20px,5vw,70px) 58px;gap:40px}.heroVisual{order:0}.heroImageCard{height:420px}.hero h1{font-size:clamp(45px,6vw,76px)}.benefitStrip{grid-template-columns:repeat(5,minmax(0,1fr))}.featureGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.testimonialGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.plans{grid-template-columns:repeat(3,minmax(0,1fr))}.startChoices{grid-template-columns:repeat(2,minmax(0,1fr))}.registerMain{max-width:1260px;padding:30px 24px 82px}.registerCard{padding:36px}.registerPlans{grid-template-columns:repeat(4,minmax(0,1fr))}.registerPlan{min-height:390px}
 }
+
+/* Keep the compact navigation until the full desktop header fits. */
+@media(min-width:760px) and (max-width:1080px){
+ .nav{flex-wrap:wrap}.navToggle{display:grid}
+ .nav nav{display:none;position:absolute;top:calc(100% + 1px);left:0;right:0;z-index:30;flex-direction:column;align-items:stretch;gap:0;padding:8px 14px 14px;background:#fff;border-bottom:1px solid #dfe9e2;box-shadow:0 14px 28px rgba(16,48,26,.12);font-size:14px}
+ .nav.navOpen nav{display:flex;position:absolute;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:0;padding:8px 14px 14px;background:#fff;border-bottom:1px solid #dfe9e2;box-shadow:0 14px 28px rgba(16,48,26,.12);white-space:normal}
+ .nav.navOpen nav a{padding:13px 10px}
+}
