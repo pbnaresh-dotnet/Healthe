@@ -1079,3 +1079,51 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
 .sharedPackageDayTotals>b{font-size:13px;color:#176333;white-space:nowrap}
 .sharedPackageDayTotals>b>small{font-size:9px;font-weight:500;color:#718078}
 @media(max-width:600px){.sharedPackageCalorieSummary{align-items:flex-start;flex-direction:column;gap:7px;padding:12px}.sharedPackageDayTotals{align-items:flex-end}.sharedPackageCalorieSummary>div>b{font-size:22px}}
+
+
+/* Printable barcode on each kitchen meal label */
+.labelCard .labelBarcode{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;margin:5px 0 2px;min-height:37px;overflow:hidden}
+.labelCard .labelBarcode img{display:block;width:min(100%,230px);height:31px;object-fit:contain}
+.labelCard .labelBarcode small{font-size:7px;letter-spacing:.08em;color:#34443a;overflow-wrap:anywhere}
+@media print{.labelCard .labelBarcode img{max-width:100%;height:29px}}
+/* Mobile-first driver delivery workspace */
+.driverRunPage{max-width:980px;margin:0 auto}
+.driverProgressCard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:17px;border:1px solid #dce9df;border-radius:16px;background:linear-gradient(120deg,#f0f8f1,#fff);margin-bottom:14px}
+.driverProgressCard>div:not(.driverProgressTrack){display:flex;flex-direction:column;gap:4px}
+.driverProgressCard span{font-size:11px;color:#64786a}
+.driverProgressCard b{font-size:23px;color:#1c6335}
+.driverProgressTrack{grid-column:1/-1;height:6px;background:#dfe9e1;border-radius:99px;overflow:hidden}
+.driverProgressTrack i{display:block;height:100%;background:#258348;border-radius:99px;transition:width .2s}
+.driverRouteIntro{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;border:1px solid #e1e9e3;border-radius:13px;margin-bottom:12px;background:#fff}
+.driverRouteIntro>div{display:flex;flex-direction:column;gap:4px}
+.driverRouteIntro>div span{font-size:11px;color:#718076}
+.driverStartButton{width:100%;min-height:46px;margin-bottom:13px}
+.driverScanPanel{margin-bottom:14px}
+.driverScanPanel p{font-size:12px;color:#718076;margin:4px 0 12px}
+.driverScanPanel form{display:flex;gap:8px}
+.driverScanPanel form input{flex:1;min-width:0;border:1px solid #d9e4dc;border-radius:10px;padding:12px;font-size:16px}
+.driverScanPanel form button{min-height:44px}
+.driverScanPanel>small{display:block;margin-top:9px;color:#856023;font-size:11px}
+.driverStopsList{display:grid;gap:10px}
+.driverStopCard{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:start;padding:14px;border:1px solid #dfe8e1;border-radius:14px;background:#fff}
+.driverStopCard.done{background:#f6fbf7;border-color:#b9ddc2}
+.driverStopNumber{width:32px;height:32px;display:grid;place-items:center;border-radius:50%;background:#edf5ef;color:#23683a;font-weight:800}
+.driverStopCard.done .driverStopNumber{background:#247a41;color:#fff}
+.driverStopDetails{min-width:0}
+.driverStopTitle{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.driverStopTitle>b{font-size:14px}
+.driverStopDetails p{font-size:12px;line-height:1.5;color:#526157;margin:6px 0}
+.driverStopDetails>small{display:block;font-size:10px;color:#748178;margin-bottom:7px}
+.driverStopDetails>a{font-size:12px;font-weight:750;color:#176b35;text-decoration:none}
+.driverCompleteButton{align-self:center;white-space:nowrap}
+@media(max-width:600px){
+ .driverProgressCard{gap:8px;padding:13px}
+ .driverProgressCard b{font-size:21px}
+ .driverScanPanel form{flex-direction:column}
+ .driverScanPanel form button{width:100%}
+ .driverStopCard{grid-template-columns:30px minmax(0,1fr);gap:9px;padding:12px}
+ .driverStopNumber{width:28px;height:28px}
+ .driverCompleteButton{grid-column:2;justify-self:stretch;width:100%;min-height:42px}
+ .driverStopTitle{align-items:flex-start}
+ .driverRouteIntro{align-items:flex-start}
+}
