@@ -919,7 +919,7 @@ function App(){
  const notify=(m,type='success')=>sharedNotify(m,type);
  const run=async(fn)=>{setLoading(true);setError('');try{return await fn()}catch(e){if(Number(e?.status)===401||String(e?.message||'').includes('401')){auth.logout();setUser(null);setError('');sharedNotify('Your session expired. Please sign in again.','info')}else setError(e.message||'Something went wrong');throw e}finally{setLoading(false)}};
  const reload=async()=>run(async()=>{
-   const[cities,os,ads,p,allergens,ss,orders,credit,transactions,dashboard,likedMeals]=await Promise.all([locations.cities(),outlets.list(cityFilter),customer.addresses(),customer.profile(),catalog.allergens(),customer.subscriptions(),customer.orders(),customer.credit(),customer.dashboard(),customer.likedMeals()]);
+   const[cities,os,ads,p,allergens,ss,orders,credit,transactions,dashboard,likedMeals]=await Promise.all([locations.cities(),outlets.list(cityFilter),customer.addresses(),customer.profile(),catalog.allergens(),customer.subscriptions(),customer.orders(),customer.credit(),customer.creditTransactions(),customer.dashboard(),customer.likedMeals()]);
    setGlobal({outlets:os,areas:[],cities,addresses:ads,profile:p,allergens,subscriptions:ss,orders,credit,transactions,likedMeals:likedMeals||[]});setSubs(ss);setCustomerDashboard(dashboard);
    const initialCity=cityFilter||(ads.find(x=>x.isDefault)?.city)||cities[0]?.city||'';if(!cityFilter&&initialCity)setCityFilter(initialCity);
    const cityAddresses=ads.filter(x=>x.city?.toLowerCase()===initialCity.toLowerCase());setSelectedAddressId((cityAddresses.find(x=>x.isDefault)||cityAddresses[0])?.id||'');
@@ -963,7 +963,7 @@ function App(){
    const start=draft.startDate||nextMonday();
    try{
      setLoading(true);
-     const[m,rs,legal]=await Promise.all([menu.outlet(draft.outlet.id),recipes.list(draft.outlet.id),outlets.legal(draft.outlet.slug)]);
+     const[m,rs,legal]=await Promise.all([menu.outlet(draft.outlet.id),recipes.list(draft.outlet.id),draft.outlet.slug?outlets.legal(draft.outlet.slug).catch(()=>null):Promise.resolve(null)]);
      const selections={};
      draft.selections.forEach(x=>{
        if(!x?.date||!x?.slot||!x?.recipeId)return;
@@ -1025,11 +1025,16 @@ function App(){
      ?await auth.login({email:authForm.email,password:authForm.password,outletSlug:requestOutletSlug||undefined})
      :await auth.register({firstName:authForm.firstName,lastName:authForm.lastName,email:authForm.email,password:authForm.password,mobileNumber:'+91'+normalizeIndianMobile(authForm.mobileNumber),role:'Customer',outletSlug:draftOutletSlug||undefined,legalPolicyVersionId:authForm.legalPolicyVersionId||undefined,legalAccepted:Boolean(authForm.agreeTerms),marketingOptIn:Boolean(authForm.marketingOptIn)});
    setUser(x.user);
-   if(draft&&(!draft.customerId||draft.customerId===x.user.id)){
-     await restoreSavedPackage(draft);
+   if(draft&&draft.outlet?.id&&Array.isArray(draft.selections)&&draft.selections.length&&(!draft.customerId||draft.customerId===x.user.id)){
+     const restored=await restoreSavedPackage(draft);
      setGuestPackageRestored(true);
+     if(!restored){
+       setActive('home');
+       notify('Your account is ready. Your guest package could not be restored, so you can continue from Home.','warning');
+     }
    }else{
      setActive('home');
+     setGuestPackageRestored(false);
      notify(authMode==='login'?'Welcome back':'Account created');
    }
  })};
