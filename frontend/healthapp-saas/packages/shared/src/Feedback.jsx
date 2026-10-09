@@ -64,7 +64,7 @@ export function AppModal({title,onClose,children,wide=false,backdropClass='modal
     previousFocus.current=document.activeElement;
     const oldOverflow=document.body.style.overflow;
     document.body.style.overflow='hidden';
-    const frame=requestAnimationFrame(()=>{const target=closeRef.current||dialogRef.current;target?.focus()});
+    const frame=requestAnimationFrame(()=>{const target=closeRef.current||dialogRef.current?.querySelector('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')||dialogRef.current;target?.focus()});
     const onKey=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();onCloseRef.current?.();return}if(e.key==='Tab'&&dialogRef.current){const nodes=[...dialogRef.current.querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(n=>n.offsetParent!==null);if(!nodes.length){e.preventDefault();dialogRef.current.focus();return}const first=nodes[0],last=nodes[nodes.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}};
     document.addEventListener('keydown',onKey);
     return()=>{cancelAnimationFrame(frame);document.removeEventListener('keydown',onKey);document.body.style.overflow=oldOverflow;const target=previousFocus.current;if(target&&document.contains(target)&&typeof target.focus==='function')requestAnimationFrame(()=>target.focus())};
