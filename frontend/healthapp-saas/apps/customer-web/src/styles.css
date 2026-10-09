@@ -2080,3 +2080,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media(min-width:651px){.sharedPackageSlots{grid-template-columns:repeat(2,minmax(0,1fr))}.sharedPackageDay{padding:13px}.sharedPackageControls{grid-template-columns:1fr 1.35fr}.sharedPackageHero h2{font-size:25px}}
 @media(min-width:1000px){.sharedPackageSlots{grid-template-columns:repeat(4,minmax(0,1fr))}.sharedPackageDayHead{margin-bottom:10px}.sharedPackageHero{padding-top:4px}}
 @media(max-width:650px){.sharedPackageHero{align-items:flex-start}.sharedPackageHero h2{font-size:20px}.sharedPackagePulse{min-width:72px;padding:8px 9px}.sharedPackagePulse b{font-size:17px}.sharedPackageDay{border-radius:14px}.sharedPackageAddressBar{align-items:stretch;flex-direction:column}.sharedPackageAddressBar button{width:100%}.sharedPackageOptionMain{min-height:47px}.sharedPackageCheck{width:27px;height:27px;flex-basis:27px}.sharedPackageControls{padding-left:42px}.sharedPackageSlotHead b{font-size:13px}}
+
+
+/* A concise notice keeps closure dates visible without disabling the whole day card. */
+.sharedPackageDayNotice{display:flex;align-items:center;gap:8px;margin:0 12px 12px;padding:8px 11px;border:1px solid #f0d5a4;border-left:3px solid #c58a24;border-radius:8px;background:#fff9ec;color:#77551c;font-size:12px;line-height:1.4}
+.sharedPackageDayNotice>span:first-child{font-size:14px;flex:none}
