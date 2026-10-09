@@ -971,3 +971,56 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
  .ingredientUsagePage .pageActions>button{width:100%;min-height:42px}
  .ingredientUsagePage .panelCallout{align-items:flex-start}
 }
+
+
+/* Recipe editor alignment refinement */
+.recipeEditor{grid-template-columns:minmax(190px,220px) minmax(0,1fr);align-items:start;gap:20px}
+.recipeEditor>*{min-width:0}
+.recipeEditor .formGrid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:14px}
+.recipeEditor .formGrid>.field{grid-column:auto!important;min-width:0;width:100%;margin:0}
+.recipeEditor .formGrid>.field input,
+.recipeEditor .formGrid>.field select,
+.recipeEditor .formGrid>.field textarea{width:100%;min-width:0;min-height:42px;height:auto;max-width:100%;font-size:13px;line-height:1.35;padding:10px 12px}
+.recipeEditor .formGrid>.field textarea{min-height:88px;resize:vertical}
+.recipeEditor .formGrid>.span2{grid-column:1/-1!important;min-width:0;width:100%}
+.recipeFormIntro{grid-column:1/-1;display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:14px 15px;margin-bottom:2px;border:1px solid #dce9df;border-radius:12px;background:linear-gradient(135deg,#f4faf5,#fff)}
+.recipeFormIntro h3{margin:5px 0;font-size:17px;letter-spacing:-.025em;color:#1b3825}
+.recipeFormIntro p{margin:0;max-width:560px;font-size:11px;line-height:1.5;color:#718078}
+.portionModePill{flex:0 0 auto;display:inline-flex;align-items:center;border:1px solid #d5e6d9;background:#fff;border-radius:999px;padding:7px 10px;color:#2a6a3d;font-size:9px;font-weight:800}
+.recipeEditor .nutritionSection{min-width:0;padding:13px;border:1px solid #e0e8e2;border-radius:12px;background:#fbfdfb}
+.recipeEditor .nutritionPreview{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:8px;padding:0;border:0;background:transparent;min-width:0}
+.recipeEditor .nutritionPreview>div{min-width:0;padding:11px;border-radius:10px}
+.recipeEditor .nutritionPreview span{overflow-wrap:anywhere}
+.recipeEditor .ingredientEditor,.recipeEditor .allergyEditor{grid-column:1/-1!important;min-width:0;width:100%;margin:0}
+.recipeEditor .ingredientRow{grid-template-columns:minmax(0,2fr) minmax(82px,.9fr) minmax(70px,.65fr) minmax(82px,.9fr) auto;gap:8px;min-width:0}
+.recipeEditor .ingredientRow>*{min-width:0;max-width:100%}
+.recipeEditor .ingredientRow input{width:100%;height:42px;min-height:42px;padding:9px 10px;font-size:12px}
+.recipeEditor .ingredientRow .dangerText{white-space:nowrap;padding:8px 4px;font-size:11px}
+.recipeEditor .editorTitle{align-items:flex-start}
+.recipeEditor .editorTitle>div{min-width:0}
+.recipeEditor .editorTitle small{line-height:1.45}
+.recipeEditor .imageUpload{width:100%;min-width:0}
+.recipeEditor .uploadPreview{height:200px}
+.recipeEditor .modalActions{position:sticky;bottom:-20px;background:#fff;z-index:5}
+@media(max-width:900px){
+ .recipeEditor{grid-template-columns:minmax(0,1fr)}
+ .recipeEditor .imageUpload{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,.55fr);gap:10px;align-items:center;margin-bottom:0}
+ .recipeEditor .uploadPreview{height:120px}
+ .recipeEditor .uploadBtn{margin:0}
+}
+@media(max-width:680px){
+ .recipeEditor .formGrid{grid-template-columns:minmax(0,1fr);gap:12px}
+ .recipeEditor .formGrid>.span2,.recipeEditor .ingredientEditor,.recipeEditor .allergyEditor,.recipeFormIntro{grid-column:1!important}
+ .recipeFormIntro{flex-direction:column;gap:9px;padding:12px}
+ .recipeFormIntro h3{font-size:15px}
+ .portionModePill{white-space:normal}
+ .recipeEditor .imageUpload{grid-template-columns:minmax(0,1fr)}
+ .recipeEditor .uploadPreview{height:150px}
+ .recipeEditor .uploadBtn{margin-top:0}
+ .recipeEditor .nutritionPreview{grid-template-columns:minmax(0,1fr)}
+ .recipeEditor .ingredientRow{grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding:10px 0;border-top:1px solid #e8eee9}
+ .recipeEditor .ingredientRow input:first-child{grid-column:1/-1}
+ .recipeEditor .ingredientRow .dangerText{grid-column:1/-1;justify-self:end}
+ .recipeEditor .ingredientRow input{font-size:16px}
+ .recipeEditor .formGrid>.field input,.recipeEditor .formGrid>.field select,.recipeEditor .formGrid>.field textarea{font-size:16px;min-height:44px}
+}
