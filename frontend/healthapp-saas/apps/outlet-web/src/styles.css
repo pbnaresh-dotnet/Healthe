@@ -1046,3 +1046,23 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
  .recipeEditor .nutritionMetricGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
  .recipeEditor .nutritionSection .editorTitle{flex-direction:column}
 }
+
+
+/* Searchable ingredient picker: preserve typed query until an explicit selection */
+.recipeEditor .ingredientRow{grid-template-columns:minmax(180px,2fr) minmax(90px,.9fr) minmax(70px,.65fr) minmax(90px,.9fr) auto;align-items:start}
+.recipeEditor .ingredientPicker{position:relative;min-width:0}
+.recipeEditor .ingredientPicker>input{width:100%;height:42px;min-width:0;border:1px solid #dbe4de;border-radius:9px;padding:10px 11px;background:#fff;color:#18241c;font-size:12px}
+.recipeEditor .ingredientPicker>input:focus{outline:none;border-color:#78ae86;box-shadow:0 0 0 3px #e7f3e9}
+.recipeEditor .ingredientPickerMenu{position:absolute;z-index:60;top:calc(100% + 4px);left:0;right:0;max-height:220px;overflow:auto;padding:5px;background:#fff;border:1px solid #d7e2da;border-radius:10px;box-shadow:0 14px 32px #173a2524}
+.recipeEditor .ingredientPickerMenu button{display:block;width:100%;padding:9px 10px;border:0;border-radius:7px;background:#fff;text-align:left;cursor:pointer}
+.recipeEditor .ingredientPickerMenu button:hover{background:#f0f7f1}
+.recipeEditor .ingredientPickerMenu button b,.recipeEditor .ingredientPickerMenu button small{display:block}
+.recipeEditor .ingredientPickerMenu button b{font-size:11px;color:#213c2a}
+.recipeEditor .ingredientPickerMenu button small{margin-top:3px;font-size:9px;color:#758379}
+.recipeEditor .ingredientPickerEmpty{padding:11px;color:#758379;font-size:10px;line-height:1.4}
+@media(max-width:680px){
+ .recipeEditor .ingredientRow{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ .recipeEditor .ingredientRow .ingredientPicker{grid-column:1/-1}
+ .recipeEditor .ingredientRow .dangerText{grid-column:1/-1;justify-self:end}
+ .recipeEditor .ingredientPicker>input{font-size:16px;height:44px}
+}
