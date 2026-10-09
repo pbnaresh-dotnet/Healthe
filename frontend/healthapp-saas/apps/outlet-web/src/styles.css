@@ -1143,3 +1143,23 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
 .driverStopCard.pickedUp .driverStopNumber{background:#237b40;color:white}
 .driverStopCard .driverCompleteButton{min-width:118px}
 @media(max-width:600px){.driverPickupGate{padding:13px}.driverStopCard .driverCompleteButton{width:100%;min-height:44px}}
+
+
+/* Driver daily / weekly / monthly delivery reports */
+.driverReportPanel{margin-top:18px}
+.driverReportHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
+.driverReportHeader h2{font-size:17px;margin:0 0 5px}
+.driverReportHeader p{font-size:11px;color:#728075;margin:0;line-height:1.5}
+.driverReportControls{display:flex;gap:8px;align-items:center}
+.driverReportControls select{min-height:40px;max-width:125px;border:1px solid #dbe5dd;border-radius:9px;padding:8px;background:#fff}
+.driverReportControls button{min-height:40px;white-space:nowrap}
+.driverReportStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.driverReportStats>div{display:flex;flex-direction:column;gap:5px;padding:12px;border:1px solid #e0e9e2;border-radius:11px;background:#f8fbf8}
+.driverReportStats span{font-size:10px;color:#728075}
+.driverReportStats b{font-size:22px;color:#1c6335}
+.driverReportMeta{font-size:10px;color:#718076;margin:12px 0}
+.driverReportRows{display:grid;gap:6px}
+.driverReportRows>div{display:grid;grid-template-columns:minmax(80px,1fr) repeat(3,minmax(75px,auto));gap:8px;align-items:center;padding:10px 0;border-top:1px solid #edf1ed;font-size:11px}
+.driverReportRows>div span{color:#657268}
+.driverReportPrint{margin-top:12px}
+@media(max-width:600px){.driverReportHeader{flex-direction:column}.driverReportControls{width:100%}.driverReportControls select{flex:1;max-width:none}.driverReportControls button{flex:1}.driverReportStats{grid-template-columns:repeat(2,minmax(0,1fr))}.driverReportRows>div{grid-template-columns:1fr 1fr;gap:7px}.driverReportRows>div b{grid-column:1/-1}}
