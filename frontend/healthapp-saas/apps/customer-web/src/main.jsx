@@ -1,6 +1,6 @@
 import React,{useEffect,useId,useMemo,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
-import{auth,outlets,locations,recipes,menu,customer,catalog,money,currentUser,API_URL,TENANT_OUTLET_SLUG,resolveTenantFromHost,openCashfreeCheckout,PackageBuilder}from'@healthapp/shared';
+import{auth,outlets,locations,recipes,menu,customer,catalog,money,currentUser,API_URL,TENANT_OUTLET_SLUG,resolveTenantFromHost,openCashfreeCheckout,PackageBuilder,AppFeedbackProvider,useFeedback,AppModal}from'@healthapp/shared';
 import{MapContainer,TileLayer,CircleMarker,useMap,useMapEvents}from'react-leaflet';
 import'leaflet/dist/leaflet.css';
 import'./styles.css';
@@ -708,7 +708,7 @@ function CustomerOutletHome({outlet,menu,busy,error,onBuild,onViewPlan}){
  </div></>;
 }
 
-function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDate,setStartDate,selections,setSelections,selectedCount,onClose,onContinue}){
+function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDate,setStartDate,selections,setSelections,selectedCount,onClose,onContinue}){const {notify}=useFeedback();
  const showMealPrice=outlet?.showMealPriceToCustomer!==false;
  const startDateOptions=useMemo(()=>{
    const start=tomorrowISO();
@@ -758,7 +758,7 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
          const required=items.some(x=>x.isRequired);
          const count=ids.filter(id=>items.some(x=>x.recipeId===id)).length;
          if(required&&count===0){
-           window.alert('Please choose a '+group+' item for '+dayName(dayId(d.date))+' '+s.label+'.');
+           notify('Please choose a '+group+' item for '+dayName(dayId(d.date))+' '+s.label+'.','warning');
            return;
          }
        }
@@ -1644,7 +1644,7 @@ function isWeekDayActive(builder,w,date){return Boolean(builder.weekActiveDays[w
 function countDaySelections(builder,date){return Object.values(builder.selections).flatMap(v=>Array.isArray(v)?v.filter(Boolean):(v?[v]:[])).filter(x=>x?.date===date).length}
 function Line({label,value}){return <div className="summaryLine"><span>{label}</span><b>{value}</b></div>}
 
-function MealPicker({picker,menuMap,recipes,customerAllergies,likedMeals,current,onClose,onPick}){
+function MealPicker({picker,menuMap,recipes,customerAllergies,likedMeals,current,onClose,onPick}){const {notify}=useFeedback();
  const options=menuMap[key(dayId(picker.date),picker.slot)]||[];
  const initial=Array.isArray(current)?current:(current?[current]:[]);
  const[category,setCategory]=useState('All');
@@ -1663,7 +1663,7 @@ function MealPicker({picker,menuMap,recipes,customerAllergies,likedMeals,current
  };
  const continueWarning=()=>{if(!warning)return;setSelected(s=>({...s,[warning.item.recipeId]:1}));setConfirmed(s=>({...s,[warning.item.recipeId]:true}));setWarning(null)};
  const groupState=(group,items)=>{const count=items.filter(x=>selected[x.recipeId]).length;const max=Math.max(1,...items.map(x=>Number(x.maxSelections||1)));const required=items.some(x=>x.isRequired);return{count,max,required}};
- const save=()=>{for(const[group,items]of Object.entries(allGrouped)){const state=groupState(group,items);if(state.required&&state.count===0){alert('Please select at least one option from '+group+'.');return;}if(state.count>state.max){alert('Select at most '+state.max+' option'+(state.max===1?'':'s')+' from '+group+'.');return;}}const values=Object.entries(selected).map(([recipeId,portion])=>({recipeId,portion:Number(portion||1),allergyConfirmed:Boolean(confirmed[recipeId])})).filter(x=>options.some(o=>o.recipeId===x.recipeId));onPick(values)};
+ const save=()=>{for(const[group,items]of Object.entries(allGrouped)){const state=groupState(group,items);if(state.required&&state.count===0){notify('Please select at least one option from '+group+'.','warning');return;}if(state.count>state.max){notify('Select at most '+state.max+' option'+(state.max===1?'':'s')+' from '+group+'.','warning');return;}}const values=Object.entries(selected).map(([recipeId,portion])=>({recipeId,portion:Number(portion||1),allergyConfirmed:Boolean(confirmed[recipeId])})).filter(x=>options.some(o=>o.recipeId===x.recipeId));onPick(values)};
  const card=x=>{const active=Boolean(selected[x.recipeId]);const liked=likedIds.has(x.recipeId);return <article key={x.recipeId} className={active?'groupMealOption selected':'groupMealOption'}><button type="button" className="groupMealMain" onClick={()=>toggle(x)}><div className="groupMealImage">{x.imageUrl?<img src={getImg(x.imageUrl)} alt=""/>:<span>🍱</span>}</div><div><b>{x.recipeName}</b><span>{x.calories} kcal · {x.proteinGrams}g protein · {x.category}</span>{liked&&<small>♥ Favourite</small>}</div><strong>{active?'✓':'+'}</strong></button>{active&&<div className="groupMealPortion"><span>Portion</span><button type="button" className={selected[x.recipeId]===1?'active':''} onClick={()=>setSelected(s=>({...s,[x.recipeId]:1}))}>Regular {Number(x.pricePerMeal)>0||Number(x.largePricePerMeal)>0?money(x.pricePerMeal):''}</button><button type="button" className={selected[x.recipeId]===2?'active':''} onClick={()=>setSelected(s=>({...s,[x.recipeId]:2}))}>Large {Number(x.pricePerMeal)>0||Number(x.largePricePerMeal)>0?money(x.largePricePerMeal):''}</button></div>}</article>};
  return <Modal title={slotName(picker.slot)+' · '+formatDate(picker.date)} onClose={onClose}><div className="groupedPickerIntro"><span className="eyebrow">MULTI-OPTION MEAL PICKER</span><p>Select from each configured group. Required groups must have a choice.</p></div><div className="chipRow">{categories.map(c=><button type="button" key={c} className={category===c?'chip active':'chip'} onClick={()=>setCategory(c)}>{c}</button>)}</div>{Object.entries(grouped).map(([group,items])=>{const state=groupState(group,items);return <section className="mealOptionGroup" key={group}><header><div><h3>{group}</h3><span>{state.required?'Required':'Optional'} · up to {state.max}</span></div><b>{state.count}/{state.max}</b></header><div className="groupMealOptionList">{items.map(card)}</div></section>})}{!options.length&&<Empty title="No recipes in this slot" text="Ask the outlet to add a menu item for this day and slot."/>}<div className="modalActions groupedPickerActions"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button type="button" className="primary" onClick={save}>Save meal choices</button></div>{warning&&<div className="warningOverlay"><div className="warningCard"><div className="warningIcon">⚠</div><h3>Allergy caution</h3><p><b>{warning.detail?.name||warning.item.recipeName}</b> contains or may contain <strong>{Array.from(new Set(warning.matched.map(x=>x.allergen))).join(', ')}</strong>, matching an allergy saved in your HealthApp profile.</p><p className="warningFine">Please review the full ingredient list and outlet information.</p>{warning.matched.some(x=>x.ingredient)&&<div className="warningIngredients"><b>Matched ingredients</b>{warning.matched.filter(x=>x.ingredient).map((x,i)=><span key={i}>{x.ingredient.name} — {x.ingredient.quantity} {x.ingredient.unit} · {x.allergen}</span>)}</div>}<div className="modalActions"><button type="button" className="secondary" onClick={()=>setWarning(null)}>Choose another meal</button><button type="button" className="primary" onClick={continueWarning}>I understand, continue</button></div></div></div>}</Modal>;
 }
@@ -1763,7 +1763,7 @@ function MapClickHandler({onPick}){useMapEvents({click:e=>onPick(e.latlng.lat,e.
 
 function SkipConfirmModal({request,onClose,onConfirm}){const isToday=request.type==='meal'&&request.row?.mealDate===todayISO();const isDanger=request.variant==='danger';return <div className="skipConfirmBackdrop" role="dialog" aria-modal="true" aria-labelledby="skip-confirm-title" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><div className={'skipConfirmModal '+(isDanger?'danger':'')}><div className={isDanger?'skipConfirmIcon danger':isToday?'skipConfirmIcon warning':'skipConfirmIcon'}>{isDanger?'×':isToday?'₹':'✓'}</div><div className="skipConfirmContent"><span className={'skipConfirmEyebrow '+(isDanger?'danger':'')}>{isDanger?'CONFIRM ACTION':isToday?'LATE-SKIP NOTICE':'MEAL CALENDAR'}</span><h3 id="skip-confirm-title">{request.title}</h3><p>{request.message}</p>{isToday&&<div className="skipFeeCard"><span>Potential late-skip fee</span><strong>₹50</strong><small>Applied only when today’s meal is skipped after the daily cut-off.</small></div>}<div className="skipConfirmActions"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button type="button" className={isDanger?'dangerAction':'primary skipConfirmPrimary'} onClick={onConfirm}>{request.confirmLabel||'Continue'}</button></div></div></div></div>}
 
-function Modal({title,onClose,children}){const titleId=useId();const closeRef=useRef(null);const previousFocusRef=useRef(null);const onCloseRef=useRef(onClose);onCloseRef.current=onClose;useEffect(()=>{previousFocusRef.current=document.activeElement;const previousOverflow=document.body.style.overflow;document.body.style.overflow='hidden';requestAnimationFrame(()=>closeRef.current?.focus());const onKeyDown=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();onCloseRef.current();}};document.addEventListener('keydown',onKeyDown);return()=>{document.removeEventListener('keydown',onKeyDown);document.body.style.overflow=previousOverflow;const previous=previousFocusRef.current;if(previous&&typeof previous.focus==='function'&&document.contains(previous))requestAnimationFrame(()=>previous.focus());};},[]);return <div className="modalBackdrop" role="presentation" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><div className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId}><div className="modalHead"><h3 id={titleId}>{title}</h3><button ref={closeRef} type="button" className="iconBtn" onClick={onClose} aria-label={'Close '+title}>×</button></div><div className="modalBody">{children}</div></div></div>}
+function Modal({title,onClose,children}){return <AppModal title={title} onClose={onClose} backdropClass="modalBackdrop" modalClass="modal" bodyClass="modalBody">{children}</AppModal>}
 function Empty({title,text,action,onClick}){return <div className="emptyState"><div className="emptyIcon">◎</div><h3>{title}</h3><p>{text}</p>{action&&<button className="primary" onClick={onClick}>{action}</button>}</div>}
 
 createRoot(document.getElementById('root')).render(<AppFeedbackProvider><App/></AppFeedbackProvider>);
