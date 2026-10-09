@@ -11,7 +11,7 @@ public enum MealSlot { Morning = 1, Afternoon = 2, Evening = 3, Night = 4 }
 public enum MealPortionSize { Regular = 1, Large = 2 }
 public enum CreditTransactionType { Credit = 1, Debit = 2, Adjustment = 3, Refund = 4 }
 public enum OrderStatus { Pending, Confirmed, Preparing, OutForDelivery, Delivered, Cancelled }
-public enum DeliveryStatus { Scheduled, Preparing, OutForDelivery, Delivered, Failed, Skipped }
+public enum DeliveryStatus { Scheduled, Preparing, OutForDelivery, Delivered, Failed, Skipped, PickedUp }
 public enum RouteStatus { Planned, InProgress, Completed, Cancelled, Dispatched }
 public enum DeliveryCoverageMode { Radius = 1, Areas = 2 }
 public enum BillingPlan { Starter, Growth, Scale }
