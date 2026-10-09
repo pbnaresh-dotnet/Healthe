@@ -380,13 +380,12 @@ public sealed class DeliveryRouteService(
         if (route.OutletId != outletId || route.DriverId != driverId)
             throw new UnauthorizedAccessException("This route is not assigned to the current driver.");
 
+        var notPickedUp = route.Stops.Where(x => x.Status != DeliveryStatus.PickedUp && x.Status != DeliveryStatus.Delivered).ToList();
+        if (notPickedUp.Count > 0)
+            throw new InvalidOperationException($"Mark every delivery stop as picked up before starting the route. {notPickedUp.Count} stop(s) remain.");
+
         if (route.Status == RouteStatus.Dispatched)
-        {
-            var notPickedUp = route.Stops.Where(x => x.Status != DeliveryStatus.PickedUp).ToList();
-            if (notPickedUp.Count > 0)
-                throw new InvalidOperationException($"Mark every delivery stop as picked up before starting the route. {notPickedUp.Count} stop(s) remain.");
             route.Status = RouteStatus.InProgress;
-        }
         else if (route.Status != RouteStatus.InProgress)
             throw new InvalidOperationException($"This route cannot be started from status {route.Status}. Dispatch it from the outlet first.");
 
@@ -408,17 +407,18 @@ public sealed class DeliveryRouteService(
         if (current.OutletId is not Guid outletId || current.UserId is not Guid driverId)
             throw new UnauthorizedAccessException("Driver context is required.");
 
-        var route = (await routes.GetByOutletAndDateAsync(outletId, DateTime.UtcNow.Date, MealSlot.Afternoon))
-            .FirstOrDefault(x => x.Stops.Any(s => s.Id == stopId) && x.DriverId == driverId);
-        if (route is null)
+        DeliveryRoute? route = null;
+        foreach (var date in new[] { DateTime.UtcNow.Date, DateTime.UtcNow.Date.AddDays(1), DateTime.UtcNow.Date.AddDays(-1) })
         {
-            foreach (var date in new[] { DateTime.UtcNow.Date, DateTime.UtcNow.Date.AddDays(1), DateTime.UtcNow.Date.AddDays(-1) })
             foreach (var slot in Enum.GetValues<MealSlot>())
             {
-                route = (await routes.GetByOutletAndDateAsync(outletId, date, slot))
+                var candidate = (await routes.GetByOutletAndDateAsync(outletId, date, slot))
                     .FirstOrDefault(x => x.Stops.Any(s => s.Id == stopId) && x.DriverId == driverId);
-                if (route is not null) break;
+                if (candidate is null) continue;
+                route = candidate;
+                break;
             }
+            if (route is not null) break;
         }
 
         if (route is null)
