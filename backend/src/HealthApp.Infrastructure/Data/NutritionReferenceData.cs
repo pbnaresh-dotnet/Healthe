@@ -14,9 +14,9 @@ internal static class NutritionReferenceData
     private sealed record Reference(decimal Calories, decimal Protein, decimal Carbs, decimal Fat,
         decimal Fiber, decimal Sugar, string Source, string ReferenceId);
 
-    private static Reference R(decimal kcal, decimal protein, decimal carbs, decimal fat,
-        decimal fiber = 0, decimal sugar = 0) =>
-        new(kcal, protein, carbs, fat, fiber, sugar,
+    private static Reference R(double kcal, double protein, double carbs, double fat,
+        double fiber = 0, double sugar = 0) =>
+        new((decimal)kcal, (decimal)protein, (decimal)carbs, (decimal)fat, (decimal)fiber, (decimal)sugar,
             "USDA FoodData Central generic food reference; verify product, brand and cooked/raw state",
             "Generic reference; verify before production use");
 
