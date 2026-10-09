@@ -930,3 +930,10 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
  .standardConfirmActions{display:flex;flex-direction:column-reverse;gap:9px}.standardConfirmActions>*{width:100%;min-height:46px}
 }
 @media(min-width:768px){.standardConfirmActions{flex-direction:row;justify-content:flex-end}.standardConfirmActions>*{min-width:112px}}
+
+/* Shared inline alerts */
+.ha-alert{display:grid;grid-template-columns:30px minmax(0,1fr) 32px;align-items:start;gap:10px;padding:12px 14px;border:1px solid #d9e3dc;border-radius:13px;background:#f7faf8;color:#253b2b;min-width:0}
+.ha-alertMark{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;background:#e5f3e8;color:#246d3a;font-weight:900}
+.ha-alertBody{min-width:0;overflow-wrap:anywhere;font-size:14px;line-height:1.5}.ha-alertBody strong{display:block;margin:0 0 2px;font-size:14px}.ha-alertClose{width:32px;height:32px;border:0;border-radius:8px;background:transparent;color:inherit;font-size:21px;line-height:1}
+.ha-alert-success{border-color:#c9e7d0;background:#f3fbf5}.ha-alert-error{border-color:#f0c9c5;background:#fff7f6}.ha-alert-error .ha-alertMark{background:#fdebea;color:#a82c24}
+.ha-alert-warning{border-color:#f0d9a9;background:#fffbf2}.ha-alert-warning .ha-alertMark{background:#fff2d5;color:#8a5a00}.ha-alert-info{border-color:#cbdcf8;background:#f5f8ff}.ha-alert-info .ha-alertMark{background:#eaf2ff;color:#2459a6}
