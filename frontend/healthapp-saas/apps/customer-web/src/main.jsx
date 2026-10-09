@@ -14,6 +14,7 @@ const DIETS=['Veg','NonVeg','Vegan','Eggetarian','Pescatarian'];
 const ACTIVITY=[['Sedentary','Sedentary'],['Light','Lightly active'],['Moderate','Moderately active'],['High','Highly active'],['Athlete','Athlete']];
 const CATEGORIES=['All','Veg','NonVeg','Vegan','Eggetarian','Pescatarian'];
 const todayISO=()=>new Date().toISOString().slice(0,10);
+const tomorrowISO=()=>addDays(todayISO(),1);
 const normalizeIndianMobile=value=>{
  const digits=String(value??'').replace(/\D/g,'');
  return digits.length===12&&digits.startsWith('91')?digits.slice(2):digits;
@@ -136,7 +137,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  const[guestBuilderOpen,setGuestBuilderOpen]=useState(false);
  const[guestBuilderOutlet,setGuestBuilderOutlet]=useState(null);
  const[guestDuration,setGuestDuration]=useState('OneWeek');
- const[guestStartDate,setGuestStartDate]=useState(todayISO());
+ const[guestStartDate,setGuestStartDate]=useState(tomorrowISO());
  const[guestSelections,setGuestSelections]=useState({});
  const trackingRef=useRef(null);
  const lastTrackedRef=useRef(null);
@@ -266,14 +267,26 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    const start=guestStartDate||todayISO();
    return Array.from({length:d.days},(_,i)=>({date:addDays(start,i),index:i}));
  };
+ const isPackageAddOn=item=>['Juice','Snack','Curd','Starter','Side','Add-on','Soup','Salad','Dessert','Drink','Other'].includes(String(item?.mealType||'').trim());
  const publicMenuFor=(date,slot)=>{
    const day=dayId(date);
-   return (publicOutletMenu||[]).filter(x=>Number(x.mealSlotValue)===Number(slot)&&Number(x.dayOfWeek)===Number(day));
+   const configured=(publicOutletMenu||[]).filter(x=>Number(x.dayOfWeek)===Number(day));
+   const slotItems=configured.filter(x=>Number(x.mealSlotValue)===Number(slot));
+   // Add-ons are configured against a weekday in Weekly Menu, but should be
+   // offered beside meals in every slot on that weekday, not hidden in one slot.
+   const addOns=configured.filter(x=>isPackageAddOn(x)&&Number(x.mealSlotValue)!==Number(slot))
+     .map(x=>({...x,optionGroup:!x.optionGroup||x.optionGroup==='Main'?String(x.mealType||'Add-on'):x.optionGroup,isRequired:false}));
+   return [...new Map([...slotItems,...addOns].map(x=>[x.recipeId,x])).values()];
  };
  const openGuestBuilder=(targetOutlet=publicOutlet)=>{
    if(!targetOutlet)return;
+   const start=tomorrowISO();
+   setGuestStartDate(start);
    setGuestBuilderOutlet(targetOutlet);
-   const days=publicBuilderDays();
+   const days=(()=>{
+     const d=DURATIONS.find(x=>x.id===guestDuration)||DURATIONS[2];
+     return Array.from({length:d.days},(_,i)=>({date:addDays(start,i),index:i}));
+   })();
    const first={};
    for(const d of days){
      for(const s of SLOT){
@@ -732,7 +745,7 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
      </div>
      <div className="publicGuestBuilderToolbar">
        <label><span>Package duration</span><select value={duration} onChange={e=>setDuration(e.target.value)}>{DURATIONS.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}</select></label>
-       <label><span>Start date</span><input type="date" min={todayISO()} value={startDate} onChange={e=>setStartDate(e.target.value)}/></label>
+       <label><span>Start date</span><input type="date" min={tomorrowISO()} value={startDate} onChange={e=>setStartDate(e.target.value)}/></label>
        <div className="publicGuestCount"><b>{selectedCount}</b><span>items selected</span></div>
        <div className="publicGuestOutlet"><span>OUTLET</span><b>{outlet?.name}</b><small>{outlet?.city}</small></div>
      </div>
