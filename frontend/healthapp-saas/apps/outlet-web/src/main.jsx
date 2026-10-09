@@ -8,6 +8,7 @@ import'./styles.css';
 import OutletVerificationCenter from'./OutletVerificationCenter.jsx';
 import OutletSettings from'./OutletSettings.jsx';
 import OutletLegalDocuments from'./OutletLegalDocuments.jsx';
+import SetupChecklist from'./SetupChecklist.jsx';
 
 const ORIGIN=API_URL.replace(/\/api\/?$/,'');
 const img=u=>u?(u.startsWith('http')?u:ORIGIN+u):'';
@@ -393,6 +394,7 @@ function Dashboard({dash,recipes,pricing,nav,openSubscription,onOpenPending}) {
    <div><div className="eyebrow">OUTLET OPERATIONS</div><h1>Today at {dash?.outlet?.name||'your outlet'}</h1><p>Run production, deliveries and customer activity from one operational view.</p></div>
    <div className="heroActions"><button className="secondary" onClick={()=>nav('routes')}>Plan deliveries</button><button className="primary" onClick={()=>nav('kitchen')}>Open kitchen</button></div>
   </div>
+  <SetupChecklist recipes={recipes} pricing={pricing} nav={nav}/>
   <div className="statGrid dashboardStats">{stats.map(s=><button className="statCard" key={s[1]} onClick={()=>nav(s[0])}><div><span>{s[1]}</span><b>{s[2]}</b></div><i>→</i></button>)}</div>
 
   <div className="dashboardGrid">
