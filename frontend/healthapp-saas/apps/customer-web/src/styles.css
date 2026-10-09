@@ -2088,3 +2088,39 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
 .sharedPackageDay.closedDay .sharedPackageSlots{display:none}
 .sharedPackageDay.closedDay .sharedPackageDayNotice{margin-bottom:12px}
+
+/* Shared HealthApp feedback and responsive interaction primitives */
+.ha-feedbackViewport{position:fixed;z-index:10000;inset:env(safe-area-inset-top,0px) 12px auto;display:grid;gap:8px;pointer-events:none;width:auto;max-width:100%;margin-inline:auto}
+.ha-toast{pointer-events:auto;display:grid;grid-template-columns:32px minmax(0,1fr) 32px;align-items:center;gap:10px;width:100%;max-width:480px;margin-inline:auto;padding:12px;border:1px solid #dbe5dd;border-radius:14px;background:#fff;color:#1b3324;box-shadow:0 12px 35px #102c1b22;animation:haToastIn .18s ease-out}
+.ha-toastMark{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:#e8f5eb;color:#236a39;font-weight:900}.ha-toastText{min-width:0;font-size:14px;line-height:1.45;overflow-wrap:anywhere}.ha-toastClose{width:32px;height:32px;border:0;border-radius:9px;background:transparent;color:inherit;font-size:22px;line-height:1}
+.ha-toast-error{border-color:#f0c9c5}.ha-toast-error .ha-toastMark{background:#fdebea;color:#a82c24}.ha-toast-warning{border-color:#f0d9a9}.ha-toast-warning .ha-toastMark{background:#fff2d5;color:#8a5a00}.ha-toast-info .ha-toastMark{background:#eaf2ff;color:#2459a6}
+.ha-dialogBackdrop{position:fixed;z-index:10001;inset:0;display:grid;place-items:center;overflow-y:auto;padding:max(16px,env(safe-area-inset-top)) 14px max(16px,env(safe-area-inset-bottom));background:#10271bb8;backdrop-filter:blur(4px)}
+.ha-dialog{display:grid;grid-template-columns:42px minmax(0,1fr);gap:14px;width:min(100%,480px);max-height:calc(100dvh - 32px);overflow:auto;padding:20px;border:1px solid #e0e8e2;border-radius:20px;background:#fff;color:#17271d;box-shadow:0 24px 80px #07170d45}.ha-dialogIcon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:#eaf6ed;color:#216d3a;font-size:20px;font-weight:900}.ha-dialogDanger .ha-dialogIcon{background:#fdebea;color:#a82c24}
+.ha-dialogContent{min-width:0}.ha-dialogContent h2{margin:2px 0 8px;font-size:18px;line-height:1.3}.ha-dialogContent p{margin:0;color:#5d6c61;font-size:14px;line-height:1.55;overflow-wrap:anywhere}.ha-dialogActions{display:flex;flex-direction:column-reverse;gap:9px;margin-top:22px}.ha-dialogActions button{min-height:46px;width:100%;border:1px solid #d7e1d9;border-radius:12px;padding:10px 14px;font-weight:750}.ha-dialogCancel{background:#fff;color:#34483a}.ha-dialogConfirm{background:#246d3a;color:#fff;border-color:#246d3a!important}.ha-dialogConfirm.danger{background:#b42318;border-color:#b42318!important}
+@keyframes haToastIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.ha-toast{animation:none}}
+@media(min-width:600px){.ha-feedbackViewport{inset:18px 18px auto auto;width:min(420px,calc(100vw - 36px));margin:0}.ha-dialog{padding:24px}.ha-dialogActions{flex-direction:row;justify-content:flex-end}.ha-dialogActions button{width:auto;min-width:112px}}
+button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max-width:100%}:where(button,[role=button],input[type=checkbox],input[type=radio],select){touch-action:manipulation}
+@media(max-width:767px){
+ html{scroll-padding-top:72px}body{overflow-wrap:anywhere}
+ .modalBackdrop,.overlay,.skipConfirmBackdrop,.demoModalBackdrop,.publicOverlayBackdrop,.reviewConfirmBackdrop{align-items:end;justify-items:stretch;padding:0;overflow-y:auto}
+ .modal,.modal.wide,.skipConfirmModal,.demoModal,.publicGuestBuilder,.reviewConfirmModal{width:100%;max-width:none;max-height:calc(100dvh - env(safe-area-inset-top,0px));overflow:auto;border-radius:20px 20px 0 0;padding-bottom:max(16px,env(safe-area-inset-bottom,0px))}
+ .modalHead{position:sticky;top:0;z-index:2;background:inherit}.modalActions,.standardConfirmActions,.skipConfirmActions,.demoModalActions{display:flex;flex-direction:column-reverse;gap:9px}.modalActions>*,.standardConfirmActions>*,.skipConfirmActions>*,.demoModalActions>*{width:100%;min-height:46px}
+ .field input,.field select,.field textarea,input,select,textarea{font-size:16px}.pageHead,.toolbar,.topbar{gap:12px;flex-wrap:wrap}.pageHead>*{min-width:0;max-width:100%}
+ .tableWrap,.tableScroll,.discountTable,.dataTableWrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}.panel,.card,.page,.content,.main,.mainPanel{min-width:0;max-width:100%}
+ .mealMatrix{max-width:100%;overflow-x:auto}.builderControls,.builderInfo,.checkoutPanel,.calendarGrid,.recipeDetail,.dashboardGrid,.statsGrid,.statGrid,.twoCol,.billingGrid,.manualAssignmentGrid,.mapRouteGrid,.driverPicker,.teamRoleGuide,.closureSettingsForm,.ingredientRow{grid-template-columns:minmax(0,1fr)!important}
+ .content{padding:14px!important}.topbar{padding:12px 14px!important}.pageHead h1,.page h1{font-size:clamp(22px,6vw,30px);line-height:1.18}.primary,.secondary,.dangerAction,.smallBtn,.iconBtn{min-height:42px}.navItem{min-height:44px}.sharedPackageDay{min-width:0}
+}
+@media(min-width:768px){.ha-dialogActions{flex-direction:row;justify-content:flex-end}.ha-dialogActions button{width:auto;min-width:112px}}
+
+/* Customer portal: compact phone navigation and fluid package/calendar layouts */
+@media(max-width:767px){
+ .customerShell{display:block;min-height:100dvh}.sidebar{position:sticky;inset:0 0 auto;width:100%;height:auto;min-height:0;max-height:none;padding:10px 12px;display:flex;flex-direction:row;align-items:center;gap:10px;overflow-x:auto;overflow-y:hidden;z-index:30}
+ .sideBrand{flex:0 0 auto}.customerMini{display:none}.sidebar nav,.sideNav,.navList{display:flex;flex:1 0 auto;gap:5px;overflow-x:auto;overflow-y:hidden;min-width:0;padding:0;margin:0}
+ .sidebar nav a,.sidebar nav button,.navItem{flex:0 0 auto;width:auto;min-height:42px;padding:9px 11px;white-space:nowrap}.mainPanel{margin-left:0!important;width:100%!important;max-width:100%;min-width:0}
+ .topbar{position:sticky;top:0;z-index:15;min-height:56px}.content{padding:14px!important}
+ .discoveryGrid,.outletMenuCards,.recipeGrid,.statsGrid,.statGrid,.dashboardGrid,.checkoutPanel,.calendarGrid{grid-template-columns:minmax(0,1fr)!important}.outletMenuHero{height:auto;min-height:160px}
+ .mealMatrix{grid-template-columns:minmax(0,1fr)!important;min-width:0!important;overflow:visible}.matrixHeader{display:none}.matrixRow{grid-template-columns:minmax(0,1fr)!important;min-width:0!important}.matrixCell{min-width:0!important}
+ .recipeDetail,.builderControls,.builderInfo{grid-template-columns:minmax(0,1fr)!important}.publicGuestBuilderToolbar{position:sticky;top:0;z-index:3;background:#fff}.sharedPackageSlots{grid-template-columns:minmax(0,1fr)!important}
+}
+@media(min-width:768px){.customerShell{display:flex}.sidebar{width:254px;position:fixed;inset:0 auto 0 0;flex-direction:column}.mainPanel{margin-left:254px;width:calc(100% - 254px)}.sharedPackageSlots{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1100px){.sharedPackageSlots{grid-template-columns:repeat(4,minmax(0,1fr))}}
