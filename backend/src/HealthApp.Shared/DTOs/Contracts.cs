@@ -4,7 +4,7 @@ public record LoginRequest(string Email, string Password, string? OutletSlug = n
 public record RegisterRequest(string FirstName, string LastName, string Email, string Password, string Role = "Customer", string? OutletSlug = null, string? MobileNumber = null, Guid? LegalPolicyVersionId = null, bool LegalAccepted = false, bool MarketingOptIn = false);
 public record AuthResponse(string AccessToken, DateTime ExpiresAt, UserDto User);
 public record UserDto(Guid Id, string Email, string FirstName, string LastName, string Role, Guid? OutletId, bool IsDemo = false, DateTime? DemoExpiresAtUtc = null, string? MobileNumber = null, bool MarketingOptIn = false, DateTime? MarketingOptInAtUtc = null);
-public record OutletDto(Guid Id, string Name, string Slug, string Subdomain, string City, string State, string Pincode, string Status, string BillingPlan, string LogoUrl, string HeroImageUrl, IReadOnlyList<string> HealthHighlights, string PrimaryColor, bool IsAvailable, double DistanceKm, double Rating = 4.8, int ReviewCount = 0, string About = "Fresh, healthy meals prepared with quality ingredients.", double Latitude = 0, double Longitude = 0, string Tagline = "", string SecondaryColor = "", string FaviconUrl = "", string DeliveryCoverageMode = "Radius", double ServiceRadiusKm = 20, string FontFamily = "Inter", string ThemeStyle = "Fresh", string ButtonStyle = "Rounded", string CardStyle = "Soft", string CustomPackagePricingMode = "Calculated", bool ShowPackagePriceToCustomer = true, bool ShowMealPriceToCustomer = true, bool ShowDeliveryFeeToCustomer = true, bool SupportsLargePortion = true, Guid? OutletGroupId = null);
+public record OutletDto(Guid Id, string Name, string Slug, string Subdomain, string City, string State, string Pincode, string Status, string BillingPlan, string LogoUrl, string HeroImageUrl, IReadOnlyList<string> HealthHighlights, string PrimaryColor, bool IsAvailable, double DistanceKm, double Rating = 4.8, int ReviewCount = 0, string About = "Fresh, healthy meals prepared with quality ingredients.", double Latitude = 0, double Longitude = 0, string Tagline = "", string SecondaryColor = "", string FaviconUrl = "", string DeliveryCoverageMode = "Radius", double ServiceRadiusKm = 20, string FontFamily = "Inter", string ThemeStyle = "Fresh", string ButtonStyle = "Rounded", string CardStyle = "Soft", string CustomPackagePricingMode = "Calculated", bool ShowPackagePriceToCustomer = true, bool ShowMealPriceToCustomer = true, bool ShowDeliveryFeeToCustomer = true, bool SupportsLargePortion = true, Guid? OutletGroupId = null, string DeliveryDays = "", IReadOnlyList<OutletClosureDto>? Closures = null);
 public record SaaSPlanDto(Guid Id, string Name, decimal MonthlyFee, decimal AnnualFee, int IncludedActiveCustomers, decimal AdditionalCustomerFee, decimal CustomerTransactionFeePercent, string Description, bool IsActive);
 public record OutletBrandingDto(
     string BrandName,
@@ -55,7 +55,7 @@ public record OutletSettingsDto(
     bool ShowPackagePriceToCustomer = true,
     bool ShowMealPriceToCustomer = true,
     bool ShowDeliveryFeeToCustomer = true,
-    decimal LateSkipFee = 50m, bool SupportsLargePortion = true);
+    decimal LateSkipFee = 50m, bool SupportsLargePortion = true, IReadOnlyList<OutletClosureDto>? Closures = null);
 
 public record OutletLegalPolicyVersionDto(
     Guid Id,
@@ -98,7 +98,8 @@ public record UpdateOutletLegalPoliciesRequest(
 
 
 
-public record UpdateOutletSettingsRequest(string DeliveryDays, string DeliveryCoverageMode = "Radius", double? ServiceRadiusKm = null);
+public record OutletClosureDto(string StartDate, string EndDate, string Reason);
+public record UpdateOutletSettingsRequest(string DeliveryDays, string DeliveryCoverageMode = "Radius", double? ServiceRadiusKm = null, IReadOnlyList<OutletClosureDto>? Closures = null);
 public record UpdateOutletLateSkipFeeRequest(decimal LateSkipFee);
 public record UpdateOutletPackageSettingsRequest(string CustomPackagePricingMode = "Calculated", bool ShowPackagePriceToCustomer = true, bool ShowDeliveryFeeToCustomer = true, bool ShowMealPriceToCustomer = true, bool SupportsLargePortion = true);
 
