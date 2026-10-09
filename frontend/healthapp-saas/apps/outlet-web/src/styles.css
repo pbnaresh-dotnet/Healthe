@@ -870,3 +870,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .nutritionPreview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc}
 .nutritionPreview>div{padding:10px;border-radius:10px;background:#fff;border:1px solid #e5e7eb}.nutritionPreview b,.nutritionPreview span,.nutritionPreview>small{display:block}.nutritionPreview b{font-size:12px}.nutritionPreview span{font-size:11px;color:#64748b;margin-top:4px;line-height:1.45}.nutritionPreview>small{grid-column:1/-1;color:#92400e}
 @media(max-width:720px){.ingredientRow{grid-template-columns:1fr 1fr}.ingredientRow input:first-child{grid-column:1/-1}.ingredientRow .dangerText{justify-self:start}.nutritionPreview{grid-template-columns:1fr}}
+
+
+/* Compact outlet holiday/closure editor */
+.closureSettings{display:grid;gap:14px;margin-top:22px;padding:18px;border:1px solid #dce9df;border-radius:16px;background:#fbfdfb}
+.closureSettings h3{margin:5px 0;font-size:18px;color:#173f2b}
+.closureSettings p,.closureEmpty{margin:5px 0 0;color:#647568;font-size:13px;line-height:1.5}
+.closureSettingsForm{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:end}
+.closureSettingsForm .closureReason{grid-column:1/-1}
+.closureSettingsForm .field input{width:100%;min-width:0}
+.closureList{display:grid;gap:8px}
+.closureRow{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid #e2ebe4;border-radius:10px;background:white;font-size:13px}
+.closureRow .closureDate{font-weight:700;white-space:nowrap;color:#294b37}
+.closureRow>span:nth-child(2){flex:1}
+.closureRow .textButton{border:0;background:transparent;color:#b42318;font-weight:700;cursor:pointer}
+@media(max-width:640px){.closureSettings{padding:12px}.closureSettingsForm{grid-template-columns:1fr}.closureSettingsForm .closureReason{grid-column:auto}.closureRow{align-items:flex-start;flex-wrap:wrap}.closureRow .closureDate{white-space:normal}.closureRow .textButton{margin-left:auto}}
