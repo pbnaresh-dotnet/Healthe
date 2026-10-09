@@ -2085,3 +2085,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 /* A concise notice keeps closure dates visible without disabling the whole day card. */
 .sharedPackageDayNotice{display:flex;align-items:center;gap:8px;margin:0 12px 12px;padding:8px 11px;border:1px solid #f0d5a4;border-left:3px solid #c58a24;border-radius:8px;background:#fff9ec;color:#77551c;font-size:12px;line-height:1.4}
 .sharedPackageDayNotice>span:first-child{font-size:14px;flex:none}
+
+.sharedPackageDay.closedDay .sharedPackageSlots{display:none}
+.sharedPackageDay.closedDay .sharedPackageDayNotice{margin-bottom:12px}
