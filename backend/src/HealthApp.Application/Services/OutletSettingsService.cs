@@ -4,6 +4,7 @@ using HealthApp.Domain.Entities;
 using HealthApp.Domain.Enums;
 using HealthApp.Shared.DTOs;
 using Microsoft.Extensions.Options;
+using System.Text.Json;
 
 namespace HealthApp.Application.Services;
 
@@ -41,7 +42,7 @@ public sealed class OutletSettingsService(
             outlet.DeliveryDays, outlet.RestaurantGstRate, outlet.RestaurantGstMode.ToString(),
             await BuildReadinessAsync(outlet), MapBranding(branding),
             outlet.DeliveryCoverageMode.ToString(), outlet.ServiceRadiusKm, outlet.Latitude, outlet.Longitude, outlet.Slug,
-            outlet.CustomPackagePricingMode, outlet.ShowPackagePriceToCustomer, outlet.ShowMealPriceToCustomer, outlet.ShowDeliveryFeeToCustomer, outlet.LateSkipFee, outlet.SupportsLargePortion);
+            outlet.CustomPackagePricingMode, outlet.ShowPackagePriceToCustomer, outlet.ShowMealPriceToCustomer, outlet.ShowDeliveryFeeToCustomer, outlet.LateSkipFee, outlet.SupportsLargePortion, ReadClosures(outlet.ClosureDatesJson));
     }
 
     public async Task<IReadOnlyList<OutletDomainDto>> GetDomainsAsync()
@@ -420,6 +421,27 @@ public sealed class OutletSettingsService(
         return await GetAsync();
     }
 
+    private static string NormalizeClosureDate(string? value, string field)
+    {
+        if (!DateOnly.TryParse(value, out var date))
+            throw new ArgumentException($"Please provide a valid {field}.");
+        return date.ToString("yyyy-MM-dd");
+    }
+
+    private static string NormalizeClosureReason(string? value)
+    {
+        var reason = (value ?? "").Trim();
+        if (reason.Length is < 2 or > 120)
+            throw new ArgumentException("Closure reason must be between 2 and 120 characters.");
+        return reason;
+    }
+
+    private static IReadOnlyList<OutletClosureDto> ReadClosures(string? json)
+    {
+        try { return JsonSerializer.Deserialize<List<OutletClosureDto>>(string.IsNullOrWhiteSpace(json) ? "[]" : json) ?? []; }
+        catch (JsonException) { return []; }
+    }
+
     public async Task<OutletSettingsDto?> UpdateDeliveryDaysAsync(UpdateOutletSettingsRequest request)
     {
         if (current.OutletId is not Guid outletId) return null;
@@ -432,6 +454,24 @@ public sealed class OutletSettingsService(
         outlet.DeliveryDays = string.Join(",", Weekdays
             .Where(days.Contains)
             .Select(x => x.ToString()));
+        if (request.Closures is not null)
+        {
+            var closures = request.Closures
+                .Select(x => new OutletClosureDto(
+                    NormalizeClosureDate(x.StartDate, "closure start date"),
+                    NormalizeClosureDate(x.EndDate, "closure end date"),
+                    NormalizeClosureReason(x.Reason)))
+                .OrderBy(x => x.StartDate, StringComparer.Ordinal)
+                .ToList();
+            foreach (var closure in closures)
+            {
+                if (closure.EndDate.CompareTo(closure.StartDate) < 0)
+                    throw new ArgumentException("A closure end date cannot be earlier than its start date.");
+            }
+            if (closures.Count > 200)
+                throw new ArgumentException("You can configure up to 200 closure periods.");
+            outlet.ClosureDatesJson = JsonSerializer.Serialize(closures);
+        }
 
         if (!string.IsNullOrWhiteSpace(request.DeliveryCoverageMode))
         {
