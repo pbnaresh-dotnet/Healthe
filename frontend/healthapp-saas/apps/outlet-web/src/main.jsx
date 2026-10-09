@@ -630,7 +630,8 @@ function KitchenPage({data,date,setDate,refresh}) {
   {value:3,name:'Evening'},
   {value:4,name:'Night'}
  ];
- const selectedLabels=useMemo(()=>data?.labels?.filter(l=>printSlots.includes(Number(l.mealSlot)))||[],[data,printSlots]);
+ const selectedLabels=useMemo(()=>data?.labels?.filter(l=>printSlots.includes(Number(l.mealSlot))&&l.routeId&&Number(l.routeSequence)>0&&String(l.routeStatus||'').toLowerCase()==='dispatched')||[],[data,printSlots]);
+ const labelsNotDispatched=useMemo(()=>data?.labels?.filter(l=>printSlots.includes(Number(l.mealSlot))&&!(l.routeId&&Number(l.routeSequence)>0&&String(l.routeStatus||'').toLowerCase()==='dispatched')).length||0,[data,printSlots]);
  const production=useMemo(()=>{
   const map=new Map();
   selectedLabels.forEach(l=>{
@@ -678,6 +679,7 @@ function KitchenPage({data,date,setDate,refresh}) {
       <div className="labelTop"><div className="labelOutletBrand">{l.logoUrl?<img src={img(l.logoUrl)} alt=""/>:<div className="outletLogo">{(l.outletName||'O')[0]}</div>}<b>{l.outletName}</b></div><span>{l.subscriptionPlanName}</span></div>
       <div className="labelCustomerCompact"><span>{l.addressLabel||'DELIVERY'}</span><b>{l.customerName}</b></div>
       <div className="labelMealCompact"><b>{l.mealName}</b><span>{l.category} · {l.portionSize}</span></div>
+      <div className="labelSequence">DELIVERY STOP <strong>{String(l.routeSequence).padStart(2,'0')}</strong></div>
       <div className="labelMetaRow"><span>{l.mealSlotName}</span><b>{l.deliveryWindow}</b></div>
       <div className="labelAddressCompact"><b>{l.address}</b><span>{[l.areaName,l.pincode].filter(Boolean).join(' · ')}</span>{l.customerPhone&&<span>☎ {l.customerPhone}</span>}</div>
       <div className="labelBarcode"><img alt={'Barcode '+l.selectionId} src={'https://bwipjs-api.metafloor.com/?bcid=code128&scale=2&height=10&includetext&text='+encodeURIComponent(String(l.selectionId))}/><small>{String(l.selectionId)}</small></div>
@@ -689,7 +691,7 @@ function KitchenPage({data,date,setDate,refresh}) {
    <div className="printOptions">
     <div className="printOptionBlock"><div><b>Delivery windows</b><small>Select the meal windows for both the kitchen sheet and labels.</small></div><div className="printSlotChoices">{slots.map(s=><button type="button" key={s.value} className={printSlots.includes(s.value)?'printSlotChoice checked':'printSlotChoice'} onClick={()=>toggleSlot(s.value)}>{printSlots.includes(s.value)?'✓':'+'} {s.name}</button>)}</div></div>
     <div className="printChoice"><div><b>Kitchen production sheet</b><small>One consolidated table: meal, category, portion and total quantity.</small></div><button className="primary" onClick={()=>doPrint('kitchen')} disabled={!production.length}>Print kitchen</button></div>
-    <div className="printChoice"><div><b>Meal-box labels</b><small>{selectedLabels.length} concise labels for the selected windows.</small></div><button className="primary" onClick={()=>doPrint('labels')} disabled={!selectedLabels.length}>Print labels</button></div>
+    <div className="printChoice"><div><b>Meal-box labels</b><small>{selectedLabels.length} labels from dispatched routes. {labelsNotDispatched?labelsNotDispatched+' meal(s) are hidden until their route is assigned and dispatched.':''}</small></div><button className="primary" onClick={()=>doPrint('labels')} disabled={!selectedLabels.length}>Print labels</button></div>
    </div>
   </Modal>}
  </div>
