@@ -55,6 +55,16 @@ const formatDate=iso=>new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'shor
 const shortDate=iso=>new Intl.DateTimeFormat('en-IN',{day:'2-digit',month:'short',timeZone:'UTC'}).format(dateObj(iso));
 const dayId=iso=>dateObj(iso).getUTCDay();
 const slotName=id=>SLOT.find(x=>x.id===Number(id))?.label||'Meal';
+const outletClosureFor=(outlet,iso)=>{
+ const closures=Array.isArray(outlet?.closures)?outlet.closures:[];
+ const match=closures.find(x=>String(iso)>=String(x.startDate||'')&&String(iso)<=String(x.endDate||x.startDate||''));
+ if(match)return String(match.reason||'Holiday / not servicing');
+ const configured=String(outlet?.deliveryDays||'').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean);
+ const weekday=dayName(dayId(iso)).toLowerCase();
+ if(configured.length&&!configured.includes(weekday))return 'Not servicing on '+dayName(dayId(iso));
+ return '';
+};
+const isOutletDeliveryDay=(outlet,iso)=>!outletClosureFor(outlet,iso);
 const isPackageAddOn=item=>['Juice','Snack','Curd','Starter','Side','Add-on','Soup','Salad','Dessert','Drink','Other'].includes(String(item?.mealType||'').trim());
 const dayName=id=>DAYS.find(x=>x.id===id)?.label||'Day';
 const key=(date,slot)=>date+'_'+slot;
@@ -289,6 +299,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
    })();
    const first={};
    for(const d of days){
+     if(outletClosureFor(outlet,d.date))continue;
      for(const s of SLOT){
        const opts=publicMenuFor(d.date,s.id);
        if(opts.length&&guestSelections[key(d.date,s.id)]===undefined) first[key(d.date,s.id)]=[];
@@ -701,12 +712,23 @@ function CustomerOutletHome({outlet,menu,busy,error,onBuild,onViewPlan}){
 
 function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDate,setStartDate,selections,setSelections,selectedCount,onClose,onContinue}){
  const showMealPrice=outlet?.showMealPriceToCustomer!==false;
+ const startDateOptions=useMemo(()=>{
+   const start=tomorrowISO();
+   return Array.from({length:120},(_,i)=>addDays(start,i)).filter(date=>isOutletDeliveryDay(outlet,date)).slice(0,60);
+ },[outlet?.deliveryDays,outlet?.closures]);
  const days=useMemo(()=>{
    const d=DURATIONS.find(x=>x.id===duration)||DURATIONS[2];
-   const start=startDate||todayISO();
-   return Array.from({length:d.days},(_,i)=>({date:addDays(start,i),index:i}));
- },[duration,startDate]);
+   const start=startDate||startDateOptions[0]||tomorrowISO();
+   const result=[];let validDeliveryDays=0;
+   for(let offset=0;offset<180&&validDeliveryDays<d.days;offset++){
+     const date=addDays(start,offset),warning=outletClosureFor(outlet,date);
+     result.push({date,index:result.length,warning});
+     if(!warning)validDeliveryDays++;
+   }
+   return result;
+ },[duration,startDate,startDateOptions,outlet?.deliveryDays,outlet?.closures]);
  const menuFor=(date,slot)=>{
+   if(outletClosureFor(outlet,date))return [];
    const day=Number(dayId(date));
    const configured=(menu||[]).filter(x=>Number(x.dayOfWeek)===day);
    const slotItems=configured.filter(x=>Number(x.mealSlotValue)===Number(slot));
@@ -754,7 +776,7 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
      </div>
      <div className="publicGuestBuilderToolbar">
        <label><span>Package duration</span><select value={duration} onChange={e=>setDuration(e.target.value)}>{DURATIONS.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}</select></label>
-       <label><span>Start date</span><input type="date" min={tomorrowISO()} value={startDate} onChange={e=>setStartDate(e.target.value)}/></label>
+       <label><span>Start date</span><select value={startDateOptions.includes(startDate)?startDate:startDateOptions[0]||''} onChange={e=>setStartDate(e.target.value)}>{startDateOptions.map(date=><option key={date} value={date}>{dayName(dayId(date))} · {formatDate(date)}</option>)}</select></label>
        <div className="publicGuestCount"><b>{selectedCount}</b><span>items selected</span></div>
        <div className="publicGuestOutlet"><span>OUTLET</span><b>{outlet?.name}</b><small>{outlet?.city}</small></div>
      </div>
@@ -766,7 +788,7 @@ function GuestPackageModal({outlet,menu,busy=false,duration,setDuration,startDat
          <small>Almost ready</small>
        </div>
        :<PackageBuilder
-         days={days.map(d=>({date:d.date,label:dayName(dayId(d.date)),week:1}))}
+         days={days.map(d=>({date:d.date,label:dayName(dayId(d.date)),week:1,warning:d.warning}))}
          menuFor={menuFor}
          selections={selections}
          getSelected={(date,slot)=>selections[key(date,slot)]||[]}
