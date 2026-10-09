@@ -513,3 +513,38 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
  .ha-dialogActions{flex-direction:column-reverse}.ha-dialogActions button{width:100%;min-height:46px}
 }
 @media(min-width:720px){.ha-dialogActions{flex-direction:row;justify-content:flex-end}.ha-dialogActions button{width:auto;min-width:112px}}
+
+
+/* Mobile-first Super Admin layout defaults */
+.adminApp,.layout,.content{min-width:0;max-width:100%}
+.metricGrid,.dashboardGrid,.insightGrid,.geographyGrid,.formGrid,.verifyGrid,.docGrid,.roadmapGrid,.tenant360Grid,.financeMetricGrid,.financePanelGrid,.financeCards{grid-template-columns:minmax(0,1fr)!important}
+.metricGrid{gap:10px}.content{padding:14px 12px 36px}.pageIntro{align-items:flex-start;flex-direction:column;gap:10px}.pageIntro h1{font-size:clamp(24px,7vw,32px);overflow-wrap:anywhere}.pageIntro p{font-size:13px}
+.quickLinks{grid-template-columns:minmax(0,1fr)}.tableWrap,.tenantTable,.areaTable,.outletTable,.financeTableWrap,.financeTable,.compactDataTable,.errorTable{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tableHead,.tableRow{min-width:620px}.financeTable{min-width:720px}.errorTable{min-width:640px}
+.card,.metricCard,.insightCard,.financeCard,.cityCard,.domainCard,.applicationCard,.financeRuleCard{min-width:0;max-width:100%}
+.formGrid input,.formGrid select,.formGrid textarea,input,select,textarea{font-size:16px;max-width:100%;min-width:0}
+.primaryBtn,.secondaryBtn,.ghostBtn,.navItem,.mobileMenuBtn,.iconBtn{min-height:44px}
+.modalBackdrop{align-items:end;justify-items:stretch;padding:0;overflow-y:auto}.modalShell,.errorDetailModal{width:100%;max-width:100%;max-height:calc(100dvh - env(safe-area-inset-top,0px));overflow:auto;border-radius:20px 20px 0 0;padding:18px 14px max(18px,env(safe-area-inset-bottom,0px))}
+.modalHead{gap:10px}.modalHead h2{font-size:clamp(19px,5vw,25px);line-height:1.2}
+@media(min-width:560px){
+ .metricGrid,.financeMetricGrid,.financeCards{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .quickLinks{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .content{padding:18px 16px 44px}
+ .formGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .docGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .modalBackdrop{place-items:center;padding:18px}.modalShell,.errorDetailModal{width:min(900px,100%);max-height:calc(100dvh - 36px);border-radius:18px;padding:22px}
+}
+@media(min-width:720px){
+ .pageIntro{flex-direction:row;align-items:flex-end;justify-content:space-between}
+ .verifyGrid,.tenant360Grid,.financePanelGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .roadmapGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(min-width:980px){
+ .metricGrid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ .dashboardGrid,.geographyGrid,.financePanelGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .insightGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .roadmapGrid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ .quickLinks{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .content{padding:24px 24px 54px}
+}
+@media(min-width:1100px){.metricGrid{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
