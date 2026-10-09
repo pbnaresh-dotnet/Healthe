@@ -955,3 +955,19 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
  .appShell .content{padding:26px 30px 60px}
  .appShell .loadingBar{left:250px!important}
 }
+
+
+/* Ingredient usage report: keep the five-column report readable on narrow screens. */
+.ingredientUsageTable{overflow-x:auto;overscroll-behavior-inline:contain}
+.ingredientUsageTable .dataRow{grid-template-columns:minmax(150px,1.15fr) minmax(125px,.85fr) 72px 86px minmax(220px,1.5fr);min-width:760px;align-items:start}
+.ingredientUsageTable .dataRow>span{overflow-wrap:anywhere}
+.ingredientUsageTable .dataRow>span:first-child b{color:#203b2c}
+.ingredientUsagePage .pageActions .field{min-width:150px;margin:0}
+.ingredientUsagePage .pageActions .field input{min-height:38px}
+@media(max-width:640px){
+ .ingredientUsagePage .pageHead{align-items:stretch;flex-direction:column}
+ .ingredientUsagePage .pageActions{display:grid;grid-template-columns:minmax(0,1fr);width:100%}
+ .ingredientUsagePage .pageActions .field{min-width:0;width:100%}
+ .ingredientUsagePage .pageActions>button{width:100%;min-height:42px}
+ .ingredientUsagePage .panelCallout{align-items:flex-start}
+}
