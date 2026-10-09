@@ -62,7 +62,7 @@ public sealed class OutletDomainRepository(HealthAppDbContext db) : EfRepository
         var value = hostname.Trim().TrimEnd('.').ToLowerInvariant();
         return Context.OutletDomains.AsNoTracking()
             .Include(x => x.Outlet)
-             .ThenInclude(x => x.Branding!)
+             .ThenInclude(x => x!.Branding)
             .FirstOrDefaultAsync(x => x.Hostname == value && x.Status == OutletDomainStatus.Active);
     }
 
