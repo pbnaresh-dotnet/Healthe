@@ -765,9 +765,6 @@ public sealed class PaymentSettlementReconciliationExceptionRepository(HealthApp
            && (!outletId.HasValue || payment.OutletId == outletId)
         select ex;
 
-    public async Task<IReadOnlyList<PaymentSettlementReconciliationException>> GetOpenAsync(string? provider = null, Guid? outletId = null) =>
-        await OpenQuery(provider, outletId).OrderBy(x => x.CreatedAtUtc).ToListAsync();
-
     public Task<PaymentSettlementReconciliationException?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         Context.PaymentSettlementReconciliationExceptions.FirstOrDefaultAsync(x => x.Id == id && x.Status == "Open", cancellationToken);
 
@@ -801,9 +798,6 @@ public sealed class PaymentGatewaySettlementRepository(HealthAppDbContext db) : 
     private IQueryable<PaymentGatewaySettlement> UnreconciledQuery(Guid? outletId) =>
         Context.PaymentGatewaySettlements.AsNoTracking()
             .Where(x => x.Status != "Reconciled" && (!outletId.HasValue || x.OutletId == outletId));
-
-    public async Task<IReadOnlyList<PaymentGatewaySettlement>> GetUnreconciledAsync(Guid? outletId = null) =>
-        await UnreconciledQuery(outletId).OrderBy(x => x.CreatedAtUtc).ToListAsync();
 
     public async Task<(IReadOnlyList<PaymentGatewaySettlement> Items, int TotalCount)> GetUnreconciledPageAsync(
         Guid? outletId, int page, int pageSize, CancellationToken cancellationToken = default)
