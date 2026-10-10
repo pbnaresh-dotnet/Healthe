@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using HealthApp.Application.Abstractions;
+using HealthApp.Api.Middleware;
 using HealthApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,7 +18,7 @@ namespace HealthApp.Api.Controllers;
 [ApiController]
 [Route("api/saas-billing")]
 [Authorize(Roles = "SuperAdmin,AreaManager")]
-public sealed class SaaSBillingController(HealthAppDbContext db, IConfiguration configuration, IHttpClientFactory httpClientFactory, IEmailService email) : ControllerBase
+public sealed class SaaSBillingController(HealthAppDbContext db, IConfiguration configuration, IHttpClientFactory httpClientFactory, IEmailService email, ILogger<SaaSBillingController> logger, DiagnosticsPolicy diagnosticsPolicy) : ControllerBase
 {
     private Guid? ActorId => Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value, out var id) ? id : null;
     private bool IsSuperAdmin => User.IsInRole("SuperAdmin");
@@ -217,7 +218,7 @@ FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE i.Id=@id{sco
             var textBody=$"Broccoly SaaS invoice {invoiceNumber} for {outletName} ({period}). Subtotal: {currency} {subtotal:N2}; discount: {currency} {discountAmount:N2}; tax: {currency} {taxAmount:N2}; total: {currency} {totalAmount:N2}; received: {currency} {amountPaid:N2}; outstanding: {currency} {balance:N2}. Due {dueDate:u}. Pay securely: {paymentUrl}. Expires {expiry:u}.";
             try{await email.SendAsync(new EmailMessage(outletEmail,$"Payment due: Broccoly SaaS invoice {invoiceNumber}",textBody,html),ct);emailSent=true;
                 await using var mark=conn.CreateCommand();mark.CommandText="UPDATE dbo.SaaSInvoicePaymentLinks SET Status='EmailSent',EmailSentAtUtc=@at WHERE Id=@id";Add(mark,"@at",DateTime.UtcNow);Add(mark,"@id",linkRecordId);await mark.ExecuteNonQueryAsync(ct);
-            }catch(Exception ex){emailError=ex.Message.Length>500?ex.Message[..500]:ex.Message;await using var mark=conn.CreateCommand();mark.CommandText="UPDATE dbo.SaaSInvoicePaymentLinks SET Status='EmailFailed',EmailError=@error WHERE Id=@id";Add(mark,"@error",emailError);Add(mark,"@id",linkRecordId);await mark.ExecuteNonQueryAsync(ct);}
+            }catch(Exception ex){var correlationId=HttpContext.Response.Headers["X-Correlation-Id"].FirstOrDefault()??HttpContext.TraceIdentifier;if(diagnosticsPolicy.Current.DetailedLoggingEnabled)logger.LogError(ex,"SaaS invoice email delivery failed. InvoiceId={InvoiceId} CorrelationId={CorrelationId}",id,correlationId);else logger.LogError("SaaS invoice email delivery failed. ExceptionType={ExceptionType} InvoiceId={InvoiceId} CorrelationId={CorrelationId}",ex.GetType().Name,id,correlationId);emailError="Email delivery failed. The payment link was created; check email configuration and retry.";await using var mark=conn.CreateCommand();mark.CommandText="UPDATE dbo.SaaSInvoicePaymentLinks SET Status='EmailFailed',EmailError=@error WHERE Id=@id";Add(mark,"@error",emailError);Add(mark,"@id",linkRecordId);await mark.ExecuteNonQueryAsync(ct);}
         }
         return Ok(new{linkRecordId,invoiceId=id,invoiceNumber,outletName,outletEmail,amount=balance,currency,paymentUrl,expiresAtUtc=expiry,emailRequested=request.SendEmail,emailSent,emailError});
     }
