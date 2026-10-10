@@ -344,7 +344,6 @@ public sealed record PaymentGatewaySettlementInput(
 public interface IPaymentSettlementAccountingService
 {
     Task<PaymentGatewaySettlement> RecordSettlementAsync(PaymentGatewaySettlementInput input, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<PaymentGatewaySettlement>> GetUnreconciledAsync(Guid? outletId = null, CancellationToken cancellationToken = default);
     Task<PaymentSettlementImportResultDto> ImportCsvAsync(string provider, Stream csv, string reconciledBy, CancellationToken cancellationToken = default);
 }
 
@@ -354,7 +353,6 @@ public interface IPaymentGatewaySettlementRepository
     Task<PaymentGatewaySettlement?> GetByProviderPaymentIdAsync(string provider, string providerPaymentId);
     Task AddAsync(PaymentGatewaySettlement settlement);
     Task UpdateAsync(PaymentGatewaySettlement settlement);
-    Task<IReadOnlyList<PaymentGatewaySettlement>> GetUnreconciledAsync(Guid? outletId = null);
     Task<(IReadOnlyList<PaymentGatewaySettlement> Items, int TotalCount)> GetUnreconciledPageAsync(Guid? outletId, int page, int pageSize, CancellationToken cancellationToken = default);
 }
 
@@ -363,7 +361,6 @@ public interface IPaymentSettlementReconciliationExceptionRepository
     Task<PaymentSettlementReconciliationException?> GetOpenAsync(string provider, string providerPaymentId, string providerSettlementId, string exceptionType);
     Task AddAsync(PaymentSettlementReconciliationException exception);
     Task UpdateAsync(PaymentSettlementReconciliationException exception);
-    Task<IReadOnlyList<PaymentSettlementReconciliationException>> GetOpenAsync(string? provider = null, Guid? outletId = null);
     Task<PaymentSettlementReconciliationException?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<PaymentSettlementReconciliationException> Items, int TotalCount)> GetOpenPageAsync(string? provider, Guid? outletId, int page, int pageSize, CancellationToken cancellationToken = default);
 }
