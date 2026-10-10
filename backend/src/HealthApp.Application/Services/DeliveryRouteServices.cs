@@ -491,7 +491,7 @@ public sealed class DeliveryRouteService(
         return rows
             .Where(x => x.ScheduledDate.Date == date.Date &&
                         x.MealSlot == mealSlot &&
-                        (x.Status == DeliveryStatus.Scheduled || x.Status == DeliveryStatus.Preparing))
+                        x.Status == DeliveryStatus.FoodReady)
             .OrderBy(x => x.ScheduledDate)
             .ToList();
     }
