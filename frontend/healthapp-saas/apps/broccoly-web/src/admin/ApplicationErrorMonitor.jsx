@@ -8,6 +8,9 @@ export default function ApplicationErrorMonitor({outlets=[]}){
  const[resolutionNotes,setResolutionNotes]=useState('');
  const[loading,setLoading]=useState(false);
  const[error,setError]=useState('');
+ const[diagnostics,setDiagnostics]=useState({requestLoggingEnabled:true,detailedLoggingEnabled:false,slowRequestThresholdMs:1000});
+ const[settingsBusy,setSettingsBusy]=useState(false);
+ const[settingsMessage,setSettingsMessage]=useState('');
 
  const load=async(next=filters)=>{
    try{
@@ -26,6 +29,8 @@ export default function ApplicationErrorMonitor({outlets=[]}){
  };
 
  useEffect(()=>{load()},[outlets.length]);
+ useEffect(()=>{let active=true;admin.diagnosticsSettings().then(value=>{if(active&&value)setDiagnostics({requestLoggingEnabled:!!value.requestLoggingEnabled,detailedLoggingEnabled:!!value.detailedLoggingEnabled,slowRequestThresholdMs:Number(value.slowRequestThresholdMs||1000)})}).catch(e=>{if(active)setSettingsMessage(e.message||'Unable to load diagnostics settings')});return()=>{active=false}},[]);
+ const saveDiagnostics=async()=>{try{setSettingsBusy(true);setSettingsMessage('');const value=await admin.updateDiagnosticsSettings(diagnostics);setDiagnostics({requestLoggingEnabled:!!value.requestLoggingEnabled,detailedLoggingEnabled:!!value.detailedLoggingEnabled,slowRequestThresholdMs:Number(value.slowRequestThresholdMs||1000)});setSettingsMessage('Diagnostics settings saved. Detailed exception information is sensitive; enable it only while investigating and turn it off afterwards.')}catch(e){setSettingsMessage(e.message||'Unable to save diagnostics settings')}finally{setSettingsBusy(false)}};
 
  const apply=next=>{setFilters(next);load(next)};
  const open=async id=>{
@@ -49,6 +54,16 @@ export default function ApplicationErrorMonitor({outlets=[]}){
      <div className="errorMonitorBadge">{monitor.summary?.unresolvedCount??0} unresolved</div>
    </div>
    {error&&<div className="errorBanner">⚠ {error}<button type="button" onClick={()=>setError('')}>×</button></div>}
+   <div className="diagnosticsSettings card">
+     <div><span className="eyebrow">REQUEST DIAGNOSTICS</span><h3>Logging policy</h3><p>Applies to all API routes and all web apps using the shared API client. Request logs exclude request bodies, query strings and credentials.</p></div>
+     <div className="diagnosticsSettingsControls">
+       <label><input type="checkbox" checked={diagnostics.requestLoggingEnabled} onChange={e=>setDiagnostics(v=>({...v,requestLoggingEnabled:e.target.checked}))}/> Enable request logs</label>
+       <label><input type="checkbox" checked={diagnostics.detailedLoggingEnabled} onChange={e=>setDiagnostics(v=>({...v,detailedLoggingEnabled:e.target.checked}))}/> Enable detailed exception logs</label>
+       <label>Slow request threshold (ms)<input type="number" min="100" max="120000" step="100" value={diagnostics.slowRequestThresholdMs} onChange={e=>setDiagnostics(v=>({...v,slowRequestThresholdMs:Number(e.target.value)}))}/></label>
+       <button type="button" className="errorRefreshBtn" disabled={settingsBusy||diagnostics.slowRequestThresholdMs<100||diagnostics.slowRequestThresholdMs>120000} onClick={saveDiagnostics}>{settingsBusy?'Saving…':'Save logging policy'}</button>
+     </div>
+     {settingsMessage&&<p className="diagnosticsSettingsMessage" role="status">{settingsMessage}</p>}
+   </div>
    <div className="errorSummaryStats">
      <div><span>Matching</span><b>{monitor.summary?.totalCount??0}</b></div>
      <div><span>Last 24 hours</span><b>{monitor.summary?.last24HoursCount??0}</b></div>
