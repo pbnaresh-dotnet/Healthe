@@ -22,6 +22,13 @@ public sealed class SaaSBillingController(HealthAppDbContext db, IConfiguration 
     private Guid? ActorId => Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value, out var id) ? id : null;
     private bool IsSuperAdmin => User.IsInRole("SuperAdmin");
 
+    [HttpGet("settings")]
+    public IActionResult Settings() => Ok(new
+    {
+        taxRatePercent = configuration.GetValue<decimal?>("Finance:SaaSBillingTaxRatePercent") ?? 18m,
+        financePolicyVersion = configuration["Finance:SaaSBillingPolicyVersion"] ?? "FINANCE-CALCULATION-POLICY@1.3.7"
+    });
+
     [HttpGet("invoices")]
     public async Task<IActionResult> List([FromQuery] string? status, [FromQuery] string? period, CancellationToken ct)
     {
