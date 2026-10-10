@@ -175,6 +175,23 @@ public sealed class RecipeRepository(HealthAppDbContext db) : EfRepository(db), 
         if (!string.IsNullOrWhiteSpace(category) && Enum.TryParse<RecipeCategory>(category, true, out var parsed)) q = q.Where(x => x.Category == parsed);
         return await q.OrderBy(x => x.Name).ToListAsync();
     }
+    public async Task<PageResult<Recipe>> GetByOutletPageAsync(Guid outletId, string? category, string? search, int page, int pageSize)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        var q = Context.Recipes.AsNoTracking().Where(x => x.OutletId == outletId);
+        if (!string.IsNullOrWhiteSpace(category) && Enum.TryParse<RecipeCategory>(category, true, out var parsed))
+            q = q.Where(x => x.Category == parsed);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            q = q.Where(x => x.Name.Contains(term) || (x.Description != null && x.Description.Contains(term)));
+        }
+        var total = await q.CountAsync();
+        var items = await Details(q).OrderBy(x => x.Name)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return new PageResult<Recipe>(items, total, page, pageSize);
+    }
     public async Task<IReadOnlyList<Recipe>> GetByIdsAsync(IEnumerable<Guid> ids) => await Details(Context.Recipes.AsNoTracking().Where(x => ids.Contains(x.Id))).ToListAsync();
     public async Task<IReadOnlyList<Recipe>> GetByIdsForOutletAsync(IEnumerable<Guid> ids, Guid outletId) => await Details(Context.Recipes.AsNoTracking().Where(x => ids.Contains(x.Id) && x.OutletId == outletId)).ToListAsync();
     public Task<Recipe?> GetAsync(Guid id) => Details(Context.Recipes.Where(x => x.Id == id)).FirstOrDefaultAsync();
