@@ -614,3 +614,10 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
 
 .paymentLinkBox{display:grid;gap:12px;margin-top:20px;padding:16px;border:1px solid var(--border,#dbe4dd);border-radius:12px;background:var(--surface-subtle,#f7faf7)}.paymentLinkBox h3{margin:0 0 6px}.paymentLinkBox p{margin:0}.paymentLinkResult{display:grid;gap:8px;padding:12px;border-radius:10px;background:var(--surface,#fff);border:1px solid var(--border,#dbe4dd)}.paymentLinkResult small{color:var(--muted,#64748b)}.paymentLinkResult a{overflow-wrap:anywhere;font-size:13px;color:#166534}.paymentLinkActions{display:flex;gap:8px;flex-wrap:wrap}
 @media(max-width:760px){.paymentLinkBox{padding:12px}.paymentLinkActions>*{flex:1}}
+
+
+/* Server-side Finance report pagination */
+.paginationBar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-top:1px solid var(--line,#e5e7eb);color:var(--muted,#64748b);font-size:13px}
+.paginationBar>div{display:flex;gap:8px}
+.paginationBar .secondaryBtn:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:560px){.paginationBar{align-items:flex-start;flex-direction:column}.paginationBar>div{width:100%}.paginationBar .secondaryBtn{flex:1}}
