@@ -99,11 +99,11 @@ public sealed class OutletPackageActivationService(
                 }
             }
 
+            var lateSkipRecovery = subscription.LateSkipRecoveryAmount;
             var alreadyRecorded = await transactions.ExistsForSubscriptionAsync(subscription.Id, "CustomerSubscription");
-            var pendingLateSkipTransactions = lateSkipRecovery > 0m
+            IReadOnlyList<PlatformTransaction> pendingLateSkipTransactions = lateSkipRecovery > 0m
                 ? await transactions.GetPendingLateSkipFeesAsync(subscription.CustomerId, subscription.OutletId)
                 : Array.Empty<PlatformTransaction>();
-            var lateSkipRecovery = subscription.LateSkipRecoveryAmount;
             if (lateSkipRecovery > 0m) {
                 await credits.AddAsync(new CustomerCreditTransaction { Id = Guid.NewGuid(), CustomerId = subscription.CustomerId, SubscriptionId = subscription.Id, Amount = lateSkipRecovery, Type = CreditTransactionType.Credit, Reason = $"Recovery of late skip fees through package {subscription.Id:N}; original outlet {subscription.OutletId:N}", CreatedAt = DateTime.UtcNow });
 
