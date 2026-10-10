@@ -63,3 +63,10 @@ Required request fields: `outletName`, `ownerFirstName`, `ownerLastName`, `email
 This is an **admin provisioning action, not a payment collection**: the endpoint does not call Cashfree or create a payment transaction. The form discloses this, and the response labels payment status as `NotCollected`. Super Admin should reconcile setup/subscription payment separately before treating this as a paid financial transaction. It also does not collect or publish outlet-specific customer legal policies; those remain an outlet onboarding/configuration task.
 
 Outlet slug/subdomain is generated from the outlet name, with collision suffixes and reserved-name protection. The API rejects duplicate owner email addresses and creates the outlet, owner and subscription atomically. These changes have not been build- or integration-tested and are not deployed yet.
+
+
+## Discounts and manual payment for Super Admin outlet provisioning
+
+The Add outlet form supports a percentage discount from 0% to 100% applied to the combined one-time setup fee and selected subscription amount. The API validates the percentage and stores both the rate and calculated amount on `OutletSubscription`; the payment record's immutable detail JSON captures gross amount, discount, net amount, plan, cycle, payment method, reference, notes and the Super Admin actor.
+
+Super Admin may leave payment pending or select **Mark amount as paid** and record Cash, UPI, bank transfer, Cashfree or Other. Cash receipt reference is optional; non-cash references are required. Marking paid creates a `PaymentTransaction` with a paid status and timestamp. This is an administrative receipt record, not proof from Cashfree for online payments; the operator must reconcile external payments before using that option. The API never marks the amount paid just because an outlet is created.
