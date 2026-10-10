@@ -11,6 +11,7 @@ public sealed class OutletVerificationService(
     ISaaSPlanRepository plans,
     IOutletRepository outlets,
     IOutletSubscriptionRepository outletSubscriptions,
+    ITrialRepository trials,
     IUserRepository users,
     IFileStorage storage,
     ITransactionalEmailService emails,
@@ -137,6 +138,8 @@ public sealed class OutletVerificationService(
             };
             await users.AddAsync(user);
         }
+        var now = DateTime.UtcNow;
+        var trialEnd = now.AddDays(30);
         var existingSubscription = await outletSubscriptions.GetByOutletAsync(outlet.Id);
         if (existingSubscription is null)
         {
@@ -149,8 +152,9 @@ public sealed class OutletVerificationService(
                 SubscriptionFee = x.SubscriptionFee,
                 SetupFee = x.SetupFee,
                 TransactionFeePercent = plan.CustomerTransactionFeePercent,
-                StartDate = DateTime.UtcNow.Date,
-                RenewalDate = DateTime.UtcNow.Date.AddMonths(x.BillingCycle.Equals("Annual", StringComparison.OrdinalIgnoreCase) ? 12 : 1),
+                StartDate = now.Date,
+                // The setup fee is collected during onboarding; recurring plan billing starts after the trial.
+                RenewalDate = trialEnd.Date,
                 Status = "Active"
             };
             await outletSubscriptions.AddAsync(existingSubscription);
@@ -163,8 +167,24 @@ public sealed class OutletVerificationService(
             existingSubscription.SetupFee = x.SetupFee;
             existingSubscription.TransactionFeePercent = plan.CustomerTransactionFeePercent;
             existingSubscription.Status = "Active";
-            existingSubscription.RenewalDate = DateTime.UtcNow.Date.AddMonths(x.BillingCycle.Equals("Annual", StringComparison.OrdinalIgnoreCase) ? 12 : 1);
+            existingSubscription.RenewalDate = trialEnd.Date;
             await outletSubscriptions.UpdateAsync(existingSubscription);
+        }
+
+        // Start the real-outlet trial only after verification and activation.
+        // Keep one trial per outlet; retries of the approval workflow must not reset its clock.
+        if (await trials.GetByOutletAsync(outlet.Id) is null)
+        {
+            await trials.AddAsync(new Trial
+            {
+                Id = Guid.NewGuid(),
+                OutletSubscriptionId = existingSubscription.Id,
+                OutletId = outlet.Id,
+                StartedAtUtc = now,
+                EndsAtUtc = trialEnd,
+                DurationDays = 30,
+                Status = TrialStatus.Active
+            });
         }
 
         outlet.Status = OutletStatus.Active;
