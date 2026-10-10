@@ -178,12 +178,12 @@ WHERE s.Status='Active' AND o.Status IN (1,3) AND s.StartDate<@next AND (s.Billi
             }
             if(!string.IsNullOrWhiteSpace(currency)&&!string.Equals(currency,invoiceCurrency,StringComparison.OrdinalIgnoreCase))return Conflict(new{message="Payment-link currency does not match invoice."});
             var amount=decimal.Round(amountPaid.Value,2,MidpointRounding.AwayFromZero);
-            if(amount>invoiceTotal-invoicePaid)return Conflict(new{message="Reported payment exceeds invoice balance; manual reconciliation is required."});
             var key="cashfree-link-"+providerLinkId;
             await using(var exists=conn.CreateCommand()){
                 exists.Transaction=tx;exists.CommandText="SELECT Id FROM dbo.SaaSInvoicePayments WHERE InvoiceId=@invoice AND IdempotencyKey=@key";Add(exists,"@invoice",invoiceId);Add(exists,"@key",key);
                 if(await exists.ExecuteScalarAsync(ct) is Guid existingPayment){await tx.CommitAsync(ct);return Ok(new{processed=true,duplicate=true,paymentId=existingPayment});}
             }
+            if(amount>invoiceTotal-invoicePaid)return Conflict(new{message="Reported payment exceeds invoice balance; manual reconciliation is required."});
             var now=DateTime.UtcNow;var paymentId=Guid.NewGuid();
             await using(var insert=conn.CreateCommand()){
                 insert.Transaction=tx;insert.CommandText=@"INSERT dbo.SaaSInvoicePayments(Id,InvoiceId,Amount,Method,Reference,Notes,ReceivedAtUtc,RecordedByUserId,Provider,ProviderVerified,IdempotencyKey,CreatedAtUtc) VALUES(@id,@invoice,@amount,'OnlineReconciled',@reference,@notes,@received,@actor,'Cashfree',1,@key,@now)";
