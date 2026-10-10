@@ -73,13 +73,22 @@ function App(){
  const reload=async()=>{
   try{
    setLoading(true);setError('');
-   const[d,o,us,r,cs,v,ds,ars,gs]=await Promise.all([
-    admin.dashboard(),admin.outlets(),admin.users(),admin.revenue(),admin.cities(),admin.outletOnboardingPending(),admin.domains(),admin.cityAreas(),admin.groups()
+   // Keep the first request set small; load supporting data only when its section is opened.
+   const[d,o,v,ds]=await Promise.all([
+    admin.dashboard(),admin.outlets(),admin.outletOnboardingPending(),admin.domains()
    ]);
-   setData({d:d||{},o:o||[],us:us||[],r:r||{},groups:gs||[]});setCities(cs||[]);setVerification(v||[]);setDomains(ds||[]);setAreas(ars||[]);
+   setData(prev=>({...prev,d:d||{},o:o||[]}));setVerification(v||[]);setDomains(ds||[]);
   }catch(e){setError(e.message||'Unable to load Super Admin data.')}finally{setLoading(false)}
  };
  useEffect(()=>{if(u)reload()},[u]);
+ useEffect(()=>{if(!u)return;let cancelled=false;const run=async()=>{try{
+   if(page==='outlets'||page==='groups'){const gs=await admin.groups();if(!cancelled)setData(prev=>({...prev,groups:gs||[]}));}
+   if(page==='overview'){const r=await admin.revenue();if(!cancelled)setData(prev=>({...prev,r:r||{}}));}
+   if(page==='geography'){const [cs,ars]=await Promise.all([admin.cities(),admin.cityAreas()]);if(!cancelled){setCities(cs||[]);setAreas(ars||[]);}}
+   if(page==='health'){const us=await admin.users();if(!cancelled)setData(prev=>({...prev,us:us||[]}));}
+  }catch(e){if(!cancelled)setError(e.message||'Unable to load this section')}};
+  run();return()=>{cancelled=true};
+ },[u,page]);
  const loadFinance=async(filters=financeFilters)=>{
   try{
    setFinanceLoading(true);
