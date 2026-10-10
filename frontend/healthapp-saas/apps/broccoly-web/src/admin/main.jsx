@@ -76,7 +76,7 @@ function App(){
  const[domainSearch,setDomainSearch]=useState('');
  const[financeFilters,setFinanceFilters]=useState(()=>{const d=new Date();d.setDate(d.getDate()-29);return {fromDate:d.toISOString().slice(0,10),toDate:new Date().toISOString().slice(0,10),outletGroupId:'',outletId:'',city:'',mealPlanId:''}});
  const[financeReport,setFinanceReport]=useState(null); const[financePolicy,setFinancePolicy]=useState(null);
- const[financeLoading,setFinanceLoading]=useState(false);
+ const[financeLoading,setFinanceLoading]=useState(false); const[financePageSize,setFinancePageSize]=useState(25);
  const fileUrl=url=>{if(!url)return'';return url.startsWith('http')?url:(API_URL?new URL(API_URL).origin+url:url)};
  const openPage=(next,filter='')=>{setPage(next);setSidebarOpen(false);if(next==='outlets'&&filter){setOutletStatus(filter);setOutletPageNumber(1)}};
  const reload=async()=>{
@@ -163,11 +163,11 @@ function App(){
   },250);
   return()=>{active=false;clearTimeout(timer)};
  },[u,page,outletSearch,outletStatus,outletCity,outletPageNumber,outletPageSize]);
- const loadFinance=async(filters=financeFilters,section='summary',pageNumber=1)=>{
+ const loadFinance=async(filters=financeFilters,section='summary',pageNumber=1,pageSize=financePageSize)=>{
   try{
    setFinanceLoading(true);
    setError('');
-   const normalized={...filters,fromDate:filters.fromDate||undefined,toDate:filters.toDate||undefined,outletGroupId:filters.outletGroupId||undefined,outletId:filters.outletId||undefined,city:filters.city||undefined,mealPlanId:filters.mealPlanId||undefined,section,page:pageNumber,pageSize:25};
+   setFinancePageSize(pageSize);const normalized={...filters,fromDate:filters.fromDate||undefined,toDate:filters.toDate||undefined,outletGroupId:filters.outletGroupId||undefined,outletId:filters.outletId||undefined,city:filters.city||undefined,mealPlanId:filters.mealPlanId||undefined,section,page:pageNumber,pageSize};
    setFinanceReport(await admin.finance(normalized));
   }catch(e){setError(e.message||'Unable to load finance report')}finally{setFinanceLoading(false)}
  };
@@ -534,7 +534,7 @@ function Geography({cities,areas,form,setForm,areaForm,setAreaForm,onCreateCity,
 function FinancePager({report,filters,section,onApply}){
  if(!report||report.section!==section)return null;
  const totalPages=Math.max(1,Math.ceil((report.totalRows||0)/(report.pageSize||25)));
- return <div className="paginationBar"><span>{report.totalRows||0} rows · Page {report.page||1} of {totalPages}</span><div><button type="button" className="secondaryBtn compactBtn" disabled={(report.page||1)<=1} onClick={()=>onApply(filters,section,(report.page||1)-1)}>Previous</button><button type="button" className="secondaryBtn compactBtn" disabled={(report.page||1)>=totalPages} onClick={()=>onApply(filters,section,(report.page||1)+1)}>Next</button></div></div>;
+ return <div className="paginationBar"><span>{report.totalRows||0} rows · Page {report.page||1} of {totalPages}</span><div><label className="pageSizeField">Rows <select value={report.pageSize||25} onChange={e=>onApply(filters,section,1,Number(e.target.value))}><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label><button type="button" className="secondaryBtn compactBtn" disabled={(report.page||1)<=1} onClick={()=>onApply(filters,section,(report.page||1)-1,report.pageSize||25)}>Previous</button><button type="button" className="secondaryBtn compactBtn" disabled={(report.page||1)>=totalPages} onClick={()=>onApply(filters,section,(report.page||1)+1,report.pageSize||25)}>Next</button></div></div>;
 }
 function Finance({report,filters,setFilters,groups,outlets,onApply,loading,onFinanceRules}){
  const[tab,setTab]=useState('summary');
