@@ -54,6 +54,13 @@ public sealed class AdminOutletProvisioningController(
 
         if (cycle is not ("Monthly" or "SixMonths" or "Annual"))
             return BadRequest(new { message = "Billing cycle must be Monthly, SixMonths or Annual." });
+        if (request.DiscountPercent < 0m || request.DiscountPercent > 100m ||
+            decimal.Round(request.DiscountPercent, 2) != request.DiscountPercent)
+            return BadRequest(new { message = "Discount must be between 0 and 100%, with at most two decimal places." });
+        if (request.MarkAsPaid && !new[] { "Cash", "UPI", "BankTransfer", "Cashfree", "Other" }.Contains(request.PaymentMethod))
+            return BadRequest(new { message = "Choose Cash, UPI, Bank transfer, Cashfree or Other as the payment method." });
+        if (request.MarkAsPaid && string.IsNullOrWhiteSpace(request.PaymentReference) && request.PaymentMethod != "Cash")
+            return BadRequest(new { message = "Enter a payment reference for non-cash payments." });
 
         if (await db.Users.AnyAsync(x => x.Email.ToLower() == email, cancellationToken))
             return Conflict(new { message = "An account already exists for this email address." });
@@ -72,6 +79,9 @@ public sealed class AdminOutletProvisioningController(
         var setupFee = configuration.GetValue<decimal?>("Onboarding:SetupFee") ?? 5000m;
         if (setupFee < 0m || setupFee > 1000000m)
             return Problem("Configured outlet setup fee is outside the permitted range.");
+        var undiscountedTotal = Math.Round(setupFee + subscriptionFee, 2, MidpointRounding.AwayFromZero);
+        var discountAmount = Math.Round(undiscountedTotal * request.DiscountPercent / 100m, 2, MidpointRounding.AwayFromZero);
+        var amountDue = Math.Max(0m, undiscountedTotal - discountAmount);
 
         var outletId = Guid.NewGuid();
         var slug = await CreateUniqueSlugAsync(name, cancellationToken);
@@ -115,6 +125,8 @@ public sealed class AdminOutletProvisioningController(
             BillingCycle = cycle,
             SubscriptionFee = subscriptionFee,
             SetupFee = Math.Round(setupFee, 2, MidpointRounding.AwayFromZero),
+            DiscountPercent = request.DiscountPercent,
+            DiscountAmount = discountAmount,
             TransactionFeePercent = plan.CustomerTransactionFeePercent,
             StartDate = now,
             RenewalDate = cycle switch
@@ -130,6 +142,43 @@ public sealed class AdminOutletProvisioningController(
         db.Outlets.Add(outlet);
         db.Users.Add(owner);
         db.OutletSubscriptions.Add(subscription);
+        var payment = new PaymentTransaction
+        {
+            Id = Guid.NewGuid(),
+            OutletId = outletId,
+            PaymentType = "SaaSOutletProvisioning",
+            Provider = request.MarkAsPaid && request.PaymentMethod == "Cashfree" ? "Cashfree" : request.MarkAsPaid ? "Manual" : "NotCollected",
+            ProviderPaymentId = request.MarkAsPaid ? (request.PaymentReference?.Trim() ?? "") : "",
+            ProviderOrderId = "",
+            PaymentSessionId = "",
+            PaymentMethod = request.MarkAsPaid ? request.PaymentMethod : "",
+            ProviderStatus = request.MarkAsPaid ? "Paid" : "NotCollected",
+            IdempotencyKey = $"admin-outlet-provisioning:{outletId:N}",
+            RequestFingerprint = $"{plan.Id:N}|{cycle}|{request.DiscountPercent:0.##}|{amountDue:0.00}|{request.MarkAsPaid}|{request.PaymentMethod}",
+            ProcessingStatus = request.MarkAsPaid ? "Completed" : "NotStarted",
+            Amount = amountDue,
+            Currency = "INR",
+            Status = request.MarkAsPaid ? "Paid" : "Pending",
+            GatewayResponseJson = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                Source = "SuperAdminOutletProvisioning",
+                CreatedByUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value,
+                PlanName = plan.Name,
+                BillingCycle = cycle,
+                SetupFee = setupFee,
+                SubscriptionFee = subscriptionFee,
+                GrossAmount = undiscountedTotal,
+                DiscountPercent = request.DiscountPercent,
+                DiscountAmount = discountAmount,
+                NetAmount = amountDue,
+                PaymentMethod = request.MarkAsPaid ? request.PaymentMethod : null,
+                PaymentReference = string.IsNullOrWhiteSpace(request.PaymentReference) ? null : request.PaymentReference.Trim(),
+                Notes = string.IsNullOrWhiteSpace(request.PaymentNotes) ? null : request.PaymentNotes.Trim()
+            }),
+            CreatedAtUtc = now,
+            PaidAtUtc = request.MarkAsPaid ? now : null
+        };
+        db.PaymentTransactions.Add(payment);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -154,6 +203,13 @@ public sealed class AdminOutletProvisioningController(
                 subscription.BillingCycle,
                 subscription.SubscriptionFee,
                 subscription.SetupFee,
+                subscription.DiscountPercent,
+                subscription.DiscountAmount,
+                GrossAmount = undiscountedTotal,
+                AmountDue = amountDue,
+                PaymentTransactionId = payment.Id,
+                PaymentMethod = payment.PaymentMethod,
+                PaymentStatus = payment.Status,
                 subscription.TransactionFeePercent,
                 subscription.StartDate,
                 subscription.RenewalDate,
@@ -208,4 +264,9 @@ public sealed record CreateAdminOutletRequest(
     string State,
     string Pincode,
     Guid SaaSPlanId,
-    string BillingCycle);
+    string BillingCycle,
+    decimal DiscountPercent = 0m,
+    bool MarkAsPaid = false,
+    string PaymentMethod = "",
+    string? PaymentReference = null,
+    string? PaymentNotes = null);
