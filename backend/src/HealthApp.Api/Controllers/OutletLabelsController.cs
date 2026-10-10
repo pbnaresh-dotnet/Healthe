@@ -67,8 +67,18 @@ public sealed class OutletLabelsController(IDeliveryLabelService labels, ICurren
         if (delivery.Status is not (DeliveryStatus.Scheduled or DeliveryStatus.Preparing))
             return Conflict(new { message = $"Cannot mark this delivery Food Ready from status {delivery.Status}." });
 
+        var daySelections = await selections.GetBySubscriptionAndDateRangeAsync(delivery.SubscriptionId, delivery.ScheduledDate.Date, delivery.ScheduledDate.Date.AddDays(1));
+        var matchingItems = daySelections.Where(x => x.MealDate.Date == delivery.ScheduledDate.Date &&
+            x.MealSlot == delivery.MealSlot && x.AddressId == delivery.DeliveryAddressId &&
+            x.Status is MealSelectionStatus.Scheduled or MealSelectionStatus.Prepared).ToList();
+        foreach (var item in matchingItems.Where(x => x.Status != MealSelectionStatus.Prepared))
+        {
+            item.Status = MealSelectionStatus.Prepared;
+            await selections.UpdateAsync(item);
+        }
+
         delivery.Status = DeliveryStatus.FoodReady;
         await deliveries.UpdateAsync(delivery);
-        return Ok(new { deliveryId = delivery.Id, status = delivery.Status.ToString() });
+        return Ok(new { deliveryId = delivery.Id, status = delivery.Status.ToString(), itemsMarkedReady = matchingItems.Count });
     }
 }
