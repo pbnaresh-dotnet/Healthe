@@ -15,6 +15,22 @@ public static class DatabaseInitializer
         // replace EnsureCreatedAsync with EF Core MigrateAsync after generating migrations.
         await db.Database.EnsureCreatedAsync(cancellationToken);
         await FinanceDatabaseInitializer.EnsureAsync(db, cancellationToken);
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.DiagnosticsSettings','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.DiagnosticsSettings(
+        Id int NOT NULL CONSTRAINT PK_DiagnosticsSettings PRIMARY KEY,
+        RequestLoggingEnabled bit NOT NULL CONSTRAINT DF_DiagnosticsSettings_RequestLogging DEFAULT 1,
+        DetailedLoggingEnabled bit NOT NULL CONSTRAINT DF_DiagnosticsSettings_DetailedLogging DEFAULT 0,
+        SlowRequestThresholdMs int NOT NULL CONSTRAINT DF_DiagnosticsSettings_SlowThreshold DEFAULT 1000,
+        UpdatedAtUtc datetime2 NOT NULL CONSTRAINT DF_DiagnosticsSettings_UpdatedAt DEFAULT SYSUTCDATETIME(),
+        UpdatedByUserId uniqueidentifier NULL,
+        CONSTRAINT CK_DiagnosticsSettings_Singleton CHECK (Id = 1),
+        CONSTRAINT CK_DiagnosticsSettings_SlowThreshold CHECK (SlowRequestThresholdMs BETWEEN 100 AND 120000)
+    );
+    INSERT dbo.DiagnosticsSettings(Id,RequestLoggingEnabled,DetailedLoggingEnabled,SlowRequestThresholdMs)
+    VALUES(1,1,0,1000);
+END;", cancellationToken);
 
         // SaaS billing tables are created idempotently so an existing SQL Server database can be upgraded without a destructive reset.
         await db.Database.ExecuteSqlRawAsync(@"
