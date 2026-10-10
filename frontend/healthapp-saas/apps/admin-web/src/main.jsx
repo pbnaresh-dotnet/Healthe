@@ -100,7 +100,8 @@ function App(){
   if(!tab){setError('Please allow pop-ups to open protected documents.');return}
   try{
    setLoading(true);
-   const response=await fetch(fileUrl(url),{headers:{Authorization:`Bearer ${token}` }});
+   const correlationId=globalThis.crypto?.randomUUID?.()||`${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+   const response=await fetch(fileUrl(url),{headers:{Authorization:`Bearer ${token}`,'X-Correlation-Id':correlationId}});
    if(!response.ok)throw new Error('Unable to open the document.');
    const blob=await response.blob(),objectUrl=URL.createObjectURL(blob);
    tab.location.href=objectUrl;setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);
