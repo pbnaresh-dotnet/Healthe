@@ -230,6 +230,14 @@ public sealed class OutletPackageService(
             .Select(MapUser)
             .ToList();
     }
+    public async Task<PageResult<UserDto>> GetCustomersPageAsync(string? search, int page, int pageSize)
+    {
+        if (current.OutletId is not Guid outletId)
+            return new PageResult<UserDto>(Array.Empty<UserDto>(), 0, Math.Max(1, page), Math.Clamp(pageSize, 1, 100));
+        var result = await users.GetOutletCustomersPageAsync(outletId, search, page, pageSize);
+        return new PageResult<UserDto>(result.Items.Select(MapUser).ToList(), result.TotalCount, result.Page, result.PageSize);
+    }
+
 
     public async Task<UserDto?> CreateCustomerAsync(CreateOutletCustomerRequest request)
     {
