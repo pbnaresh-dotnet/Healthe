@@ -35,9 +35,9 @@ export default function SaaSBilling({isAreaManager=false,onError=()=>{},notify=(
  return <section className="saasBilling">
   <div className="pageIntro"><div><span className="eyebrow">FINANCE & COLLECTIONS</span><h1>SaaS Billing & Collections</h1><p>{isAreaManager?'Invoices and collections for outlets assigned to your area.':'Raise recurring SaaS dues, issue immutable invoices and record outlet payments.'}</p></div><button className="secondaryBtn" type="button" onClick={reload} disabled={busy}>Refresh</button></div>
   <div className="metricGrid">
-   <div className="metricCard"><div className="metricTop">Invoiced in period</div><b>{money(totals.invoiced)}</b><small>Current page</small></div>
-   <div className="metricCard"><div className="metricTop">Payments received</div><b>{money(totals.paid)}</b><small>Current page</small></div>
-   <div className="metricCard"><div className="metricTop">Outstanding balance</div><b>{money(totals.due)}</b><small>Current page</small></div>
+   <div className="metricCard"><div className="metricTop">Invoiced on this page</div><b>{money(totals.invoiced)}</b><small>Current page</small></div>
+   <div className="metricCard"><div className="metricTop">Payments received on this page</div><b>{money(totals.paid)}</b><small>Current page</small></div>
+   <div className="metricCard"><div className="metricTop">Outstanding balance on this page</div><b>{money(totals.due)}</b><small>Current page</small></div>
   </div>
   <div className="card billingGenerate"><div><span className="eyebrow">BILLING RUN</span><h2>Generate period invoices</h2><p>Creates invoices for eligible active subscriptions. Existing outlet/period invoices are skipped to prevent duplicate billing.</p></div>
    <div className="billingControls"><label>Billing period<input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/></label><label>Due day<input type="number" min="1" max="28" value={dueDay} onChange={e=>setDueDay(e.target.value)}/></label>{!isAreaManager&&<label>Tax rate (%)<input type="number" min="0" max="100" step="0.01" value={taxRate} onChange={e=>setTaxRate(e.target.value)}/></label>}<button className="primaryBtn" type="button" onClick={generate} disabled={busy||!period||Number(dueDay)<1||Number(dueDay)>28}>Generate invoices</button></div>
