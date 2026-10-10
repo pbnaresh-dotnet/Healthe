@@ -60,8 +60,8 @@ public sealed class AdminOutletProvisioningController(
         if (request.DiscountPercent < 0m || request.DiscountPercent > 100m ||
             decimal.Round(request.DiscountPercent, 2) != request.DiscountPercent)
             return BadRequest(new { message = "Discount must be between 0 and 100%, with at most two decimal places." });
-        if (request.MarkAsPaid && !new[] { "Cash", "UPI", "BankTransfer", "Cashfree", "Other" }.Contains(request.PaymentMethod))
-            return BadRequest(new { message = "Choose Cash, UPI, Bank transfer, Cashfree or Other as the payment method." });
+        if (request.MarkAsPaid && !new[] { "Cash", "UPI", "BankTransfer", "Other" }.Contains(request.PaymentMethod))
+            return BadRequest(new { message = "Choose Cash, UPI, Bank transfer or Other as the payment method." });
         if (request.MarkAsPaid && string.IsNullOrWhiteSpace(request.PaymentReference) && request.PaymentMethod != "Cash")
             return BadRequest(new { message = "Enter a payment reference for non-cash payments." });
 
@@ -150,8 +150,8 @@ public sealed class AdminOutletProvisioningController(
             Id = Guid.NewGuid(),
             OutletId = outletId,
             PaymentType = "SaaSOutletProvisioning",
-            Provider = request.MarkAsPaid && request.PaymentMethod == "Cashfree" ? "Cashfree" : request.MarkAsPaid ? "Manual" : "NotCollected",
-            ProviderPaymentId = request.MarkAsPaid ? (request.PaymentReference?.Trim() ?? "") : "",
+            Provider = request.MarkAsPaid ? "Manual" : "NotCollected",
+            ProviderPaymentId = "",
             ProviderOrderId = "",
             PaymentSessionId = "",
             PaymentMethod = request.MarkAsPaid ? request.PaymentMethod : "",
