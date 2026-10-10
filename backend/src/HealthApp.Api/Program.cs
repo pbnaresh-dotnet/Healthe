@@ -51,6 +51,7 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<DiagnosticsPolicy>();
+builder.Services.AddHostedService<DiagnosticsPolicyRefreshService>();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<ITrialService, TrialLifecycleService>();
 builder.Services.AddScoped<IAdminOutletLifecycleService, AdminOutletLifecycleService>();
