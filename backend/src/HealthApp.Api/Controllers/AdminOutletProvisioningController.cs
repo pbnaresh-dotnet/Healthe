@@ -216,8 +216,7 @@ public sealed class AdminOutletProvisioningController(
                 subscription.TransactionFeePercent,
                 subscription.StartDate,
                 subscription.RenewalDate,
-                subscription.Status,
-                PaymentStatus = "NotCollected"
+                subscription.Status
             },
             CreatedBy = creator
         });
