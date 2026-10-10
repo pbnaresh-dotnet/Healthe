@@ -205,7 +205,6 @@ FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE i.Id=@id{sco
 
     [AllowAnonymous]
     [HttpPost("cashfree/payment-link-webhook")]
-    [AllowAnonymous]
     [IgnoreAntiforgeryToken]
     [RequestSizeLimit(1_000_000)]
     public async Task<IActionResult> CashfreePaymentLinkWebhook(CancellationToken ct)
