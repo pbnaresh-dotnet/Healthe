@@ -27,6 +27,12 @@ public sealed class UserRepository(HealthAppDbContext db) : EfRepository(db), IU
         await SaveAsync();
     }
     public async Task<IReadOnlyList<User>> GetAllAsync() => await Context.Users.AsNoTracking().OrderBy(x => x.Email).ToListAsync();
+    public Task<int> CountAsync(UserRole? role = null)
+    {
+        var query = Context.Users.AsNoTracking();
+        if (role.HasValue) query = query.Where(x => x.Role == role.Value);
+        return query.CountAsync();
+    }
     public async Task<PageResult<User>> GetOutletCustomersPageAsync(Guid outletId, string? search, int page, int pageSize)
     {
         page = Math.Max(1, page);
@@ -49,6 +55,12 @@ public sealed class UserRepository(HealthAppDbContext db) : EfRepository(db), IU
 public sealed class OutletRepository(HealthAppDbContext db) : EfRepository(db), IOutletRepository
 {
     public async Task<IReadOnlyList<Outlet>> GetAllAsync() => await Context.Outlets.AsNoTracking().Include(x => x.Branding).OrderBy(x => x.Name).ToListAsync();
+    public Task<int> CountAsync(OutletStatus? status = null)
+    {
+        var query = Context.Outlets.AsNoTracking();
+        if (status.HasValue) query = query.Where(x => x.Status == status.Value);
+        return query.CountAsync();
+    }
 
     public async Task<PageResult<Outlet>> GetPageAsync(string? search, string? status, string? city, int page, int pageSize)
     {
