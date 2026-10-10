@@ -572,3 +572,18 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
 
 .twoCol{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:18px;align-items:start}
 @media(max-width:1000px){.twoCol{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Super Admin: create outlet and assign its SaaS subscription */
+.createOutletCard{margin:18px 0 22px}
+.createOutletCard .cardHead{margin-bottom:18px}
+.createOutletFields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.createOutletFields label{display:flex;flex-direction:column;gap:7px;min-width:0;font-size:12px;font-weight:650;color:var(--muted,#64748b)}
+.createOutletFields input,.createOutletFields select{box-sizing:border-box;width:100%;min-width:0;min-height:42px;padding:10px 11px;border:1px solid var(--border,#dbe3ea);border-radius:10px;background:var(--surface,#fff);color:var(--text,#0f172a);font:inherit;font-size:13px}
+.createOutletFields input:focus,.createOutletFields select:focus{outline:2px solid #bbf7d0;border-color:#15803d}
+.createOutletActions{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px;padding-top:15px;border-top:1px solid var(--border,#e2e8f0)}
+.createOutletActions>span{max-width:620px;color:var(--muted,#64748b);font-size:12px;line-height:1.5}
+.createOutletActions .primaryBtn{white-space:nowrap}
+.createOutletCard .inlineError{margin-top:12px}
+@media(max-width:900px){.createOutletFields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.createOutletFields{grid-template-columns:minmax(0,1fr)}.createOutletActions{align-items:stretch;flex-direction:column}.createOutletActions .primaryBtn{width:100%;justify-content:center}.createOutletCard{padding:16px}}
