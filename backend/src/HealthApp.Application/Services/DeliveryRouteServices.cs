@@ -349,7 +349,9 @@ public sealed class DeliveryRouteService(
         if (mine.Count == 0)
             return null;
 
-        var eligible = await GetEligibleDeliveriesAsync(outletId, date.Date, mealSlot);
+        var eligible = (await deliveries.GetByOutletAsync(outletId))
+            .Where(x => x.ScheduledDate.Date == date.Date && x.MealSlot == mealSlot && x.RouteId.HasValue && mine.Any(route => route.Id == x.RouteId.Value) && x.Status != DeliveryStatus.Skipped)
+            .ToList();
         var routeDtos = await MapRoutesAsync(mine, eligible);
         if (routeDtos.Count == 0)
             return null;
