@@ -56,7 +56,10 @@ public sealed class ExceptionMiddleware(
         catch (Exception ex)
         {
             exceptionLogged = true;
-            logger.LogError(ex, "Unhandled API exception. CorrelationId={CorrelationId}", correlationId);
+            if (diagnosticsPolicy.Current.DetailedLoggingEnabled)
+                logger.LogError(ex, "Unhandled API exception. CorrelationId={CorrelationId}", correlationId);
+            else
+                logger.LogError("Unhandled API exception. ExceptionType={ExceptionType} CorrelationId={CorrelationId}", ex.GetType().Name, correlationId);
             await LogExceptionAsync(context, ex, 500, correlationId, stopwatch, applicationErrorLogger, currentUser, tenant, hostEnvironment);
             await Write(context, 500, "An unexpected error occurred.", correlationId);
         }
@@ -211,7 +214,11 @@ public sealed class ExceptionMiddleware(
     {
         var supplied = context.Request.Headers["X-Correlation-Id"].FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(supplied))
-            return supplied.Trim()[..Math.Min(100, supplied.Trim().Length)];
+        {
+            var candidate = supplied.Trim();
+            if (candidate.Length <= 100 && candidate.All(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.'))
+                return candidate;
+        }
 
         return context.TraceIdentifier;
     }
