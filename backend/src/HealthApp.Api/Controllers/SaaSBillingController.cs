@@ -276,31 +276,42 @@ FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE i.Id=@id{sco
             var amount=decimal.Round(amountPaid.Value,2,MidpointRounding.AwayFromZero);
             if(amount!=linkAmount)return Conflict(new{message="Reported payment amount does not match the registered payment link; manual reconciliation is required."});
             var key="cashfree-link-"+providerLinkId;
+            Guid? paymentForLink=null;string? referenceForLink=null;decimal amountForLink=0m;
             await using(var exists=conn.CreateCommand()){
-                exists.Transaction=tx;exists.CommandText="SELECT Id FROM dbo.SaaSInvoicePayments WITH (UPDLOCK,HOLDLOCK) WHERE InvoiceId=@invoice AND IdempotencyKey=@key";Add(exists,"@invoice",invoiceId);Add(exists,"@key",key);
-                if(await exists.ExecuteScalarAsync(ct) is Guid existingPayment){await tx.CommitAsync(ct);return Ok(new{processed=true,duplicate=true,paymentId=existingPayment});}
+                exists.Transaction=tx;exists.CommandText="SELECT Id,Reference,Amount FROM dbo.SaaSInvoicePayments WITH (UPDLOCK,HOLDLOCK) WHERE InvoiceId=@invoice AND IdempotencyKey=@key";Add(exists,"@invoice",invoiceId);Add(exists,"@key",key);
+                await using var existingReader=await exists.ExecuteReaderAsync(ct);
+                if(await existingReader.ReadAsync(ct)){paymentForLink=existingReader.GetGuid(0);referenceForLink=existingReader.GetString(1);amountForLink=existingReader.GetDecimal(2);}
+            }
+            if(paymentForLink.HasValue){
+                if(string.Equals(referenceForLink,providerPaymentId,StringComparison.Ordinal) && amountForLink==amount){
+                    await tx.CommitAsync(ct);
+                    return Ok(new{processed=true,duplicate=true,paymentId=paymentForLink});
+                }
+                await Audit(conn,tx,invoiceId,"CashfreePaymentLinkIdempotencyConflict",new{providerLinkId,providerPaymentId,existingPaymentId=paymentForLink,existingProviderPaymentId=referenceForLink,reportedAmount=amount,existingAmount=amountForLink,reason="The same link idempotency key arrived with a different provider payment ID or amount."},null,ct);
+                await tx.CommitAsync(ct);
+                return Conflict(new{message="This payment link was already allocated with a different payment ID or amount; manual reconciliation is required."});
             }
 
             // Idempotency by link protects retries of one link; provider+payment ID protects the
             // same captured transaction arriving against a second link or a different invoice.
             // HOLDLOCK takes a serializable key/range lock against the unique provider-reference index.
-            Guid? priorPaymentId=null;Guid? priorInvoiceId=null;
+            Guid? priorPaymentId=null;Guid? priorInvoiceId=null;decimal priorPaymentAmount=0m;
             await using(var providerPayment=conn.CreateCommand()){
                 providerPayment.Transaction=tx;
-                providerPayment.CommandText="SELECT Id,InvoiceId FROM dbo.SaaSInvoicePayments WITH (UPDLOCK,HOLDLOCK) WHERE Provider=@provider AND Reference=@reference AND Provider <> 'Manual' AND Reference <> ''";
+                providerPayment.CommandText="SELECT Id,InvoiceId,Amount FROM dbo.SaaSInvoicePayments WITH (UPDLOCK,HOLDLOCK) WHERE Provider=@provider AND Reference=@reference AND Provider <> 'Manual' AND Reference <> ''";
                 Add(providerPayment,"@provider","Cashfree");Add(providerPayment,"@reference",providerPaymentId);
                 await using var existingReader=await providerPayment.ExecuteReaderAsync(ct);
-                if(await existingReader.ReadAsync(ct)){priorPaymentId=existingReader.GetGuid(0);priorInvoiceId=existingReader.GetGuid(1);}
+                if(await existingReader.ReadAsync(ct)){priorPaymentId=existingReader.GetGuid(0);priorInvoiceId=existingReader.GetGuid(1);priorPaymentAmount=existingReader.GetDecimal(2);}
             }
             if(priorPaymentId.HasValue){
-                if(priorInvoiceId==invoiceId){
+                if(priorInvoiceId==invoiceId && priorPaymentAmount==amount){
                     await using var markDuplicateLink=conn.CreateCommand();markDuplicateLink.Transaction=tx;
                     markDuplicateLink.CommandText="UPDATE dbo.SaaSInvoicePaymentLinks SET Status='Paid' WHERE Id=@id";Add(markDuplicateLink,"@id",linkId);await markDuplicateLink.ExecuteNonQueryAsync(ct);
                     await Audit(conn,tx,invoiceId,"CashfreeDuplicateProviderPaymentIgnored",new{providerLinkId,providerPaymentId,existingPaymentId=priorPaymentId,reason="Provider payment reference already allocated to this invoice."},null,ct);
                     await tx.CommitAsync(ct);
                     return Ok(new{processed=true,duplicate=true,paymentId=priorPaymentId,invoiceId});
                 }
-                await Audit(conn,tx,invoiceId,"CashfreeProviderPaymentReferenceConflict",new{providerLinkId,providerPaymentId,existingPaymentId=priorPaymentId,existingInvoiceId=priorInvoiceId,reason="Provider payment reference is already allocated to another invoice."},null,ct);
+                await Audit(conn,tx,invoiceId,"CashfreeProviderPaymentReferenceConflict",new{providerLinkId,providerPaymentId,existingPaymentId=priorPaymentId,existingInvoiceId=priorInvoiceId,existingAmount=priorPaymentAmount,reportedAmount=amount,reason="Provider payment reference is already allocated to another invoice or has a different allocated amount."},null,ct);
                 await tx.CommitAsync(ct);
                 return Conflict(new{message="Cashfree payment ID has already been allocated to another invoice; manual reconciliation is required."});
             }
