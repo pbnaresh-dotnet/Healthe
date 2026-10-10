@@ -84,7 +84,7 @@ builder.Services.AddCors(options => options.AddPolicy("WebApps", policy =>
     // the explicit tenant-domain allow-list below.
     if (builder.Environment.IsDevelopment())
     {
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod().WithExposedHeaders("X-Correlation-Id");
         return;
     }
 
@@ -103,7 +103,8 @@ builder.Services.AddCors(options => options.AddPolicy("WebApps", policy =>
                    originHost.EndsWith("." + platformBaseDomain);
         })
         .AllowAnyHeader()
-        .AllowAnyMethod();
+        .AllowAnyMethod()
+        .WithExposedHeaders("X-Correlation-Id");
 }));
 
 var app = builder.Build();
