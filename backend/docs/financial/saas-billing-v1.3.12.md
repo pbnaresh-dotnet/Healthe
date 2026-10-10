@@ -18,7 +18,7 @@
 ## 2. Shared customer-payment webhook and polling concurrency
 
 - Both the provider webhook and authenticated payment-status polling acquire an atomic processing lease through a conditional SQL update before querying provider status or triggering fulfilment.
-- Only one request can own a payment's live processing lease. Other simultaneous requests return an already-processing result and do not call the provider or fulfil the payment again.
+- Only one request can own a payment's live processing lease. Other simultaneous requests do not call the provider or fulfil the payment again; the webhook endpoint returns HTTP 503 with Retry-After: 5 so the provider can retry instead of treating an in-flight callback as acknowledged.
 - The lease records its acquisition time. If a process terminates unexpectedly while holding the lease, another request may reclaim it after five minutes. The timeout is a recovery mechanism, not a guarantee that an unusually long-running process cannot overlap; production monitoring and integration tests remain required.
 - While the lease is held, the handler verifies the provider's current transaction status, amount and currency. The lease is preserved when verified fields are persisted.
 - A successful payment replay re-runs state-guarded package activation or onboarding completion. This repairs the case where payment verification committed but the process stopped before fulfilment.
