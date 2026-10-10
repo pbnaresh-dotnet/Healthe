@@ -72,7 +72,7 @@ WHERE s.Status='Active' AND o.Status IN (1,3) AND s.StartDate<@next AND (s.Billi
             await using(var r=await query.ExecuteReaderAsync(ct)) while(await r.ReadAsync(ct)) eligible.Add((r.GetGuid(0),r.GetString(1),r.GetString(2),r.GetString(3),r.GetGuid(4),r.GetString(5),r.GetDecimal(6),r.GetDecimal(7),r.GetDecimal(8),r.GetDecimal(9),r.GetDateTime(10),r.GetString(11),r.GetDecimal(12),r.GetDecimal(13)));
             var created=0; var skipped=0; var invoiceIds=new List<Guid>();
             foreach(var x in eligible) {
-                await using var exists=conn.CreateCommand(); exists.Transaction=tx; exists.CommandText="SELECT COUNT(1) FROM dbo.SaaSInvoices WHERE OutletId=@outlet AND BillingPeriod=@period AND Status<>'Voided'";
+                await using var exists=conn.CreateCommand(); exists.Transaction=tx; exists.CommandText="SELECT COUNT(1) FROM dbo.SaaSInvoices WITH (UPDLOCK,HOLDLOCK) WHERE OutletId=@outlet AND BillingPeriod=@period AND Status<>'Voided'";
                 Add(exists,"@outlet",x.id); Add(exists,"@period",period);
                 if(Convert.ToInt32(await exists.ExecuteScalarAsync(ct))>0){skipped++;continue;}
                 var amount=x.cycle switch {"Annual"=>x.annual,"SixMonths"=>x.fee,_=>x.monthly};
