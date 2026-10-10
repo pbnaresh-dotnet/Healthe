@@ -1888,9 +1888,31 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
             .ToList();
     }
     public async Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync()=>current.OutletId is not Guid id?[]:(await subscriptions.GetByOutletAsync(id)).Select(x=>new SubscriptionDto(x.Id,x.CustomerId,x.OutletId,x.MealPlanId,x.PlanName,x.DeliveryMode.ToString(),x.Price,x.DeliveryFee,x.CustomerTransactionFeePercent,x.TransactionFee,x.TotalCharged,x.OutletAmount,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Status.ToString(),x.NextDeliveryDate,0,GetPaymentStatus(x),x.DeliveryCity,x.GrossMealAmount,x.SubscriptionDiscountAmount,x.RestaurantTaxableAmount,x.RestaurantGstAmount,x.RestaurantGstRate,x.RestaurantGstMode.ToString(),x.PlatformServiceFee,x.PlatformServiceGst,x.PackageStatus,x.IsOutletCreated,x.OutletDiscountType.ToString(),x.OutletDiscountValue,x.OutletDiscountReason,x.IsPreplanned,x.PricingMode,x.PriceVisibleToCustomer,x.DeliveryFeeVisibleToCustomer,x.PackageStatus=="PendingOutletReview")).ToList();
+    public async Task<PageResult<SubscriptionDto>> GetSubscriptionsPageAsync(string? search, string? status, int page, int pageSize)
+    {
+        if (current.OutletId is not Guid id) return new PageResult<SubscriptionDto>(Array.Empty<SubscriptionDto>(), 0, Math.Max(1,page), Math.Clamp(pageSize,1,100));
+        var result = await subscriptions.GetByOutletPageAsync(id, search, status, page, pageSize);
+        var items = result.Items.Select(x => new SubscriptionDto(x.Id,x.CustomerId,x.OutletId,x.MealPlanId,x.PlanName,x.DeliveryMode.ToString(),x.Price,x.DeliveryFee,x.CustomerTransactionFeePercent,x.TransactionFee,x.TotalCharged,x.OutletAmount,x.Frequency,x.MealsPerDay,x.MealsPerWeek,x.Status.ToString(),x.NextDeliveryDate,0,GetPaymentStatus(x),x.DeliveryCity,x.GrossMealAmount,x.SubscriptionDiscountAmount,x.RestaurantTaxableAmount,x.RestaurantGstAmount,x.RestaurantGstRate,x.RestaurantGstMode.ToString(),x.PlatformServiceFee,x.PlatformServiceGst,x.PackageStatus,x.IsOutletCreated,x.OutletDiscountType.ToString(),x.OutletDiscountValue,x.OutletDiscountReason,x.IsPreplanned,x.PricingMode,x.PriceVisibleToCustomer,x.DeliveryFeeVisibleToCustomer,x.PackageStatus=="PendingOutletReview")).ToList();
+        return new PageResult<SubscriptionDto>(items, result.TotalCount, result.Page, result.PageSize);
+    }
+
     private static string GetPaymentStatus(Subscription x)=>x.IsOutletCreated&&x.PackageStatus=="Active"?"Paid":"Pending";
     public async Task<IReadOnlyList<OrderDto>> GetOrdersAsync()=>current.OutletId is not Guid id?[]:(await orders.GetByOutletAsync(id)).Select(x=>new OrderDto(x.Id,x.CustomerId,x.OutletId,x.Total,x.Status.ToString(),x.DeliveryDate,x.Address)).ToList();
+    public async Task<PageResult<OrderDto>> GetOrdersPageAsync(string? search, string? status, int page, int pageSize)
+    {
+        if (current.OutletId is not Guid id) return new PageResult<OrderDto>(Array.Empty<OrderDto>(), 0, Math.Max(1,page), Math.Clamp(pageSize,1,100));
+        var result = await orders.GetByOutletPageAsync(id, search, status, page, pageSize);
+        return new PageResult<OrderDto>(result.Items.Select(x=>new OrderDto(x.Id,x.CustomerId,x.OutletId,x.Total,x.Status.ToString(),x.DeliveryDate,x.Address)).ToList(),result.TotalCount,result.Page,result.PageSize);
+    }
+
     public async Task<IReadOnlyList<DeliveryDto>> GetDeliveriesAsync()=>current.OutletId is not Guid id?[]:(await deliveries.GetByOutletAsync(id)).Select(x=>new DeliveryDto(x.Id,x.OrderId,x.OutletId,x.CustomerName,x.Address,x.ScheduledDate,x.MealSlot.ToString(),x.DeliveryFee,x.Status.ToString())).ToList();
+    public async Task<PageResult<DeliveryDto>> GetDeliveriesPageAsync(string? search, string? status, DateTime? date, int page, int pageSize)
+    {
+        if (current.OutletId is not Guid id) return new PageResult<DeliveryDto>(Array.Empty<DeliveryDto>(), 0, Math.Max(1,page), Math.Clamp(pageSize,1,100));
+        var result = await deliveries.GetByOutletPageAsync(id, search, status, date, page, pageSize);
+        return new PageResult<DeliveryDto>(result.Items.Select(x=>new DeliveryDto(x.Id,x.OrderId,x.OutletId,x.CustomerName,x.Address,x.ScheduledDate,x.MealSlot.ToString(),x.DeliveryFee,x.Status.ToString())).ToList(),result.TotalCount,result.Page,result.PageSize);
+    }
+
     private static RecipeDto Map(Recipe x)=>new(x.Id,x.OutletId,x.Name,x.Calories,x.ProteinGrams,x.CarbsGrams,x.FatGrams,x.Category.ToString(),x.PricePerMeal,x.LargePricePerMeal,x.Description,x.ImageUrl,x.Tags,x.IsActive,
     x.RecipeIngredients.OrderBy(i=>i.Ingredient.Name).Select(i=>new RecipeIngredientDto(i.IngredientId, i.Ingredient.Name, i.Quantity, i.Unit, i.Ingredient.Allergens.Select(a => new AllergenDto(a.AllergenId, a.Allergen.Name)).OrderBy(a => a.Name).ToList(), i.LargeQuantity)).ToList(),
     x.RecipeAllergens.Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name)).Concat(x.RecipeIngredients.SelectMany(i=>i.Ingredient.Allergens).Select(a=>new AllergenDto(a.AllergenId,a.Allergen.Name))).GroupBy(a=>a.Id).Select(g=>g.First()).OrderBy(a=>a.Name).ToList(), x.FiberGrams, string.IsNullOrWhiteSpace(x.MealType)?"Meal":x.MealType, x.SugarGrams, x.LargeCalories, x.LargeProteinGrams, x.LargeCarbsGrams, x.LargeFatGrams, x.LargeFiberGrams, x.LargeSugarGrams);
