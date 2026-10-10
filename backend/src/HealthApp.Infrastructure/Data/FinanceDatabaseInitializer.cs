@@ -2489,8 +2489,8 @@ WHERE NOT EXISTS
                 _ => x.ContentMarkdown
             }
         }).ToList();
-        var canonical = string.Join("\\n---\\n",
-            updated.OrderBy(x => x.DisplayOrder).Select(x => $"{x.SectionCode.Trim()}\\n{x.Title.Trim()}\\n{x.Content.Trim()}"));
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder).Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
         var now = DateTime.UtcNow;
         var version = new FinancePolicyDocumentVersion
         {
