@@ -182,3 +182,24 @@ html{scroll-padding-top:76px}body{overflow-x:hidden}img,video,svg{max-width:100%
 .registerPlan.planComingSoon strong{font-size:24px;margin:18px 0 0;}
 .registerPlan.planComingSoon>span:not(.planComingSoonBadge){font-size:10px;color:#718078;}
 .registerPlan.planComingSoon button{margin-top:auto;}
+
+/* Keep the four purchasable plans and the coming-soon module on one desktop row. */
+@media(min-width:1081px){
+ .registerPlans{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+ .registerPlan{min-width:0;padding:20px 16px;min-height:420px}
+ .registerPlan h3{font-size:clamp(18px,1.35vw,23px);overflow-wrap:anywhere}
+ .registerPlan>strong{font-size:clamp(23px,1.8vw,31px);overflow-wrap:anywhere}
+ .registerPlan>strong small{font-size:10px}
+ .registerPlanFeatures{display:flex;flex-direction:column;gap:10px;margin:18px 0 auto}
+ .registerPlanFeatures span{display:block;font-size:11px;line-height:1.4;color:#4f6457;font-weight:600}
+ .registerPlan button{margin-top:18px}
+}
+@media(min-width:760px) and (max-width:1080px){
+ .registerPlans{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .registerPlanFeatures{display:flex;flex-direction:column;gap:9px;margin:16px 0 auto}
+ .registerPlanFeatures span{font-size:10px;line-height:1.4;color:#4f6457;font-weight:600}
+}
+@media(max-width:759px){
+ .registerPlanFeatures{display:flex;flex-direction:column;gap:9px;margin:16px 0 auto}
+ .registerPlanFeatures span{font-size:11px;line-height:1.45;color:#4f6457;font-weight:600}
+}
