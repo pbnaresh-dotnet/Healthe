@@ -635,14 +635,18 @@ function KitchenPage({data,date,setDate,refresh}) {
  const selectedLabels=useMemo(()=>data?.labels?.filter(l=>printSlots.includes(Number(l.mealSlot))&&l.routeId&&Number(l.routeSequence)>0&&String(l.routeStatus||'').toLowerCase()==='dispatched')||[],[data,printSlots]);
  const labelsNotDispatched=useMemo(()=>data?.labels?.filter(l=>printSlots.includes(Number(l.mealSlot))&&!(l.routeId&&Number(l.routeSequence)>0&&String(l.routeStatus||'').toLowerCase()==='dispatched')).length||0,[data,printSlots]);
  const production=useMemo(()=>{
+  // Production must be visible before a route is dispatched. Build it from all
+  // scheduled labels for the selected windows; dispatch status gates label printing,
+  // not kitchen preparation.
+  const rows=(data?.labels||[]).filter(l=>printSlots.includes(Number(l.mealSlot)));
   const map=new Map();
-  selectedLabels.forEach(l=>{
+  rows.forEach(l=>{
    const key=[l.mealName,l.category,l.portionSize].join('|');
    const current=map.get(key);
    map.set(key,{mealName:l.mealName,category:l.category,portionSize:l.portionSize,quantity:(current?.quantity||0)+1});
   });
   return [...map.values()].sort((a,b)=>a.mealName.localeCompare(b.mealName)||a.portionSize.localeCompare(b.portionSize));
- },[selectedLabels]);
+ },[data,printSlots]);
  const toggleSlot=value=>setPrintSlots(x=>x.includes(value)?x.filter(v=>v!==value):[...x,value]);
  const doPrint=mode=>{
   if(mode==='kitchen'&&!production.length)return;
@@ -665,7 +669,7 @@ function KitchenPage({data,date,setDate,refresh}) {
    </div>
    <section className="panel no-print">
     <div className="panelHead"><div><h3>Production plan</h3><p>Prepare total quantities across the selected delivery windows.</p></div><span className="pill">{production.reduce((sum,x)=>sum+x.quantity,0)} meals</span></div>
-    {production.length?<div className="productionTable"><div className="productionTableRow header"><span>Meal</span><span>Category</span><span>Portion</span><span>Qty</span></div>{production.map(p=><div className="productionTableRow" key={p.mealName+p.category+p.portionSize}><b>{p.mealName}</b><span>{p.category}</span><span>{p.portionSize}</span><strong>{p.quantity}</strong></div>)}</div>:<Empty title="No Afternoon / Evening meals" text="Choose another date or delivery window."/>}
+    {production.length?<div className="productionTable"><div className="productionTableRow header"><span>Meal</span><span>Category</span><span>Portion</span><span>Qty</span></div>{production.map(p=><div className="productionTableRow" key={p.mealName+p.category+p.portionSize}><b>{p.mealName}</b><span>{p.category}</span><span>{p.portionSize}</span><strong>{p.quantity}</strong></div>)}</div>:<Empty title="No meals scheduled for these windows" text="Check the selected date and delivery windows, then refresh. Production appears before driver routes are dispatched."/>}
    </section>
    <section className="no-print slotSummary"><span>Print window:</span>{slots.filter(s=>printSlots.includes(s.value)).map(s=><button key={s.value} className="slotChip active" onClick={()=>toggleSlot(s.value)}>{s.name} ×</button>)}{slots.filter(s=>!printSlots.includes(s.value)).map(s=><button key={s.value} className="slotChip" onClick={()=>toggleSlot(s.value)}>+ {s.name}</button>)}</section>
 
