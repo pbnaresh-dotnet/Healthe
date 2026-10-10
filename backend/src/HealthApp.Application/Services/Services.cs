@@ -2356,14 +2356,7 @@ public sealed class AdminService(
         return error is null ? null : await GetErrorAsync(error.Id);
     }
 
-    public async Task<PlatformRevenueDto> GetRevenueAsync() {
-        var tx=await transactions.GetAllAsync();
-        var outlet=tx.Where(x=>x.Type=="OutletSubscription").Sum(x=>x.GrossAmount);
-        var service=tx.Where(x=>x.Type=="CustomerSubscription").Sum(x=>x.PlatformFee);
-        var late=tx.Where(x=>x.Type=="LateSkipFee").Sum(x=>x.GrossAmount);
-        var commission=tx.Where(x=>x.Type=="OutletCommission").Sum(x=>x.GrossAmount);
-        return new(outlet,service,outlet+service+late+commission,late,service,commission);
-    }
+    public Task<PlatformRevenueDto> GetRevenueAsync() => transactions.GetRevenueSummaryAsync();
 
     public async Task<IReadOnlyList<OutletDomainDto>> GetOutletDomainsAsync() =>
         (await domains.GetAllAsync()).Select(x => MapDomain(x)).ToList();
