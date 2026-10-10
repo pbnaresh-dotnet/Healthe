@@ -282,6 +282,21 @@ public sealed class SubscriptionRepository(HealthAppDbContext db) : EfRepository
             .OrderByDescending(x => x.StartDate)
             .ToListAsync();
     public async Task<IReadOnlyList<Subscription>> GetByOutletAsync(Guid id) => await Context.Subscriptions.AsNoTracking().Where(x => x.OutletId == id).OrderByDescending(x => x.StartDate).ToListAsync();
+    public async Task<PageResult<Subscription>> GetByOutletPageAsync(Guid id, string? search, string? status, int page, int pageSize)
+    {
+        page = Math.Max(1, page); pageSize = Math.Clamp(pageSize, 1, 100);
+        var q = Context.Subscriptions.AsNoTracking().Where(x => x.OutletId == id);
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<SubscriptionStatus>(status, true, out var parsedStatus))
+            q = q.Where(x => x.Status == parsedStatus);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            q = q.Where(x => x.PlanName.Contains(term) || x.CustomerId.ToString().Contains(term));
+        }
+        var total = await q.CountAsync();
+        var items = await q.OrderByDescending(x => x.StartDate).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return new PageResult<Subscription>(items, total, page, pageSize);
+    }
     public Task<Subscription?> GetAsync(Guid id) => Context.Subscriptions.FirstOrDefaultAsync(x => x.Id == id);
     public async Task AddAsync(Subscription s) {
         Context.Subscriptions.Add(s);
@@ -368,6 +383,21 @@ public sealed class OrderRepository(HealthAppDbContext db) : EfRepository(db), I
             .OrderByDescending(x => x.DeliveryDate)
             .ToListAsync();
     public async Task<IReadOnlyList<Order>> GetByOutletAsync(Guid id) => await Context.Orders.AsNoTracking().Where(x => x.OutletId == id).OrderByDescending(x => x.DeliveryDate).ToListAsync();
+    public async Task<PageResult<Order>> GetByOutletPageAsync(Guid id, string? search, string? status, int page, int pageSize)
+    {
+        page = Math.Max(1, page); pageSize = Math.Clamp(pageSize, 1, 100);
+        var q = Context.Orders.AsNoTracking().Where(x => x.OutletId == id);
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<OrderStatus>(status, true, out var parsedStatus))
+            q = q.Where(x => x.Status == parsedStatus);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            q = q.Where(x => x.Address.Contains(term) || x.CustomerId.ToString().Contains(term));
+        }
+        var total = await q.CountAsync();
+        var items = await q.OrderByDescending(x => x.DeliveryDate).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return new PageResult<Order>(items, total, page, pageSize);
+    }
     public Task<Order?> GetBySubscriptionAsync(Guid subscriptionId) => Context.Orders.FirstOrDefaultAsync(x=>x.SubscriptionId==subscriptionId);
     public async Task AddAsync(Order order) {
         Context.Orders.Add(order);
@@ -382,6 +412,22 @@ public sealed class OrderRepository(HealthAppDbContext db) : EfRepository(db), I
 public sealed class DeliveryRepository(HealthAppDbContext db) : EfRepository(db), IDeliveryRepository
 {
     public async Task<IReadOnlyList<Delivery>> GetByOutletAsync(Guid id) => await Context.Deliveries.AsNoTracking().Where(x => x.OutletId == id).OrderBy(x => x.ScheduledDate).ToListAsync();
+    public async Task<PageResult<Delivery>> GetByOutletPageAsync(Guid id, string? search, string? status, DateTime? date, int page, int pageSize)
+    {
+        page = Math.Max(1, page); pageSize = Math.Clamp(pageSize, 1, 100);
+        var q = Context.Deliveries.AsNoTracking().Where(x => x.OutletId == id);
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<DeliveryStatus>(status, true, out var parsedStatus))
+            q = q.Where(x => x.Status == parsedStatus);
+        if (date.HasValue) { var day = date.Value.Date; q = q.Where(x => x.ScheduledDate >= day && x.ScheduledDate < day.AddDays(1)); }
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            q = q.Where(x => x.CustomerName.Contains(term) || x.Address.Contains(term));
+        }
+        var total = await q.CountAsync();
+        var items = await q.OrderBy(x => x.ScheduledDate).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return new PageResult<Delivery>(items, total, page, pageSize);
+    }
     public async Task<IReadOnlyList<Delivery>> GetByOutletAndDateRangeAsync(Guid outletId, DateTime from, DateTime to) =>
         await Context.Deliveries.AsNoTracking()
             .Where(x => x.OutletId == outletId && x.ScheduledDate >= from && x.ScheduledDate < to)
