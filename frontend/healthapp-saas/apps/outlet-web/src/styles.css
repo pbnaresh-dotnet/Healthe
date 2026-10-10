@@ -1221,3 +1221,43 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
  .driverProgressCard{grid-template-columns:repeat(3,minmax(0,1fr))}
  .driverProgressCard b{font-size:19px}
 }
+
+
+/* Kitchen readiness gate and route-page label printing */
+.kitchenReadyHead{align-items:flex-start;gap:12px}
+.kitchenReadyActions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.kitchenReadyActions .primary{min-height:44px;white-space:nowrap}
+.kitchenRouteHint{margin:-2px 0 14px;color:#64756a;font-size:12px;line-height:1.45}
+.routeLabelActions{margin:0 0 18px}
+.routeLabelActions .panelHead{align-items:flex-start}
+.routeLabelButtons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.routeLabelButtons button{min-height:46px}
+.routeLabelActions .notice{margin-top:8px}
+.routeDeliveryLabelGrid,.mealStickerGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.mealStickerCard{border-style:solid;border-color:#aab6ad;padding:11px}
+.mealStickerCustomer{padding:7px 0;border-bottom:1px solid #edf1ee}
+.mealStickerCustomer span,.mealStickerCustomer b{display:block}
+.mealStickerCustomer span{font-size:7px;text-transform:uppercase;letter-spacing:.07em;color:#7d8981}
+.mealStickerCustomer b{font-size:11px;margin-top:2px}
+.mealStickerName{font-size:16px;font-weight:800;line-height:1.2;padding:10px 0 7px;overflow-wrap:anywhere}
+.mealStickerMeta{display:flex;flex-direction:column;gap:4px;border-top:1px solid #edf1ee;padding:7px 0;font-size:8px}
+.mealStickerMeta b{font-size:8px}
+.mealStickerAddress{font-size:8px;color:#59685f;line-height:1.35;overflow-wrap:anywhere}
+.mealStickerFooter{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid #edf1ee;padding-top:7px;margin-top:7px;font-size:7px;color:#526157;overflow-wrap:anywhere}
+@media(max-width:620px){
+ .kitchenReadyHead{flex-direction:column}
+ .kitchenReadyActions{width:100%;justify-content:space-between}
+ .kitchenReadyActions .primary{flex:1}
+ .routeLabelButtons{grid-template-columns:1fr}
+ .routeLabelButtons button{width:100%}
+ .routeDeliveryLabelGrid,.mealStickerGrid{grid-template-columns:1fr}
+}
+@media print{
+ .labelPrintArea.printTarget .routeDeliveryLabelGrid,
+ .labelPrintArea.printTarget .mealStickerGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:3mm}
+ .labelPrintArea.printTarget .mealStickerCard{padding:3mm;border-radius:0;box-shadow:none}
+ .labelPrintArea.printTarget .mealStickerName{font-size:12pt}
+ .labelPrintArea.printTarget .mealStickerMeta{font-size:7pt}
+ .labelPrintArea.printTarget .mealStickerAddress{font-size:6.5pt}
+ .labelPrintArea.printTarget .mealStickerFooter{font-size:6pt}
+}
