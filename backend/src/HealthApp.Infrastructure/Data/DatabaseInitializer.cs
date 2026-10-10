@@ -90,7 +90,7 @@ BEGIN
     );
     CREATE INDEX IX_SaaSInvoicePayments_Invoice_Received ON dbo.SaaSInvoicePayments(InvoiceId,ReceivedAtUtc);
     CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Invoice_Idempotency ON dbo.SaaSInvoicePayments(InvoiceId,IdempotencyKey) WHERE IdempotencyKey <> '';
-    CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Provider_Reference ON dbo.SaaSInvoicePayments(Provider,Reference) WHERE Reference <> '';
+    CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Provider_Reference ON dbo.SaaSInvoicePayments(Provider,Reference) WHERE Provider <> 'Manual' AND Reference <> '';
 END;
 IF OBJECT_ID('dbo.SaaSBillingAudit','U') IS NULL
 BEGIN
@@ -123,6 +123,21 @@ BEGIN
 END;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_SaaSInvoicePayments_Invoice_Idempotency' AND object_id=OBJECT_ID('dbo.SaaSInvoicePayments'))
     CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Invoice_Idempotency ON dbo.SaaSInvoicePayments(InvoiceId,IdempotencyKey) WHERE IdempotencyKey <> '';
+", cancellationToken);
+
+// Manual receipt/reference numbers are not globally unique across outlets. Keep provider transaction IDs unique,
+// but do not reject two separate cash/bank/UPI manual records that happen to use the same local reference.
+await db.Database.ExecuteSqlRawAsync(@"
+IF EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name='UX_SaaSInvoicePayments_Provider_Reference'
+      AND object_id=OBJECT_ID('dbo.SaaSInvoicePayments')
+      AND COALESCE(filter_definition,'') NOT LIKE '%Manual%'
+)
+    DROP INDEX UX_SaaSInvoicePayments_Provider_Reference ON dbo.SaaSInvoicePayments;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_SaaSInvoicePayments_Provider_Reference' AND object_id=OBJECT_ID('dbo.SaaSInvoicePayments'))
+    CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Provider_Reference ON dbo.SaaSInvoicePayments(Provider,Reference)
+    WHERE Provider <> 'Manual' AND Reference <> '';
 ", cancellationToken);
 
         // Outlet groups are a platform-level tenant classification used by Super Admin reports.
