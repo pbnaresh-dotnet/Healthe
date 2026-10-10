@@ -7,9 +7,12 @@ import OutletGroups from './OutletGroups.jsx';
 import Outlet360 from './Outlet360.jsx';
 import FinanceRulesHelp from './FinanceRulesHelp.jsx';
 
+const AREA_MANAGER_ROLE='AreaManager';
+
 const NAV_GROUPS=[
  {label:'Command Center',items:[['overview','Dashboard','grid']]},
- {label:'Tenants',items:[['outlets','Outlets','building'],['groups','Outlet Groups','building'],['onboarding','Onboarding','clipboard'],['domains','Domains','globe']]},
+ {label:'Tenants',items:[['outlets','Outlets','building'],['area-managers','Area Managers','building'],['groups','Outlet Groups','building'],['onboarding','Onboarding','clipboard'],['domains','Domains','globe']]}
+,
  {label:'Operations',items:[['geography','Cities & Coverage','pin']]},
  {label:'Finance & Reports',items:[['finance','Finance','chart'],['finance-rules','Finance Rules','clipboard']]},
  {label:'Platform',items:[['health','Platform Health','pulse']]}
@@ -45,10 +48,12 @@ const roleLabel=s=>String(s||'').replace('OutletAdmin','Outlet Admin').replace('
 function App(){
  const {notify}=useFeedback();
  const[u,setU]=useState(currentUser());
+  const isAreaManager=String(u?.role||'').toLowerCase()==='areamanager';
  const[page,setPage]=useState('overview');
  const[sidebarOpen,setSidebarOpen]=useState(false);
  const[login,setLogin]=useState({email:'admin@healthapp.test',password:'demo'});
- const[data,setData]=useState({d:{},o:[],us:[],r:{},groups:[]});
+ const[data,setData]=useState({d:{},o:[],us:[],r:{},groups:[],areaManagers:[],managedOutlets:[],managerSummary:null});
+  const[managerForm,setManagerForm]=useState({firstName:'',lastName:'',email:'',mobileNumber:'',password:'',outletIds:[]});
  const[domains,setDomains]=useState([]);
  const[cities,setCities]=useState([]);
  const[areas,setAreas]=useState([]);
@@ -86,6 +91,8 @@ function App(){
    if(page==='overview'){const r=await admin.revenue();if(!cancelled)setData(prev=>({...prev,r:r||{}}));}
    if(page==='geography'){const [cs,ars]=await Promise.all([admin.cities(),admin.cityAreas()]);if(!cancelled){setCities(cs||[]);setAreas(ars||[]);}}
    if(page==='health'){const us=await admin.users();if(!cancelled)setData(prev=>({...prev,us:us||[]}));}
+    if(page==='area-managers'){const ms=await admin.areaManagers();if(!cancelled)setData(prev=>({...prev,areaManagers:ms||[]}));}
+    if(page==='manager-home'){const [summary,outlets]=await Promise.all([admin.areaManagerDashboard(),admin.myManagedOutlets()]);if(!cancelled)setData(prev=>({...prev,managerSummary:summary||{},managedOutlets:outlets||[]}));}
   }catch(e){if(!cancelled)setError(e.message||'Unable to load this section')}};
   run();return()=>{cancelled=true};
  },[u,page]);
@@ -188,7 +195,7 @@ function App(){
   <div className={`layout ${sidebarOpen?'navOpen':''}`}>
    <aside className="sidebar">
     <div className="mobileSidebarHead"><b>Platform</b><button type="button" onClick={()=>setSidebarOpen(false)}><Icon name="close" size={16}/></button></div>
-    <nav>{NAV_GROUPS.map(group=><div className="navGroup" key={group.label}><span className="navGroupLabel">{group.label}</span>{group.items.map(([id,label,icon])=><button type="button" key={id} className={page===id?'navItem active':'navItem'} onClick={()=>openPage(id)}><Icon name={icon} size={17}/><span>{label}</span>{page===id&&<i/>}</button>)}</div>)}</nav>
+    <nav>{(isAreaManager?[{label:'My Area',items:[['manager-home','Assigned outlets','building']]}]:NAV_GROUPS).map(group=><div className="navGroup" key={group.label}><span className="navGroupLabel">{group.label}</span>{group.items.map(([id,label,icon])=><button type="button" key={id} className={page===id?'navItem active':'navItem'} onClick={()=>openPage(id)}><Icon name={icon} size={17}/><span>{label}</span>{page===id&&<i/>}</button>)}</div>)}</nav>
     <div className="sidebarFooter"><span>Standalone SaaS</span><small>One database · tenant isolated</small></div>
    </aside>
    {sidebarOpen&&<button className="navScrim" aria-label="Close navigation" onClick={()=>setSidebarOpen(false)}></button>}
@@ -197,22 +204,76 @@ function App(){
     {error&&<AppAlert type="error" message={error} onDismiss={()=>setError('')} className="errorBanner pageError"/>}
     {loading&&<div className="loadingBar"><span/></div>}
 
-    {page==='overview'&&<Dashboard openPage={openPage} data={data} cities={cities} domains={domains} verification={verification} filteredOutlets={filteredOutlets} customerCount={customerCount} liveOutlets={liveOutlets} activeWorkspaces={activeWorkspaces} domainsActive={domainsActive} domainIssues={domainIssues} revenue={revenue} attention={attention} revenueRows={revenueRows}/>}
-    {page==='outlets'&&<OutletDirectory outlets={filteredOutlets} allOutlets={data.o||[]} groups={data.groups||[]} search={outletSearch} setSearch={setOutletSearch} status={outletStatus} setStatus={setOutletStatus} city={outletCity} setCity={setOutletCity} onDashboard={()=>openPage('overview')} onOpen={x=>{setSelected360(x.id);openPage('outlet360')}} onAssign={async(outletId,groupId)=>{try{setLoading(true);await admin.assignOutletGroup(outletId,groupId||null);await reload();notify(groupId?'Outlet assigned to group':'Outlet removed from group')}catch(e){setError(e.message||'Unable to assign outlet group')}finally{setLoading(false)}}} />}
-    {page==='groups'&&<OutletGroups groups={data.groups||[]} onSave={async(payload,id)=>{try{setLoading(true);if(id)await admin.updateGroup(id,payload);else await admin.createGroup(payload);await reload();notify(id?'Outlet group updated':'Outlet group created')}catch(e){setError(e.message||'Unable to save outlet group')}finally{setLoading(false)}}}/>} 
-    {page==='outlet360'&&<Outlet360 outletId={selected360} onBack={()=>openPage('outlets')}/>} 
-    {page==='onboarding'&&<Onboarding verification={verification} onReview={review} onDashboard={()=>openPage('overview')} />}
-    {page==='domains'&&<DomainCenter domains={filteredDomains} allDomains={domains} outlets={data.o||[]} search={domainSearch} setSearch={setDomainSearch} status={domainStatus} setStatus={setDomainStatus} onUpdate={updateDomain}/>}
-    {page==='geography'&&<Geography cities={cities} areas={areas} form={form} setForm={setForm} areaForm={areaForm} setAreaForm={setAreaForm} onCreateCity={createCity} onToggleCity={toggleCity} onCreateArea={createArea} loading={loading}/>}
-    {page==='finance'&&<Finance report={financeReport} filters={financeFilters} setFilters={setFinanceFilters} groups={data.groups||[]} outlets={data.o||[]} onApply={loadFinance} loading={financeLoading} onFinanceRules={()=>openPage('finance-rules')}/>}
-    {page==='finance-rules'&&<FinanceRulesHelp policy={financePolicy} onBack={()=>openPage('finance')} onFinance={()=>openPage('finance')}/>}
-    {page==='health'&&<section><PageIntro eyebrow="PLATFORM HEALTH" title="Operational health" text="Central visibility into application errors and tenant-impacting incidents. Drill into an event to see outlet, request, user and correlation context." action={<button className="secondaryBtn" onClick={()=>openPage('overview')}><Icon name="arrow" size={15}/> Command center</button>}/><ApplicationErrorMonitor outlets={data.o||[]}/></section>}
+    {isAreaManager&&page==='overview'&&<AreaManagerWorkspace summary={data.managerSummary||{}} outlets={data.managedOutlets||[]} />}
+     {page==='manager-home'&&isAreaManager&&<AreaManagerWorkspace summary={data.managerSummary||{}} outlets={data.managedOutlets||[]} />}
+     {!isAreaManager&&page==='overview'&&<Dashboard openPage={openPage} data={data} cities={cities} domains={domains} verification={verification} filteredOutlets={filteredOutlets} customerCount={customerCount} liveOutlets={liveOutlets} activeWorkspaces={activeWorkspaces} domainsActive={domainsActive} domainIssues={domainIssues} revenue={revenue} attention={attention} revenueRows={revenueRows}/>}
+    {!isAreaManager&&page==='outlets'&&<OutletDirectory outlets={filteredOutlets} allOutlets={data.o||[]} groups={data.groups||[]} search={outletSearch} setSearch={setOutletSearch} status={outletStatus} setStatus={setOutletStatus} city={outletCity} setCity={setOutletCity} onDashboard={()=>openPage('overview')} onOpen={x=>{setSelected360(x.id);openPage('outlet360')}} onAssign={async(outletId,groupId)=>{try{setLoading(true);await admin.assignOutletGroup(outletId,groupId||null);await reload();notify(groupId?'Outlet assigned to group':'Outlet removed from group')}catch(e){setError(e.message||'Unable to assign outlet group')}finally{setLoading(false)}}} />}
+    {!isAreaManager&&page==='area-managers'&&<AreaManagers managers={data.areaManagers||[]} outlets={data.o||[]} form={managerForm} setForm={setManagerForm} loading={loading} onCreate={async()=>{try{setLoading(true);setError('');await admin.createAreaManager(managerForm);setManagerForm({firstName:'',lastName:'',email:'',mobileNumber:'',password:'',outletIds:[]});setData(prev=>({...prev,areaManagers:await admin.areaManagers()}));notify('Area Manager created and outlets assigned')}catch(e){setError(e.message||'Unable to create Area Manager')}finally{setLoading(false)}}} onAssign={async(id,ids)=>{try{setLoading(true);await admin.assignAreaManagerOutlets(id,ids);setData(prev=>({...prev,areaManagers:await admin.areaManagers()}));notify('Outlet assignments updated')}catch(e){setError(e.message||'Unable to update assignments')}finally{setLoading(false)}}} onStatus={async(id,active)=>{try{setLoading(true);await admin.setAreaManagerStatus(id,active);setData(prev=>({...prev,areaManagers:await admin.areaManagers()}));notify(active?'Area Manager activated':'Area Manager deactivated')}catch(e){setError(e.message||'Unable to update status')}finally{setLoading(false)}}}/>}
+     {!isAreaManager&&page==='groups'&&<OutletGroups groups={data.groups||[]} onSave={async(payload,id)=>{try{setLoading(true);if(id)await admin.updateGroup(id,payload);else await admin.createGroup(payload);await reload();notify(id?'Outlet group updated':'Outlet group created')}catch(e){setError(e.message||'Unable to save outlet group')}finally{setLoading(false)}}}/>} 
+    {!isAreaManager&&page==='outlet360'&&<Outlet360 outletId={selected360} onBack={()=>openPage('outlets')}/>} 
+    {!isAreaManager&&page==='onboarding'&&<Onboarding verification={verification} onReview={review} onDashboard={()=>openPage('overview')} />}
+    {!isAreaManager&&page==='domains'&&<DomainCenter domains={filteredDomains} allDomains={domains} outlets={data.o||[]} search={domainSearch} setSearch={setDomainSearch} status={domainStatus} setStatus={setDomainStatus} onUpdate={updateDomain}/>}
+    {!isAreaManager&&page==='geography'&&<Geography cities={cities} areas={areas} form={form} setForm={setForm} areaForm={areaForm} setAreaForm={setAreaForm} onCreateCity={createCity} onToggleCity={toggleCity} onCreateArea={createArea} loading={loading}/>}
+    {!isAreaManager&&page==='finance'&&<Finance report={financeReport} filters={financeFilters} setFilters={setFinanceFilters} groups={data.groups||[]} outlets={data.o||[]} onApply={loadFinance} loading={financeLoading} onFinanceRules={()=>openPage('finance-rules')}/>}
+    {!isAreaManager&&page==='finance-rules'&&<FinanceRulesHelp policy={financePolicy} onBack={()=>openPage('finance')} onFinance={()=>openPage('finance')}/>}
+    {!isAreaManager&&page==='health'&&<section><PageIntro eyebrow="PLATFORM HEALTH" title="Operational health" text="Central visibility into application errors and tenant-impacting incidents. Drill into an event to see outlet, request, user and correlation context." action={<button className="secondaryBtn" onClick={()=>openPage('overview')}><Icon name="arrow" size={15}/> Command center</button>}/><ApplicationErrorMonitor outlets={data.o||[]}/></section>}
    </main>
   </div>
 
   {selectedVerification&&<VerificationModal item={selectedVerification} notes={verificationNotes} setNotes={setVerificationNotes} onClose={()=>setSelectedVerification(null)} onDocument={openProtectedDocument} onDecision={decide} loading={loading}/>}
   
  </div>;
+}
+
+function AreaManagerWorkspace({summary,outlets}){
+ return <section>
+  <PageIntro eyebrow="AREA MANAGER" title="Your assigned outlets" text="Your outlet portfolio and first point of contact workspace. You can see only outlets assigned to your account by Super Admin."/>
+  <div className="metricGrid">
+   <MetricCard label="Assigned outlets" value={summary.assignedOutlets??outlets.length} meta="Outlets in your area" tone="green"/>
+   <MetricCard label="Live" value={summary.liveOutlets??0} meta="Serving customers" tone="blue"/>
+   <MetricCard label="Pending" value={summary.pendingOutlets??0} meta="May need follow-up" tone="amber"/>
+   <MetricCard label="Suspended" value={summary.suspendedOutlets??0} meta="Needs attention" tone="red"/>
+  </div>
+  <section className="card"><div className="cardHead"><div><span className="eyebrow">YOUR PORTFOLIO</span><h2>Outlet contacts</h2><p>Use this list to identify each outlet and its location. Assignments are controlled by Super Admin.</p></div></div>
+   <div className="tenantTable"><div className="tableHead"><span>Outlet</span><span>City / State</span><span>Status</span><span>Assigned since</span></div>
+    {outlets.map(o=><div className="tableRow" key={o.id}><div><b>{o.name}</b><small>{o.slug||'Outlet'}</small></div><span>{[o.city,o.state].filter(Boolean).join(', ')||'—'}</span><StatusPill status={o.status}/><span>{formatDate(o.assignedAtUtc)}</span></div>)}
+    {!outlets.length&&<Empty text="No outlets are assigned to you yet. Contact Super Admin to have outlets assigned."/>}
+   </div>
+  </section>
+ </section>;
+}
+
+function AreaManagers({managers,outlets,form,setForm,loading,onCreate,onAssign,onStatus}){
+ const toggle=(id,checked)=>setForm(prev=>({...prev,outletIds:checked?[...new Set([...prev.outletIds,id])]:prev.outletIds.filter(x=>x!==id)}));
+ return <section>
+  <PageIntro eyebrow="PEOPLE & OWNERSHIP" title="Area Managers" text="Create a point of contact for outlets in a city or part of a city. Assign only the outlets this manager is responsible for."/>
+  <div className="twoCol">
+   <section className="card"><div className="cardHead"><div><span className="eyebrow">NEW ACCOUNT</span><h2>Create Area Manager</h2><p>Login credentials and outlet assignments are saved together.</p></div></div>
+    <form className="formGrid" onSubmit={e=>{e.preventDefault();onCreate()}}>
+     <label><span>First name</span><input required value={form.firstName} onChange={e=>setForm({...form,firstName:e.target.value})}/></label>
+     <label><span>Last name</span><input required value={form.lastName} onChange={e=>setForm({...form,lastName:e.target.value})}/></label>
+     <label><span>Email / login</span><input required type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label>
+     <label><span>Mobile number</span><input value={form.mobileNumber} onChange={e=>setForm({...form,mobileNumber:e.target.value})} placeholder="+91…"/></label>
+     <label className="fullWidth"><span>Temporary password (minimum 12 characters)</span><input required minLength="12" type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/></label>
+     <div className="fullWidth"><b>Assign outlets</b><p className="muted">Select the outlets in this manager's city or half-city territory.</p>
+      <div className="assignmentPicker">{outlets.map(o=><label key={o.id} className="assignmentOption"><input type="checkbox" checked={form.outletIds.includes(o.id)} onChange={e=>toggle(o.id,e.target.checked)}/><span><b>{o.name}</b><small>{[o.city,o.state].filter(Boolean).join(', ')||'Location not set'}</small></span></label>)}{!outlets.length&&<Empty text="No outlets exist to assign yet."/>}</div>
+     </div>
+     <button className="primaryBtn fullWidth" disabled={loading||!form.outletIds.length}>Create manager & assign {form.outletIds.length} outlet{form.outletIds.length===1?'':'s'}</button>
+    </form>
+   </section>
+   <section className="card"><div className="cardHead"><div><span className="eyebrow">CURRENT COVERAGE</span><h2>Manager assignments</h2><p>Update territories as your outlet network grows.</p></div></div>
+    <div className="managerList">{managers.map(m=><ManagerRow key={m.id} manager={m} outlets={outlets} loading={loading} onAssign={onAssign} onStatus={onStatus}/>)}{!managers.length&&<Empty text="No Area Managers have been created yet."/>}</div>
+   </section>
+  </div>
+ </section>;
+}
+function ManagerRow({manager,outlets,loading,onAssign,onStatus}){
+ const[editing,setEditing]=useState(false);const[selected,setSelected]=useState(manager.outletIds||[]);
+ useEffect(()=>setSelected(manager.outletIds||[]),[manager.outletIds]);
+ return <article className="managerRow"><div className="managerIdentity"><div className="managerAvatar">{(manager.firstName||'A').slice(0,1)}{(manager.lastName||'M').slice(0,1)}</div><div><b>{manager.firstName} {manager.lastName}</b><small>{manager.email} · {manager.mobileNumber||'No mobile'}</small><small>{(manager.outletNames||[]).join(', ')||'No outlets assigned'}</small></div><StatusPill status={manager.isActive?'Active':'Disabled'}/></div>
+  {editing&&<div className="assignmentPicker">{outlets.map(o=><label key={o.id} className="assignmentOption"><input type="checkbox" checked={selected.includes(o.id)} onChange={e=>setSelected(prev=>e.target.checked?[...new Set([...prev,o.id])]:prev.filter(id=>id!==o.id))}/><span><b>{o.name}</b><small>{o.city}, {o.state}</small></span></label>)}</div>}
+  <div className="managerActions"><button className="secondaryBtn" type="button" onClick={()=>editing?onAssign(manager.id,selected).then?.(()=>setEditing(false)):setEditing(true)}>{editing?'Save outlets':'Edit outlets'}</button><button className="secondaryBtn" type="button" disabled={loading} onClick={()=>onStatus(manager.id,!manager.isActive)}>{manager.isActive?'Deactivate':'Activate'}</button></div>
+ </article>;
 }
 
 function PageIntro({eyebrow,title,text,action}){
