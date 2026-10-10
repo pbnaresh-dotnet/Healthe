@@ -30,29 +30,48 @@ public sealed class SaaSBillingController(HealthAppDbContext db, IConfiguration 
     });
 
     [HttpGet("invoices")]
-    public async Task<IActionResult> List([FromQuery] string? status, [FromQuery] string? period, CancellationToken ct)
+    public async Task<IActionResult> List([FromQuery] string? status, [FromQuery] string? period,
+        [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken ct = default)
     {
+        page = Math.Clamp(page, 1, 1_000_000);
+        pageSize = Math.Clamp(pageSize, 1, 100);
         var outletScope = IsSuperAdmin ? "" : " AND EXISTS (SELECT 1 FROM dbo.AreaManagerOutletAssignments a WHERE a.OutletId=i.OutletId AND a.AreaManagerUserId=@actor)";
-        var sql = $@"SELECT i.Id,i.InvoiceNumber,i.OutletId,o.Name OutletName,o.City,i.BillingPeriod,i.IssueDateUtc,i.DueDateUtc,
-i.Currency,i.Subtotal,i.DiscountAmount,i.TaxAmount,i.TotalAmount,i.AmountPaid,i.BalanceDue,CASE WHEN i.Status IN ('Issued','PartiallyPaid') AND i.DueDateUtc<SYSUTCDATETIME() THEN 'Overdue' ELSE i.Status END,i.CreatedByUserId,i.CreatedAtUtc
-FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE (@status IS NULL OR (CASE WHEN i.Status IN ('Issued','PartiallyPaid') AND i.DueDateUtc< SYSUTCDATETIME() THEN 'Overdue' ELSE i.Status END)=@status)
-AND (@period IS NULL OR i.BillingPeriod=@period){outletScope} ORDER BY i.DueDateUtc DESC,i.CreatedAtUtc DESC";
+        const string filters = @"(@status IS NULL OR (CASE WHEN i.Status IN ('Issued','PartiallyPaid') AND i.DueDateUtc<SYSUTCDATETIME() THEN 'Overdue' ELSE i.Status END)=@status)
+AND (@period IS NULL OR i.BillingPeriod=@period)
+AND (@search IS NULL OR i.InvoiceNumber LIKE @search OR o.Name LIKE @search OR o.City LIKE @search)";
+        var from = " FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE " + filters + outletScope;
         await using var conn = db.Database.GetDbConnection();
         if (conn.State != ConnectionState.Open) await conn.OpenAsync(ct);
-        await using var cmd = conn.CreateCommand(); cmd.CommandText=sql;
-        Add(cmd,"@status",string.IsNullOrWhiteSpace(status)?DBNull.Value:status);
-        Add(cmd,"@period",string.IsNullOrWhiteSpace(period)?DBNull.Value:period);
-        if (!IsSuperAdmin) Add(cmd,"@actor",ActorId ?? Guid.Empty);
-        var rows=new List<object>();
-        await using var reader=await cmd.ExecuteReaderAsync(ct);
-        while(await reader.ReadAsync(ct)) rows.Add(new {
+        int totalCount;
+        await using (var count = conn.CreateCommand())
+        {
+            count.CommandText = "SELECT COUNT_BIG(1)" + from;
+            Add(count, "@status", string.IsNullOrWhiteSpace(status) ? DBNull.Value : status.Trim());
+            Add(count, "@period", string.IsNullOrWhiteSpace(period) ? DBNull.Value : period.Trim());
+            Add(count, "@search", string.IsNullOrWhiteSpace(search) ? DBNull.Value : "%" + search.Trim() + "%");
+            if (!IsSuperAdmin) Add(count, "@actor", ActorId ?? Guid.Empty);
+            totalCount = checked((int)Convert.ToInt64(await count.ExecuteScalarAsync(ct)));
+        }
+        var sql = @"SELECT i.Id,i.InvoiceNumber,i.OutletId,o.Name OutletName,o.City,i.BillingPeriod,i.IssueDateUtc,i.DueDateUtc,
+i.Currency,i.Subtotal,i.DiscountAmount,i.TaxAmount,i.TotalAmount,i.AmountPaid,i.BalanceDue,CASE WHEN i.Status IN ('Issued','PartiallyPaid') AND i.DueDateUtc<SYSUTCDATETIME() THEN 'Overdue' ELSE i.Status END,i.CreatedByUserId,i.CreatedAtUtc" + from +
+            " ORDER BY i.DueDateUtc DESC,i.CreatedAtUtc DESC,i.Id OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY";
+        await using var cmd = conn.CreateCommand(); cmd.CommandText = sql;
+        Add(cmd, "@status", string.IsNullOrWhiteSpace(status) ? DBNull.Value : status.Trim());
+        Add(cmd, "@period", string.IsNullOrWhiteSpace(period) ? DBNull.Value : period.Trim());
+        Add(cmd, "@search", string.IsNullOrWhiteSpace(search) ? DBNull.Value : "%" + search.Trim() + "%");
+        Add(cmd, "@offset", (page - 1) * pageSize);
+        Add(cmd, "@pageSize", pageSize);
+        if (!IsSuperAdmin) Add(cmd, "@actor", ActorId ?? Guid.Empty);
+        var rows = new List<object>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct)) rows.Add(new {
             id=reader.GetGuid(0), invoiceNumber=reader.GetString(1), outletId=reader.GetGuid(2), outletName=reader.GetString(3),
             city=reader.GetString(4), billingPeriod=reader.GetString(5), issueDateUtc=reader.GetDateTime(6), dueDateUtc=reader.GetDateTime(7),
             currency=reader.GetString(8), subtotal=reader.GetDecimal(9), discountAmount=reader.GetDecimal(10), taxAmount=reader.GetDecimal(11),
             totalAmount=reader.GetDecimal(12), amountPaid=reader.GetDecimal(13), balanceDue=reader.GetDecimal(14), status=reader.GetString(15),
             createdByUserId=reader.GetGuid(16), createdAtUtc=reader.GetDateTime(17)
         });
-        return Ok(rows);
+        return Ok(new { items = rows, totalCount, page, pageSize, totalPages = (int)Math.Ceiling(totalCount / (double)pageSize) });
     }
 
     [HttpPost("generate")]
