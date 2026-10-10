@@ -7,15 +7,15 @@ export default function SaaSBilling({isAreaManager=false,onError=()=>{},notify=(
  const [period,setPeriod]=useState(todayPeriod());
  const [dueDay,setDueDay]=useState('15');
  const [taxRate,setTaxRate]=useState('18');
- const [status,setStatus]=useState('');
+ const [status,setStatus]=useState('');\n const [allPeriods,setAllPeriods]=useState(false);
  const [invoices,setInvoices]=useState([]);
  const [busy,setBusy]=useState(false);
  const [selected,setSelected]=useState(null);
  const [payment,setPayment]=useState({amount:'',method:'Cash',reference:'',notes:'',onlinePaymentVerified:false,idempotencyKey:crypto.randomUUID()});
  const [details,setDetails]=useState(null);
  const [filterText,setFilterText]=useState('');
- const reload=async()=>{try{setBusy(true);const rows=await admin.saasInvoices({period,status});setInvoices(rows||[])}catch(e){onError(e.message||'Unable to load invoices')}finally{setBusy(false)}};
- useEffect(()=>{reload()},[period,status]);
+ const reload=async()=>{try{setBusy(true);const rows=await admin.saasInvoices({period:allPeriods?'':period,status});setInvoices(rows||[])}catch(e){onError(e.message||'Unable to load invoices')}finally{setBusy(false)}};
+ useEffect(()=>{reload()},[period,status,allPeriods]);
  const totals=useMemo(()=>invoices.reduce((a,x)=>({invoiced:a.invoiced+Number(x.totalAmount||0),paid:a.paid+Number(x.amountPaid||0),due:a.due+Number(x.balanceDue||0)}),{invoiced:0,paid:0,due:0}),[invoices]);
  const visible=invoices.filter(x=>!filterText||[x.invoiceNumber,x.outletName,x.city,x.status].join(' ').toLowerCase().includes(filterText.toLowerCase()));
  const generate=async()=>{try{setBusy(true);const r=await admin.generateSaaSInvoices({billingPeriod:period,dueDay:Number(dueDay),taxRatePercent:Number(taxRate),financePolicyVersion:'SAAS-BILLING-1.0'});notify(`Invoices issued: ${r.created}; already existed: ${r.skipped}`);await reload()}catch(e){onError(e.message||'Unable to generate invoices')}finally{setBusy(false)}};
@@ -34,7 +34,7 @@ export default function SaaSBilling({isAreaManager=false,onError=()=>{},notify=(
    <small className="muted">Area Managers use the configured SaaS tax rate (default 18%). Super Admin may override the rate for an approved exception. The applied rate and calculation are preserved in each invoice snapshot.</small>
   </div>
   <div className="card">
-   <div className="billingTableHead"><div><h2>Invoice register</h2><p>{visible.length} invoice(s) · {period}</p></div><div className="billingFilters"><input aria-label="Search invoices" placeholder="Search outlet or invoice" value={filterText} onChange={e=>setFilterText(e.target.value)}/><select aria-label="Invoice status" value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option><option value="Issued">Issued</option><option value="PartiallyPaid">Partially paid</option><option value="Paid">Paid</option><option value="Overdue">Overdue</option><option value="Voided">Voided</option></select></div></div>
+   <div className="billingTableHead"><div><h2>Invoice register</h2><p>{visible.length} invoice(s) · {period}</p></div><div className="billingFilters"><label className="allPeriodsFilter"><input type="checkbox" checked={allPeriods} onChange={e=>setAllPeriods(e.target.checked)}/> All billing periods</label><input aria-label="Search invoices" placeholder="Search outlet or invoice" value={filterText} onChange={e=>setFilterText(e.target.value)}/><select aria-label="Invoice status" value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option><option value="Issued">Issued</option><option value="PartiallyPaid">Partially paid</option><option value="Paid">Paid</option><option value="Overdue">Overdue</option><option value="Voided">Voided</option></select></div></div>
    {busy&&<div className="muted">Working…</div>}
    <div className="tableWrap"><table><thead><tr><th>Invoice / Outlet</th><th>Period</th><th>Due date</th><th>Total</th><th>Received</th><th>Balance</th><th>Status</th><th></th></tr></thead><tbody>{visible.map(x=><tr key={x.id}><td><b>{x.invoiceNumber}</b><small>{x.outletName} · {x.city}</small></td><td>{x.billingPeriod}</td><td>{dateText(x.dueDateUtc)}</td><td>{money(x.totalAmount)}</td><td>{money(x.amountPaid)}</td><td><b>{money(x.balanceDue)}</b></td><td><span className={`statusPill status-${String(x.status).toLowerCase()}`}>{x.status}</span></td><td><button className="secondaryBtn" type="button" onClick={()=>openDetails(x)}>View / collect</button></td></tr>)}</tbody></table></div>
    {!visible.length&&!busy&&<div className="emptyState">No invoices for this period. Generate invoices when the subscription dues are ready.</div>}
