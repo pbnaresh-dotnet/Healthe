@@ -16,6 +16,14 @@ public static class DatabaseInitializer
         await db.Database.EnsureCreatedAsync(cancellationToken);
         await FinanceDatabaseInitializer.EnsureAsync(db, cancellationToken);
 
+        // Super Admin provisioning discounts are retained on the subscription for finance reporting.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.OutletSubscriptions','DiscountPercent') IS NULL
+    ALTER TABLE dbo.OutletSubscriptions ADD DiscountPercent decimal(9,4) NOT NULL CONSTRAINT DF_OutletSubscriptions_DiscountPercent DEFAULT 0 WITH VALUES;
+IF COL_LENGTH('dbo.OutletSubscriptions','DiscountAmount') IS NULL
+    ALTER TABLE dbo.OutletSubscriptions ADD DiscountAmount decimal(18,2) NOT NULL CONSTRAINT DF_OutletSubscriptions_DiscountAmount DEFAULT 0 WITH VALUES;
+", cancellationToken);
+
         // Outlet groups are a platform-level tenant classification used by Super Admin reports.
         // Reconcile the group table and nullable tenant link for existing databases.
         await db.Database.ExecuteSqlRawAsync(@"
