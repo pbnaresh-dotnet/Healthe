@@ -186,6 +186,7 @@ WHERE s.Status='Active' AND o.Status IN (1,3) AND s.StartDate<@next AND (s.Billi
 
     [AllowAnonymous]
     [HttpPost("cashfree/payment-link-webhook")]
+    [AllowAnonymous]
     [IgnoreAntiforgeryToken]
     [RequestSizeLimit(1_000_000)]
     public async Task<IActionResult> CashfreePaymentLinkWebhook(CancellationToken ct)
@@ -208,7 +209,8 @@ WHERE s.Status='Active' AND o.Status IN (1,3) AND s.StartDate<@next AND (s.Billi
             linkStatus=ReadJsonString(data,"link_status")??ReadJsonString(data,"status");
             amountPaid=ReadJsonDecimal(data,"link_amount_paid")??ReadJsonDecimal(data,"amount_paid");
             currency=ReadJsonString(data,"link_currency")??ReadJsonString(data,"currency");
-            providerPaymentId=ReadJsonString(data,"link_payment_id")??ReadJsonString(data,"cf_payment_id")??ReadJsonString(data,"payment_id");
+            var paymentData=data.TryGetProperty("payment",out var nestedPayment)&&nestedPayment.ValueKind==JsonValueKind.Object?nestedPayment:default;
+            providerPaymentId=ReadJsonString(data,"link_payment_id")??ReadJsonString(data,"cf_payment_id")??ReadJsonString(data,"payment_id")??(paymentData.ValueKind==JsonValueKind.Object?(ReadJsonString(paymentData,"cf_payment_id")??ReadJsonString(paymentData,"payment_id")):null);
         } catch(JsonException){return BadRequest(new{message="Invalid Cashfree payment-link webhook payload."});}
         if(string.IsNullOrWhiteSpace(providerLinkId))return BadRequest(new{message="Payment link ID is missing."});
         if(!string.Equals(linkStatus,"PAID",StringComparison.OrdinalIgnoreCase))return Ok(new{processed=false,status=linkStatus??"UNKNOWN"});
