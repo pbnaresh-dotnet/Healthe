@@ -305,7 +305,7 @@ function App(){
  {effectiveActive==='menu'&&<MenuPage recipes={recipes} menu={menu} setMenu={setMenu} onSave={async()=>{try{await outletAdmin.saveMenu(menu.map(x=>({recipeId:x.recipeId,dayOfWeek:Number(x.dayOfWeek),mealSlot:Number(x.mealSlotValue||({'Morning':1,'Afternoon':2,'Evening':3,'Night':4}[x.mealSlot]||0)),isAvailable:x.isAvailable,displayOrder:x.displayOrder||0,optionGroup:x.optionGroup||'Main',isRequired:x.isRequired!==false,maxSelections:Math.max(1,Number(x.maxSelections)||1)})));notify('Weekly menu saved')}catch(e){fail(e)}}}/>}
  {effectiveActive==='customers'&&<CustomersPage customers={customers} onCreate={openCreateCustomer} onOpen={openCustomerProfile}/>}
  {effectiveActive==='driver'&&<DriverRunPage data={driverRun} loading={driverRunLoading} date={driverRunDate} setDate={d=>{setDriverRunDate(d);refreshDriverRun(d,driverRunSlot)}} mealSlot={driverRunSlot} setMealSlot={s=>{setDriverRunSlot(s);refreshDriverRun(driverRunDate,s)}} onPickUp={pickUpDriverStop} onStart={startDriverRoute} onCompleteStop={completeDriverStop} onLoadReport={loadDriverDeliveryReport}/>} {effectiveActive==='team'&&<TeamPage staff={staff} loading={staffLoading} onRefresh={()=>load('team')} search={staffSearch} setSearch={setStaffSearch} roleFilter={staffRoleFilter} setRoleFilter={setStaffRoleFilter} onCreate={openCreateStaff} onEdit={openEditStaff}/>} {effectiveActive==='packages'&&<OutletPackageBuilder customers={pkgCustomers} recipes={pkgRecipes} menu={pkgMenu} customerId={pkgCustomerId} addresses={pkgAddresses} duration={pkgDuration} setDuration={setPkgDuration} deliveryMode={pkgDeliveryMode} setDeliveryMode={setPkgDeliveryMode} startDate={pkgStartDate} setStartDate={setPkgStartDate} dates={packageDates} selections={pkgSelections} setSelections={setPkgSelections} dayAddresses={pkgDayAddresses} setDayAddresses={setPkgDayAddresses} mealAddresses={pkgMealAddresses} setMealAddresses={setPkgMealAddresses} portions={pkgPortions} setPortions={setPkgPortions} discountType={pkgDiscountType} setDiscountType={setPkgDiscountType} discountValue={pkgDiscountValue} setDiscountValue={setPkgDiscountValue} discountReason={pkgDiscountReason} setDiscountReason={setPkgDiscountReason} quote={pkgQuote} selectedCount={selectedPackageCount} onCustomerChange={loadPackageAddresses} onNewCustomer={()=>setPkgNewCustomerOpen(true)} quotePackage={packageQuote} createPackage={createPackage} confirmedAllergies={pkgConfirmedAllergies} setConfirmedAllergies={setPkgConfirmedAllergies} onAddAddress={(target=null)=>{const cst=pkgCustomers.find(x=>x.id===pkgCustomerId);setPkgAddressTarget(target);setPkgAddressForm({city:dash?.outlet?.city||'',pincode:'',locality:'',label:'Home',addressLine1:'',addressLine2:'',contactName:[cst?.firstName,cst?.lastName].filter(Boolean).join(' '),contactPhone:'',latitude:'',longitude:'',cityAreaId:null,isDefault:false});setPkgAddressOpen(true)}}/>} {effectiveActive==='subscriptions'&&<SubscriptionsPage items={subs} customers={customers} onOpen={openSubscription} onMarkPaid={openMarkPaid} onConfirm={openReviewPackage} onCreate={()=>nav('packages')}/>} 
- {effectiveActive==='kitchen'&&<KitchenPage data={kitchen} date={kitchenDate} setDate={setKitchenDate} refresh={refreshKitchen}/>}
+ {effectiveActive==='kitchen'&&<KitchenPage data={kitchen} date={kitchenDate} setDate={setKitchenDate} refresh={refreshKitchen} onMarkFoodReady={async id=>{await outletAdmin.markFoodReady(id);notify("Delivery marked Food Ready");}}/>}
  {effectiveActive==='ingredient-usage'&&<IngredientConsumptionPage data={ingredientConsumption} date={ingredientConsumptionDate} setDate={d=>{setIngredientConsumptionDate(d);refreshIngredientConsumption(d)}} refresh={()=>refreshIngredientConsumption(ingredientConsumptionDate)}/>}
  {effectiveActive==='orders'&&<Page title="Orders" text="Orders generated from customer subscriptions." content={<Table columns={['Order','Customer','Status','Delivery date','Total']} rows={orders.map(x=>[String(x.id).slice(0,8)+'…',String(x.customerId).slice(0,8)+'…',x.status,new Date(x.deliveryDate).toLocaleDateString(),money(x.total)])} empty="No orders yet."/>}/>}
  {effectiveActive==='deliveries'&&<Page title={deliveryFilter==='pending'?'Pending deliveries':'Deliveries'} text={deliveryFilter==='pending'?'Deliveries that still need action today.':'Scheduled delivery jobs for this outlet.'} content={<div className="deliveryPageContent"><div className="deliveryFilterBar"><div><b>{deliveryFilter==='pending'?'Pending deliveries':'All deliveries'}</b><small>{deliveryFilter==='pending'?deliveries.filter(x=>['Scheduled','Preparing','OutForDelivery'].includes(x.status)).length+' deliveries need action':deliveries.length+' scheduled delivery jobs'}</small></div>{deliveryFilter==='pending'&&<button className="secondary smallBtn" onClick={()=>setDeliveryFilter('all')}>Show all deliveries</button>}</div><Table columns={['Customer','Address','Date','Slot','Fee','Status']} rows={deliveries.filter(x=>deliveryFilter!=='pending'||['Scheduled','Preparing','OutForDelivery'].includes(x.status)).map(x=>[x.customerName,x.address,new Date(x.scheduledDate).toLocaleDateString(),x.mealSlot,money(x.deliveryFee),x.status])} empty={deliveryFilter==='pending'?'No pending deliveries today.':'No deliveries yet.'}/></div>}/>}
@@ -622,7 +622,7 @@ function IngredientUsagePage({report,date,setDate,refresh,loading}) {
  </div>;
 }
 
-function KitchenPage({data,date,setDate,refresh}) {
+function KitchenPage({data,date,setDate,refresh,onMarkFoodReady}) {
  const [printOpen,setPrintOpen]=useState(false);
  const [printMode,setPrintMode]=useState('');
  const [printSlots,setPrintSlots]=useState([2,3]);
@@ -647,6 +647,22 @@ function KitchenPage({data,date,setDate,refresh}) {
   });
   return [...map.values()].sort((a,b)=>a.mealName.localeCompare(b.mealName)||a.portionSize.localeCompare(b.portionSize));
  },[data,printSlots]);
+ const [readyBusy,setReadyBusy]=useState('');
+ const kitchenDeliveries=useMemo(()=>{
+  const map=new Map();
+  (data?.labels||[]).filter(l=>printSlots.includes(Number(l.mealSlot))&&l.deliveryId).forEach(l=>{
+   const current=map.get(l.deliveryId)||{deliveryId:l.deliveryId,status:l.deliveryStatus||'Scheduled',customerName:l.customerName,mealSlotName:l.mealSlotName,deliveryWindow:l.deliveryWindow,address:l.address,meals:[]};
+   current.meals.push(l.mealName+' · '+l.portionSize);
+   if(String(l.deliveryStatus||'').toLowerCase()==='foodready')current.status='FoodReady';
+   map.set(l.deliveryId,current);
+  });
+  return [...map.values()];
+ },[data,printSlots]);
+ const markFoodReady=async deliveryId=>{
+  if(!onMarkFoodReady)return;
+  setReadyBusy(deliveryId);
+  try{await onMarkFoodReady(deliveryId);await refresh(date)}finally{setReadyBusy('')}
+ };
  const toggleSlot=value=>setPrintSlots(x=>x.includes(value)?x.filter(v=>v!==value):[...x,value]);
  const doPrint=mode=>{
   if(mode==='kitchen'&&!production.length)return;
@@ -670,6 +686,10 @@ function KitchenPage({data,date,setDate,refresh}) {
    <section className="panel no-print">
     <div className="panelHead"><div><h3>Production plan</h3><p>Prepare total quantities across the selected delivery windows.</p></div><span className="pill">{production.reduce((sum,x)=>sum+x.quantity,0)} meals</span></div>
     {production.length?<div className="productionTable"><div className="productionTableRow header"><span>Meal</span><span>Category</span><span>Portion</span><span>Qty</span></div>{production.map(p=><div className="productionTableRow" key={p.mealName+p.category+p.portionSize}><b>{p.mealName}</b><span>{p.category}</span><span>{p.portionSize}</span><strong>{p.quantity}</strong></div>)}</div>:<Empty title="No meals scheduled for these windows" text="Check the selected date and delivery windows, then refresh. Production appears before driver routes are dispatched."/>}
+   </section>
+   <section className="panel no-print">
+    <div className="panelHead"><div><h3>Preparation & Food Ready</h3><p>Confirm each delivery is packed before it can be assigned to a driver.</p></div><span className="pill">{kitchenDeliveries.filter(x=>String(x.status).toLowerCase()==='foodready').length} / {kitchenDeliveries.length} ready</span></div>
+    {kitchenDeliveries.length?<div className="productionTable"><div className="productionTableRow header"><span>Customer / window</span><span>Meals in delivery</span><span>Status</span><span>Action</span></div>{kitchenDeliveries.map(d=><div className="productionTableRow" key={d.deliveryId}><div><b>{d.customerName}</b><small>{d.mealSlotName} · {d.deliveryWindow}</small><small>{d.address}</small></div><span>{d.meals.join(', ')}</span><span className="pill">{d.status==='FoodReady'?'Food Ready':d.status}</span><span>{String(d.status).toLowerCase()==='foodready'?<b>✓ Ready</b>:<button type="button" className="primary" disabled={readyBusy===d.deliveryId||!['scheduled','preparing'].includes(String(d.status).toLowerCase())} onClick={()=>markFoodReady(d.deliveryId)}>{readyBusy===d.deliveryId?'Saving…':'Mark Food Ready'}</button>}</span></div>)}</div>:<Empty title="No deliveries for these windows" text="Try another date or delivery window."/>}
    </section>
    <section className="no-print slotSummary"><span>Print window:</span>{slots.filter(s=>printSlots.includes(s.value)).map(s=><button key={s.value} className="slotChip active" onClick={()=>toggleSlot(s.value)}>{s.name} ×</button>)}{slots.filter(s=>!printSlots.includes(s.value)).map(s=><button key={s.value} className="slotChip" onClick={()=>toggleSlot(s.value)}>+ {s.name}</button>)}</section>
 
