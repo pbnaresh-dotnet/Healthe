@@ -12,8 +12,8 @@ internal static class ListQuery
     public static IReadOnlyList<T> Apply<T>(
         IEnumerable<T> source,
         string? search,
-        int page,
-        int pageSize,
+        int? page,
+        int? pageSize,
         string? status = null,
         DateTime? date = null)
     {
@@ -52,10 +52,10 @@ internal static class ListQuery
             }));
         }
 
-        // Only apply pagination when explicitly requested by a client. This preserves
-        // the existing full-array contract for older clients that omit page/pageSize.
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 200);
-        return query.Skip((page - 1) * pageSize).Take(pageSize).ToArray();
+        // Preserve the existing full-array contract for older clients that omit pagination.
+        if (!page.HasValue && !pageSize.HasValue) return query.ToArray();
+        var currentPage = Math.Max(1, page ?? 1);
+        var currentPageSize = Math.Clamp(pageSize ?? 50, 1, 200);
+        return query.Skip((currentPage - 1) * currentPageSize).Take(currentPageSize).ToArray();
     }
 }
