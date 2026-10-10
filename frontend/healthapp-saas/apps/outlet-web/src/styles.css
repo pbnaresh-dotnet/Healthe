@@ -1177,3 +1177,47 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
  .consolidatedBagLabel{break-inside:avoid;page-break-inside:avoid}
  .bagContents{gap:3px;margin:6px 0;padding:6px 0}
 }
+
+
+/* Shared team sign-in and driver workspace: mobile-first refinements */
+.loginPage{min-height:100svh;padding:16px;align-items:center;justify-items:center}
+.loginCard{width:min(430px,100%);padding:clamp(20px,5vw,34px);border-radius:18px}
+.loginCard h1{font-size:clamp(25px,7vw,30px);line-height:1.15}
+.loginCard .field input{width:100%;min-height:48px;padding:12px 13px;font-size:16px}
+.loginCard .full{width:100%;min-height:48px;font-size:15px}
+.loginCard button:disabled{opacity:.65;cursor:wait}
+.loginRoleHint{display:grid;gap:5px;margin:0 0 18px;padding:13px;border:1px solid #d9e9dc;border-radius:12px;background:#f5faf6;color:#53665a;font-size:12px;line-height:1.5}
+.loginRoleHint strong{font-size:13px;color:#1c6335}
+.loginRoleHint b{color:#244c31}
+.loginCard .landingBackHome{min-height:40px;padding:6px 0}
+.driverRunPage{width:100%;min-width:0;padding-bottom:env(safe-area-inset-bottom,0px)}
+.driverRunPage .pageHead{display:flex;flex-direction:column;align-items:stretch;gap:12px}
+.driverRunPage .pageActions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;width:100%}
+.driverRunPage .pageActions input,.driverRunPage .pageActions select{width:100%;min-width:0;min-height:46px;font-size:16px}
+.driverRunPage .driverStartButton,.driverRunPage .driverCompleteButton,.driverRunPage .driverPickupGate button{min-height:48px;touch-action:manipulation}
+.driverRunPage .driverStopCard{grid-template-columns:32px minmax(0,1fr);gap:10px;padding:12px}
+.driverRunPage .driverStopNumber{width:30px;height:30px}
+.driverRunPage .driverCompleteButton{grid-column:2;width:100%;min-height:48px;white-space:normal}
+.driverRunPage .driverRouteIntro{align-items:flex-start;flex-wrap:wrap;padding:12px}
+.driverRunPage .driverScanPanel form{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.driverRunPage .driverScanPanel form input,.driverRunPage .driverScanPanel form button{width:100%;min-height:48px;font-size:16px}
+.driverRunPage .driverReportControls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);width:100%}
+.driverRunPage .driverReportControls select,.driverRunPage .driverReportControls button{width:100%;max-width:none;min-height:46px}
+@media(min-width:640px){
+ .driverRunPage .pageHead{flex-direction:row;align-items:flex-start;justify-content:space-between}
+ .driverRunPage .pageActions{display:flex;width:auto}
+ .driverRunPage .pageActions input,.driverRunPage .pageActions select{width:auto}
+ .driverRunPage .driverStopCard{grid-template-columns:36px minmax(0,1fr) auto;padding:14px}
+ .driverRunPage .driverCompleteButton{grid-column:auto;width:auto;white-space:nowrap}
+ .driverRunPage .driverScanPanel form{display:flex}
+ .driverRunPage .driverScanPanel form input{flex:1;min-width:0}
+ .driverRunPage .driverScanPanel form button{width:auto}
+ .driverRunPage .driverReportControls{display:flex;width:auto}
+}
+@media(max-width:360px){
+ .loginPage{padding:10px}
+ .loginCard{padding:18px;border-radius:14px}
+ .driverRunPage .pageActions{grid-template-columns:minmax(0,1fr)}
+ .driverProgressCard{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .driverProgressCard b{font-size:19px}
+}
