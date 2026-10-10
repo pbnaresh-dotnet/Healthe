@@ -8,13 +8,14 @@ namespace HealthApp.Api.Middleware;
 /// credentials, or other request payloads. Error details are controlled separately
 /// by the configured diagnostics policy.
 /// </summary>
-public sealed class RequestDiagnosticsMiddleware(RequestDelegate next, ILogger<RequestDiagnosticsMiddleware> logger, IConfiguration configuration)
+public sealed class RequestDiagnosticsMiddleware(RequestDelegate next, ILogger<RequestDiagnosticsMiddleware> logger, DiagnosticsPolicy policy)
 {
     public async Task InvokeAsync(HttpContext context)
     {
-        var enabled = configuration.GetValue("Diagnostics:RequestLoggingEnabled", true);
-        var detailed = configuration.GetValue("Diagnostics:DetailedLoggingEnabled", false);
-        var threshold = Math.Clamp(configuration.GetValue("Diagnostics:SlowRequestThresholdMs", 1000), 100, 120000);
+        var settings = policy.Current;
+        var enabled = settings.RequestLoggingEnabled;
+        var detailed = settings.DetailedLoggingEnabled;
+        var threshold = settings.SlowRequestThresholdMs;
         var correlationId = ResolveCorrelationId(context);
         context.Response.Headers["X-Correlation-Id"] = correlationId;
         var stopwatch = Stopwatch.StartNew();
