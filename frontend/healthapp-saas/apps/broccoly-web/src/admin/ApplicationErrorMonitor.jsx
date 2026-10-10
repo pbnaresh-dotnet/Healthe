@@ -30,7 +30,6 @@ export default function ApplicationErrorMonitor({outlets=[]}){
    }catch(e){setError(e.message||'Unable to load application errors')}finally{setLoading(false)}
  };
 
- useEffect(()=>{load(filters,1)},[outlets.length]);
  useEffect(()=>{load(filters,page)},[page,pageSize]);
  useEffect(()=>{let active=true;admin.diagnosticsSettings().then(value=>{if(active&&value)setDiagnostics({requestLoggingEnabled:!!value.requestLoggingEnabled,detailedLoggingEnabled:!!value.detailedLoggingEnabled,slowRequestThresholdMs:Number(value.slowRequestThresholdMs||1000)})}).catch(e=>{if(active)setSettingsMessage(e.message||'Unable to load diagnostics settings')});return()=>{active=false}},[]);
  const saveDiagnostics=async()=>{try{setSettingsBusy(true);setSettingsMessage('');const value=await admin.updateDiagnosticsSettings(diagnostics);setDiagnostics({requestLoggingEnabled:!!value.requestLoggingEnabled,detailedLoggingEnabled:!!value.detailedLoggingEnabled,slowRequestThresholdMs:Number(value.slowRequestThresholdMs||1000)});setSettingsMessage('Diagnostics settings saved. Detailed exception information is sensitive; enable it only while investigating and turn it off afterwards.')}catch(e){setSettingsMessage(e.message||'Unable to save diagnostics settings')}finally{setSettingsBusy(false)}};
