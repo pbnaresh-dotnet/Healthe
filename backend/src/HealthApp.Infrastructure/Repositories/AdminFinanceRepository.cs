@@ -138,9 +138,4 @@ public sealed class AdminFinanceRepository(HealthAppDbContext db) : IAdminFinanc
             outlets, groups, daily, section, page, pageSize, totalRows);
     }
 
-    // Retained for existing internal consumers; reporting endpoints use GetReportAsync so they do not materialize all subscriptions.
-    public async Task<IReadOnlyList<AdminFinanceSubscriptionRow>> GetSubscriptionsAsync(
-        AdminFinanceReportRequest request, CancellationToken cancellationToken = default) =>
-        await FilteredRows(request).OrderBy(x => x.StartDate).ThenBy(x => x.OutletName).ThenBy(x => x.SubscriptionId)
-            .ToListAsync(cancellationToken);
 }
