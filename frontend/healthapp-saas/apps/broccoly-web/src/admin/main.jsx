@@ -539,7 +539,6 @@ function FinancePager({report,filters,section,onApply}){
 }
 function Finance({report,filters,setFilters,groups,outlets,outletSearch,setOutletSearch,onApply,loading,onFinanceRules}){
  const[tab,setTab]=useState('summary');
- const cities=[...new Set(outlets.map(x=>x.city).filter(Boolean))].sort();
  const totals=report?.totals;
  const paid=totals?.paidSubscriptions;
  const all=totals?.allSubscriptions;
