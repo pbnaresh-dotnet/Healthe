@@ -14,7 +14,7 @@ const NAV_GROUPS=[
  {label:'Command Center',items:[['overview','Dashboard','grid']]},
  {label:'Tenants',items:[['outlets','Outlets','building'],['area-managers','Area Managers','building'],['groups','Outlet Groups','building'],['onboarding','Onboarding','clipboard'],['domains','Domains','globe']]},
  {label:'Operations',items:[['geography','Cities & Coverage','pin']]},
- {label:'Finance & Reports',items:[['finance','Finance','chart'],['saas-billing','SaaS Billing','chart'],['finance-rules','Finance Rules','clipboard']]},
+ {label:'Finance & Reports',items:[['finance','Finance','chart'],['saas-billing','SaaS Billing & Invoices','chart'],['finance-rules','Finance Rules','clipboard']]},
  {label:'Platform',items:[['health','Platform Health','pulse']]}
 ];
 
