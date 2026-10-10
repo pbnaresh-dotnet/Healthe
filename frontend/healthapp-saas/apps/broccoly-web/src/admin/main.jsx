@@ -87,7 +87,7 @@ function App(){
  useEffect(()=>{if(u)reload()},[u]);
  useEffect(()=>{if(!u)return;let cancelled=false;const run=async()=>{try{
    if(page==='outlets'||page==='groups'){const gs=await admin.groups();if(!cancelled)setData(prev=>({...prev,groups:gs||[]}));}
-   if(page==='overview'){const r=await admin.revenue();if(!cancelled)setData(prev=>({...prev,r:r||{}}));}
+   if(page==='overview'&&!isAreaManager){const r=await admin.revenue();if(!cancelled)setData(prev=>({...prev,r:r||{}}));}
    if(page==='geography'){const [cs,ars]=await Promise.all([admin.cities(),admin.cityAreas()]);if(!cancelled){setCities(cs||[]);setAreas(ars||[]);}}
    if(page==='health'){const us=await admin.users();if(!cancelled)setData(prev=>({...prev,us:us||[]}));}
     if(page==='area-managers'){const ms=await admin.areaManagers();if(!cancelled)setData(prev=>({...prev,areaManagers:ms||[]}));}
