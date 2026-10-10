@@ -165,7 +165,7 @@ function App(){
  const[pkgCustomerId,setPkgCustomerId]=useState(''),[pkgAddresses,setPkgAddresses]=useState([]),[pkgDuration,setPkgDuration]=useState('OneWeek'),[pkgDeliveryMode,setPkgDeliveryMode]=useState('OneDeliveryPerDay'),[pkgStartDate,setPkgStartDate]=useState(todayISO()),[pkgSelections,setPkgSelections]=useState({}),[pkgDayAddresses,setPkgDayAddresses]=useState({}),[pkgMealAddresses,setPkgMealAddresses]=useState({}),[pkgPortions,setPkgPortions]=useState({}),[pkgDiscountType,setPkgDiscountType]=useState('None'),[pkgDiscountValue,setPkgDiscountValue]=useState(''),[pkgDiscountReason,setPkgDiscountReason]=useState(''),[pkgQuote,setPkgQuote]=useState(null),[pkgConfirmedAllergies,setPkgConfirmedAllergies]=useState([]),[pkgAddressOpen,setPkgAddressOpen]=useState(false),[pkgAddressTarget,setPkgAddressTarget]=useState(null),[pkgAddressForm,setPkgAddressForm]=useState({city:'',pincode:'',locality:'',label:'Home',addressLine1:'',addressLine2:'',contactName:'',contactPhone:'',latitude:'',longitude:'',cityAreaId:null,isDefault:false}),[pkgNewCustomerOpen,setPkgNewCustomerOpen]=useState(false),[pkgNewCustomerForm,setPkgNewCustomerForm]=useState({firstName:'',lastName:'',email:'',password:''});
  const notify=(m,type='success')=>sharedNotify(m,type),fail=e=>setError(e?.message||'Unexpected error.');
  const load=async p=>{setBusy(true);setError('');try{
-  if(p==='dashboard'){setDash(await outletAdmin.dashboard());setRecipes(await outletAdmin.recipes());setPricing(await outletAdmin.pricingRules());}
+  if(p==='dashboard'){setDash(await outletAdmin.dashboard());}
   if(p==='kitchen')setKitchen(await outletAdmin.kitchen(kitchenDate));
   if(p==='ingredient-usage')setIngredientConsumption(await outletAdmin.ingredientConsumption(ingredientConsumptionDate));
   if(p==='recipes'){
@@ -189,7 +189,7 @@ function App(){
    }
   }
   if(p==='customers'){const x=await Promise.all([outletAdmin.customers(),catalog.allergens()]);setCustomers(x[0]||[]);setAllergens(x[1]||[]);}
-  if(p==='subscriptions'){const x=await Promise.all([outletAdmin.subscriptions(),outletAdmin.customers()]);setSubs(x[0]);setCustomers(x[1])}
+  if(p==='subscriptions'){setSubs(await outletAdmin.subscriptions());}
   if(p==='orders')setOrders(await outletAdmin.orders());
   if(p==='deliveries')setDeliveries(await outletAdmin.deliveries());
   if(p==='routes'){const x=await Promise.all([outletAdmin.deliveryRoutes(deliveryRouteDate,deliveryRouteMealSlot),outletAdmin.drivers(),outletAdmin.kitchen(deliveryRouteDate)]);setRoutePlan(x[0]);setDrivers(x[1]);setKitchen(x[2]);setSelectedDriverIds(ids=>ids.length?ids:x[1].map(d=>d.id));}
@@ -200,7 +200,7 @@ function App(){
   if(p==='pricing')setPricing(await outletAdmin.pricingRules());
   if(p==='discounts')setTiers(await outletAdmin.discountTiers());
   if(p==='tax'){const x=await outletAdmin.taxSettings();setTaxSettings(x);setTaxForm({restaurantGstRate:x?.restaurantGstRate??5,restaurantGstMode:x?.restaurantGstMode||'Exclusive',isGstRegistered:Boolean(x?.isGstRegistered),isComposition:Boolean(x?.isComposition),taxOperatingMode:x?.taxOperatingMode||'DirectOutletSupplier',gstin:x?.gstin||'',pan:x?.pan||'',effectiveFromUtc:x?.effectiveFromUtc?String(x.effectiveFromUtc).slice(0,10):''});}
-  if(p==='packages'){const x=await Promise.all([outletAdmin.customers(),outletAdmin.recipes(),outletAdmin.menu(),outletAdmin.taxSettings()]);setPkgCustomers(x[0]||[]);setCustomers(x[0]||[]);setPkgRecipes(x[1]||[]);setPkgMenu(x[2]||[]);setTaxSettings(x[3]);if(x[3])setTaxForm({restaurantGstRate:x[3].restaurantGstRate,restaurantGstMode:x[3].restaurantGstMode});}
+  if(p==='packages'){const x=await Promise.all([outletAdmin.customers(),outletAdmin.recipes(),outletAdmin.menu(),outletAdmin.taxSettings()]);setPkgCustomers(x[0]||[]);setPkgRecipes(x[1]||[]);setPkgMenu(x[2]||[]);setTaxSettings(x[3]);if(x[3])setTaxForm({restaurantGstRate:x[3].restaurantGstRate,restaurantGstMode:x[3].restaurantGstMode});}
   if(p==='billing')setBilling(await outletAdmin.billing());
  }catch(e){fail(e)}finally{setBusy(false)}};
  useEffect(()=>{const onExpired=()=>{auth.logout();setUser(null);setVerificationApp(null);setShowLogin(true);setError('Your session has expired. Please sign in again.');setActive('dashboard')};window.addEventListener('healthapp-auth-expired',onExpired);return()=>window.removeEventListener('healthapp-auth-expired',onExpired)},[]);
