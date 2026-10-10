@@ -569,3 +569,6 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
 .managerAvatar{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border-radius:12px;background:#e7f4e9;color:#216a3c;font-weight:850}
 .managerActions{display:flex;flex-wrap:wrap;gap:8px}
 @media(max-width:760px){.formGrid{grid-template-columns:minmax(0,1fr);padding:14px}.formGrid .fullWidth{grid-column:auto}.managerIdentity{flex-wrap:wrap}.managerIdentity .statusPill{margin-left:auto}.managerActions>*{flex:1}.assignmentPicker{max-height:220px}}
+
+.twoCol{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:18px;align-items:start}
+@media(max-width:1000px){.twoCol{grid-template-columns:minmax(0,1fr)}}
