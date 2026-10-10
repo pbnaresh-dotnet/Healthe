@@ -206,12 +206,27 @@ public sealed class OutletVerificationService(
             _ => null
         };
 
+    private static readonly HashSet<string> ReservedSubdomains = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "www", "api", "admin", "outlet", "mail", "ftp", "smtp", "cdn", "static", "assets",
+        "app", "auth", "login", "register", "support", "help", "status", "billing", "payments",
+        "docs", "dev", "staging", "test", "demo"
+    };
+
     private async Task<string> CreateUniqueSlugAsync(string name)
     {
         var baseSlug = Slugify(name);
+        // Storefront subdomains are single DNS labels and must never collide with
+        // platform endpoints or another outlet's hostname.
+        baseSlug = baseSlug.Trim('-').ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(baseSlug)) baseSlug = "outlet";
+        if (ReservedSubdomains.Contains(baseSlug)) baseSlug = $"{baseSlug}-outlet";
+
         var slug = baseSlug;
         var counter = 2;
-        while (await outlets.GetBySlugAsync(slug) is not null)
+        while (ReservedSubdomains.Contains(slug) ||
+               await outlets.GetBySlugAsync(slug) is not null ||
+               await outlets.GetBySubdomainAsync(slug) is not null)
             slug = $"{baseSlug}-{counter++}";
         return slug;
     }
