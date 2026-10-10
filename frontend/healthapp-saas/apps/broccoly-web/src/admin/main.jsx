@@ -11,8 +11,7 @@ const AREA_MANAGER_ROLE='AreaManager';
 
 const NAV_GROUPS=[
  {label:'Command Center',items:[['overview','Dashboard','grid']]},
- {label:'Tenants',items:[['outlets','Outlets','building'],['area-managers','Area Managers','building'],['groups','Outlet Groups','building'],['onboarding','Onboarding','clipboard'],['domains','Domains','globe']]}
-,
+ {label:'Tenants',items:[['outlets','Outlets','building'],['area-managers','Area Managers','building'],['groups','Outlet Groups','building'],['onboarding','Onboarding','clipboard'],['domains','Domains','globe']]},
  {label:'Operations',items:[['geography','Cities & Coverage','pin']]},
  {label:'Finance & Reports',items:[['finance','Finance','chart'],['finance-rules','Finance Rules','clipboard']]},
  {label:'Platform',items:[['health','Platform Health','pulse']]}
@@ -43,7 +42,7 @@ function Icon({name,size=18}){
 const formatDate=v=>v?new Date(v).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'—';
 const formatDateTime=v=>v?new Date(v).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
 const statusTone=s=>String(s||'').toLowerCase().includes('live')?'success':String(s||'').toLowerCase().includes('active')?'success':String(s||'').toLowerCase().includes('pending')?'warning':String(s||'').toLowerCase().includes('disabled')||String(s||'').toLowerCase().includes('rejected')?'danger':'neutral';
-const roleLabel=s=>String(s||'').replace('OutletAdmin','Outlet Admin').replace('SuperAdmin','Super Admin').replace('OutletManager','Manager').replace('KitchenStaff','Kitchen Staff');
+const roleLabel=s=>String(s||'').replace('OutletAdmin','Outlet Admin').replace('SuperAdmin','Super Admin').replace('OutletManager','Manager').replace('KitchenStaff','Kitchen Staff').replace('AreaManager','Area Manager');
 
 function App(){
  const {notify}=useFeedback();
