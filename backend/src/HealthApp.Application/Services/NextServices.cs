@@ -626,29 +626,47 @@ public sealed class PaymentService(
         if (payment is null)
             return new PaymentWebhookResultDto(true, "UnknownOrder");
 
-        var wasPaid = payment.Status == "Paid";
+        var now = DateTime.UtcNow;
+        if (!await payments.TryClaimWebhookAsync(payment.Id, now, now.AddMinutes(-5)))
+            return new PaymentWebhookResultDto(true, "AlreadyProcessing", payment.Id);
 
-        // Always verify the actual payment status from Cashfree before fulfilment.
-        await RefreshFromGatewayAsync(payment, cancellationToken, rawBody);
-
-        if (payment.Status != "Paid")
-            return new PaymentWebhookResultDto(true, payment.Status, payment.Id);
-
-        if (!wasPaid)
+        // ExecuteUpdateAsync claims the row atomically, so align this tracked instance with
+        // the lease before RefreshFromGatewayAsync persists any verified provider fields.
+        payment.ProcessingStatus = "WebhookProcessing";
+        payment.LastAttemptAtUtc = now;
+        try
         {
-            if (payment.PaymentType == "CustomerSubscription")
-                await CompleteCustomerPaymentAsync(payment.Id);
-            else if (payment.PaymentType == "OutletOnboarding")
-                await CompleteOutletOnboardingPaymentAsync(payment);
-        }
+            // Verify the actual provider status while holding the short-lived processing lease.
+            await RefreshFromGatewayAsync(payment, cancellationToken, rawBody, preserveWebhookClaim: true);
 
-        return new PaymentWebhookResultDto(true, "Paid", payment.Id);
+            if (payment.Status == "Paid")
+            {
+                // Run idempotent fulfilment even on a replay. This repairs a prior interruption
+                // after payment verification but before package activation/onboarding completion.
+                if (payment.PaymentType == "CustomerSubscription")
+                    await CompleteCustomerPaymentAsync(payment.Id);
+                else if (payment.PaymentType == "OutletOnboarding")
+                    await CompleteOutletOnboardingPaymentAsync(payment);
+            }
+
+            payment.ProcessingStatus = payment.Status == "Paid" ? "PaymentVerified" : "WebhookProcessed";
+            await payments.UpdateAsync(payment);
+            return new PaymentWebhookResultDto(true, payment.Status, payment.Id);
+        }
+        catch
+        {
+            // Do not strand the order on a live lease after a provider/fulfilment error.
+            payment.ProcessingStatus = "WebhookProcessingFailed";
+            await payments.UpdateAsync(payment);
+            throw;
+        }
     }
 
     private async Task RefreshFromGatewayAsync(
         PaymentTransaction payment,
         CancellationToken cancellationToken,
-        string? webhookBody = null)
+        string? webhookBody = null,
+        bool preserveWebhookClaim = false)
     {
         var transactions = await gateway.GetPaymentsAsync(payment.ProviderOrderId, cancellationToken);
         var latest = transactions
@@ -677,7 +695,7 @@ public sealed class PaymentService(
             else
             {
                 payment.Status = "Paid";
-                payment.ProcessingStatus = "PaymentVerified";
+                payment.ProcessingStatus = preserveWebhookClaim ? "WebhookProcessing" : "PaymentVerified";
                 payment.FailureReason = "";
                 payment.NextRetryAtUtc = null;
                 payment.PaidAtUtc ??= DateTime.UtcNow;
@@ -687,7 +705,7 @@ public sealed class PaymentService(
         {
             // Never downgrade a previously verified payment because a later webhook/status
             // response is stale, delayed or represents a non-success attempt.
-            payment.ProcessingStatus = "PaymentVerified";
+            payment.ProcessingStatus = preserveWebhookClaim ? "WebhookProcessing" : "PaymentVerified";
         }
         else if (normalized == "PENDING")
         {
