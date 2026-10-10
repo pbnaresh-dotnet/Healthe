@@ -88,7 +88,19 @@ function App(){
  useEffect(()=>{if(u)reload()},[u]);
  useEffect(()=>{if(!u)return;let cancelled=false;const run=async()=>{try{
    if(page==='outlets'||page==='groups'){const gs=await admin.groups();if(!cancelled)setData(prev=>({...prev,groups:gs||[]}));}
-   if(page==='overview'&&!isAreaManager){const r=await admin.revenue();if(!cancelled)setData(prev=>({...prev,r:r||{}}));}
+   if(page==='overview'&&!isAreaManager){
+     // Dashboard cards depend on these datasets; load them on entry rather than
+     // showing misleading zero counts until the user visits another menu.
+     const results=await Promise.allSettled([admin.revenue(),admin.users(),admin.cities()]);
+     if(!cancelled){
+       const [revenueResult,usersResult,citiesResult]=results;
+       if(revenueResult.status==='fulfilled')setData(prev=>({...prev,r:revenueResult.value||{}}));
+       if(usersResult.status==='fulfilled')setData(prev=>({...prev,us:usersResult.value||[]}));
+       if(citiesResult.status==='fulfilled')setCities(citiesResult.value||[]);
+       const failed=results.find(x=>x.status==='rejected');
+       if(failed)setError(failed.reason?.message||'Some dashboard metrics could not be loaded.');
+     }
+   }
    if(page==='geography'){const [cs,ars]=await Promise.all([admin.cities(),admin.cityAreas()]);if(!cancelled){setCities(cs||[]);setAreas(ars||[]);}}
    if(page==='health'){const us=await admin.users();if(!cancelled)setData(prev=>({...prev,us:us||[]}));}
     if(page==='area-managers'){const ms=await admin.areaManagers();if(!cancelled)setData(prev=>({...prev,areaManagers:ms||[]}));}
