@@ -755,16 +755,32 @@ public sealed class PaymentSettlementReconciliationExceptionRepository(HealthApp
         await SaveAsync();
     }
 
+    private IQueryable<PaymentSettlementReconciliationException> OpenQuery(string? provider, Guid? outletId) =>
+        from ex in Context.PaymentSettlementReconciliationExceptions.AsNoTracking()
+        join payment in Context.PaymentTransactions.AsNoTracking()
+            on new { Provider = ex.Provider, ProviderPaymentId = ex.ProviderPaymentId }
+            equals new { Provider = payment.Provider, ProviderPaymentId = payment.ProviderPaymentId }
+        where ex.Status == "Open"
+           && (string.IsNullOrWhiteSpace(provider) || ex.Provider == provider)
+           && (!outletId.HasValue || payment.OutletId == outletId)
+        select ex;
+
     public async Task<IReadOnlyList<PaymentSettlementReconciliationException>> GetOpenAsync(string? provider = null, Guid? outletId = null) =>
-        await (from ex in Context.PaymentSettlementReconciliationExceptions.AsNoTracking()
-               join payment in Context.PaymentTransactions.AsNoTracking()
-                   on new { Provider = ex.Provider, ProviderPaymentId = ex.ProviderPaymentId }
-                   equals new { Provider = payment.Provider, ProviderPaymentId = payment.ProviderPaymentId }
-               where ex.Status == "Open"
-                  && (string.IsNullOrWhiteSpace(provider) || ex.Provider == provider)
-                  && (!outletId.HasValue || payment.OutletId == outletId)
-               orderby ex.CreatedAtUtc
-               select ex).ToListAsync();
+        await OpenQuery(provider, outletId).OrderBy(x => x.CreatedAtUtc).ToListAsync();
+
+    public Task<PaymentSettlementReconciliationException?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        Context.PaymentSettlementReconciliationExceptions.FirstOrDefaultAsync(x => x.Id == id && x.Status == "Open", cancellationToken);
+
+    public async Task<(IReadOnlyList<PaymentSettlementReconciliationException> Items, int TotalCount)> GetOpenPageAsync(
+        string? provider, Guid? outletId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = OpenQuery(provider, outletId);
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query.OrderBy(x => x.CreatedAtUtc).ThenBy(x => x.Id)
+            .Skip((Math.Clamp(page, 1, 1_000_000) - 1) * Math.Clamp(pageSize, 1, 100))
+            .Take(Math.Clamp(pageSize, 1, 100)).ToListAsync(cancellationToken);
+        return (items, totalCount);
+    }
 }
 
 public sealed class PaymentGatewaySettlementRepository(HealthAppDbContext db) : EfRepository(db), IPaymentGatewaySettlementRepository
@@ -782,11 +798,24 @@ public sealed class PaymentGatewaySettlementRepository(HealthAppDbContext db) : 
     }
     public Task UpdateAsync(PaymentGatewaySettlement settlement) { Context.PaymentGatewaySettlements.Update(settlement); return Task.CompletedTask; }
 
+    private IQueryable<PaymentGatewaySettlement> UnreconciledQuery(Guid? outletId) =>
+        Context.PaymentGatewaySettlements.AsNoTracking()
+            .Where(x => x.Status != "Reconciled" && (!outletId.HasValue || x.OutletId == outletId));
+
     public async Task<IReadOnlyList<PaymentGatewaySettlement>> GetUnreconciledAsync(Guid? outletId = null) =>
-        await Context.PaymentGatewaySettlements.AsNoTracking()
-            .Where(x => x.Status != "Reconciled" && (!outletId.HasValue || x.OutletId == outletId))
-            .OrderBy(x => x.CreatedAtUtc)
-            .ToListAsync();
+        await UnreconciledQuery(outletId).OrderBy(x => x.CreatedAtUtc).ToListAsync();
+
+    public async Task<(IReadOnlyList<PaymentGatewaySettlement> Items, int TotalCount)> GetUnreconciledPageAsync(
+        Guid? outletId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = UnreconciledQuery(outletId);
+        var totalCount = await query.CountAsync(cancellationToken);
+        var safePage = Math.Clamp(page, 1, 1_000_000);
+        var safePageSize = Math.Clamp(pageSize, 1, 100);
+        var items = await query.OrderBy(x => x.CreatedAtUtc).ThenBy(x => x.Id)
+            .Skip((safePage - 1) * safePageSize).Take(safePageSize).ToListAsync(cancellationToken);
+        return (items, totalCount);
+    }
 }
 
 public sealed class PaymentTransactionRepository(HealthAppDbContext db) : EfRepository(db), IPaymentTransactionRepository
