@@ -868,7 +868,8 @@ public sealed class DeliveryLabelService(
     IRecipeRepository recipes,
     ICustomerAddressRepository addresses,
     ICityAreaRepository areas,
-    IUserRepository users) : IDeliveryLabelService
+    IUserRepository users,
+    IDeliveryRouteRepository routes) : IDeliveryLabelService
 {
     public async Task<IReadOnlyList<DeliveryLabelDto>> GetLabelsAsync(DateTime? date)
     {
@@ -887,6 +888,16 @@ public sealed class DeliveryLabelService(
             rows=rows.Where(x=>x.ScheduledDate.Date==date.Value.Date).ToList();
 
         var result=new List<DeliveryLabelDto>();
+
+        var routeStatusMap = new Dictionary<Guid, (int Sequence, string Status)>();
+        foreach (var group in rows.Where(x => x.RouteId.HasValue).GroupBy(x => new { x.ScheduledDate.Date, x.MealSlot }))
+        {
+            var routeRows = await routes.GetByOutletAndDateAsync(id, group.Key.Date, group.Key.MealSlot);
+            foreach (var route in routeRows)
+                foreach (var stop in route.Stops)
+                    foreach (var delivery in group.Where(x => x.RouteStopId == stop.Id))
+                        routeStatusMap[delivery.Id] = (stop.StopSequence, route.Status.ToString());
+        }
 
         foreach(var delivery in rows.Where(x=>x.Status!=DeliveryStatus.Skipped))
         {
@@ -949,7 +960,10 @@ public sealed class DeliveryLabelService(
                     meal.MealPrice,
                     delivery.DeliveryFee,
                     delivery.Id,
-                    delivery.Status.ToString()));
+                    delivery.Status.ToString(),
+                    delivery.RouteId,
+                    routeStatusMap.TryGetValue(delivery.Id, out var routeInfo) ? routeInfo.Sequence : delivery.RouteSequence,
+                    routeStatusMap.TryGetValue(delivery.Id, out routeInfo) ? routeInfo.Status : ""));
             }
         }
 
