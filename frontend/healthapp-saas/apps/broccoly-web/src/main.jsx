@@ -148,9 +148,13 @@ function Registration({plans,initialPlan,onBack,onLogin}) {
       <h3>{p.name}</h3>
       <p>{p.description||'Tools and capacity for your outlet.'}</p>
       <strong>{money(cycle==='Annual'?p.annualFee:Math.round(Number(p.monthlyFee||0)*6*0.9*100)/100)}<small>/{cycle==='Annual'?'year':'6 months'}</small></strong>
-      <span>✓ {p.includedActiveCustomers} included active customers</span>
-      <span>✓ Core outlet and kitchen tools</span>
-      <span>✓ Features included in this plan</span>
+      <div className="registerPlanFeatures">
+       <span>✓ Meal package builder &amp; pricing</span>
+       <span>✓ Customer subscriptions &amp; meal schedules</span>
+       <span>✓ Kitchen orders &amp; preparation status</span>
+       <span>✓ Delivery scheduling &amp; driver workflow</span>
+       <span>✓ Branded customer storefront</span>
+      </div>
       <button type="button" className={selected?.id===p.id?'primary':'secondary'} onClick={e=>{e.stopPropagation();setSelectedPlan(p)}}>{selected?.id===p.id?'Selected':'Choose '+p.name}</button>
      </article>
     ))}
