@@ -60,6 +60,15 @@ public sealed class User
     }
 }
 
+public sealed class AreaManagerOutletAssignment
+{
+    public Guid Id { get; set; }
+    public Guid AreaManagerUserId { get; set; }
+    public Guid OutletId { get; set; }
+    public DateTime AssignedAtUtc { get; set; } = DateTime.UtcNow;
+    public Guid? AssignedByUserId { get; set; }
+}
+
 public sealed class OutletDemoRequest
 {
     public Guid Id { get; set; }
