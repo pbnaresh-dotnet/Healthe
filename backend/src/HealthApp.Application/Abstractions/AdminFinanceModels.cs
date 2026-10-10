@@ -29,6 +29,9 @@ public sealed record AdminFinanceSubscriptionRow(
 
 public interface IAdminFinanceRepository
 {
+    Task<AdminFinanceReportDto> GetReportAsync(
+        AdminFinanceReportRequest request, string section, int page, int pageSize,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminFinanceSubscriptionRow>> GetSubscriptionsAsync(
         AdminFinanceReportRequest request,
         CancellationToken cancellationToken = default);
