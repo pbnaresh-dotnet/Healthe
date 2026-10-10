@@ -46,7 +46,7 @@ Area Manager workspace endpoints (Area Manager bearer token):
 - `GET /api/area-manager/dashboard` — counts only for assigned outlets.
 - `GET /api/area-manager/outlets` — only assigned outlets.
 
-The embedded Super Admin UI at `broccoly.in/admin` now includes an **Area Managers** page to create accounts, select assigned outlets, edit assignments, and activate/deactivate managers. Area Manager accounts sign in to the same embedded console and see only their assigned-outlet workspace with status counts and assigned outlet/location information. The current workspace is intentionally read-only: it does not expose Super Admin actions or outlet operational write APIs. Additional actions (such as handling outlet requests or updating outlet configuration) should be introduced as explicitly scoped endpoints with an audit trail.
+The embedded Super Admin UI at `broccoly.in/admin` now includes an **Area Managers** page to create accounts, select assigned outlets, edit assignments, and activate/deactivate managers. Area Manager accounts sign in to the same embedded console and see only their assigned-outlet workspace with status counts and assigned outlet/location information. The assigned-outlet workspace does not expose Super Admin actions or outlet operational write APIs. SaaS billing and collections are an explicit, separately authorized exception: invoice generation and payment collection endpoints enforce each Area Manager's assigned-outlet scope and write audit records.
 
 
 ## Super Admin: create outlet with SaaS subscription
