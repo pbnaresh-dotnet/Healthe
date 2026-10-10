@@ -192,6 +192,23 @@ public sealed class PlatformTransactionRepository(HealthAppDbContext db) : EfRep
         await SaveAsync();
     }
     public async Task<IReadOnlyList<PlatformTransaction>> GetAllAsync() => await Context.PlatformTransactions.AsNoTracking().OrderByDescending(x => x.CreatedAt).ToListAsync();
+    public async Task<PlatformRevenueDto> GetRevenueSummaryAsync()
+    {
+        var summary = await Context.PlatformTransactions.AsNoTracking()
+            .GroupBy(_ => 1)
+            .Select(g => new PlatformRevenueDto(
+                g.Where(x => x.Type == "OutletSubscription").Sum(x => x.GrossAmount),
+                g.Where(x => x.Type == "CustomerSubscription").Sum(x => x.PlatformFee),
+                g.Where(x => x.Type == "OutletSubscription").Sum(x => x.GrossAmount)
+                    + g.Where(x => x.Type == "CustomerSubscription").Sum(x => x.PlatformFee)
+                    + g.Where(x => x.Type == "LateSkipFee").Sum(x => x.GrossAmount)
+                    + g.Where(x => x.Type == "OutletCommission").Sum(x => x.GrossAmount),
+                g.Where(x => x.Type == "LateSkipFee").Sum(x => x.GrossAmount),
+                g.Where(x => x.Type == "CustomerSubscription").Sum(x => x.PlatformFee),
+                g.Where(x => x.Type == "OutletCommission").Sum(x => x.GrossAmount)))
+            .FirstOrDefaultAsync();
+        return summary ?? new PlatformRevenueDto(0m, 0m, 0m, 0m, 0m, 0m);
+    }
     public Task<bool> ExistsByReferenceAsync(string referenceId) => Context.PlatformTransactions.AnyAsync(x => x.ReferenceId == referenceId);
 }
 
