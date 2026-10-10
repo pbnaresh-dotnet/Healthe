@@ -9,13 +9,18 @@ namespace HealthApp.Api.Controllers;
 [ApiController]
 [Route("api/admin/payment-settlements")]
 [Authorize(Roles = "SuperAdmin")]
-public sealed class PaymentSettlementController(IPaymentSettlementAccountingService settlements) : ControllerBase
+public sealed class PaymentSettlementController(IPaymentSettlementAccountingService settlements, IPaymentGatewaySettlementRepository settlementRepository) : ControllerBase
 {
     [HttpGet("unreconciled")]
-    public async Task<IActionResult> GetUnreconciled([FromQuery] Guid? outletId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetUnreconciled(
+        [FromQuery] Guid? outletId, [FromQuery] int page = 1, [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
     {
-        var rows = await settlements.GetUnreconciledAsync(outletId, cancellationToken);
-        return Ok(rows.Select(Map));
+        page = Math.Clamp(page, 1, 1_000_000);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        var result = await settlementRepository.GetUnreconciledPageAsync(outletId, page, pageSize, cancellationToken);
+        return Ok(new { items = result.Items.Select(Map), totalCount = result.TotalCount, page, pageSize,
+            totalPages = (int)Math.Ceiling(result.TotalCount / (double)pageSize) });
     }
 
     [HttpPost("reconcile")]
