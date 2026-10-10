@@ -476,6 +476,7 @@ public interface IOutletDiscountCodeService { Task<IReadOnlyList<DiscountCodeDto
 public interface IOutletPackageService
 {
     Task<IReadOnlyList<UserDto>> GetCustomersAsync();
+    Task<PageResult<UserDto>> GetCustomersPageAsync(string? search, int page, int pageSize);
     Task<UserDto?> CreateCustomerAsync(CreateOutletCustomerRequest request);
     Task<OutletCustomerProfileDto?> GetCustomerProfileAsync(Guid customerId);
     Task<OutletCustomerProfileDto?> UpdateCustomerProfileAsync(Guid customerId, SaveCustomerProfileRequest request);
