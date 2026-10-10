@@ -98,7 +98,7 @@ public sealed class AdminOutletProvisioningController(
             City = city,
             State = state,
             Pincode = pincode,
-            Status = OutletStatus.Live,
+            Status = request.MarkAsPaid ? OutletStatus.Live : OutletStatus.Pending,
             BillingPlan = MapBillingPlan(plan.Name),
             About = "",
             DeliveryDays = "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday",
@@ -118,7 +118,7 @@ public sealed class AdminOutletProvisioningController(
             MobileNumber = string.IsNullOrWhiteSpace(request.MobileNumber) ? null : request.MobileNumber.Trim(),
             Role = UserRole.OutletAdmin,
             OutletId = outletId,
-            IsActive = true
+            IsActive = request.MarkAsPaid
         };
         var subscription = new OutletSubscription
         {
@@ -138,7 +138,7 @@ public sealed class AdminOutletProvisioningController(
                 "SixMonths" => now.AddMonths(6),
                 _ => now.AddMonths(1)
             },
-            Status = "Active"
+            Status = request.MarkAsPaid ? "Active" : "Pending"
         };
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -223,6 +223,56 @@ public sealed class AdminOutletProvisioningController(
         });
     }
 
+    [HttpPost("outlets/{outletId:guid}/mark-paid")]
+    public async Task<IActionResult> MarkOutletPaid(Guid outletId, MarkAdminOutletPaidRequest request, CancellationToken cancellationToken)
+    {
+        if (!new[] { "Cash", "UPI", "BankTransfer", "Other" }.Contains(request.PaymentMethod))
+            return BadRequest(new { message = "Choose Cash, UPI, Bank transfer or Other as the payment method." });
+        if (request.PaymentMethod != "Cash" && string.IsNullOrWhiteSpace(request.PaymentReference))
+            return BadRequest(new { message = "Enter a transaction or receipt reference for non-cash payments." });
+
+        var outlet = await db.Outlets.SingleOrDefaultAsync(x => x.Id == outletId, cancellationToken);
+        if (outlet is null) return NotFound(new { message = "Outlet not found." });
+        var subscription = await db.OutletSubscriptions
+            .Where(x => x.OutletId == outletId)
+            .OrderByDescending(x => x.StartDate)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (subscription is null) return NotFound(new { message = "Outlet subscription not found." });
+        var payment = await db.PaymentTransactions
+            .Where(x => x.OutletId == outletId && x.PaymentType == "SaaSOutletProvisioning")
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (payment is null) return NotFound(new { message = "Provisioning payment record not found." });
+        if (payment.Status == "Paid") return Conflict(new { message = "This provisioning amount is already marked as paid." });
+        if (payment.Amount < 0m) return Conflict(new { message = "The recorded amount due is invalid." });
+
+        var now = DateTime.UtcNow;
+        payment.Provider = "Manual";
+        payment.PaymentMethod = request.PaymentMethod;
+        payment.ProviderStatus = "Paid";
+        payment.Status = "Paid";
+        payment.ProcessingStatus = "Completed";
+        payment.PaidAtUtc = now;
+        payment.GatewayResponseJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Source = "SuperAdminOutletProvisioning",
+            CreatedByUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value,
+            PaymentMethod = request.PaymentMethod,
+            PaymentReference = string.IsNullOrWhiteSpace(request.PaymentReference) ? null : request.PaymentReference.Trim(),
+            Notes = string.IsNullOrWhiteSpace(request.PaymentNotes) ? null : request.PaymentNotes.Trim(),
+            Amount = payment.Amount,
+            DiscountPercent = subscription.DiscountPercent,
+            DiscountAmount = subscription.DiscountAmount,
+            MarkedPaidAtUtc = now
+        });
+        subscription.Status = "Active";
+        outlet.Status = OutletStatus.Live;
+        var owner = await db.Users.FirstOrDefaultAsync(x => x.OutletId == outletId && x.Role == UserRole.OutletAdmin, cancellationToken);
+        if (owner is not null) owner.IsActive = true;
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { outlet.Id, outlet.Status, SubscriptionStatus = subscription.Status, PaymentStatus = payment.Status, payment.Amount, payment.PaymentMethod, payment.PaidAtUtc });
+    }
+
     private async Task<string> CreateUniqueSlugAsync(string name, CancellationToken cancellationToken)
     {
         var builder = new StringBuilder();
@@ -273,3 +323,5 @@ public sealed record CreateAdminOutletRequest(
     string PaymentMethod = "",
     string? PaymentReference = null,
     string? PaymentNotes = null);
+
+public sealed record MarkAdminOutletPaidRequest(string PaymentMethod, string? PaymentReference = null, string? PaymentNotes = null);
