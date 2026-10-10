@@ -307,6 +307,7 @@ public interface IAdminService
     Task<AdminOutlet360Dto?> GetOutlet360Async(Guid outletId);
     Task<AdminFinanceReportDto> GetFinanceReportAsync(AdminFinanceReportRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<OutletDto>> GetOutletsAsync();
+    Task<PageResult<OutletDto>> GetOutletsPageAsync(string? search, string? status, string? city, int page, int pageSize);
     Task<IReadOnlyList<UserDto>> GetUsersAsync();
     Task<object> GetDashboardAsync();
     Task<PlatformRevenueDto> GetRevenueAsync();
