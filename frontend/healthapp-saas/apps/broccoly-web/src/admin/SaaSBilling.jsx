@@ -6,7 +6,7 @@ const dateText=v=>v?new Date(v).toLocaleDateString('en-IN',{day:'2-digit',month:
 export default function SaaSBilling({isAreaManager=false,onError=()=>{},notify=()=>{}}){
  const [period,setPeriod]=useState(todayPeriod());
  const [dueDay,setDueDay]=useState('15');
- const [taxRate,setTaxRate]=useState('0');
+ const [taxRate,setTaxRate]=useState('18');
  const [status,setStatus]=useState('');
  const [invoices,setInvoices]=useState([]);
  const [busy,setBusy]=useState(false);
@@ -30,8 +30,8 @@ export default function SaaSBilling({isAreaManager=false,onError=()=>{},notify=(
    <div className="metricCard"><div className="metricTop">Outstanding balance</div><b>{money(totals.due)}</b></div>
   </div>
   <div className="card billingGenerate"><div><span className="eyebrow">BILLING RUN</span><h2>Generate period invoices</h2><p>Creates invoices for eligible active subscriptions. Existing outlet/period invoices are skipped to prevent duplicate billing.</p></div>
-   <div className="billingControls"><label>Billing period<input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/></label><label>Due day<input type="number" min="1" max="28" value={dueDay} onChange={e=>setDueDay(e.target.value)}/></label><label>Tax rate (%)<input type="number" min="0" max="100" step="0.01" value={taxRate} onChange={e=>setTaxRate(e.target.value)}/></label><button className="primaryBtn" type="button" onClick={generate} disabled={busy||!period||Number(dueDay)<1||Number(dueDay)>28}>Generate invoices</button></div>
-   <small className="muted">Tax is not inferred automatically. Enter only the rate approved for this SaaS charge under the current finance policy. The rate and calculation are preserved in each invoice snapshot.</small>
+   <div className="billingControls"><label>Billing period<input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/></label><label>Due day<input type="number" min="1" max="28" value={dueDay} onChange={e=>setDueDay(e.target.value)}/></label>{!isAreaManager&&<label>Tax rate (%)<input type="number" min="0" max="100" step="0.01" value={taxRate} onChange={e=>setTaxRate(e.target.value)}/></label>}<button className="primaryBtn" type="button" onClick={generate} disabled={busy||!period||Number(dueDay)<1||Number(dueDay)>28}>Generate invoices</button></div>
+   <small className="muted">Area Managers use the configured SaaS tax rate (default 18%). Super Admin may override the rate for an approved exception. The applied rate and calculation are preserved in each invoice snapshot.</small>
   </div>
   <div className="card">
    <div className="billingTableHead"><div><h2>Invoice register</h2><p>{visible.length} invoice(s) · {period}</p></div><div className="billingFilters"><input aria-label="Search invoices" placeholder="Search outlet or invoice" value={filterText} onChange={e=>setFilterText(e.target.value)}/><select aria-label="Invoice status" value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option><option value="Issued">Issued</option><option value="PartiallyPaid">Partially paid</option><option value="Paid">Paid</option><option value="Overdue">Overdue</option><option value="Voided">Voided</option></select></div></div>
