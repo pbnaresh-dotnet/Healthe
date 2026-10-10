@@ -6,6 +6,7 @@ import ApplicationErrorMonitor from './ApplicationErrorMonitor.jsx';
 import OutletGroups from './OutletGroups.jsx';
 import Outlet360 from './Outlet360.jsx';
 import FinanceRulesHelp from './FinanceRulesHelp.jsx';
+import SaaSBilling from './SaaSBilling.jsx';
 
 const AREA_MANAGER_ROLE='AreaManager';
 
@@ -13,7 +14,7 @@ const NAV_GROUPS=[
  {label:'Command Center',items:[['overview','Dashboard','grid']]},
  {label:'Tenants',items:[['outlets','Outlets','building'],['area-managers','Area Managers','building'],['groups','Outlet Groups','building'],['onboarding','Onboarding','clipboard'],['domains','Domains','globe']]},
  {label:'Operations',items:[['geography','Cities & Coverage','pin']]},
- {label:'Finance & Reports',items:[['finance','Finance','chart'],['finance-rules','Finance Rules','clipboard']]},
+ {label:'Finance & Reports',items:[['finance','Finance','chart'],['saas-billing','SaaS Billing','chart'],['finance-rules','Finance Rules','clipboard']]},
  {label:'Platform',items:[['health','Platform Health','pulse']]}
 ];
 
@@ -194,7 +195,7 @@ function App(){
   <div className={`layout ${sidebarOpen?'navOpen':''}`}>
    <aside className="sidebar">
     <div className="mobileSidebarHead"><b>Platform</b><button type="button" onClick={()=>setSidebarOpen(false)}><Icon name="close" size={16}/></button></div>
-    <nav>{(isAreaManager?[{label:'My Area',items:[['manager-home','Assigned outlets','building']]}]:NAV_GROUPS).map(group=><div className="navGroup" key={group.label}><span className="navGroupLabel">{group.label}</span>{group.items.map(([id,label,icon])=><button type="button" key={id} className={page===id?'navItem active':'navItem'} onClick={()=>openPage(id)}><Icon name={icon} size={17}/><span>{label}</span>{page===id&&<i/>}</button>)}</div>)}</nav>
+    <nav>{(isAreaManager?[{label:'My Area',items:[['manager-home','Assigned outlets','building'],['saas-billing','SaaS Billing','chart']]}]:NAV_GROUPS).map(group=><div className="navGroup" key={group.label}><span className="navGroupLabel">{group.label}</span>{group.items.map(([id,label,icon])=><button type="button" key={id} className={page===id?'navItem active':'navItem'} onClick={()=>openPage(id)}><Icon name={icon} size={17}/><span>{label}</span>{page===id&&<i/>}</button>)}</div>)}</nav>
     <div className="sidebarFooter"><span>Standalone SaaS</span><small>One database · tenant isolated</small></div>
    </aside>
    {sidebarOpen&&<button className="navScrim" aria-label="Close navigation" onClick={()=>setSidebarOpen(false)}></button>}
@@ -214,6 +215,7 @@ function App(){
     {!isAreaManager&&page==='domains'&&<DomainCenter domains={filteredDomains} allDomains={domains} outlets={data.o||[]} search={domainSearch} setSearch={setDomainSearch} status={domainStatus} setStatus={setDomainStatus} onUpdate={updateDomain}/>}
     {!isAreaManager&&page==='geography'&&<Geography cities={cities} areas={areas} form={form} setForm={setForm} areaForm={areaForm} setAreaForm={setAreaForm} onCreateCity={createCity} onToggleCity={toggleCity} onCreateArea={createArea} loading={loading}/>}
     {!isAreaManager&&page==='finance'&&<Finance report={financeReport} filters={financeFilters} setFilters={setFinanceFilters} groups={data.groups||[]} outlets={data.o||[]} onApply={loadFinance} loading={financeLoading} onFinanceRules={()=>openPage('finance-rules')}/>}
+    {page==='saas-billing'&&<SaaSBilling isAreaManager={isAreaManager} onError={setError} notify={notify}/> }
     {!isAreaManager&&page==='finance-rules'&&<FinanceRulesHelp policy={financePolicy} onBack={()=>openPage('finance')} onFinance={()=>openPage('finance')}/>}
     {!isAreaManager&&page==='health'&&<section><PageIntro eyebrow="PLATFORM HEALTH" title="Operational health" text="Central visibility into application errors and tenant-impacting incidents. Drill into an event to see outlet, request, user and correlation context." action={<button className="secondaryBtn" onClick={()=>openPage('overview')}><Icon name="arrow" size={15}/> Command center</button>}/><ApplicationErrorMonitor outlets={data.o||[]}/></section>}
    </main>
