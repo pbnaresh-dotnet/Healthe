@@ -49,6 +49,28 @@ BEGIN
     CREATE INDEX IX_SaaSInvoices_Status_DueDate ON dbo.SaaSInvoices(Status,DueDateUtc);
     CREATE INDEX IX_SaaSInvoices_Period_Outlet ON dbo.SaaSInvoices(BillingPeriod,OutletId);
 END;
+IF OBJECT_ID('dbo.SaaSInvoicePaymentLinks','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SaaSInvoicePaymentLinks(
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_SaaSInvoicePaymentLinks PRIMARY KEY,
+        InvoiceId uniqueidentifier NOT NULL,
+        Provider nvarchar(40) NOT NULL,
+        ProviderLinkId nvarchar(160) NOT NULL,
+        PaymentUrl nvarchar(2000) NOT NULL,
+        Amount decimal(18,2) NOT NULL,
+        Currency nvarchar(3) NOT NULL,
+        RecipientEmail nvarchar(320) NOT NULL,
+        ExpiresAtUtc datetime2 NOT NULL,
+        Status nvarchar(30) NOT NULL,
+        CreatedByUserId uniqueidentifier NOT NULL,
+        CreatedAtUtc datetime2 NOT NULL,
+        EmailSentAtUtc datetime2 NULL,
+        EmailError nvarchar(500) NOT NULL CONSTRAINT DF_SaaSInvoicePaymentLinks_EmailError DEFAULT '',
+        CONSTRAINT FK_SaaSInvoicePaymentLinks_Invoices FOREIGN KEY(InvoiceId) REFERENCES dbo.SaaSInvoices(Id)
+    );
+    CREATE UNIQUE INDEX UX_SaaSInvoicePaymentLinks_ProviderLinkId ON dbo.SaaSInvoicePaymentLinks(Provider,ProviderLinkId);
+    CREATE INDEX IX_SaaSInvoicePaymentLinks_Invoice_Created ON dbo.SaaSInvoicePaymentLinks(InvoiceId,CreatedAtUtc DESC);
+END;
 IF OBJECT_ID('dbo.SaaSInvoicePayments','U') IS NULL
 BEGIN
     CREATE TABLE dbo.SaaSInvoicePayments(
