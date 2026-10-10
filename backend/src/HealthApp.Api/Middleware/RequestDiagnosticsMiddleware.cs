@@ -29,7 +29,7 @@ public sealed class RequestDiagnosticsMiddleware(RequestDelegate next, ILogger<R
             stopwatch.Stop();
             var status = context.Response.StatusCode;
             var slow = stopwatch.ElapsedMilliseconds >= threshold;
-            if (enabled && (status >= 400 || slow || detailed))
+            if (enabled)
             {
                 var route = context.GetEndpoint()?.DisplayName ?? context.Request.Path.Value ?? "/";
                 var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
