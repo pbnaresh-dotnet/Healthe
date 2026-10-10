@@ -766,6 +766,8 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion135Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion136Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion137Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion138Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion139Async(db, document, cancellationToken);
             return;
         }
 
@@ -839,6 +841,8 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion135Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion136Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion137Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion138Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion139Async(db, document, cancellationToken);
     }
 
     private static async Task SeedFinancePolicyVersion11Async(
@@ -2242,6 +2246,140 @@ WHERE NOT EXISTS
                 CreatedAtUtc = now
             });
 
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+
+
+    private static async Task SeedFinancePolicyVersion138Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.8",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.7")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode, x.Title, x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.3.8: on-demand Cashfree payment links are created for the current outstanding invoice balance and linked to the invoice, provider link ID, currency, expiry and recipient. The signed payment-link webhook is the only automatic online-posting path in this module; non-paid events do not change the ledger. Payment-link creation or email delivery is not evidence of payment.",
+                "governance" => x.ContentMarkdown + " Policy v1.3.8: the payment-link webhook validates the provider HMAC signature over the timestamp and raw request body, resolves the registered provider link, checks currency, and uses a stable invoice-scoped idempotency key. A mismatch or amount greater than the remaining invoice balance is rejected for manual reconciliation.",
+                "audit-trace" => x.ContentMarkdown + " Policy v1.3.8: link creation, recipient, amount, expiry, email outcome and provider-confirmed collection are persisted/audited. The link URL is a payment request only; the invoice snapshot is not rewritten by collection.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder).Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.3.8",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 10, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Document on-demand Cashfree invoice payment links, outlet email delivery and signed webhook collection.",
+            ChangeReason = "Keep payment-link creation, email delivery and verified collections distinguishable and auditable.",
+            SourceCodeReference = "SAAS-BILLING-COLLECTIONS-PAYMENT-LINKS-1.3.8",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedFinancePolicyVersion139Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.9",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.8")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode, x.Title, x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.3.9: a signed Cashfree webhook must report the exact rounded amount recorded for its registered payment link before an invoice collection is posted. A mismatch is rejected and must be reconciled manually; it must not be silently treated as a partial receipt.",
+                "governance" => x.ContentMarkdown + " Policy v1.3.9: webhook amount validation compares the provider-reported amount against the immutable amount recorded when the payment link was created, in addition to currency and outstanding-balance checks. This guards against altered, inconsistent or stale payment-link events.",
+                "audit-trace" => x.ContentMarkdown + " Policy v1.3.9: rejected link-amount mismatches create no payment row and do not change invoice balance. The mismatch is returned for operational reconciliation; provider secrets and raw webhook bodies are not written to application logs.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder).Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.3.9",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 10, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Require exact registered payment-link amount matching before webhook collection posting.",
+            ChangeReason = "Prevent inconsistent provider amounts from being posted as valid invoice collections.",
+            SourceCodeReference = "SAAS-BILLING-WEBHOOK-AMOUNT-VALIDATION-1.3.9",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
         document.UpdatedAtUtc = now;
         await db.SaveChangesAsync(cancellationToken);
     }
