@@ -98,10 +98,10 @@ function App(){
   if(!token){setError('Your admin session has expired. Please sign in again.');return}
   const tab=window.open('about:blank','_blank');
   if(!tab){setError('Please allow pop-ups to open protected documents.');return}
+  const correlationId=globalThis.crypto?.randomUUID?.()||`${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  const startedAt=globalThis.performance?.now?.()??Date.now();
   try{
    setLoading(true);
-   const correlationId=globalThis.crypto?.randomUUID?.()||`${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-   const startedAt=globalThis.performance?.now?.()??Date.now();
    const response=await fetch(fileUrl(url),{headers:{Authorization:`Bearer ${token}`,'X-Correlation-Id':correlationId}});
    const durationMs=Math.round((globalThis.performance?.now?.()??Date.now())-startedAt);
    const responseCorrelationId=response.headers.get('X-Correlation-Id')||correlationId;
@@ -109,7 +109,7 @@ function App(){
    if(!response.ok)throw new Error('Unable to open the document.');
    const blob=await response.blob(),objectUrl=URL.createObjectURL(blob);
    tab.location.href=objectUrl;setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);
-  }catch(e){tab.close();setError(e.message||'Unable to open the document.')}finally{setLoading(false)}
+  }catch(e){if(import.meta.env.DEV)console.warn('[HealthApp API]',{method:'GET',route:'protected-document',status:e.status||0,durationMs:Math.round((globalThis.performance?.now?.()??Date.now())-startedAt),correlationId,error:'request-failed'});tab.close();setError((e.message||'Unable to open the document.')+(e.correlationId?' Reference: '+e.correlationId:''))}finally{setLoading(false)}
  };
 
  const createCity=async()=>{
