@@ -106,7 +106,7 @@ function App(){
    const durationMs=Math.round((globalThis.performance?.now?.()??Date.now())-startedAt);
    const responseCorrelationId=response.headers.get('X-Correlation-Id')||correlationId;
    if(import.meta.env.DEV&&(!response.ok||durationMs>=1000))console.warn('[HealthApp API]',{method:'GET',route:'protected-document',status:response.status,durationMs,correlationId:responseCorrelationId});
-   if(!response.ok)throw new Error('Unable to open the document.');
+   if(!response.ok){const error=new Error('Unable to open the document.');error.correlationId=responseCorrelationId;error.status=response.status;throw error;}
    const blob=await response.blob(),objectUrl=URL.createObjectURL(blob);
    tab.location.href=objectUrl;setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);
   }catch(e){if(import.meta.env.DEV)console.warn('[HealthApp API]',{method:'GET',route:'protected-document',status:e.status||0,durationMs:Math.round((globalThis.performance?.now?.()??Date.now())-startedAt),correlationId,error:'request-failed'});tab.close();setError((e.message||'Unable to open the document.')+(e.correlationId?' Reference: '+e.correlationId:''))}finally{setLoading(false)}
