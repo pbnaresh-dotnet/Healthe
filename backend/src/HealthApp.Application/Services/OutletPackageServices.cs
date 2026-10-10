@@ -99,16 +99,16 @@ public sealed class OutletPackageActivationService(
                 }
             }
 
-            var existingTx = await transactions.GetAllAsync();
-            var alreadyRecorded = existingTx.Any(x => x.SubscriptionId == subscription.Id && x.Type == "CustomerSubscription");
+            var alreadyRecorded = await transactions.ExistsForSubscriptionAsync(subscription.Id, "CustomerSubscription");
+            var pendingLateSkipTransactions = lateSkipRecovery > 0m
+                ? await transactions.GetPendingLateSkipFeesAsync(subscription.CustomerId, subscription.OutletId)
+                : Array.Empty<PlatformTransaction>();
             var lateSkipRecovery = subscription.LateSkipRecoveryAmount;
             if (lateSkipRecovery > 0m) {
                 await credits.AddAsync(new CustomerCreditTransaction { Id = Guid.NewGuid(), CustomerId = subscription.CustomerId, SubscriptionId = subscription.Id, Amount = lateSkipRecovery, Type = CreditTransactionType.Credit, Reason = $"Recovery of late skip fees through package {subscription.Id:N}; original outlet {subscription.OutletId:N}", CreatedAt = DateTime.UtcNow });
 
                 var remainingRecovery = lateSkipRecovery;
-                foreach (var lateSkipTransaction in existingTx
-                    .Where(x => x.CustomerId == subscription.CustomerId && x.OutletId == subscription.OutletId && x.Type == "LateSkipFee" && x.Status == "Pending")
-                    .OrderBy(x => x.CreatedAt))
+                foreach (var lateSkipTransaction in pendingLateSkipTransactions)
                 {
                     if (remainingRecovery <= 0m) break;
                     var amount = Math.Min(remainingRecovery, lateSkipTransaction.GrossAmount);
@@ -123,7 +123,7 @@ public sealed class OutletPackageActivationService(
                 if (remainingRecovery != 0m)
                     throw new InvalidOperationException("Late-skip recovery could not be fully reconciled to pending original charges.");
 
-                var recoveryTransaction = (await transactions.GetAllAsync()).FirstOrDefault(x => x.SubscriptionId == subscription.Id && x.Type == "LateSkipFeeRecovery" && x.Status != "Paid");
+                var recoveryTransaction = await transactions.GetRecoveryTransactionAsync(subscription.Id);
                 if (recoveryTransaction is not null) { recoveryTransaction.Status = "Paid"; await transactions.UpdateAsync(recoveryTransaction); }
             }
 
