@@ -6,7 +6,10 @@ public record AdminFinanceReportRequest(
     Guid? OutletGroupId = null,
     Guid? OutletId = null,
     string? City = null,
-    Guid? MealPlanId = null);
+    Guid? MealPlanId = null,
+    string Section = "summary",
+    int Page = 1,
+    int PageSize = 25);
 
 public record AdminFinanceAmountsDto(
     decimal GrossMealAmount,
@@ -62,7 +65,11 @@ public record AdminFinanceReportDto(
     AdminFinanceReportTotalsDto Totals,
     IReadOnlyList<AdminFinanceOutletRowDto> Outlets,
     IReadOnlyList<AdminFinanceGroupRowDto> Groups,
-    IReadOnlyList<AdminFinanceDailyRowDto> Daily);
+    IReadOnlyList<AdminFinanceDailyRowDto> Daily,
+    string Section = "summary",
+    int Page = 1,
+    int PageSize = 25,
+    int TotalRows = 0);
 
 
 public record PaymentSettlementReconciliationDto(
