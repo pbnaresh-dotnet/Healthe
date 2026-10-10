@@ -153,3 +153,18 @@ html{scroll-padding-top:76px}body{overflow-x:hidden}img,video,svg{max-width:100%
  .paymentGrid .summaryCard .line span{flex:1}
  .paymentGrid .summaryCard .line b{max-width:58%;overflow-wrap:anywhere}
 }
+
+/* Clearly disclose planned modules without making them selectable. */
+.comingSoonFeatures{width:100%;max-width:1050px;margin:22px auto 0;padding:18px;border:1px solid #dce8df;border-radius:18px;background:linear-gradient(135deg,#f7fbf8,#fff);}
+.comingSoonIntro{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+.comingSoonIntro>b{font-size:15px;color:#173b24;}
+.comingSoonIntro>span{font-size:12px;line-height:1.5;color:#718078;}
+.comingSoonGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.comingSoonFeature{display:flex;align-items:center;gap:11px;min-width:0;padding:13px;border:1px dashed #cbd9ce;border-radius:13px;background:#f4f7f4;opacity:.82;}
+.comingSoonIcon{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border-radius:11px;background:#e6ece7;color:#607366;font-size:18px;}
+.comingSoonCopy{display:flex;flex:1;flex-direction:column;gap:3px;min-width:0;}
+.comingSoonCopy>b{font-size:12px;color:#53645a;}
+.comingSoonCopy>small{font-size:10px;line-height:1.4;color:#7a877f;}
+.comingSoonBadge{flex:0 0 auto;padding:6px 8px;border-radius:99px;background:#e6ece7;color:#617166;font-size:9px;font-weight:900;white-space:nowrap;}
+.registerComingSoon{max-width:none;margin-top:20px;}
+@media(max-width:560px){.comingSoonFeatures{padding:14px;border-radius:15px}.comingSoonGrid{grid-template-columns:minmax(0,1fr)}.comingSoonFeature{padding:11px}.comingSoonBadge{font-size:9px}}
