@@ -16,10 +16,15 @@ public sealed class PaymentSettlementExceptionsController(
     public async Task<IActionResult> GetOpen(
         [FromQuery] string? provider,
         [FromQuery] Guid? outletId,
-        CancellationToken cancellationToken)
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
     {
-        var rows = await exceptions.GetOpenAsync(provider, outletId);
-        return Ok(rows.Select(Map));
+        page = Math.Clamp(page, 1, 1_000_000);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        var result = await exceptions.GetOpenPageAsync(provider, outletId, page, pageSize, cancellationToken);
+        return Ok(new { items = result.Items.Select(Map), totalCount = result.TotalCount, page, pageSize,
+            totalPages = (int)Math.Ceiling(result.TotalCount / (double)pageSize) });
     }
 
     [HttpPost("{id:guid}/resolve")]
@@ -31,8 +36,7 @@ public sealed class PaymentSettlementExceptionsController(
         if (string.IsNullOrWhiteSpace(request.ResolutionNotes))
             return BadRequest(new { message = "Resolution notes are required." });
 
-        var rows = await exceptions.GetOpenAsync();
-        var item = rows.FirstOrDefault(x => x.Id == id);
+        var item = await exceptions.GetByIdAsync(id, cancellationToken);
         if (item is null)
             return NotFound(new { message = "Open reconciliation exception was not found." });
 
