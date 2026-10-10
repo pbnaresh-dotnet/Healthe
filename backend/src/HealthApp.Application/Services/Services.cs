@@ -2258,7 +2258,8 @@ public sealed class AdminService(
     public async Task<IReadOnlyList<OutletDto>> GetOutletsAsync()=>(await outlets.GetAllAsync()).Select(x=>new OutletDto(x.Id,x.Name,x.Slug,x.Subdomain,x.City,x.State,x.Pincode,x.Status.ToString(),x.BillingPlan.ToString(),x.LogoUrl??string.Empty,x.HeroImageUrl??string.Empty,(x.HealthHighlights??string.Empty).Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToList(),x.PrimaryColor,x.Status==OutletStatus.Active,0,x.Rating,x.ReviewCount,x.About,0,0,"","","",x.DeliveryCoverageMode.ToString(),x.ServiceRadiusKm,x.Branding?.FontFamily??"Inter",x.Branding?.ThemeStyle??"Fresh",x.Branding?.ButtonStyle??"Rounded",x.Branding?.CardStyle??"Soft",x.CustomPackagePricingMode,x.ShowPackagePriceToCustomer,x.ShowMealPriceToCustomer,x.ShowDeliveryFeeToCustomer,x.SupportsLargePortion,x.OutletGroupId)).ToList();
     public async Task<PageResult<OutletDto>> GetOutletsPageAsync(string? search, string? status, string? city, int page, int pageSize)
     {
-        if (!string.IsNullOrWhiteSpace(status) && !Enum.TryParse<OutletStatus>(status.Trim(), true, out _))
+        if (!string.IsNullOrWhiteSpace(status) &&
+            (!Enum.TryParse<OutletStatus>(status.Trim(), true, out var parsedStatus) || !Enum.IsDefined(typeof(OutletStatus), parsedStatus)))
             throw new ArgumentException("Unsupported outlet status. Use Pending, Active, Suspended or Live.");
 
         var result = await outlets.GetPageAsync(search, status, city, page, pageSize);
