@@ -1436,7 +1436,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Trials_Outlets')
 
         // Keep the old text columns harmless for older databases; normalized values are now authoritative.
         var configuration = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
-        var seedDemoData = configuration.GetValue<bool>("Database:SeedDemoData", true);
+        var seedDemoData = bool.TryParse(configuration["Database:SeedDemoData"], out var configuredSeedDemoData) ? configuredSeedDemoData : true;
         await DatabaseSeeder.SeedAsync(
             db,
             scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(),
