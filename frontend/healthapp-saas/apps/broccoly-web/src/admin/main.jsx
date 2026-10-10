@@ -112,10 +112,28 @@ function App(){
        if(failed)setError(failed.reason?.message||'Some dashboard metrics could not be loaded.');
      }
    }
-   if(page==='geography'){const [cs,ars]=await Promise.all([admin.cities(),admin.cityAreas()]);if(!cancelled){setCities(cs||[]);setAreas(ars||[]);}}
+   if(page==='geography'){
+    const results=await Promise.allSettled([admin.cities(),admin.cityAreas()]);
+    if(!cancelled){
+     const [cityResult,areaResult]=results;
+     if(cityResult.status==='fulfilled')setCities(cityResult.value||[]);
+     if(areaResult.status==='fulfilled')setAreas(areaResult.value||[]);
+     const failed=results.find(x=>x.status==='rejected');
+     if(failed)setError(failed.reason?.message||'Some coverage data could not be loaded.');
+    }
+   }
    if(page==='health'){const us=await admin.users();if(!cancelled)setData(prev=>({...prev,us:us||[]}));}
     if(page==='area-managers'){const ms=await admin.areaManagers();if(!cancelled)setData(prev=>({...prev,areaManagers:ms||[]}));}
-    if(page==='manager-home'){const [summary,outlets]=await Promise.all([admin.areaManagerDashboard(),admin.myManagedOutlets()]);if(!cancelled)setData(prev=>({...prev,managerSummary:summary||{},managedOutlets:outlets||[]}));}
+    if(page==='manager-home'){
+    const results=await Promise.allSettled([admin.areaManagerDashboard(),admin.myManagedOutlets()]);
+    if(!cancelled){
+     const [summaryResult,outletsResult]=results;
+     if(summaryResult.status==='fulfilled')setData(prev=>({...prev,managerSummary:summaryResult.value||{}}));
+     if(outletsResult.status==='fulfilled')setData(prev=>({...prev,managedOutlets:outletsResult.value||[]}));
+     const failed=results.find(x=>x.status==='rejected');
+     if(failed)setError(failed.reason?.message||'Some assigned-outlet data could not be loaded.');
+    }
+   }
   }catch(e){if(!cancelled)setError(e.message||'Unable to load this section')}};
   run();return()=>{cancelled=true};
  },[u,page]);
