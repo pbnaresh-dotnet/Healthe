@@ -1,5 +1,6 @@
 using System.Data;
 using HealthApp.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace HealthApp.Api.Middleware;
 
