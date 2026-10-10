@@ -587,3 +587,20 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
 .createOutletCard .inlineError{margin-top:12px}
 @media(max-width:900px){.createOutletFields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.createOutletFields{grid-template-columns:minmax(0,1fr)}.createOutletActions{align-items:stretch;flex-direction:column}.createOutletActions .primaryBtn{width:100%;justify-content:center}.createOutletCard{padding:16px}}
+
+
+.adminPaymentSummary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:16px}
+.adminPaymentSummary>div{display:flex;flex-direction:column;gap:7px;padding:13px;border:1px solid var(--border,#e2e8f0);border-radius:12px;background:var(--surface,#fff)}
+.adminPaymentSummary span{font-size:11px;color:var(--muted,#64748b)}
+.adminPaymentSummary b{font-size:15px;color:var(--text,#0f172a)}
+.adminPaymentSummary .adminPaymentDue{background:#f0fdf4;border-color:#bbf7d0}
+.adminPaymentSummary .adminPaymentDue b{color:#166534;font-size:18px}
+.adminPaymentChoice{margin-top:16px;padding:15px;border:1px solid var(--border,#e2e8f0);border-radius:12px}
+.adminPaidToggle{display:flex;align-items:flex-start;gap:10px;cursor:pointer}
+.adminPaidToggle input{margin-top:4px;width:17px;height:17px;accent-color:#15803d}
+.adminPaidToggle span{display:flex;flex-direction:column;gap:5px}
+.adminPaidToggle b{font-size:13px}
+.adminPaidToggle small,.createOutletFields small{font-size:11px;color:var(--muted,#64748b);line-height:1.45}
+.adminPaymentFields{margin-top:14px}
+@media(max-width:900px){.adminPaymentSummary{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:560px){.adminPaymentSummary{grid-template-columns:repeat(2,minmax(0,1fr))}.adminPaymentSummary .adminPaymentDue{grid-column:1/-1}}
