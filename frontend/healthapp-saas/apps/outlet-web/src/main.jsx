@@ -632,8 +632,9 @@ function KitchenPage({data,date,setDate,refresh,onMarkFoodReady}) {
   {value:3,name:'Evening'},
   {value:4,name:'Night'}
  ];
- const selectedLabels=useMemo(()=>data?.labels?.filter(l=>printSlots.includes(Number(l.mealSlot))&&l.routeId&&Number(l.routeSequence)>0&&String(l.routeStatus||'').toLowerCase()==='dispatched')||[],[data,printSlots]);
- const labelsNotDispatched=useMemo(()=>data?.labels?.filter(l=>printSlots.includes(Number(l.mealSlot))&&!(l.routeId&&Number(l.routeSequence)>0&&String(l.routeStatus||'').toLowerCase()==='dispatched')).length||0,[data,printSlots]);
+ const deliveryLabels=useMemo(()=>{const map=new Map();(data?.labels||[]).filter(l=>printSlots.includes(Number(l.mealSlot))&&l.deliveryId).forEach(l=>{const key=String(l.deliveryId);const current=map.get(key)||{...l,items:[],itemCount:0};current.items.push({selectionId:l.selectionId,name:l.mealName,category:l.category,portionSize:l.portionSize});current.itemCount+=1;map.set(key,current)});return [...map.values()]},[data,printSlots]);
+ const selectedLabels=useMemo(()=>deliveryLabels.filter(l=>l.routeId&&Number(l.routeSequence)>0&&String(l.routeStatus||'').toLowerCase()==='dispatched'),[deliveryLabels]);
+ const labelsNotDispatched=deliveryLabels.filter(l=>!(l.routeId&&Number(l.routeSequence)>0&&String(l.routeStatus||'').toLowerCase()==='dispatched')).length;
  const production=useMemo(()=>{
   // Production must be visible before a route is dispatched. Build it from all
   // scheduled labels for the selected windows; dispatch status gates label printing,
@@ -701,15 +702,15 @@ function KitchenPage({data,date,setDate,refresh,onMarkFoodReady}) {
 
    <section className={printMode==='labels'?'labelPrintArea printTarget':'labelPrintArea'}>
     <div className="labelsPrintHeader"><div className="healthLogo printLogo">H</div><div><b>{data.outletName}</b><span>Delivery labels · {new Date(date).toLocaleDateString()} · {printSlots.map(v=>slots.find(s=>s.value===v)?.name).join(' + ')}</span></div></div>
-    <div className="labelGrid">{selectedLabels.map(l=><article className="labelCard" key={l.selectionId}>
-      <div className="labelTop"><div className="labelOutletBrand">{l.logoUrl?<img src={img(l.logoUrl)} alt=""/>:<div className="outletLogo">{(l.outletName||'O')[0]}</div>}<b>{l.outletName}</b></div><span>{l.subscriptionPlanName}</span></div>
+    <div className="labelGrid">{selectedLabels.map(l=><article className="labelCard consolidatedBagLabel" key={l.deliveryId}>
+      <div className="labelTop"><div className="labelOutletBrand">{l.logoUrl?<img src={img(l.logoUrl)} alt=""/>:<div className="outletLogo">{(l.outletName||'O')[0]}</div>}<b>{l.outletName}</b></div><span>BAG LABEL</span></div>
       <div className="labelCustomerCompact"><span>{l.addressLabel||'DELIVERY'}</span><b>{l.customerName}</b></div>
-      <div className="labelMealCompact"><b>{l.mealName}</b><span>{l.category} · {l.portionSize}</span></div>
       <div className="labelSequence">DELIVERY STOP <strong>{String(l.routeSequence).padStart(2,'0')}</strong></div>
       <div className="labelMetaRow"><span>{l.mealSlotName}</span><b>{l.deliveryWindow}</b></div>
       <div className="labelAddressCompact"><b>{l.address}</b><span>{[l.areaName,l.pincode].filter(Boolean).join(' · ')}</span>{l.customerPhone&&<span>☎ {l.customerPhone}</span>}</div>
-      <div className="labelBarcode"><img alt={'Barcode '+l.selectionId} src={'https://bwipjs-api.metafloor.com/?bcid=code128&scale=2&height=10&includetext&text='+encodeURIComponent(String(l.selectionId))}/><small>{String(l.selectionId)}</small></div>
-      <div className="labelFooterCompact"><span>HealthApp</span><b>#{String(l.selectionId).slice(0,6).toUpperCase()}</b></div>
+      <div className="bagContents"><b>Bag contents · {l.itemCount} item(s)</b>{l.items.map((item,index)=><div key={item.selectionId||index}><span>{item.name}</span><small>{item.category} · {item.portionSize}</small></div>)}</div>
+      <div className="labelBarcode"><img alt={'Delivery barcode '+l.deliveryId} src={'https://bwipjs-api.metafloor.com/?bcid=code128&scale=2&height=14&includetext&text='+encodeURIComponent(String(l.deliveryId))}/><small>DELIVERY ID · {String(l.deliveryId)}</small></div>
+      <div className="labelFooterCompact"><span>Scan once per bag</span><b>#{String(l.deliveryId).slice(0,6).toUpperCase()}</b></div>
     </article>)}</div>
    </section>
   </>}
@@ -717,7 +718,7 @@ function KitchenPage({data,date,setDate,refresh,onMarkFoodReady}) {
    <div className="printOptions">
     <div className="printOptionBlock"><div><b>Delivery windows</b><small>Select the meal windows for both the kitchen sheet and labels.</small></div><div className="printSlotChoices">{slots.map(s=><button type="button" key={s.value} className={printSlots.includes(s.value)?'printSlotChoice checked':'printSlotChoice'} onClick={()=>toggleSlot(s.value)}>{printSlots.includes(s.value)?'✓':'+'} {s.name}</button>)}</div></div>
     <div className="printChoice"><div><b>Kitchen production sheet</b><small>One consolidated table: meal, category, portion and total quantity.</small></div><button className="primary" onClick={()=>doPrint('kitchen')} disabled={!production.length}>Print kitchen</button></div>
-    <div className="printChoice"><div><b>Meal-box labels</b><small>{selectedLabels.length} labels from dispatched routes. {labelsNotDispatched?labelsNotDispatched+' meal(s) are hidden until their route is assigned and dispatched.':''}</small></div><button className="primary" onClick={()=>doPrint('labels')} disabled={!selectedLabels.length}>Print labels</button></div>
+    <div className="printChoice"><div><b>Consolidated bag labels</b><small>{selectedLabels.length} bag labels from dispatched deliveries. {labelsNotDispatched?labelsNotDispatched+' delivery bag(s) are hidden until their route is assigned and dispatched.':''}</small></div><button className="primary" onClick={()=>doPrint('labels')} disabled={!selectedLabels.length}>Print labels</button></div>
    </div>
   </Modal>}
  </div>
