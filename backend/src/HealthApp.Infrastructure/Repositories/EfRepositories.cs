@@ -27,6 +27,23 @@ public sealed class UserRepository(HealthAppDbContext db) : EfRepository(db), IU
         await SaveAsync();
     }
     public async Task<IReadOnlyList<User>> GetAllAsync() => await Context.Users.AsNoTracking().OrderBy(x => x.Email).ToListAsync();
+    public async Task<PageResult<User>> GetOutletCustomersPageAsync(Guid outletId, string? search, int page, int pageSize)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        var query = Context.Users.AsNoTracking()
+            .Where(x => x.OutletId == outletId && x.Role == UserRole.Customer);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(x => x.FirstName.Contains(term) || x.LastName.Contains(term) ||
+                x.Email.Contains(term) || (x.MobileNumber != null && x.MobileNumber.Contains(term)));
+        }
+        var total = await query.CountAsync();
+        var items = await query.OrderBy(x => x.FirstName).ThenBy(x => x.LastName)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return new PageResult<User>(items, total, page, pageSize);
+    }
 }
 
 public sealed class OutletRepository(HealthAppDbContext db) : EfRepository(db), IOutletRepository
