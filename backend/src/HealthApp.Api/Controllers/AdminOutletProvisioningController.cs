@@ -26,9 +26,12 @@ public sealed class AdminOutletProvisioningController(
         var plans = await db.SaaSPlans.AsNoTracking()
             .Where(x => x.IsActive && x.Name != "Free")
             .OrderBy(x => x.MonthlyFee)
-            .Select(x => new SaaSPlanDto(x.Id, x.Name, x.MonthlyFee, x.AnnualFee,
-                x.IncludedActiveCustomers, x.AdditionalCustomerFee,
-                x.CustomerTransactionFeePercent, x.Description, x.IsActive))
+            .Select(x => new
+            {
+                x.Id, x.Name, x.MonthlyFee, x.AnnualFee, x.IncludedActiveCustomers,
+                x.AdditionalCustomerFee, x.CustomerTransactionFeePercent, x.Description,
+                x.IsActive, SetupFee = configuration.GetValue<decimal?>("Onboarding:SetupFee") ?? 5000m
+            })
             .ToListAsync(cancellationToken);
         return Ok(plans);
     }
