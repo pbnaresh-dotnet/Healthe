@@ -143,6 +143,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
  const[publicOutletMenu,setPublicOutletMenu]=useState([]);
  const[publicOutletBusy,setPublicOutletBusy]=useState(false);
  const[publicOutletError,setPublicOutletError]=useState('');
+ const[tenantLoadError,setTenantLoadError]=useState('');
  const[location,setLocation]=useState('');
  const[locationHint,setLocationHint]=useState('');
  const[guestBuilderOpen,setGuestBuilderOpen]=useState(false);
@@ -163,6 +164,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
          :await resolveTenantFromHost();
        if(disposed)return;
        if(outlet){
+         setTenantLoadError('');
          setTenantOutlet(outlet);
          setPublicCities([{city:outlet.city,state:outlet.state}]);
          setPublicCity(outlet.city||'');
@@ -173,12 +175,20 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
          finally{if(!disposed)setPublicOutletBusy(false)}
          return;
        }
+       if(resolvedSlug){
+         setTenantLoadError('This outlet website is not available. The subdomain may be incorrect, or the outlet may not be active yet.');
+         return;
+       }
        const list=await locations.cities();
        if(disposed)return;
        setPublicCities(list||[]);
        if(!publicCity)setPublicCity(list?.[0]?.city||'');
-     }catch{
+     }catch(e){
        if(disposed)return;
+       if(resolvedStandaloneSlug){
+         setTenantLoadError('We could not load this outlet website. Please try again shortly.');
+         return;
+       }
        try{
          const list=await locations.cities();
          if(disposed)return;
@@ -445,6 +455,7 @@ function PublicHome({authMode,setAuthMode,authForm,setAuthForm,doAuth,error,setE
 
  if(publicOutlet&&!standaloneMode&&!guestBuilderOpen) return <PublicOutletHome outlet={publicOutlet} menu={publicOutletMenu} busy={publicOutletBusy} error={publicOutletError} onBack={()=>setPublicOutlet(null)} onBuild={openGuestBuilder}/>;
  if(standaloneMode){
+   if(!tenantOutlet&&!guestBuilderOpen&&tenantLoadError) return <div className="tenantLoadingShell"><div><span className="publicEyebrow">OUTLET WEBSITE</span><h1>Outlet unavailable</h1><p>{tenantLoadError}</p><p>Please check the web address or contact the outlet for assistance.</p></div></div>;
    if(!tenantOutlet&&!guestBuilderOpen) return <div className="tenantLoadingShell"><LoadingIndicator active label="Loading outlet website"/><div><span className="publicEyebrow">OUTLET WEBSITE</span><h1>Loading your outlet…</h1><p>Preparing the latest menu, branding and delivery information.</p></div></div>;
    if(tenantOutlet&&!guestBuilderOpen) return <PublicOutletHome standalone outlet={tenantOutlet} menu={publicOutletMenu} busy={publicOutletBusy} error={publicMapError} onBack={()=>{}} onBuild={()=>openGuestBuilder(tenantOutlet)} onSignIn={()=>openAuth('login')} onRegister={()=>openAuth('register')}/>;
  }
