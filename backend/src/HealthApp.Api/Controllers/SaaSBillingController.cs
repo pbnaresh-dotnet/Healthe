@@ -24,7 +24,7 @@ public sealed class SaaSBillingController(HealthAppDbContext db) : ControllerBas
         var outletScope = IsSuperAdmin ? "" : " AND EXISTS (SELECT 1 FROM dbo.AreaManagerOutletAssignments a WHERE a.OutletId=i.OutletId AND a.AreaManagerUserId=@actor)";
         var sql = $@"SELECT i.Id,i.InvoiceNumber,i.OutletId,o.Name OutletName,o.City,i.BillingPeriod,i.IssueDateUtc,i.DueDateUtc,
 i.Currency,i.Subtotal,i.DiscountAmount,i.TaxAmount,i.TotalAmount,i.AmountPaid,i.BalanceDue,i.Status,i.CreatedByUserId,i.CreatedAtUtc
-FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE (@status IS NULL OR i.Status=@status)
+FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE (@status IS NULL OR (CASE WHEN i.Status IN ('Issued','PartiallyPaid') AND i.DueDateUtc< SYSUTCDATETIME() THEN 'Overdue' ELSE i.Status END)=@status)
 AND (@period IS NULL OR i.BillingPeriod=@period){outletScope} ORDER BY i.DueDateUtc DESC,i.CreatedAtUtc DESC";
         await using var conn = db.Database.GetDbConnection();
         if (conn.State != ConnectionState.Open) await conn.OpenAsync(ct);
@@ -61,7 +61,7 @@ AND (@period IS NULL OR i.BillingPeriod=@period){outletScope} ORDER BY i.DueDate
             await using var query=conn.CreateCommand(); query.Transaction=tx;
             query.CommandText=$@"SELECT o.Id,o.Name,o.City,o.State,s.Id,s.BillingCycle,s.SubscriptionFee,s.SetupFee,s.DiscountPercent,s.DiscountAmount,s.StartDate,p.Name,p.MonthlyFee,p.AnnualFee
 FROM dbo.OutletSubscriptions s JOIN dbo.Outlets o ON o.Id=s.OutletId JOIN dbo.SaaSPlans p ON p.Id=s.SaaSPlanId
-WHERE s.Status='Active' AND o.Status IN (1,2) AND s.StartDate<@next AND (s.BillingCycle='Monthly' OR (s.BillingCycle='SixMonths' AND DATEDIFF(month,s.StartDate,@start)%6=0) OR (s.BillingCycle='Annual' AND MONTH(s.StartDate)=MONTH(@start) AND YEAR(s.StartDate)<=YEAR(@start))){scope}";
+WHERE s.Status='Active' AND o.Status IN (1,3) AND s.StartDate<@next AND (s.BillingCycle='Monthly' OR (s.BillingCycle='SixMonths' AND DATEDIFF(month,s.StartDate,@start)%6=0) OR (s.BillingCycle='Annual' AND MONTH(s.StartDate)=MONTH(@start) AND YEAR(s.StartDate)<=YEAR(@start))){scope}";
             Add(query,"@next",next); Add(query,"@start",start);
             if(!IsSuperAdmin) Add(query,"@actor",ActorId??Guid.Empty);
             var eligible=new List<(Guid id,string name,string city,string state,Guid subscription,string cycle,decimal fee,decimal setup,decimal discountPercent,decimal discountAmount,DateTime started,string plan,decimal monthly,decimal annual)>();
@@ -81,14 +81,14 @@ WHERE s.Status='Active' AND o.Status IN (1,2) AND s.StartDate<@next AND (s.Billi
                 if(taxRate<0||taxRate>100){await tx.RollbackAsync(ct);return BadRequest(new {message="Tax rate must be between 0 and 100."});}
                 var tax=decimal.Round(subtotal*taxRate/100m,2,MidpointRounding.AwayFromZero);
                 var total=decimal.Round(subtotal+tax,2,MidpointRounding.AwayFromZero);
-                var id=Guid.NewGuid(); var number=$"SAAS-{start:yyyyMM}-{x.id.ToString("N")[..8].ToUpperInvariant()}";
+                var id=Guid.NewGuid(); var number=$"SAAS-{start:yyyyMM}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
                 var due=new DateTime(start.Year,start.Month,request.DueDay,0,0,0,DateTimeKind.Utc);
                 var snapshot=JsonSerializer.Serialize(new {schemaVersion=1,invoiceNumber=number,outlet=new{id=x.id,name=x.name,city=x.city,state=x.state},subscription=new{id=x.subscription,plan=x.plan,billingCycle=x.cycle},billingPeriod=period,issueDateUtc=start,dueDateUtc=due,currency="INR",lines=new[]{new{description="SaaS subscription",amount},new{description="One-time setup fee",amount=includesSetup?x.setup:0m}},gross,discountPercent=includesSetup?x.discountPercent:0m,discountAmount=discount,taxRatePercent=taxRate,taxAmount=tax,subtotal,total,financePolicyVersion=request.FinancePolicyVersion??"SAAS-BILLING-1.0"});
                 await using var insert=conn.CreateCommand();insert.Transaction=tx;
                 insert.CommandText=@"INSERT dbo.SaaSInvoices(Id,InvoiceNumber,OutletId,OutletSubscriptionId,BillingPeriod,IssueDateUtc,DueDateUtc,Currency,Subtotal,DiscountAmount,TaxRatePercent,TaxAmount,TotalAmount,AmountPaid,BalanceDue,Status,SnapshotJson,SnapshotSha256,CreatedByUserId,CreatedAtUtc) VALUES(@id,@number,@outlet,@subscription,@period,@issue,@due,'INR',@subtotal,@discount,@rate,@tax,@total,0,@total,'Issued',@snapshot,@hash,@actor,@now)";
                 Add(insert,"@id",id);Add(insert,"@number",number);Add(insert,"@outlet",x.id);Add(insert,"@subscription",x.subscription);Add(insert,"@period",period);Add(insert,"@issue",start);Add(insert,"@due",due);Add(insert,"@subtotal",subtotal);Add(insert,"@discount",discount);Add(insert,"@rate",taxRate);Add(insert,"@tax",tax);Add(insert,"@total",total);Add(insert,"@snapshot",snapshot);Add(insert,"@hash",Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(snapshot))));Add(insert,"@actor",ActorId??Guid.Empty);Add(insert,"@now",DateTime.UtcNow);
                 await insert.ExecuteNonQueryAsync(ct);
-                await Audit(conn,tx,id,"InvoiceIssued",new{invoiceNumber=number,total,period},ct);
+                await Audit(conn,tx,id,"InvoiceIssued",new{invoiceNumber=number,total,period},ActorId,ct);
                 created++;invoiceIds.Add(id);
             }
             await tx.CommitAsync(ct);
@@ -121,7 +121,7 @@ WHERE s.Status='Active' AND o.Status IN (1,2) AND s.StartDate<@next AND (s.Billi
         await using var tx=await conn.BeginTransactionAsync(ct);
         try{
             var scope=IsSuperAdmin?"":" AND EXISTS(SELECT 1 FROM dbo.AreaManagerOutletAssignments a WHERE a.OutletId=i.OutletId AND a.AreaManagerUserId=@actor)";
-            await using var read=conn.CreateCommand();read.Transaction=tx;read.CommandText=$"SELECT i.TotalAmount,i.AmountPaid,i.Status,i.InvoiceNumber FROM dbo.SaaSInvoices i WHERE i.Id=@id{scope}";Add(read,"@id",id);if(!IsSuperAdmin)Add(read,"@actor",ActorId??Guid.Empty);
+            await using var read=conn.CreateCommand();read.Transaction=tx;read.CommandText=$"SELECT i.TotalAmount,i.AmountPaid,i.Status,i.InvoiceNumber FROM dbo.SaaSInvoices i WITH (UPDLOCK,HOLDLOCK) WHERE i.Id=@id{scope}";Add(read,"@id",id);if(!IsSuperAdmin)Add(read,"@actor",ActorId??Guid.Empty);
             decimal total,paid;string status,number;await using(var r=await read.ExecuteReaderAsync(ct)){if(!await r.ReadAsync(ct))return NotFound();total=r.GetDecimal(0);paid=r.GetDecimal(1);status=r.GetString(2);number=r.GetString(3);}
             if(status=="Voided")return Conflict(new{message="Voided invoices cannot receive payments."});
             var remaining=total-paid;if(request.Amount>remaining)return BadRequest(new{message=$"Payment exceeds the outstanding balance of {remaining:0.00}."});
@@ -130,7 +130,7 @@ WHERE s.Status='Active' AND o.Status IN (1,2) AND s.StartDate<@next AND (s.Billi
             Add(ins,"@id",paymentId);Add(ins,"@invoice",id);Add(ins,"@amount",decimal.Round(request.Amount,2,MidpointRounding.AwayFromZero));Add(ins,"@method",request.Method);Add(ins,"@reference",reference);Add(ins,"@notes",request.Notes?.Trim()??"");Add(ins,"@received",request.ReceivedAtUtc??now);Add(ins,"@actor",ActorId??Guid.Empty);Add(ins,"@provider",request.Method=="OnlineReconciled"?(request.Provider??"Cashfree"):"Manual");Add(ins,"@verified",request.Method=="OnlineReconciled");Add(ins,"@now",now);await ins.ExecuteNonQueryAsync(ct);
             var newPaid=paid+decimal.Round(request.Amount,2,MidpointRounding.AwayFromZero);var balance=total-newPaid;var newStatus=balance==0?"Paid":"PartiallyPaid";
             await using var upd=conn.CreateCommand();upd.Transaction=tx;upd.CommandText="UPDATE dbo.SaaSInvoices SET AmountPaid=@paid,BalanceDue=@balance,Status=@status WHERE Id=@id";Add(upd,"@paid",newPaid);Add(upd,"@balance",balance);Add(upd,"@status",newStatus);Add(upd,"@id",id);await upd.ExecuteNonQueryAsync(ct);
-            await Audit(conn,tx,id,"PaymentRecorded",new{paymentId,amount=request.Amount,method=request.Method,reference,notes=request.Notes,previousPaid=paid,newPaid,balance,newStatus,actorId=ActorId},ct);
+            await Audit(conn,tx,id,"PaymentRecorded",new{paymentId,amount=request.Amount,method=request.Method,reference,notes=request.Notes,previousPaid=paid,newPaid,balance,newStatus},ActorId,ct);
             await tx.CommitAsync(ct);return Ok(new{paymentId,invoiceId=id,invoiceNumber=number,amountPaid=newPaid,balanceDue=balance,status=newStatus,receiptUrl=$"/api/saas-billing/payments/{paymentId}/receipt"});
         }catch{await tx.RollbackAsync(ct);throw;}
     }
@@ -149,9 +149,9 @@ WHERE s.Status='Active' AND o.Status IN (1,2) AND s.StartDate<@next AND (s.Billi
     }
 
     private static void Add(System.Data.Common.DbCommand cmd,string name,object value){var p=cmd.CreateParameter();p.ParameterName=name;p.Value=value;cmd.Parameters.Add(p);}
-    private static async Task Audit(System.Data.Common.DbConnection conn,System.Data.Common.DbTransaction tx,Guid invoice,string action,object detail,CancellationToken ct){
+    private static async Task Audit(System.Data.Common.DbConnection conn,System.Data.Common.DbTransaction tx,Guid invoice,string action,object detail,Guid? actorId,CancellationToken ct){
         await using var cmd=conn.CreateCommand();cmd.Transaction=tx;cmd.CommandText="INSERT dbo.SaaSBillingAudit(Id,InvoiceId,Action,DetailJson,ActorUserId,OccurredAtUtc) VALUES(@id,@invoice,@action,@detail,@actor,@at)";
-        Add(cmd,"@id",Guid.NewGuid());Add(cmd,"@invoice",invoice);Add(cmd,"@action",action);Add(cmd,"@detail",JsonSerializer.Serialize(detail));Add(cmd,"@actor",Guid.Empty);Add(cmd,"@at",DateTime.UtcNow);await cmd.ExecuteNonQueryAsync(ct);
+        Add(cmd,"@id",Guid.NewGuid());Add(cmd,"@invoice",invoice);Add(cmd,"@action",action);Add(cmd,"@detail",JsonSerializer.Serialize(detail));Add(cmd,"@actor",actorId??Guid.Empty);Add(cmd,"@at",DateTime.UtcNow);await cmd.ExecuteNonQueryAsync(ct);
     }
     private static async Task<List<object>> ReadPayments(System.Data.Common.DbConnection conn,Guid id,CancellationToken ct){
         await using var cmd=conn.CreateCommand();cmd.CommandText="SELECT Id,Amount,Method,Reference,Notes,ReceivedAtUtc,RecordedByUserId,Provider,ProviderVerified FROM dbo.SaaSInvoicePayments WHERE InvoiceId=@id ORDER BY ReceivedAtUtc";Add(cmd,"@id",id);var list=new List<object>();await using var r=await cmd.ExecuteReaderAsync(ct);while(await r.ReadAsync(ct))list.Add(new{id=r.GetGuid(0),amount=r.GetDecimal(1),method=r.GetString(2),reference=r.GetString(3),notes=r.GetString(4),receivedAtUtc=r.GetDateTime(5),recordedByUserId=r.GetGuid(6),provider=r.GetString(7),providerVerified=r.GetBoolean(8),receiptUrl=$"/api/saas-billing/payments/{r.GetGuid(0)}/receipt"});return list;
