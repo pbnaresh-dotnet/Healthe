@@ -4,6 +4,7 @@ using HealthApp.Api.Middleware;
 using HealthApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace HealthApp.Api.Controllers;
 
