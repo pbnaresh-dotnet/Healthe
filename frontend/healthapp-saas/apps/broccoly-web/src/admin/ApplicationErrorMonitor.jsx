@@ -7,12 +7,14 @@ export default function ApplicationErrorMonitor({outlets=[]}){
  const[selected,setSelected]=useState(null);
  const[resolutionNotes,setResolutionNotes]=useState('');
  const[loading,setLoading]=useState(false);
+ const[page,setPage]=useState(1);
+ const[pageSize,setPageSize]=useState(50);
  const[error,setError]=useState('');
  const[diagnostics,setDiagnostics]=useState({requestLoggingEnabled:true,detailedLoggingEnabled:false,slowRequestThresholdMs:1000});
  const[settingsBusy,setSettingsBusy]=useState(false);
  const[settingsMessage,setSettingsMessage]=useState('');
 
- const load=async(next=filters)=>{
+ const load=async(next=filters,nextPage=page)=>{
    try{
      setLoading(true);setError('');
      const result=await admin.errors({
@@ -21,18 +23,19 @@ export default function ApplicationErrorMonitor({outlets=[]}){
        statusCode:next.statusCode||undefined,
        resolved:next.resolved===''?undefined:next.resolved,
        search:next.search||undefined,
-       page:1,
-       pageSize:50
+       page:nextPage,
+       pageSize
      });
      setMonitor(result||{items:[],totalCount:0,page:1,pageSize:50,summary:{totalCount:0,unresolvedCount:0,last24HoursCount:0,byOutlet:[]}});
    }catch(e){setError(e.message||'Unable to load application errors')}finally{setLoading(false)}
  };
 
- useEffect(()=>{load()},[outlets.length]);
+ useEffect(()=>{load(filters,1)},[outlets.length]);
+ useEffect(()=>{load(filters,page)},[page,pageSize]);
  useEffect(()=>{let active=true;admin.diagnosticsSettings().then(value=>{if(active&&value)setDiagnostics({requestLoggingEnabled:!!value.requestLoggingEnabled,detailedLoggingEnabled:!!value.detailedLoggingEnabled,slowRequestThresholdMs:Number(value.slowRequestThresholdMs||1000)})}).catch(e=>{if(active)setSettingsMessage(e.message||'Unable to load diagnostics settings')});return()=>{active=false}},[]);
  const saveDiagnostics=async()=>{try{setSettingsBusy(true);setSettingsMessage('');const value=await admin.updateDiagnosticsSettings(diagnostics);setDiagnostics({requestLoggingEnabled:!!value.requestLoggingEnabled,detailedLoggingEnabled:!!value.detailedLoggingEnabled,slowRequestThresholdMs:Number(value.slowRequestThresholdMs||1000)});setSettingsMessage('Diagnostics settings saved. Detailed exception information is sensitive; enable it only while investigating and turn it off afterwards.')}catch(e){setSettingsMessage(e.message||'Unable to save diagnostics settings')}finally{setSettingsBusy(false)}};
 
- const apply=next=>{setFilters(next);load(next)};
+ const apply=next=>{setFilters(next);setPage(1);load(next,1)};
  const open=async id=>{
    try{setLoading(true);setError('');setSelected(await admin.error(id));setResolutionNotes('')}
    catch(e){setError(e.message||'Unable to load error details')}
@@ -44,7 +47,7 @@ export default function ApplicationErrorMonitor({outlets=[]}){
      setLoading(true);setError('');
      const item=await admin.resolveError(selected.id,resolutionNotes);
      setSelected(item);
-     await load();
+     await load(filters,page);
    }catch(e){setError(e.message||'Unable to resolve error')}finally{setLoading(false)}
  };
 
@@ -93,7 +96,7 @@ export default function ApplicationErrorMonitor({outlets=[]}){
      </button>)}
      {!(monitor.items||[]).length&&<div className="empty">No errors match the current filters.</div>}
    </div>
-   <small className="errorMonitorFooter">Showing up to 50 most recent records. Total matching records: {monitor.totalCount??0}.</small>
+   <div className="financePager errorPager"><label>Rows per page <select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1)}}><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option><option value={200}>200</option></select></label><span>{monitor.totalCount?((page-1)*pageSize+1)+'–'+Math.min(page*pageSize,monitor.totalCount)+' of '+monitor.totalCount:'0 results'}</span><div><button type="button" className="errorRefreshBtn" disabled={loading||page<=1} onClick={()=>setPage(p=>Math.max(1,p-1))}>Previous</button><button type="button" className="errorRefreshBtn" disabled={loading||page*pageSize>=(monitor.totalCount||0)} onClick={()=>setPage(p=>p+1)}>Next</button></div></div>
 
    {selected&&<div className="errorDetailBackdrop"><div className="errorDetailModal">
      <div className="errorDetailHead"><div><span className="eyebrow">ERROR DETAIL</span><h2>{selected.errorCode}</h2><p>{new Date(selected.occurredAtUtc).toLocaleString()} · {selected.severity} · HTTP {selected.statusCode}</p></div><button type="button" onClick={()=>setSelected(null)}>×</button></div>
