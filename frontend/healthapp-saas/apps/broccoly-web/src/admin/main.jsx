@@ -76,14 +76,25 @@ function App(){
  const fileUrl=url=>{if(!url)return'';return url.startsWith('http')?url:(API_URL?new URL(API_URL).origin+url:url)};
  const openPage=(next,filter='')=>{setPage(next);setSidebarOpen(false);if(next==='outlets'&&filter)setOutletStatus(filter)};
  const reload=async()=>{
+  setLoading(true);setError('');
+  // Load each initial workspace dataset independently: one failed endpoint must
+  // not discard successful results from the other admin sections.
+  const requests=[
+   ['dashboard',()=>admin.dashboard(),value=>setData(prev=>({...prev,d:value||{}}))],
+   ['outlets',()=>admin.outlets(),value=>setData(prev=>({...prev,o:value||[]}))],
+   ['onboarding',()=>admin.outletOnboardingPending(),value=>setVerification(value||[])],
+   ['domains',()=>admin.domains(),value=>setDomains(value||[])]
+  ];
   try{
-   setLoading(true);setError('');
-   // Keep the first request set small; load supporting data only when its section is opened.
-   const[d,o,v,ds]=await Promise.all([
-    admin.dashboard(),admin.outlets(),admin.outletOnboardingPending(),admin.domains()
-   ]);
-   setData(prev=>({...prev,d:d||{},o:o||[]}));setVerification(v||[]);setDomains(ds||[]);
-  }catch(e){setError(e.message||'Unable to load Super Admin data.')}finally{setLoading(false)}
+   const results=await Promise.allSettled(requests.map(([,request])=>request()));
+   const failures=[];
+   results.forEach((result,index)=>{
+    const [name,,apply]=requests[index];
+    if(result.status==='fulfilled')apply(result.value);
+    else failures.push(`${name}: ${result.reason?.message||'request failed'}`);
+   });
+   if(failures.length)setError(`Some admin data could not be loaded. ${failures.join('; ')}. Other sections remain available; retry after checking Platform Health.`);
+  }finally{setLoading(false)}
  };
  useEffect(()=>{if(u)reload()},[u]);
  useEffect(()=>{if(!u)return;let cancelled=false;const run=async()=>{try{
