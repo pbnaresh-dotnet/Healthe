@@ -12,9 +12,14 @@ public static class DatabaseSeeder
         await EnsureServiceCitiesAsync(db, ct);
         if (await db.Outlets.AnyAsync(ct))
         {
-            await EnsureExistingRecipeCatalogLinksAsync(db, ct);
-            await EnsureExistingOutletMenuSlotsAsync(db, ct);
-            await EnsureRegionalOutletCatalogAsync(db, passwords, ct);
+            // In a clean E2E environment, never add demo outlets or mutate test outlet
+            // recipes/menus on subsequent application restarts.
+            if (seedDemoData)
+            {
+                await EnsureExistingRecipeCatalogLinksAsync(db, ct);
+                await EnsureExistingOutletMenuSlotsAsync(db, ct);
+                await EnsureRegionalOutletCatalogAsync(db, passwords, ct);
+            }
             return;
         }
         if (!seedDemoData)
