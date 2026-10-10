@@ -76,7 +76,7 @@ function App(){
  const[domainSearch,setDomainSearch]=useState('');
  const[financeFilters,setFinanceFilters]=useState(()=>{const d=new Date();d.setDate(d.getDate()-29);return {fromDate:d.toISOString().slice(0,10),toDate:new Date().toISOString().slice(0,10),outletGroupId:'',outletId:'',city:'',mealPlanId:''}});
  const[financeReport,setFinanceReport]=useState(null); const[financePolicy,setFinancePolicy]=useState(null);
- const[financeLoading,setFinanceLoading]=useState(false); const[financePageSize,setFinancePageSize]=useState(25);
+ const[financeLoading,setFinanceLoading]=useState(false); const[financePageSize,setFinancePageSize]=useState(25); const[financeOutletSearch,setFinanceOutletSearch]=useState('');
  const fileUrl=url=>{if(!url)return'';return url.startsWith('http')?url:(API_URL?new URL(API_URL).origin+url:url)};
  const openPage=(next,filter='')=>{setPage(next);setSidebarOpen(false);if(next==='outlets'&&filter){setOutletStatus(filter);setOutletPageNumber(1)}};
  const reload=async()=>{
@@ -172,6 +172,7 @@ function App(){
   }catch(e){setError(e.message||'Unable to load finance report')}finally{setFinanceLoading(false)}
  };
  useEffect(()=>{if(u&&page==='finance')loadFinance(financeFilters,'summary',1)},[u,page]);
+ useEffect(()=>{if(!u||page!=='finance')return;let active=true;const timer=setTimeout(async()=>{try{const result=await admin.outletsPage({search:financeOutletSearch,page:1,pageSize:100});if(active)setData(prev=>({...prev,o:result?.items||[]}));}catch(e){if(active)setError(e.message||'Unable to search outlets for Finance.')}},250);return()=>{active=false;clearTimeout(timer)}},[u,page,financeOutletSearch]);
  const loadFinancePolicy=async()=>{try{setError('');setFinancePolicy(await admin.financePolicy())}catch(e){setError(e.message||'Unable to load finance policy')}};
  useEffect(()=>{if(u&&page==='finance-rules')loadFinancePolicy()},[u,page]);
  const sign=async e=>{e.preventDefault();try{setLoading(true);const x=await auth.login(login);setU(x.user);notify('Welcome back')}catch(e){setError(e.message||'Sign in failed')}finally{setLoading(false)}};
@@ -281,7 +282,7 @@ function App(){
     {!isAreaManager&&page==='onboarding'&&<Onboarding verification={verification} onReview={review} onDashboard={()=>openPage('overview')} />}
     {!isAreaManager&&page==='domains'&&<DomainCenter domains={filteredDomains} allDomains={domains} outlets={data.o||[]} search={domainSearch} setSearch={setDomainSearch} status={domainStatus} setStatus={setDomainStatus} onUpdate={updateDomain}/>}
     {!isAreaManager&&page==='geography'&&<Geography cities={cities} areas={areas} form={form} setForm={setForm} areaForm={areaForm} setAreaForm={setAreaForm} onCreateCity={createCity} onToggleCity={toggleCity} onCreateArea={createArea} loading={loading}/>}
-    {!isAreaManager&&page==='finance'&&<Finance report={financeReport} filters={financeFilters} setFilters={setFinanceFilters} groups={data.groups||[]} outlets={data.o||[]} onApply={loadFinance} loading={financeLoading} onFinanceRules={()=>openPage('finance-rules')}/>}
+    {!isAreaManager&&page==='finance'&&<Finance report={financeReport} filters={financeFilters} setFilters={setFinanceFilters} groups={data.groups||[]} outlets={data.o||[]} outletSearch={financeOutletSearch} setOutletSearch={setFinanceOutletSearch} onApply={loadFinance} loading={financeLoading} onFinanceRules={()=>openPage('finance-rules')}/>}
     {page==='saas-billing'&&<SaaSBilling isAreaManager={isAreaManager} onError={setError} notify={notify}/> }
     {!isAreaManager&&page==='finance-rules'&&<FinanceRulesHelp policy={financePolicy} onBack={()=>openPage('finance')} onFinance={()=>openPage('finance')}/>}
     {!isAreaManager&&page==='health'&&<section><PageIntro eyebrow="PLATFORM HEALTH" title="Operational health" text="Central visibility into application errors and tenant-impacting incidents. Drill into an event to see outlet, request, user and correlation context." action={<button className="secondaryBtn" onClick={()=>openPage('overview')}><Icon name="arrow" size={15}/> Command center</button>}/><ApplicationErrorMonitor outlets={data.o||[]}/></section>}
@@ -536,7 +537,7 @@ function FinancePager({report,filters,section,onApply}){
  const totalPages=Math.max(1,Math.ceil((report.totalRows||0)/(report.pageSize||25)));
  return <div className="paginationBar"><span>{report.totalRows||0} rows · Page {report.page||1} of {totalPages}</span><div><label className="pageSizeField">Rows <select value={report.pageSize||25} onChange={e=>onApply(filters,section,1,Number(e.target.value))}><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label><button type="button" className="secondaryBtn compactBtn" disabled={(report.page||1)<=1} onClick={()=>onApply(filters,section,(report.page||1)-1,report.pageSize||25)}>Previous</button><button type="button" className="secondaryBtn compactBtn" disabled={(report.page||1)>=totalPages} onClick={()=>onApply(filters,section,(report.page||1)+1,report.pageSize||25)}>Next</button></div></div>;
 }
-function Finance({report,filters,setFilters,groups,outlets,onApply,loading,onFinanceRules}){
+function Finance({report,filters,setFilters,groups,outlets,outletSearch,setOutletSearch,onApply,loading,onFinanceRules}){
  const[tab,setTab]=useState('summary');
  const cities=[...new Set(outlets.map(x=>x.city).filter(Boolean))].sort();
  const totals=report?.totals;
@@ -552,8 +553,8 @@ function Finance({report,filters,setFilters,groups,outlets,onApply,loading,onFin
     <label><span>From</span><input type="date" value={filters.fromDate||''} onChange={e=>set('fromDate',e.target.value)}/></label>
     <label><span>To</span><input type="date" value={filters.toDate||''} onChange={e=>set('toDate',e.target.value)}/></label>
     <label><span>Outlet group</span><select value={filters.outletGroupId||''} onChange={e=>set('outletGroupId',e.target.value)}><option value="">All groups</option>{groups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
-    <label><span>Outlet</span><select value={filters.outletId||''} onChange={e=>set('outletId',e.target.value)}><option value="">All outlets</option>{outlets.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
-    <label><span>City</span><select value={filters.city||''} onChange={e=>set('city',e.target.value)}><option value="">All cities</option>{cities.map(city=><option key={city} value={city}>{city}</option>)}</select></label>
+    <label><span>Find outlet</span><input value={outletSearch} onChange={e=>setOutletSearch(e.target.value)} placeholder="Search outlet name, city or slug"/></label><label><span>Outlet</span><select value={filters.outletId||''} onChange={e=>set('outletId',e.target.value)}><option value="">All outlets</option>{outlets.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
+    <label><span>City</span><input value={filters.city||''} onChange={e=>set('city',e.target.value)} placeholder="All cities"/></label>
     <div className="financeFilterActions"><button className="primaryBtn" onClick={()=>onApply(filters,tab,1)} disabled={loading}>{loading?'Running report…':'Apply filters'}</button><button className="secondaryBtn" onClick={()=>{const next={fromDate:filters.fromDate,toDate:filters.toDate,outletGroupId:'',outletId:'',city:'',mealPlanId:''};setFilters(next);onApply(next,tab,1)}} disabled={loading}>Clear scope</button></div>
    </div>
   </section>
