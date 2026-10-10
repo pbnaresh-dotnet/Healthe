@@ -16,6 +16,74 @@ public static class DatabaseInitializer
         await db.Database.EnsureCreatedAsync(cancellationToken);
         await FinanceDatabaseInitializer.EnsureAsync(db, cancellationToken);
 
+        // SaaS billing tables are created idempotently so an existing SQL Server database can be upgraded without a destructive reset.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.SaaSInvoices','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SaaSInvoices(
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_SaaSInvoices PRIMARY KEY,
+        InvoiceNumber nvarchar(80) NOT NULL,
+        OutletId uniqueidentifier NOT NULL,
+        OutletSubscriptionId uniqueidentifier NOT NULL,
+        BillingPeriod char(7) NOT NULL,
+        IssueDateUtc datetime2 NOT NULL,
+        DueDateUtc datetime2 NOT NULL,
+        Currency nvarchar(3) NOT NULL CONSTRAINT DF_SaaSInvoices_Currency DEFAULT 'INR',
+        Subtotal decimal(18,2) NOT NULL,
+        DiscountAmount decimal(18,2) NOT NULL CONSTRAINT DF_SaaSInvoices_Discount DEFAULT 0,
+        TaxRatePercent decimal(9,4) NOT NULL CONSTRAINT DF_SaaSInvoices_TaxRate DEFAULT 0,
+        TaxAmount decimal(18,2) NOT NULL CONSTRAINT DF_SaaSInvoices_Tax DEFAULT 0,
+        TotalAmount decimal(18,2) NOT NULL,
+        AmountPaid decimal(18,2) NOT NULL CONSTRAINT DF_SaaSInvoices_AmountPaid DEFAULT 0,
+        BalanceDue decimal(18,2) NOT NULL,
+        Status nvarchar(30) NOT NULL,
+        SnapshotJson nvarchar(max) NOT NULL,
+        SnapshotSha256 char(64) NOT NULL,
+        CreatedByUserId uniqueidentifier NOT NULL,
+        CreatedAtUtc datetime2 NOT NULL,
+        CONSTRAINT FK_SaaSInvoices_Outlets FOREIGN KEY(OutletId) REFERENCES dbo.Outlets(Id),
+        CONSTRAINT FK_SaaSInvoices_OutletSubscriptions FOREIGN KEY(OutletSubscriptionId) REFERENCES dbo.OutletSubscriptions(Id)
+    );
+    CREATE UNIQUE INDEX UX_SaaSInvoices_Outlet_Period ON dbo.SaaSInvoices(OutletId,BillingPeriod) WHERE Status <> 'Voided';
+    CREATE UNIQUE INDEX UX_SaaSInvoices_InvoiceNumber ON dbo.SaaSInvoices(InvoiceNumber);
+    CREATE INDEX IX_SaaSInvoices_Status_DueDate ON dbo.SaaSInvoices(Status,DueDateUtc);
+    CREATE INDEX IX_SaaSInvoices_Period_Outlet ON dbo.SaaSInvoices(BillingPeriod,OutletId);
+END;
+IF OBJECT_ID('dbo.SaaSInvoicePayments','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SaaSInvoicePayments(
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_SaaSInvoicePayments PRIMARY KEY,
+        InvoiceId uniqueidentifier NOT NULL,
+        Amount decimal(18,2) NOT NULL,
+        Method nvarchar(40) NOT NULL,
+        Reference nvarchar(200) NOT NULL DEFAULT '',
+        Notes nvarchar(2000) NOT NULL DEFAULT '',
+        ReceivedAtUtc datetime2 NOT NULL,
+        RecordedByUserId uniqueidentifier NOT NULL,
+        Provider nvarchar(50) NOT NULL,
+        ProviderVerified bit NOT NULL DEFAULT 0,
+        CreatedAtUtc datetime2 NOT NULL,
+        CONSTRAINT FK_SaaSInvoicePayments_Invoices FOREIGN KEY(InvoiceId) REFERENCES dbo.SaaSInvoices(Id)
+    );
+    CREATE INDEX IX_SaaSInvoicePayments_Invoice_Received ON dbo.SaaSInvoicePayments(InvoiceId,ReceivedAtUtc);
+    CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Provider_Reference ON dbo.SaaSInvoicePayments(Provider,Reference) WHERE Reference <> '';
+END;
+IF OBJECT_ID('dbo.SaaSBillingAudit','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SaaSBillingAudit(
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_SaaSBillingAudit PRIMARY KEY,
+        InvoiceId uniqueidentifier NOT NULL,
+        Action nvarchar(80) NOT NULL,
+        DetailJson nvarchar(max) NOT NULL,
+        ActorUserId uniqueidentifier NOT NULL,
+        OccurredAtUtc datetime2 NOT NULL,
+        CONSTRAINT FK_SaaSBillingAudit_Invoices FOREIGN KEY(InvoiceId) REFERENCES dbo.SaaSInvoices(Id)
+    );
+    CREATE INDEX IX_SaaSBillingAudit_Invoice_Time ON dbo.SaaSBillingAudit(InvoiceId,OccurredAtUtc DESC);
+END;
+", cancellationToken);
+
+
         // Super Admin provisioning discounts are retained on the subscription for finance reporting.
         await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.OutletSubscriptions','DiscountPercent') IS NULL
