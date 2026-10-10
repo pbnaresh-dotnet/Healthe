@@ -443,6 +443,46 @@ public sealed class DeliveryRouteService(
         return await GetDriverPlanAsync(route.DeliveryDate.Date, (int)route.MealSlot);
     }
 
+    public async Task<DeliveryRoutePlanDto?> PickUpDriverDeliveryAsync(Guid deliveryId)
+    {
+        if (current.OutletId is not Guid outletId || current.UserId is not Guid driverId)
+            throw new UnauthorizedAccessException("Driver context is required.");
+
+        var delivery = await deliveries.GetAsync(deliveryId);
+        if (delivery is null || delivery.OutletId != outletId)
+            throw new KeyNotFoundException("Delivery not found for the current outlet.");
+        if (delivery.RouteId is not Guid routeId || delivery.RouteStopId is not Guid stopId)
+            throw new InvalidOperationException("This delivery is not assigned to a driver route.");
+
+        var routeRows = await routes.GetByOutletAndDateAsync(outletId, delivery.ScheduledDate.Date, delivery.MealSlot);
+        var route = routeRows.FirstOrDefault(x => x.Id == routeId && x.DriverId == driverId);
+        if (route is null)
+            throw new UnauthorizedAccessException("This delivery is not assigned to the current driver.");
+        if (route.Status is not (RouteStatus.Dispatched or RouteStatus.InProgress))
+            throw new InvalidOperationException("The route must be dispatched before pickup.");
+        if (delivery.Status is DeliveryStatus.Delivered or DeliveryStatus.PickedUp)
+            throw new InvalidOperationException($"This delivery is already {delivery.Status}.");
+        if (delivery.Status != DeliveryStatus.FoodReady)
+            throw new InvalidOperationException("Only Food Ready deliveries can be picked up.");
+
+        delivery.Status = DeliveryStatus.PickedUp;
+        await deliveries.UpdateAsync(delivery);
+
+        var stop = route.Stops.FirstOrDefault(x => x.Id == stopId);
+        if (stop is not null)
+        {
+            var linked = (await deliveries.GetByOutletAsync(outletId))
+                .Where(x => x.RouteStopId == stopId)
+                .ToList();
+            if (linked.Count > 0 && linked.All(x => x.Status is DeliveryStatus.PickedUp or DeliveryStatus.Delivered))
+                stop.Status = DeliveryStatus.PickedUp;
+            route.UpdatedAtUtc = DateTime.UtcNow;
+            await routes.UpdateAsync(route);
+        }
+
+        return await GetDriverPlanAsync(delivery.ScheduledDate.Date, (int)delivery.MealSlot);
+    }
+
     public async Task<DeliveryRoutePlanDto?> CompleteDriverStopAsync(Guid stopId)
     {
         if (current.OutletId is not Guid outletId || current.UserId is not Guid driverId)
