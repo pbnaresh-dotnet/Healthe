@@ -624,3 +624,6 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
 
 .paginationBar .pageSizeField{display:inline-flex;align-items:center;gap:6px;color:var(--muted,#64748b);font-size:12px}
 .paginationBar .pageSizeField select{min-height:34px;border:1px solid var(--line,#dbe2ea);border-radius:8px;background:var(--surface,#fff);padding:4px 8px;color:inherit}
+
+.financePager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 0 2px;color:var(--muted,#64748b);font-size:13px}.financePager label{display:flex;align-items:center;gap:8px}.financePager select{min-height:36px;border:1px solid var(--border,#dbe4dd);border-radius:8px;padding:6px 10px;background:var(--surface,#fff);color:inherit}.financePager>div{display:flex;gap:8px}.financePager .secondaryBtn{min-height:36px}
+@media(max-width:560px){.financePager{align-items:stretch;flex-direction:column}.financePager>div{display:grid;grid-template-columns:1fr 1fr}}
