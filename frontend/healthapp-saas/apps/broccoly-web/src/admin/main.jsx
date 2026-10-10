@@ -280,11 +280,77 @@ function Onboarding({verification,onReview,onDashboard}){
 function DomainCenter({domains,allDomains,outlets,search,setSearch,status,setStatus,onUpdate}){
  const statuses=[...new Set(allDomains.map(x=>x.status).filter(Boolean))].sort();
  const active=allDomains.filter(x=>x.status==='Active').length;
- const platformOutlets=(outlets||[]).filter(x=>x.subdomain||x.slug).map(x=>({...x,host:x.subdomain||x.slug})).sort((a,b)=>String(a.host).localeCompare(String(b.host)));
  const needing=allDomains.length-active;
- return <section><PageIntro eyebrow="DOMAINS" title="Tenant domain control" text="Manage automatic Broccoly storefront subdomains here. Wildcard DNS serves these hostnames without per-outlet DNS records; custom domains retain their separate verification lifecycle."/><section className="card" style={{marginBottom:16}}><div className="cardHead"><div><span className="eyebrow">BROCCOLY SUBDOMAINS</span><h2>Automatic outlet storefronts</h2><p>These hosts are generated from outlet records and do not need individual Cloudflare DNS records.</p></div><span className="resultCount">{platformOutlets.length} outlets</span></div><div className="domainList">{platformOutlets.map(o=><article className="domainCard" key={o.id}><div className="domainIdentity"><div className="domainIcon"><Icon name="globe" size={18}/></div><div><h3>{o.host}.broccoly.in</h3><p>{o.name||o.outletName||"Unnamed outlet"} · Automatic subdomain</p><small>Outlet status: {o.status||"Unknown"}</small></div></div><div className="domainActions"><a className="secondaryBtn compactBtn" href={`https://${o.host}.broccoly.in`} target="_blank" rel="noreferrer">Open storefront <Icon name="arrow" size={12}/></a></div></article>)}{!platformOutlets.length&&<Empty text="No outlet subdomains have been assigned yet. Outlet subdomains are assigned during activation."/></div></section><div className="insightGrid domainStats"><InsightCard label="Configured" value={allDomains.length} detail="Tenant domains" tone="blue"/><InsightCard label="Active" value={active} detail="Serving customer traffic" tone="green"/><InsightCard label="Needs attention" value={needing} detail="Verification, activation or disabled state" tone={needing?'amber':'green'}/></div><Toolbar><label className="searchField"><Icon name="search" size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search domain or outlet"/></label><label className="filterField"><Icon name="filter" size={15}/><select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{statuses.map(x=><option key={x}>{x}</option>)}</select></label><span className="resultCount">{domains.length} shown</span></Toolbar><section className="card"><div className="domainList">{domains.map(d=><article className="domainCard" key={d.id}><div className="domainIdentity"><div className="domainIcon"><Icon name="globe" size={18}/></div><div><h3>{d.hostname}</h3><p>{d.outletName||'Unknown outlet'} · {d.type||'Custom'}</p><small>Created {formatDate(d.createdAtUtc)} {d.isPrimary?'· Primary':''}</small></div></div><div className="domainState"><StatusPill status={d.status}/>{d.type==='Custom'&&d.status!=='Active'&&<small>TXT: <code>{d.verificationName||'Not available'}</code></small>}</div><div className="domainActions">{d.type==='Custom'&&d.status!=='Active'&&<button type="button" className="primaryBtn compactBtn" onClick={()=>onUpdate(d,'Active')}>Verify & activate</button>}{d.type==='Custom'&&d.status==='Active'&&<button type="button" className="secondaryBtn compactBtn" onClick={()=>onUpdate(d,'Disabled')}>Disable</button>}</div></article>)}{!domains.length&&<Empty text="No domains match your filters."/>}</div></section></section>;
-}
+ const platformOutlets=(outlets||[])
+  .filter(x=>x.subdomain||x.slug)
+  .map(x=>({...x,host:x.subdomain||x.slug}))
+  .sort((a,b)=>String(a.host).localeCompare(String(b.host)));
 
+ return (
+  <section>
+   <PageIntro
+    eyebrow="DOMAINS"
+    title="Tenant domain control"
+    text="Manage automatic Broccoly storefront subdomains here. Wildcard DNS serves these hostnames without per-outlet DNS records; custom domains retain their separate verification lifecycle."
+   />
+   <section className="card" style={{marginBottom:16}}>
+    <div className="cardHead">
+     <div>
+      <span className="eyebrow">BROCCOLY SUBDOMAINS</span>
+      <h2>Automatic outlet storefronts</h2>
+      <p>These hosts are generated from outlet records and do not need individual Cloudflare DNS records.</p>
+     </div>
+     <span className="resultCount">{platformOutlets.length} outlets</span>
+    </div>
+    <div className="domainList">
+     {platformOutlets.map(o=>(
+      <article className="domainCard" key={o.id}>
+       <div className="domainIdentity">
+        <div className="domainIcon"><Icon name="globe" size={18}/></div>
+        <div>
+         <h3>{o.host}.broccoly.in</h3>
+         <p>{o.name||o.outletName||"Unnamed outlet"} · Automatic subdomain</p>
+         <small>Outlet status: {o.status||"Unknown"}</small>
+        </div>
+       </div>
+       <div className="domainActions">
+        <a className="secondaryBtn compactBtn" href={"https://"+o.host+".broccoly.in"} target="_blank" rel="noreferrer">
+         Open storefront <Icon name="arrow" size={12}/>
+        </a>
+       </div>
+      </article>
+     ))}
+     {!platformOutlets.length&&<Empty text="No outlet subdomains have been assigned yet. Outlet subdomains are assigned during activation."/>}
+    </div>
+   </section>
+   <div className="insightGrid domainStats">
+    <InsightCard label="Configured" value={allDomains.length} detail="Custom tenant domains" tone="blue"/>
+    <InsightCard label="Active" value={active} detail="Serving customer traffic" tone="green"/>
+    <InsightCard label="Needs attention" value={needing} detail="Verification, activation or disabled state" tone={needing?'amber':'green'}/>
+   </div>
+   <Toolbar>
+    <label className="searchField"><Icon name="search" size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search domain or outlet"/></label>
+    <label className="filterField"><Icon name="filter" size={15}/><select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{statuses.map(x=><option key={x}>{x}</option>)}</select></label>
+    <span className="resultCount">{domains.length} shown</span>
+   </Toolbar>
+   <section className="card">
+    <div className="domainList">
+     {domains.map(d=>(
+      <article className="domainCard" key={d.id}>
+       <div className="domainIdentity">
+        <div className="domainIcon"><Icon name="globe" size={18}/></div>
+        <div><h3>{d.hostname}</h3><p>{d.outletName||'Unknown outlet'} · {d.type||'Custom'}</p><small>Created {formatDate(d.createdAtUtc)} {d.isPrimary?'· Primary':''}</small></div>
+       </div>
+       <div className="domainState"><StatusPill status={d.status}/>{d.type==='Custom'&&d.status!=='Active'&&<small>TXT: <code>{d.verificationName||'Not available'}</code></small>}</div>
+       <div className="domainActions">{d.type==='Custom'&&d.status!=='Active'&&<button type="button" className="primaryBtn compactBtn" onClick={()=>onUpdate(d,'Active')}>Verify & activate</button>}{d.type==='Custom'&&d.status==='Active'&&<button type="button" className="secondaryBtn compactBtn" onClick={()=>onUpdate(d,'Disabled')}>Disable</button>}</div>
+      </article>
+     ))}
+     {!domains.length&&<Empty text="No custom domains match your filters."/>}
+    </div>
+   </section>
+  </section>
+ );
+}
 function Geography({cities,areas,form,setForm,areaForm,setAreaForm,onCreateCity,onToggleCity,onCreateArea,loading}){
  const [areaCity,setAreaCity]=useState('');
  const filteredAreas=areaCity?areas.filter(x=>String(x.city).toLowerCase()===areaCity.toLowerCase()):areas;
