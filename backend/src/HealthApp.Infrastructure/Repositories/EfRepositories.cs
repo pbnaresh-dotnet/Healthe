@@ -2,6 +2,7 @@ using HealthApp.Application.Abstractions;
 using HealthApp.Domain.Entities;
 using HealthApp.Domain.Enums;
 using HealthApp.Infrastructure.Data;
+using HealthApp.Shared.DTOs;
 using Microsoft.EntityFrameworkCore;
 namespace HealthApp.Infrastructure.Repositories;
 
