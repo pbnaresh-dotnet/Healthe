@@ -53,6 +53,13 @@ public sealed class AdminController(IAdminService service, IAdminOutletLifecycle
 
     [HttpGet("dashboard")] public async Task<IActionResult> Dashboard()=>Ok(await service.GetDashboardAsync());
     [HttpGet("outlets")] public async Task<IActionResult> Outlets()=>Ok(await service.GetOutletsAsync());
+    [HttpGet("outlets/page")]
+    public async Task<IActionResult> OutletsPage([FromQuery] string? search, [FromQuery] string? status,
+        [FromQuery] string? city, [FromQuery] int page = 1, [FromQuery] int pageSize = 25)
+    {
+        try { return Ok(await service.GetOutletsPageAsync(search, status, city, page, pageSize)); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+    }
     [HttpGet("users")] public async Task<IActionResult> Users()=>Ok(await service.GetUsersAsync());
     [HttpGet("reports/finance")]
     public async Task<IActionResult> Finance([FromQuery] AdminFinanceReportRequest request)
