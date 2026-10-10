@@ -1434,9 +1434,97 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Trials_Outlets')
         FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id);
 ", cancellationToken);
 
-        // Keep the old text columns harmless for older databases; normalized values are now authoritative.
+        // Reconcile platform area-manager assignments on both new and existing SQL Server databases.
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.AreaManagerOutletAssignments','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.AreaManagerOutletAssignments
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_AreaManagerOutletAssignments PRIMARY KEY,
+        AreaManagerUserId uniqueidentifier NOT NULL,
+        OutletId uniqueidentifier NOT NULL,
+        AssignedAtUtc datetime2 NOT NULL CONSTRAINT DF_AreaManagerOutletAssignments_AssignedAtUtc DEFAULT SYSUTCDATETIME(),
+        AssignedByUserId uniqueidentifier NULL,
+        CONSTRAINT FK_AreaManagerOutletAssignments_Manager FOREIGN KEY (AreaManagerUserId) REFERENCES dbo.Users(Id),
+        CONSTRAINT FK_AreaManagerOutletAssignments_Outlet FOREIGN KEY (OutletId) REFERENCES dbo.Outlets(Id),
+        CONSTRAINT FK_AreaManagerOutletAssignments_AssignedBy FOREIGN KEY (AssignedByUserId) REFERENCES dbo.Users(Id)
+    );
+    CREATE UNIQUE INDEX UX_AreaManagerOutletAssignments_Manager_Outlet ON dbo.AreaManagerOutletAssignments(AreaManagerUserId, OutletId);
+    CREATE INDEX IX_AreaManagerOutletAssignments_OutletId ON dbo.AreaManagerOutletAssignments(OutletId);
+END;
+", cancellationToken);
+
         var configuration = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
-        var seedDemoData = bool.TryParse(configuration["Database:SeedDemoData"], out var configuredSeedDemoData) ? configuredSeedDemoData : true;
+        var resetTenantData = bool.TryParse(configuration["Database:ResetTenantDataOnStartup"], out var configuredResetTenantData) && configuredResetTenantData;
+        if (resetTenantData)
+        {
+            // Explicit opt-in, destructive reset: preserve master/catalog tables and the Super Admin identity only.
+            // A completion marker makes this a one-time operation even if the flag is accidentally left enabled.
+            await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('dbo.PlatformMaintenanceFlags','U') IS NULL
+    CREATE TABLE dbo.PlatformMaintenanceFlags (Name nvarchar(120) NOT NULL PRIMARY KEY, CompletedAtUtc datetime2 NOT NULL);
+IF NOT EXISTS (SELECT 1 FROM dbo.PlatformMaintenanceFlags WHERE Name='CleanSaaSDatabaseV1')
+BEGIN
+    DECLARE @sql nvarchar(max) = N'';
+    DECLARE @table nvarchar(256);
+    DECLARE reset_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT QUOTENAME(SCHEMA_NAME(t.schema_id)) + N'.' + QUOTENAME(t.name)
+        FROM sys.tables t
+        WHERE t.is_ms_shipped = 0
+          AND t.name NOT IN ('Ingredients','Allergens','ServiceCities','CityAreas','SaaSPlans','OutletGroups','PlatformMaintenanceFlags');
+    OPEN reset_cursor;
+    FETCH NEXT FROM reset_cursor INTO @table;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @sql += N'ALTER TABLE ' + @table + N' NOCHECK CONSTRAINT ALL; ';
+        FETCH NEXT FROM reset_cursor INTO @table;
+    END;
+    CLOSE reset_cursor;
+    DEALLOCATE reset_cursor;
+    EXEC sys.sp_executesql @sql;
+
+    SET @sql = N'';
+    DECLARE purge_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT QUOTENAME(SCHEMA_NAME(t.schema_id)) + N'.' + QUOTENAME(t.name)
+        FROM sys.tables t
+        WHERE t.is_ms_shipped = 0
+          AND t.name NOT IN ('Ingredients','Allergens','ServiceCities','CityAreas','SaaSPlans','OutletGroups','PlatformMaintenanceFlags','Users');
+    OPEN purge_cursor;
+    FETCH NEXT FROM purge_cursor INTO @table;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @sql += N'DELETE FROM ' + @table + N'; ';
+        FETCH NEXT FROM purge_cursor INTO @table;
+    END;
+    CLOSE purge_cursor;
+    DEALLOCATE purge_cursor;
+    EXEC sys.sp_executesql @sql;
+
+    DELETE FROM dbo.Users WHERE Email <> 'admin@healthapp.test' OR Role <> 2;
+    INSERT INTO dbo.PlatformMaintenanceFlags(Name, CompletedAtUtc) VALUES ('CleanSaaSDatabaseV1', SYSUTCDATETIME());
+
+    SET @sql = N'';
+    DECLARE check_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT QUOTENAME(SCHEMA_NAME(t.schema_id)) + N'.' + QUOTENAME(t.name)
+        FROM sys.tables t
+        WHERE t.is_ms_shipped = 0;
+    OPEN check_cursor;
+    FETCH NEXT FROM check_cursor INTO @table;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @sql += N'ALTER TABLE ' + @table + N' WITH CHECK CHECK CONSTRAINT ALL; ';
+        FETCH NEXT FROM check_cursor INTO @table;
+    END;
+    CLOSE check_cursor;
+    DEALLOCATE check_cursor;
+    EXEC sys.sp_executesql @sql;
+END;
+", cancellationToken);
+        }
+
+        var seedDemoData = resetTenantData
+            ? false
+            : bool.TryParse(configuration["Database:SeedDemoData"], out var configuredSeedDemoData) ? configuredSeedDemoData : true;
         await DatabaseSeeder.SeedAsync(
             db,
             scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(),
