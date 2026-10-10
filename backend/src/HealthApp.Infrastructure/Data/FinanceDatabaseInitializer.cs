@@ -765,6 +765,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion134Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion135Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion136Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion137Async(db, document, cancellationToken);
             return;
         }
 
@@ -2145,6 +2146,79 @@ WHERE NOT EXISTS
             ChangeSummary = "Add durable, atomically claimed payment-provider retry recovery.",
             ChangeReason = "Recover transient provider-order creation failures without creating duplicate payment requests or changing financial calculations.",
             SourceCodeReference = "FIN-Phase-2F-DURABLE-PAYMENT-RETRY",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+
+    private static async Task SeedFinancePolicyVersion137Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.7",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.6")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode, x.Title, x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "governance" => x.ContentMarkdown + " Policy v1.3.7: SaaS billing invoices are issued once per outlet and billing period. Invoice identity, outlet/subscription, issue/due dates, line items, discounts, tax rate, tax amount, totals and policy version are frozen in a SHA-256 hashed snapshot. Historical invoices are not edited when plan prices or tax configuration change; corrections require a documented void/reissue flow.",
+                "platform-charges" => x.ContentMarkdown + " Policy v1.3.7: SaaS subscription fees and eligible one-time setup fees are billed as separate platform-charge lines. The configured SaaS tax rate is applied to the post-discount taxable subtotal using two-decimal currency rounding. The default configured rate is 18% pending confirmation of classification and SAC by the platform's CA/tax adviser; the applied rate and amount are preserved in the invoice snapshot.",
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.3.7: manual and verified online receipts are allocated to a specific invoice. Partial receipts reduce the balance by the accepted receipt amount; an invoice is marked paid only when its balance reaches zero. A Cashfree payment link is only a request for payment: an invoice is credited for online collection only after a valid signed provider webhook is verified and its idempotency key prevents duplicate posting. Failed invoice-email delivery does not constitute payment or change the invoice balance.",
+                "audit-trace" => x.ContentMarkdown + " Policy v1.3.7: each issued invoice stores its snapshot hash and finance policy version. Payment records preserve the invoice allocation, amount, method/provider, reference, verification flag and idempotency key. Link creation, payment recording and provider-confirmed payment are audited. Provider transaction references are unique per provider; manually entered cash/bank/UPI receipt references may repeat across outlets and are not treated as global provider transaction IDs.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder).Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.3.7",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 10, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Document SaaS invoice snapshots, configurable tax, partial collections, payment-link email and signed-webhook reconciliation.",
+            ChangeReason = "Provide an auditable, repeatable record of how platform subscription dues are invoiced and collected without altering historical invoices or posting unverified online payments.",
+            SourceCodeReference = "SAAS-BILLING-COLLECTIONS-1.0",
             ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
             PreviousVersionId = previous.Id,
             CreatedAtUtc = now,
