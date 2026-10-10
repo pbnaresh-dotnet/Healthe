@@ -136,7 +136,7 @@ public interface IOutletLegalPolicyRepository
 }
 public interface ISaaSPlanRepository { Task<IReadOnlyList<SaaSPlan>> GetActiveAsync(); Task<SaaSPlan?> GetAsync(Guid id); }
 public interface IOutletSubscriptionRepository { Task<OutletSubscription?> GetByOutletAsync(Guid outletId); Task<OutletSubscription?> GetAnyByOutletAsync(Guid outletId); Task<IReadOnlySet<Guid>> GetActiveOutletIdsAsync(); Task AddAsync(OutletSubscription subscription); Task UpdateAsync(OutletSubscription subscription); }
-public interface IPlatformTransactionRepository { Task AddAsync(PlatformTransaction transaction); Task UpdateAsync(PlatformTransaction transaction); Task<IReadOnlyList<PlatformTransaction>> GetAllAsync(); Task<bool> ExistsByReferenceAsync(string referenceId); }
+public interface IPlatformTransactionRepository { Task AddAsync(PlatformTransaction transaction); Task UpdateAsync(PlatformTransaction transaction); Task<IReadOnlyList<PlatformTransaction>> GetAllAsync(); Task<PlatformRevenueDto> GetRevenueSummaryAsync(); Task<bool> ExistsByReferenceAsync(string referenceId); }
 public interface IOutletOnboardingRepository
 {
     Task<OutletOnboardingApplication?> GetAsync(Guid id);
