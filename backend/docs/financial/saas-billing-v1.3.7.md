@@ -1,9 +1,9 @@
-# SaaS Billing & Collections — Finance Policy v1.3.7
+# SaaS Billing & Collections — Finance Policy v1.3.8
 
-- **Version:** 1.3.7
+- **Version:** 1.3.8
 - **Status:** Implementation baseline; subject to finance/CA review before production invoicing
 - **Effective date:** 2026-10-10
-- **Supersedes:** SaaS billing behaviour documented in v1.3.6
+- **Supersedes:** v1.3.7
 - **Scope:** Outlet setup and recurring SaaS subscription invoices issued by the Broccoly platform. This is not an outlet's customer meal/package billing.
 
 ## 1. Authority and access
@@ -59,6 +59,19 @@ This commit is not a declaration of production readiness. Before issuing statuto
 - test authorization isolation, concurrency, duplicate generation, rounding and audit completeness;
 - build and integration-test against a disposable SQL Server database.
 
+
+## 8. Payment links and email collection
+
+- Super Admin and assigned Area Managers can generate an on-demand Cashfree payment link from an outstanding invoice. The amount is the current invoice balance, not the original gross amount.
+- The link is associated with the invoice, outlet-admin email, amount, currency, provider link ID, creator and expiry. Link creation and the email outcome are tracked in `SaaSInvoicePaymentLinks`; the creation is audited.
+- The outlet's active `OutletAdmin` account email is the recipient. If there is no valid active outlet-admin email, link generation fails rather than silently sending to an unrelated address.
+- Invoice email includes outlet name/city, invoice number, period, outstanding amount, due date, secure payment URL and expiry. Email uses the configured SMTP `IEmailService`; SMTP credentials remain server-side in environment/secret configuration.
+- Cashfree credentials remain server-side. Configure `Cashfree:SaaSPaymentLinkWebhookUrl` to `https://api.broccoly.in/api/saas-billing/cashfree/payment-link-webhook` and configure the corresponding Cashfree payment-link webhook. The callback validates the Cashfree HMAC signature over timestamp + raw body, verifies link identity/currency, prevents duplicate posting, and records successful payments into the invoice collection ledger.
+- The current implementation expects a full-paid link status of `PAID`; non-paid events are acknowledged without accounting changes. If a provider event reports an amount exceeding the current invoice balance, the callback rejects automatic posting for manual reconciliation.
+- Repeated generation can create multiple active links for the same balance. Outlet should pay only one; overpayment protection and idempotency guard the invoice ledger. A future enhancement should automatically cancel/expire previous outstanding links when a new link is generated.
+- A payment link is a collection mechanism, not an invoice. Invoice snapshot remains unchanged; the linked payments and audit history update the balance.
+- Email delivery failure is reported to the admin and stored with the link record; the generated link remains available to copy/send manually.
+
 ## Change log
 
-- **v1.3.7 — 2026-10-10:** Added SaaS billing-period invoices, immutable JSON/hash snapshots, assigned Area Manager scoping, manual/verified-reconciled payment recording, partial balances, printable collection receipts, and audit records. Documented the remaining statutory tax/ledger/gateway-verification limitations.
+- **v1.3.8 — 2026-10-10:** Added on-demand Cashfree payment links per outstanding invoice, outlet-admin email delivery, link expiry and status tracking, signed payment-link webhook reconciliation, idempotent invoice payment posting, and audit records.\n- **v1.3.7 — 2026-10-10:** Added SaaS billing-period invoices, immutable JSON/hash snapshots, assigned Area Manager scoping, manual/verified-reconciled payment recording, partial balances, printable collection receipts, and audit records. Documented the remaining statutory tax/ledger/gateway-verification limitations.
