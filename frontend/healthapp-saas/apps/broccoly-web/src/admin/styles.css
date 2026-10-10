@@ -548,3 +548,24 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
  .content{padding:24px 24px 54px}
 }
 @media(min-width:1100px){.metricGrid{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
+
+
+/* Area Manager administration — responsive, consistent with the platform console */
+.formGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:18px}
+.formGrid>label{display:flex;flex-direction:column;gap:7px;font-size:12px;font-weight:750;color:var(--text,#314237)}
+.formGrid input:not([type=checkbox]){width:100%;min-width:0;border:1px solid var(--line,#dce6de);border-radius:10px;padding:11px 12px;background:#fff;color:inherit}
+.formGrid .fullWidth{grid-column:1/-1}
+.muted{color:var(--muted,#738176);font-size:12px;line-height:1.5;margin:5px 0 10px}
+.assignmentPicker{display:grid;gap:7px;max-height:250px;overflow:auto;border:1px solid var(--line,#e0e8e1);border-radius:12px;padding:8px;margin-top:8px}
+.assignmentOption{display:flex;align-items:flex-start;gap:10px;padding:9px;border-radius:8px;background:#f8fbf8;cursor:pointer}
+.assignmentOption input{margin-top:3px;accent-color:#277a45}
+.assignmentOption span{display:flex;flex-direction:column;gap:3px;min-width:0}
+.assignmentOption b{font-size:12px}.assignmentOption small{font-size:11px;color:var(--muted,#738176)}
+.managerList{display:grid;gap:12px;padding:16px}
+.managerRow{border:1px solid var(--line,#e0e8e1);border-radius:13px;padding:14px;display:grid;gap:12px}
+.managerIdentity{display:flex;align-items:center;gap:10px;min-width:0}
+.managerIdentity>div:nth-child(2){display:grid;gap:4px;min-width:0;flex:1}
+.managerIdentity small{font-size:11px;color:var(--muted,#738176);overflow-wrap:anywhere}
+.managerAvatar{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border-radius:12px;background:#e7f4e9;color:#216a3c;font-weight:850}
+.managerActions{display:flex;flex-wrap:wrap;gap:8px}
+@media(max-width:760px){.formGrid{grid-template-columns:minmax(0,1fr);padding:14px}.formGrid .fullWidth{grid-column:auto}.managerIdentity{flex-wrap:wrap}.managerIdentity .statusPill{margin-left:auto}.managerActions>*{flex:1}.assignmentPicker{max-height:220px}}
