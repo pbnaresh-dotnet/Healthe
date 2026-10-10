@@ -62,10 +62,12 @@ BEGIN
         RecordedByUserId uniqueidentifier NOT NULL,
         Provider nvarchar(50) NOT NULL,
         ProviderVerified bit NOT NULL DEFAULT 0,
+        IdempotencyKey nvarchar(100) NOT NULL,
         CreatedAtUtc datetime2 NOT NULL,
         CONSTRAINT FK_SaaSInvoicePayments_Invoices FOREIGN KEY(InvoiceId) REFERENCES dbo.SaaSInvoices(Id)
     );
     CREATE INDEX IX_SaaSInvoicePayments_Invoice_Received ON dbo.SaaSInvoicePayments(InvoiceId,ReceivedAtUtc);
+    CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Invoice_Idempotency ON dbo.SaaSInvoicePayments(InvoiceId,IdempotencyKey);
     CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Provider_Reference ON dbo.SaaSInvoicePayments(Provider,Reference) WHERE Reference <> '';
 END;
 IF OBJECT_ID('dbo.SaaSBillingAudit','U') IS NULL
@@ -90,6 +92,15 @@ IF COL_LENGTH('dbo.OutletSubscriptions','DiscountPercent') IS NULL
     ALTER TABLE dbo.OutletSubscriptions ADD DiscountPercent decimal(9,4) NOT NULL CONSTRAINT DF_OutletSubscriptions_DiscountPercent DEFAULT 0 WITH VALUES;
 IF COL_LENGTH('dbo.OutletSubscriptions','DiscountAmount') IS NULL
     ALTER TABLE dbo.OutletSubscriptions ADD DiscountAmount decimal(18,2) NOT NULL CONSTRAINT DF_OutletSubscriptions_DiscountAmount DEFAULT 0 WITH VALUES;
+", cancellationToken);
+
+        await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.SaaSInvoicePayments','IdempotencyKey') IS NULL
+BEGIN
+    ALTER TABLE dbo.SaaSInvoicePayments ADD IdempotencyKey nvarchar(100) NOT NULL CONSTRAINT DF_SaaSInvoicePayments_IdempotencyKey DEFAULT '' WITH VALUES;
+END;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_SaaSInvoicePayments_Invoice_Idempotency' AND object_id=OBJECT_ID('dbo.SaaSInvoicePayments'))
+    CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Invoice_Idempotency ON dbo.SaaSInvoicePayments(InvoiceId,IdempotencyKey);
 ", cancellationToken);
 
         // Outlet groups are a platform-level tenant classification used by Super Admin reports.
