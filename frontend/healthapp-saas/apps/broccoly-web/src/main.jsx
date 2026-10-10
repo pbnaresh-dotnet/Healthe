@@ -154,9 +154,8 @@ function Registration({plans,initialPlan,onBack,onLogin}) {
       <button type="button" className={selected?.id===p.id?'primary':'secondary'} onClick={e=>{e.stopPropagation();setSelectedPlan(p)}}>{selected?.id===p.id?'Selected':'Choose '+p.name}</button>
      </article>
     ))}
+    <article className="registerPlan planComingSoon" aria-disabled="true"><span className="planComingSoonBadge">COMING SOON</span><div className="planIcon">▦</div><h3>Stock &amp; Vendor Management</h3><p>Inventory, ingredients, suppliers and purchasing workflows.</p><strong>Coming soon</strong><span>Not available for subscription yet</span><button type="button" className="secondary" disabled>Coming soon</button></article>
    </div>
-   
-   <article className="registerPlan planComingSoon" aria-disabled="true"><span className="planComingSoonBadge">COMING SOON</span><div className="planIcon">▦</div><h3>Stock &amp; Vendor Management</h3><p>Inventory, ingredients, suppliers and purchasing workflows.</p><strong>Coming soon</strong><span>Not available for subscription yet</span><button type="button" className="secondary" disabled>Coming soon</button></article>
    <div className="registerChargeNote"><b>Additional outlet charge</b><span>Package creation fee: ₹100 per week of package duration, charged when a package is created and consolidated on your monthly invoice.</span></div>
    <div className="registerBottom">
     <div><b>One-time setup fee</b><span>{money(SETUP_FEE)} at the payment step</span></div>
