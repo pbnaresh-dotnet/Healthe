@@ -38,9 +38,13 @@ public sealed class OutletOnboardingService(
     }
 
     public async Task<IReadOnlyList<SaaSPlanDto>> GetPlansAsync() =>
-        (await plans.GetActiveAsync()).Select(x => new SaaSPlanDto(
-            x.Id, x.Name, x.MonthlyFee, x.AnnualFee, x.IncludedActiveCustomers,
-            x.AdditionalCustomerFee, x.CustomerTransactionFeePercent, x.Description, x.IsActive)).ToList();
+        (await plans.GetActiveAsync())
+            // "Free" is an internal/demo tier, not a purchasable standalone SaaS subscription.
+            .Where(x => !string.Equals(x.Name?.Trim(), "Free", StringComparison.OrdinalIgnoreCase))
+            .Select(x => new SaaSPlanDto(
+                x.Id, x.Name, x.MonthlyFee, x.AnnualFee, x.IncludedActiveCustomers,
+                x.AdditionalCustomerFee, x.CustomerTransactionFeePercent, x.Description, x.IsActive))
+            .ToList();
 
     public async Task<OutletOnboardingSessionDto> StartPaymentAsync(OutletOnboardingPaymentRequest request)
     {
