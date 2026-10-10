@@ -384,6 +384,7 @@ public interface IPaymentTransactionRepository
     Task<PaymentTransaction?> GetLatestBySubscriptionAsync(Guid subscriptionId);
     Task<IReadOnlyList<PaymentTransaction>> GetRetryableAsync(DateTime utcNow, DateTime staleClaimBeforeUtc, int maxAttempts, int batchSize);
     Task<bool> TryClaimRetryAsync(Guid paymentId, DateTime utcNow, int maxAttempts);
+    Task<bool> TryClaimWebhookAsync(Guid paymentId, DateTime utcNow, DateTime staleClaimBeforeUtc);
     Task AddAsync(PaymentTransaction payment);
     Task UpdateAsync(PaymentTransaction payment);
 }
