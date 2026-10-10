@@ -313,7 +313,7 @@ FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE i.Id=@id{sco
                 }
                 await Audit(conn,tx,invoiceId,"CashfreeProviderPaymentReferenceConflict",new{providerLinkId,providerPaymentId,existingPaymentId=priorPaymentId,existingInvoiceId=priorInvoiceId,existingAmount=priorPaymentAmount,reportedAmount=amount,reason="Provider payment reference is already allocated to another invoice or has a different allocated amount."},null,ct);
                 await tx.CommitAsync(ct);
-                return Conflict(new{message="Cashfree payment ID has already been allocated to another invoice; manual reconciliation is required."});
+                return Conflict(new{message="Cashfree payment ID is already allocated or conflicts with an existing allocation; manual reconciliation is required."});
             }
             if(amount>invoiceTotal-invoicePaid)return Conflict(new{message="Reported payment exceeds invoice balance; manual reconciliation is required."});
             var now=DateTime.UtcNow;var paymentId=Guid.NewGuid();
