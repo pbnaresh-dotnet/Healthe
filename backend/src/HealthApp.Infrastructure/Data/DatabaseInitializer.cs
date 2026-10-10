@@ -1435,7 +1435,13 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Trials_Outlets')
 ", cancellationToken);
 
         // Keep the old text columns harmless for older databases; normalized values are now authoritative.
-        await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(), cancellationToken);
+        var configuration = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
+        var seedDemoData = configuration.GetValue<bool>("Database:SeedDemoData", true);
+        await DatabaseSeeder.SeedAsync(
+            db,
+            scope.ServiceProvider.GetRequiredService<HealthApp.Application.Abstractions.IPasswordService>(),
+            cancellationToken,
+            seedDemoData);
 
         // Populate a complete customer-facing legal template for newly seeded/legacy outlets
         // that do not yet have policies. A completely empty policy set is safe to replace with
