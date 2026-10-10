@@ -769,6 +769,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion138Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion139Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion1310Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion1311Async(db, document, cancellationToken);
             return;
         }
 
@@ -845,6 +846,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion138Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion139Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion1310Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion1311Async(db, document, cancellationToken);
     }
 
     private static async Task SeedFinancePolicyVersion11Async(
@@ -2433,6 +2435,73 @@ WHERE NOT EXISTS
             ChangeSummary = "Validate rounded manual receipt amounts and serialize concurrent payment-link webhook postings.",
             ChangeReason = "Ensure invoice balances remain correct for sub-cent input and concurrent provider callbacks.",
             SourceCodeReference = "SAAS-BILLING-COLLECTION-AMOUNT-AND-CONCURRENCY-1.3.10",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+
+    private static async Task SeedFinancePolicyVersion1311Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.11",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.10")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode, x.Title, x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.3.11: every successful Cashfree payment-link callback must include the provider's actual payment transaction ID. The payment-link ID is not substituted for a missing payment ID. Before posting a collection, the handler checks the provider/payment reference across invoices under serializable key/range locking; a reference already allocated to this invoice is acknowledged as a duplicate without a second posting, while a reference allocated to another invoice is rejected for manual reconciliation.",
+                "governance" => x.ContentMarkdown + " Policy v1.3.11: invoice-scoped payment-link idempotency is supplemented by provider transaction identity. The database's unique provider/reference index is the final invariant across links and invoices. Concurrent attempts to allocate the same Cashfree payment ID must not create a second collection; cross-invoice collisions are surfaced as a reconciliation conflict.",
+                "audit-trace" => x.ContentMarkdown + " Policy v1.3.11: repeated provider payment references are audited as ignored duplicates when already allocated to the same invoice, or as conflicts when allocated elsewhere. Missing provider payment IDs and reference conflicts never create an additional payment row or change invoice balances.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+        var canonical = string.Join("\\n---\\n",
+            updated.OrderBy(x => x.DisplayOrder).Select(x => $"{x.SectionCode.Trim()}\\n{x.Title.Trim()}\\n{x.Content.Trim()}"));
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.3.11",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 10, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Guard against duplicate Cashfree payment transaction IDs across links and invoices.",
+            ChangeReason = "Prevent a provider transaction from being credited more than once when callbacks arrive through separate payment links or concurrently.",
+            SourceCodeReference = "SAAS-BILLING-CASHFREE-PROVIDER-REFERENCE-IDEMPOTENCY-1.3.11",
             ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
             PreviousVersionId = previous.Id,
             CreatedAtUtc = now,
