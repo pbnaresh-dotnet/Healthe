@@ -1,7 +1,10 @@
 using System.Data;
+using System.Globalization;
+using System.Net;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using HealthApp.Application.Abstractions;
 using HealthApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +17,7 @@ namespace HealthApp.Api.Controllers;
 [ApiController]
 [Route("api/saas-billing")]
 [Authorize(Roles = "SuperAdmin,AreaManager")]
-public sealed class SaaSBillingController(HealthAppDbContext db, IConfiguration configuration) : ControllerBase
+public sealed class SaaSBillingController(HealthAppDbContext db, IConfiguration configuration, IHttpClientFactory httpClientFactory, IEmailService email) : ControllerBase
 {
     private Guid? ActorId => Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value, out var id) ? id : null;
     private bool IsSuperAdmin => User.IsInRole("SuperAdmin");
