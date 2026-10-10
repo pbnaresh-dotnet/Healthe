@@ -11,7 +11,7 @@ internal sealed record PagedList<T>(IReadOnlyList<T> Items, int TotalCount, int 
 
 internal static class ListQuery
 {
-    public static IReadOnlyList<T> Apply<T>(
+    public static object Apply<T>(
         IEnumerable<T> source,
         string? search,
         int? page,
