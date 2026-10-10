@@ -106,6 +106,19 @@ builder.Services.AddCors(options => options.AddPolicy("WebApps", policy =>
 
 var app = builder.Build();
 await DatabaseInitializer.InitializeAsync(app.Services);
+await using (var diagnosticsScope = app.Services.CreateAsyncScope())
+{
+    var diagnosticsDb = diagnosticsScope.ServiceProvider.GetRequiredService<HealthAppDbContext>();
+    var diagnosticsPolicy = diagnosticsScope.ServiceProvider.GetRequiredService<DiagnosticsPolicy>();
+    await using var diagnosticsConnection = diagnosticsDb.Database.GetDbConnection();
+    if (diagnosticsConnection.State != System.Data.ConnectionState.Open)
+        await diagnosticsConnection.OpenAsync();
+    await using var diagnosticsCommand = diagnosticsConnection.CreateCommand();
+    diagnosticsCommand.CommandText = "SELECT RequestLoggingEnabled,DetailedLoggingEnabled,SlowRequestThresholdMs FROM dbo.DiagnosticsSettings WHERE Id=1";
+    await using var diagnosticsReader = await diagnosticsCommand.ExecuteReaderAsync();
+    if (await diagnosticsReader.ReadAsync())
+        diagnosticsPolicy.Update(diagnosticsReader.GetBoolean(0), diagnosticsReader.GetBoolean(1), diagnosticsReader.GetInt32(2));
+}
 if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();
