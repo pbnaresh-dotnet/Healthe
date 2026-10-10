@@ -127,3 +127,29 @@ html{scroll-padding-top:76px}body{overflow-x:hidden}img,video,svg{max-width:100%
  .nav.navOpen nav{display:flex;position:absolute;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:0;padding:8px 14px 14px;background:#fff;border-bottom:1px solid #dfe9e2;box-shadow:0 14px 28px rgba(16,48,26,.12);white-space:normal}
  .nav.navOpen nav a{padding:13px 10px}
 }
+
+
+/* Subscription plan selection: compact, mobile-first billing and fee disclosure */
+.subscriptionPeriodToggle{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;max-width:560px}
+.subscriptionPeriodToggle button{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:normal}
+.subscriptionPeriodToggle button small{display:block;font-size:11px;font-weight:700;opacity:.9}
+.registerChargeNote{display:flex;flex-direction:column;gap:5px;margin-top:18px;padding:14px 16px;border:1px solid #dcebe0;border-radius:14px;background:#f3faf5;color:#254c32}
+.registerChargeNote b{font-size:13px}
+.registerChargeNote span{font-size:12px;line-height:1.55;color:#536b5b}
+.registerBottom{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px}
+.registerBottom>div{display:flex;flex-direction:column;gap:4px}
+.registerBottom .large{min-height:46px}
+.paymentGrid .summaryCard .line{gap:14px}
+.paymentGrid .summaryCard .line b{text-align:right}
+@media(max-width:680px){
+ .subscriptionPeriodToggle{grid-template-columns:repeat(2,minmax(0,1fr));max-width:none}
+ .subscriptionPeriodToggle button{font-size:12px;padding:10px 6px}
+ .subscriptionPeriodToggle button small{font-size:10px}
+ .registerChargeNote{padding:12px}
+ .registerBottom{align-items:stretch}
+ .registerBottom>div,.registerBottom>.large{width:100%}
+ .registerBottom>.large{min-height:48px}
+ .paymentGrid .summaryCard .line{align-items:flex-start}
+ .paymentGrid .summaryCard .line span{flex:1}
+ .paymentGrid .summaryCard .line b{max-width:58%;overflow-wrap:anywhere}
+}
