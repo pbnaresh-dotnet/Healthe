@@ -203,3 +203,15 @@ html{scroll-padding-top:76px}body{overflow-x:hidden}img,video,svg{max-width:100%
  .registerPlanFeatures{display:flex;flex-direction:column;gap:9px;margin:16px 0 auto}
  .registerPlanFeatures span{font-size:11px;line-height:1.45;color:#4f6457;font-weight:600}
 }
+
+/* Trial-first SaaS pricing: no zero-price Free tier card. */
+.trialNotice{display:flex;flex-direction:column;gap:5px;max-width:780px;margin:16px auto 0;padding:14px 18px;border:1px solid #cfe5d4;border-radius:14px;background:#edf8ef;text-align:left}
+.trialNotice b{font-size:14px;color:#165b31}
+.trialNotice span{font-size:12px;line-height:1.55;color:#536b5b}
+@media(min-width:1081px){
+ .plans{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+ .plan{min-width:0;padding:22px 18px}
+ .planPrice{font-size:clamp(24px,1.8vw,34px);overflow-wrap:anywhere}
+ .plan h3{overflow-wrap:anywhere}
+}
+@media(max-width:680px){.trialNotice{padding:12px;text-align:left}.trialNotice b{font-size:13px}.trialNotice span{font-size:11px}}
