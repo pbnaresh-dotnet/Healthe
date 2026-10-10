@@ -47,3 +47,19 @@ Area Manager workspace endpoints (Area Manager bearer token):
 - `GET /api/area-manager/outlets` — only assigned outlets.
 
 The embedded Super Admin UI at `broccoly.in/admin` now includes an **Area Managers** page to create accounts, select assigned outlets, edit assignments, and activate/deactivate managers. Area Manager accounts sign in to the same embedded console and see only their assigned-outlet workspace with status counts and assigned outlet/location information. The current workspace is intentionally read-only: it does not expose Super Admin actions or outlet operational write APIs. Additional actions (such as handling outlet requests or updating outlet configuration) should be introduced as explicitly scoped endpoints with an audit trail.
+
+
+## Super Admin: create outlet with SaaS subscription
+
+The embedded Super Admin console at `broccoly.in/admin` now has an **Add outlet and subscription** form inside **Tenants → Outlets**. It creates the outlet, an active Outlet Admin login and the selected SaaS subscription together in one database transaction.
+
+Super Admin endpoints (require a Super Admin bearer token):
+
+- `GET /api/admin/saas-plans` — returns active, paid SaaS plans for the form.
+- `POST /api/admin/outlets` — provisions the outlet and owner account and assigns the chosen plan.
+
+Required request fields: `outletName`, `ownerFirstName`, `ownerLastName`, `email`, `password`, `city`, `state`, `pincode`, `saasPlanId`, and `billingCycle`. Optional `mobileNumber`. Billing cycles accepted are `Monthly`, `SixMonths` and `Annual`. Six-month pricing uses the existing 10% discount calculation (monthly fee × 6 × 90%); annual pricing uses the plan's configured annual fee. Setup fee reads `Onboarding:SetupFee` and defaults to ₹5,000 if not configured. The plan's customer transaction fee percentage is copied to the outlet subscription.
+
+This is an **admin provisioning action, not a payment collection**: the endpoint does not call Cashfree or create a payment transaction. The form discloses this, and the response labels payment status as `NotCollected`. Super Admin should reconcile setup/subscription payment separately before treating this as a paid financial transaction. It also does not collect or publish outlet-specific customer legal policies; those remain an outlet onboarding/configuration task.
+
+Outlet slug/subdomain is generated from the outlet name, with collision suffixes and reserved-name protection. The API rejects duplicate owner email addresses and creates the outlet, owner and subscription atomically. These changes have not been build- or integration-tested and are not deployed yet.
