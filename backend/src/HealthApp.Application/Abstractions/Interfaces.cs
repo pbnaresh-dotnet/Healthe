@@ -355,6 +355,7 @@ public interface IPaymentGatewaySettlementRepository
     Task AddAsync(PaymentGatewaySettlement settlement);
     Task UpdateAsync(PaymentGatewaySettlement settlement);
     Task<IReadOnlyList<PaymentGatewaySettlement>> GetUnreconciledAsync(Guid? outletId = null);
+    Task<(IReadOnlyList<PaymentGatewaySettlement> Items, int TotalCount)> GetUnreconciledPageAsync(Guid? outletId, int page, int pageSize, CancellationToken cancellationToken = default);
 }
 
 public interface IPaymentSettlementReconciliationExceptionRepository
@@ -363,6 +364,8 @@ public interface IPaymentSettlementReconciliationExceptionRepository
     Task AddAsync(PaymentSettlementReconciliationException exception);
     Task UpdateAsync(PaymentSettlementReconciliationException exception);
     Task<IReadOnlyList<PaymentSettlementReconciliationException>> GetOpenAsync(string? provider = null, Guid? outletId = null);
+    Task<PaymentSettlementReconciliationException?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<PaymentSettlementReconciliationException> Items, int TotalCount)> GetOpenPageAsync(string? provider, Guid? outletId, int page, int pageSize, CancellationToken cancellationToken = default);
 }
 public interface IPaymentTransactionRepository
 {
