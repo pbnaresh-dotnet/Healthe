@@ -261,15 +261,16 @@ FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE i.Id=@id{sco
         await using var conn=db.Database.GetDbConnection();if(conn.State!=ConnectionState.Open)await conn.OpenAsync(ct);
         await using var tx=await conn.BeginTransactionAsync(ct);
         try {
-            Guid invoiceId,linkId;decimal invoiceTotal,invoicePaid;string invoiceNumber,invoiceCurrency;
+            Guid invoiceId,linkId;decimal invoiceTotal,invoicePaid,linkAmount;string invoiceNumber,invoiceCurrency;
             await using(var lookup=conn.CreateCommand()){
-                lookup.Transaction=tx;lookup.CommandText=@"SELECT l.Id,l.InvoiceId,i.TotalAmount,i.AmountPaid,i.InvoiceNumber,i.Currency FROM dbo.SaaSInvoicePaymentLinks l WITH (UPDLOCK,HOLDLOCK) JOIN dbo.SaaSInvoices i ON i.Id=l.InvoiceId WHERE l.Provider='Cashfree' AND l.ProviderLinkId=@providerLinkId";
+                lookup.Transaction=tx;lookup.CommandText=@"SELECT l.Id,l.InvoiceId,l.Amount,i.TotalAmount,i.AmountPaid,i.InvoiceNumber,i.Currency FROM dbo.SaaSInvoicePaymentLinks l WITH (UPDLOCK,HOLDLOCK) JOIN dbo.SaaSInvoices i ON i.Id=l.InvoiceId WHERE l.Provider='Cashfree' AND l.ProviderLinkId=@providerLinkId";
                 Add(lookup,"@providerLinkId",providerLinkId);await using var r=await lookup.ExecuteReaderAsync(ct);
                 if(!await r.ReadAsync(ct))return NotFound(new{message="Payment link is not registered."});
-                linkId=r.GetGuid(0);invoiceId=r.GetGuid(1);invoiceTotal=r.GetDecimal(2);invoicePaid=r.GetDecimal(3);invoiceNumber=r.GetString(4);invoiceCurrency=r.GetString(5);
+                linkId=r.GetGuid(0);invoiceId=r.GetGuid(1);linkAmount=r.GetDecimal(2);invoiceTotal=r.GetDecimal(3);invoicePaid=r.GetDecimal(4);invoiceNumber=r.GetString(5);invoiceCurrency=r.GetString(6);
             }
             if(!string.IsNullOrWhiteSpace(currency)&&!string.Equals(currency,invoiceCurrency,StringComparison.OrdinalIgnoreCase))return Conflict(new{message="Payment-link currency does not match invoice."});
             var amount=decimal.Round(amountPaid.Value,2,MidpointRounding.AwayFromZero);
+            if(amount!=linkAmount)return Conflict(new{message="Reported payment amount does not match the registered payment link; manual reconciliation is required."});
             var key="cashfree-link-"+providerLinkId;
             await using(var exists=conn.CreateCommand()){
                 exists.Transaction=tx;exists.CommandText="SELECT Id FROM dbo.SaaSInvoicePayments WHERE InvoiceId=@invoice AND IdempotencyKey=@key";Add(exists,"@invoice",invoiceId);Add(exists,"@key",key);
