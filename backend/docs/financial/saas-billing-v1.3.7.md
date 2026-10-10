@@ -55,7 +55,7 @@ This commit is not a declaration of production readiness. Before issuing statuto
 - align eligibility and proration with actual subscription renewal/plan-change/reactivation semantics;
 - add a formal void/credit-note workflow and invoice-number sequence policy;
 - verify online payments from signed provider callbacks/API reconciliation rather than a user-entered checkbox;
-- add payment idempotency keys, reconciliation reports and ledger journal postings;
+- expand reconciliation reports and ledger journal postings (payment collection idempotency keys are implemented per invoice);
 - test authorization isolation, concurrency, duplicate generation, rounding and audit completeness;
 - build and integration-test against a disposable SQL Server database.
 
