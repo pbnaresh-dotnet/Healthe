@@ -127,6 +127,7 @@ app.UseRouting();
 // Access-Control-Allow-Origin. Otherwise browser clients can report a real
 // server error as a misleading CORS error.
 app.UseCors("WebApps");
+app.UseMiddleware<RequestDiagnosticsMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseRateLimiter();
 app.UseAuthentication();
