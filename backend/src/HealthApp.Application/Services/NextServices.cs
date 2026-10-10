@@ -963,7 +963,8 @@ public sealed class DeliveryLabelService(
                     delivery.Status.ToString(),
                     delivery.RouteId,
                     routeStatusMap.TryGetValue(delivery.Id, out var routeInfo) ? routeInfo.Sequence : delivery.RouteSequence,
-                    routeStatusMap.TryGetValue(delivery.Id, out routeInfo) ? routeInfo.Status : ""));
+                    routeStatusMap.TryGetValue(delivery.Id, out routeInfo) ? routeInfo.Status : "",
+                    selection.Status.ToString()));
             }
         }
 
