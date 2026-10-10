@@ -7,13 +7,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 
 namespace HealthApp.Api.Controllers;
 
 [ApiController]
 [Route("api/saas-billing")]
 [Authorize(Roles = "SuperAdmin,AreaManager")]
-public sealed class SaaSBillingController(HealthAppDbContext db) : ControllerBase
+public sealed class SaaSBillingController(HealthAppDbContext db, IConfiguration configuration) : ControllerBase
 {
     private Guid? ActorId => Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value, out var id) ? id : null;
     private bool IsSuperAdmin => User.IsInRole("SuperAdmin");
@@ -23,7 +24,7 @@ public sealed class SaaSBillingController(HealthAppDbContext db) : ControllerBas
     {
         var outletScope = IsSuperAdmin ? "" : " AND EXISTS (SELECT 1 FROM dbo.AreaManagerOutletAssignments a WHERE a.OutletId=i.OutletId AND a.AreaManagerUserId=@actor)";
         var sql = $@"SELECT i.Id,i.InvoiceNumber,i.OutletId,o.Name OutletName,o.City,i.BillingPeriod,i.IssueDateUtc,i.DueDateUtc,
-i.Currency,i.Subtotal,i.DiscountAmount,i.TaxAmount,i.TotalAmount,i.AmountPaid,i.BalanceDue,i.Status,i.CreatedByUserId,i.CreatedAtUtc
+i.Currency,i.Subtotal,i.DiscountAmount,i.TaxAmount,i.TotalAmount,i.AmountPaid,i.BalanceDue,CASE WHEN i.Status IN ('Issued','PartiallyPaid') AND i.DueDateUtc<SYSUTCDATETIME() THEN 'Overdue' ELSE i.Status END,i.CreatedByUserId,i.CreatedAtUtc
 FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE (@status IS NULL OR (CASE WHEN i.Status IN ('Issued','PartiallyPaid') AND i.DueDateUtc< SYSUTCDATETIME() THEN 'Overdue' ELSE i.Status END)=@status)
 AND (@period IS NULL OR i.BillingPeriod=@period){outletScope} ORDER BY i.DueDateUtc DESC,i.CreatedAtUtc DESC";
         await using var conn = db.Database.GetDbConnection();
@@ -77,7 +78,7 @@ WHERE s.Status='Active' AND o.Status IN (1,3) AND s.StartDate<@next AND (s.Billi
                 var discount=includesSetup?Math.Min(gross,x.discountAmount):0m;
                 var subtotal=Math.Max(0m,gross-discount);
                 // SaaS tax is not inferred here. The configured finance/tax policy must determine the applicable tax rate.
-                var taxRate=request.TaxRatePercent;
+                var taxRate=IsSuperAdmin?request.TaxRatePercent:(configuration.GetValue<decimal?>("Finance:SaaSBillingTaxRatePercent")??18m);
                 if(taxRate<0||taxRate>100){await tx.RollbackAsync(ct);return BadRequest(new {message="Tax rate must be between 0 and 100."});}
                 var tax=decimal.Round(subtotal*taxRate/100m,2,MidpointRounding.AwayFromZero);
                 var total=decimal.Round(subtotal+tax,2,MidpointRounding.AwayFromZero);
