@@ -81,7 +81,7 @@ public sealed class AdminFinanceRepository(HealthAppDbContext db) : IAdminFinanc
                 .Skip((page - 1) * pageSize).Take(pageSize)
                 .Select(g => new AdminFinanceOutletRowDto(
                     g.Key.OutletId, g.Key.OutletName, g.Key.City, g.Key.OutletGroupId,
-                    string.IsNullOrWhiteSpace(g.Key.GroupName) ? "Unassigned" : g.Key.GroupName,
+                    g.Key.GroupName == "" ? "Unassigned" : g.Key.GroupName,
                     g.Count(), g.Count(x => x.IsPaid),
                     new AdminFinanceAmountsDto(
                         g.Sum(x => x.GrossMealAmount), g.Sum(x => x.SubscriptionDiscountAmount),
@@ -100,7 +100,7 @@ public sealed class AdminFinanceRepository(HealthAppDbContext db) : IAdminFinanc
                 .Skip((page - 1) * pageSize).Take(pageSize)
                 .Select(g => new AdminFinanceGroupRowDto(
                     g.Key.OutletGroupId,
-                    string.IsNullOrWhiteSpace(g.Key.GroupName) ? "Unassigned" : g.Key.GroupName,
+                    g.Key.GroupName == "" ? "Unassigned" : g.Key.GroupName,
                     g.Select(x => x.OutletId).Distinct().Count(), g.Count(), g.Count(x => x.IsPaid),
                     new AdminFinanceAmountsDto(
                         g.Sum(x => x.GrossMealAmount), g.Sum(x => x.SubscriptionDiscountAmount),
@@ -119,7 +119,7 @@ public sealed class AdminFinanceRepository(HealthAppDbContext db) : IAdminFinanc
                 .Skip((page - 1) * pageSize).Take(pageSize)
                 .Select(g => new AdminFinanceDailyRowDto(
                     g.Key.Date, g.Key.OutletGroupId,
-                    string.IsNullOrWhiteSpace(g.Key.GroupName) ? "Unassigned" : g.Key.GroupName,
+                    g.Key.GroupName == "" ? "Unassigned" : g.Key.GroupName,
                     g.Count(), g.Count(x => x.IsPaid),
                     new AdminFinanceAmountsDto(
                         g.Sum(x => x.GrossMealAmount), g.Sum(x => x.SubscriptionDiscountAmount),
