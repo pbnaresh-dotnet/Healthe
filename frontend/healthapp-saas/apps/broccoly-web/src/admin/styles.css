@@ -611,3 +611,6 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
 @media(max-width:760px){.billingTableHead{align-items:stretch;flex-direction:column}.billingFilters{min-width:0;flex-direction:column}.billingControls{display:grid;grid-template-columns:1fr 1fr}.billingControls label{min-width:0}.billingControls .primaryBtn{grid-column:1/-1}.billingModal{padding:16px}.invoiceAmounts{grid-template-columns:1fr}.invoiceAmounts b{font-size:16px}.saasBilling .metricGrid{grid-template-columns:1fr}.billingGenerate{padding:16px}}
 
 .allPeriodsFilter{display:flex;align-items:center;gap:7px;white-space:nowrap;font-size:12px;color:var(--muted,#64748b)}.allPeriodsFilter input{width:auto;min-height:0}
+
+.paymentLinkBox{display:grid;gap:12px;margin-top:20px;padding:16px;border:1px solid var(--border,#dbe4dd);border-radius:12px;background:var(--surface-subtle,#f7faf7)}.paymentLinkBox h3{margin:0 0 6px}.paymentLinkBox p{margin:0}.paymentLinkResult{display:grid;gap:8px;padding:12px;border-radius:10px;background:var(--surface,#fff);border:1px solid var(--border,#dbe4dd)}.paymentLinkResult small{color:var(--muted,#64748b)}.paymentLinkResult a{overflow-wrap:anywhere;font-size:13px;color:#166534}.paymentLinkActions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:760px){.paymentLinkBox{padding:12px}.paymentLinkActions>*{flex:1}}
