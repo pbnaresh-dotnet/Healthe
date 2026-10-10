@@ -4,6 +4,7 @@ import{admin}from'@healthapp/shared';
 export default function ApplicationErrorMonitor({outlets=[]}){
  const[monitor,setMonitor]=useState({items:[],totalCount:0,page:1,pageSize:50,summary:{totalCount:0,unresolvedCount:0,last24HoursCount:0,byOutlet:[]}});
  const[filters,setFilters]=useState({outletId:'',severity:'',statusCode:'',resolved:'false',search:''});
+ const[appliedFilters,setAppliedFilters]=useState({outletId:'',severity:'',statusCode:'',resolved:'false',search:''});
  const[selected,setSelected]=useState(null);
  const[resolutionNotes,setResolutionNotes]=useState('');
  const[loading,setLoading]=useState(false);
@@ -14,7 +15,7 @@ export default function ApplicationErrorMonitor({outlets=[]}){
  const[settingsBusy,setSettingsBusy]=useState(false);
  const[settingsMessage,setSettingsMessage]=useState('');
 
- const load=async(next=filters,nextPage=page)=>{
+ const load=async(next=appliedFilters,nextPage=page)=>{
    try{
      setLoading(true);setError('');
      const result=await admin.errors({
@@ -30,11 +31,11 @@ export default function ApplicationErrorMonitor({outlets=[]}){
    }catch(e){setError(e.message||'Unable to load application errors')}finally{setLoading(false)}
  };
 
- useEffect(()=>{load(filters,page)},[page,pageSize]);
+ useEffect(()=>{load(appliedFilters,page)},[appliedFilters,page,pageSize]);
  useEffect(()=>{let active=true;admin.diagnosticsSettings().then(value=>{if(active&&value)setDiagnostics({requestLoggingEnabled:!!value.requestLoggingEnabled,detailedLoggingEnabled:!!value.detailedLoggingEnabled,slowRequestThresholdMs:Number(value.slowRequestThresholdMs||1000)})}).catch(e=>{if(active)setSettingsMessage(e.message||'Unable to load diagnostics settings')});return()=>{active=false}},[]);
  const saveDiagnostics=async()=>{try{setSettingsBusy(true);setSettingsMessage('');const value=await admin.updateDiagnosticsSettings(diagnostics);setDiagnostics({requestLoggingEnabled:!!value.requestLoggingEnabled,detailedLoggingEnabled:!!value.detailedLoggingEnabled,slowRequestThresholdMs:Number(value.slowRequestThresholdMs||1000)});setSettingsMessage('Diagnostics settings saved. Detailed exception information is sensitive; enable it only while investigating and turn it off afterwards.')}catch(e){setSettingsMessage(e.message||'Unable to save diagnostics settings')}finally{setSettingsBusy(false)}};
 
- const apply=next=>{setFilters(next);setPage(1);load(next,1)};
+ const apply=next=>{setFilters(next);setAppliedFilters(next);setPage(1)};
  const open=async id=>{
    try{setLoading(true);setError('');setSelected(await admin.error(id));setResolutionNotes('')}
    catch(e){setError(e.message||'Unable to load error details')}
@@ -46,7 +47,7 @@ export default function ApplicationErrorMonitor({outlets=[]}){
      setLoading(true);setError('');
      const item=await admin.resolveError(selected.id,resolutionNotes);
      setSelected(item);
-     await load(filters,page);
+     await load(appliedFilters,page);
    }catch(e){setError(e.message||'Unable to resolve error')}finally{setLoading(false)}
  };
 
