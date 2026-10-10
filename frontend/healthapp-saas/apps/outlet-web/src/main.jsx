@@ -653,9 +653,11 @@ function KitchenPage({data,date,setDate,refresh,onMarkFoodReady,onMarkMealFoodRe
  const kitchenDeliveries=useMemo(()=>{
   const map=new Map();
   (data?.labels||[]).filter(l=>printSlots.includes(Number(l.mealSlot))&&l.deliveryId).forEach(l=>{
-   const current=map.get(l.deliveryId)||{deliveryId:l.deliveryId,status:l.deliveryStatus||'Scheduled',customerName:l.customerName,mealSlotName:l.mealSlotName,deliveryWindow:l.deliveryWindow,address:l.address,meals:[]};
+   const ready=String(l.deliveryStatus||'').toLowerCase()==='foodready';
+   const current=map.get(l.deliveryId)||{deliveryId:l.deliveryId,status:l.deliveryStatus||'Scheduled',allItemsFoodReady:ready,customerName:l.customerName,mealSlotName:l.mealSlotName,deliveryWindow:l.deliveryWindow,address:l.address,meals:[]};
+   current.allItemsFoodReady=current.allItemsFoodReady&&ready;
+   current.status=current.allItemsFoodReady?'FoodReady':(l.deliveryStatus||current.status);
    current.meals.push({selectionId:l.selectionId,name:l.mealName,portionSize:l.portionSize,status:l.itemStatus||'Scheduled'});
-   if(String(l.deliveryStatus||'').toLowerCase()==='foodready')current.status='FoodReady';
    map.set(l.deliveryId,current);
   });
   return [...map.values()];
@@ -777,8 +779,10 @@ function DeliveryRoutesPage({plan,drivers,labels=[],date,mealSlot,setDate,setMea
  },[plan]);
  const routeLabelGroups=useMemo(()=>{
   const grouped=new Map();
-  (labels||[]).filter(l=>Number(l.mealSlot)===Number(mealSlot)&&l.deliveryId&&String(l.deliveryStatus||'').toLowerCase()==='foodready').forEach(l=>{
-   const key=String(l.deliveryId),current=grouped.get(key)||{...l,deliveryId:key,items:[],itemCount:0};
+  (labels||[]).filter(l=>Number(l.mealSlot)===Number(mealSlot)&&l.deliveryId).forEach(l=>{
+   const ready=String(l.deliveryStatus||'').toLowerCase()==='foodready';
+   const key=String(l.deliveryId),current=grouped.get(key)||{...l,deliveryId:key,items:[],itemCount:0,allItemsFoodReady:ready};
+   current.allItemsFoodReady=current.allItemsFoodReady&&ready;
    current.items.push({selectionId:l.selectionId,name:l.mealName,category:l.category,portionSize:l.portionSize,itemStatus:l.itemStatus});
    current.itemCount++;
    grouped.set(key,current);
@@ -788,7 +792,7 @@ function DeliveryRoutesPage({plan,drivers,labels=[],date,mealSlot,setDate,setMea
    return {...item,route:assignedDelivery?.route||null,stop:assignedDelivery?.stop||null,
     routeSequence:Number(item.routeSequence||assignedDelivery?.stop?.stopSequence||0),
     routeName:assignedDelivery?.route?.driverName||item.routeName||''};
-  }).filter(item=>item.route||item.routeId||item.routeSequence>0)
+  }).filter(item=>item.allItemsFoodReady&&(item.route||item.routeId||item.routeSequence>0))
    .sort((a,b)=>(a.routeSequence||9999)-(b.routeSequence||9999)||String(a.customerName||'').localeCompare(String(b.customerName||'')));
  },[labels,mealSlot,deliveryRouteLookup]);
  const mealStickerRows=useMemo(()=>routeLabelGroups.flatMap(group=>group.items
