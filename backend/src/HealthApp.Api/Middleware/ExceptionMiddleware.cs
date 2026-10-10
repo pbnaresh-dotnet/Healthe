@@ -9,7 +9,8 @@ namespace HealthApp.Api.Middleware;
 
 public sealed class ExceptionMiddleware(
     RequestDelegate next,
-    ILogger<ExceptionMiddleware> logger)
+    ILogger<ExceptionMiddleware> logger,
+    IConfiguration configuration)
 {
     public async Task InvokeAsync(
         HttpContext context,
@@ -84,7 +85,8 @@ public sealed class ExceptionMiddleware(
         ITenantContext tenant,
         IHostEnvironment hostEnvironment)
     {
-        var message = exception.Message ?? exception.GetType().Name;
+        var detailed = configuration.GetValue("Diagnostics:DetailedLoggingEnabled", false);
+        var message = detailed ? (exception.Message ?? exception.GetType().Name) : "Request failed; use the correlation ID to investigate.";
         var errorCode = "EXC_" + exception.GetType().Name;
         var outletId = currentUser.OutletId ?? tenant.OutletId;
         var tenantSlug = tenant.OutletSlug ?? "";
@@ -99,8 +101,8 @@ public sealed class ExceptionMiddleware(
                 activity,
                 exception.GetType().FullName ?? exception.GetType().Name,
                 message,
-                exception.InnerException?.Message ?? "",
-                exception.StackTrace ?? "",
+                detailed ? (exception.InnerException?.Message ?? "") : "",
+                detailed ? (exception.StackTrace ?? "") : "",
                 statusCode,
                 correlationId,
                 stopwatch.ElapsedMilliseconds,
