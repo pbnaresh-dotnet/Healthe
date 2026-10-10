@@ -438,6 +438,16 @@ IDeliveryCalculator deliveryCalculator, IDiscountCodeRepository discountCodes, I
         return new CustomerLegalStatusDto(outletId, $"{customer.FirstName} {customer.LastName}".Trim(), published.Id, published.Version, published.EffectiveDateUtc, true);
     }
 
+    public async Task<PageResult<UserDto>> GetCustomersPageAsync(string? search, int page, int pageSize)
+    {
+        if (current.OutletId is not Guid id)
+            return new PageResult<UserDto>(Array.Empty<UserDto>(), 0, Math.Max(1, page), Math.Clamp(pageSize, 1, 100));
+        var result = await users.GetOutletCustomersPageAsync(id, search, page, pageSize);
+        var items = result.Items
+            .Select(x => new UserDto(x.Id, x.Email, x.FirstName, x.LastName, x.Role.ToString(), x.OutletId))
+            .ToList();
+        return new PageResult<UserDto>(items, result.TotalCount, result.Page, result.PageSize);
+    }
     public async Task<IReadOnlyList<SubscriptionDto>> GetSubscriptionsAsync()
     {
         if (current.UserId is not Guid id) return [];
