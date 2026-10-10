@@ -55,6 +55,10 @@ function App(){
  const[data,setData]=useState({d:{},o:[],us:[],r:{},groups:[],areaManagers:[],managedOutlets:[],managerSummary:null});
   const[managerForm,setManagerForm]=useState({firstName:'',lastName:'',email:'',mobileNumber:'',password:'',outletIds:[]});
  const[domains,setDomains]=useState([]);
+ const[outletPageData,setOutletPageData]=useState({items:[],totalCount:0,page:1,pageSize:25});
+ const[outletPageNumber,setOutletPageNumber]=useState(1);
+ const[outletPageSize,setOutletPageSize]=useState(25);
+ const[outletPageLoading,setOutletPageLoading]=useState(false);
  const[cities,setCities]=useState([]);
  const[areas,setAreas]=useState([]);
  const[form,setForm]=useState({city:'Hyderabad',state:'Telangana',country:'India',latitude:17.385,longitude:78.4867,isEnabled:true});
@@ -74,14 +78,13 @@ function App(){
  const[financeReport,setFinanceReport]=useState(null); const[financePolicy,setFinancePolicy]=useState(null);
  const[financeLoading,setFinanceLoading]=useState(false);
  const fileUrl=url=>{if(!url)return'';return url.startsWith('http')?url:(API_URL?new URL(API_URL).origin+url:url)};
- const openPage=(next,filter='')=>{setPage(next);setSidebarOpen(false);if(next==='outlets'&&filter)setOutletStatus(filter)};
+ const openPage=(next,filter='')=>{setPage(next);setSidebarOpen(false);if(next==='outlets'&&filter){setOutletStatus(filter);setOutletPageNumber(1)}};
  const reload=async()=>{
   setLoading(true);setError('');
   // Load each initial workspace dataset independently: one failed endpoint must
   // not discard successful results from the other admin sections.
   const requests=[
-   ['dashboard',()=>admin.dashboard(),value=>setData(prev=>({...prev,d:value||{}}))],
-   ['outlets',()=>admin.outlets(),value=>setData(prev=>({...prev,o:value||[]}))],
+   ['dashboard',()=>admin.dashboard(),value=>setData(prev=>({...prev,d:value||{},o:value?.recentOutlets||[]}))],
    ['onboarding',()=>admin.outletOnboardingPending(),value=>setVerification(value||[])],
    ['domains',()=>admin.domains(),value=>setDomains(value||[])]
   ];
@@ -102,11 +105,10 @@ function App(){
    if(page==='overview'&&!isAreaManager){
      // Dashboard cards depend on these datasets; load them on entry rather than
      // showing misleading zero counts until the user visits another menu.
-     const results=await Promise.allSettled([admin.revenue(),admin.users(),admin.cities()]);
+     const results=await Promise.allSettled([admin.revenue(),admin.cities()]);
      if(!cancelled){
-       const [revenueResult,usersResult,citiesResult]=results;
+       const [revenueResult,citiesResult]=results;
        if(revenueResult.status==='fulfilled')setData(prev=>({...prev,r:revenueResult.value||{}}));
-       if(usersResult.status==='fulfilled')setData(prev=>({...prev,us:usersResult.value||[]}));
        if(citiesResult.status==='fulfilled')setCities(citiesResult.value||[]);
        const failed=results.find(x=>x.status==='rejected');
        if(failed)setError(failed.reason?.message||'Some dashboard metrics could not be loaded.');
@@ -123,7 +125,18 @@ function App(){
     }
    }
    if(page==='health'){const us=await admin.users();if(!cancelled)setData(prev=>({...prev,us:us||[]}));}
-    if(page==='area-managers'){const ms=await admin.areaManagers();if(!cancelled)setData(prev=>({...prev,areaManagers:ms||[]}));}
+    if(['area-managers','domains','finance','health'].includes(page)){
+    const requests=[admin.outlets()];
+    if(page==='area-managers')requests.push(admin.areaManagers());
+    if(page==='finance')requests.push(admin.groups());
+    const results=await Promise.allSettled(requests);
+    if(!cancelled){
+     if(results[0].status==='fulfilled')setData(prev=>({...prev,o:results[0].value||[]}));
+     else setError(results[0].reason?.message||'Unable to load outlet lookup data.');
+     if(page==='area-managers'&&results[1]){if(results[1].status==='fulfilled')setData(prev=>({...prev,areaManagers:results[1].value||[]}));else setError(results[1].reason?.message||'Unable to load Area Managers.');}
+     if(page==='finance'&&results[1]){if(results[1].status==='fulfilled')setData(prev=>({...prev,groups:results[1].value||[]}));else setError(results[1].reason?.message||'Unable to load outlet groups.');}
+    }
+   }
     if(page==='manager-home'){
     const results=await Promise.allSettled([admin.areaManagerDashboard(),admin.myManagedOutlets()]);
     if(!cancelled){
@@ -137,6 +150,19 @@ function App(){
   }catch(e){if(!cancelled)setError(e.message||'Unable to load this section')}};
   run();return()=>{cancelled=true};
  },[u,page]);
+ useEffect(()=>{
+  if(!u||page!=='outlets')return;
+  let active=true;
+  const timer=setTimeout(async()=>{
+   setOutletPageLoading(true);
+   try{
+    const result=await admin.outletsPage({search:outletSearch,status:outletStatus,city:outletCity,page:outletPageNumber,pageSize:outletPageSize});
+    if(active)setOutletPageData(result||{items:[],totalCount:0,page:outletPageNumber,pageSize:outletPageSize});
+   }catch(e){if(active)setError(e.message||'Unable to load the outlet directory')}
+   finally{if(active)setOutletPageLoading(false)}
+  },250);
+  return()=>{active=false;clearTimeout(timer)};
+ },[u,page,outletSearch,outletStatus,outletCity,outletPageNumber,outletPageSize]);
  const loadFinance=async(filters=financeFilters)=>{
   try{
    setFinanceLoading(true);
@@ -205,10 +231,10 @@ function App(){
   const q=domainSearch.trim().toLowerCase();
   return (domains||[]).filter(x=>(!q||[x.hostname,x.outletName,x.type].filter(Boolean).join(' ').toLowerCase().includes(q))&&(!domainStatus||String(x.status)===domainStatus));
  },[domains,domainSearch,domainStatus]);
- const customerCount=(data.us||[]).filter(x=>String(x.role||'').toLowerCase()==='customer').length;
- const adminCount=(data.us||[]).filter(x=>String(x.role||'').toLowerCase()!=='customer').length;
- const liveOutlets=(data.o||[]).filter(x=>x.status==='Live').length;
- const activeWorkspaces=(data.o||[]).filter(x=>x.status==='Active').length;
+ const customerCount=Number(data.d?.customers??(data.us||[]).filter(x=>String(x.role||'').toLowerCase()==='customer').length);
+ const adminCount=Number(data.d?.users??data.us?.length??0)-customerCount;
+ const liveOutlets=Number(data.d?.liveOutlets??(data.o||[]).filter(x=>x.status==='Live').length);
+ const activeWorkspaces=Number(data.d?.activeWorkspaces??(data.o||[]).filter(x=>x.status==='Active').length);
  const domainsActive=domains.filter(x=>x.status==='Active').length;
  const domainIssues=domains.filter(x=>x.status!=='Active').length;
  const revenue=data.r||{};
@@ -221,7 +247,7 @@ function App(){
  const attention=[
   {label:'Onboarding applications',count:verification.length,action:()=>openPage('onboarding')},
   {label:'Domains needing attention',count:domainIssues,action:()=>openPage('domains')},
-  {label:'Outlets not yet Live',count:(data.o||[]).filter(x=>x.status!=='Live').length,action:()=>openPage('outlets','Active')}
+  {label:'Outlets not yet Live',count:Math.max(0,Number(data.d?.outlets||0)-Number(data.d?.liveOutlets||0)),action:()=>openPage('outlets','Active')}
  ];
 
  if(!u)return <div className="auth"><form className="authCard" onSubmit={sign}><div className="brandMark"><span>H</span><div><b>HealthApp</b><small>Platform control</small></div></div><div><span className="eyebrow">SECURE ACCESS</span><h1>Super Admin</h1><p>Manage outlets, onboarding, domains, operations and platform health from one workspace.</p></div><label>Email<input autoComplete="username" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})} placeholder="Admin email"/></label><label>Password<input autoComplete="current-password" type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} placeholder="Password"/></label><button className="primaryBtn authSubmit" disabled={loading}>Sign in</button><div className="demoHint">Demo account <code>admin@healthapp.test</code> / <code>demo</code></div>{error&&<AppAlert type="error" message={error} onDismiss={()=>setError('')} className="errorBanner"/>}</form></div>;
@@ -248,7 +274,7 @@ function App(){
     {isAreaManager&&page==='overview'&&<AreaManagerWorkspace summary={data.managerSummary||{}} outlets={data.managedOutlets||[]} />}
      {page==='manager-home'&&isAreaManager&&<AreaManagerWorkspace summary={data.managerSummary||{}} outlets={data.managedOutlets||[]} />}
      {!isAreaManager&&page==='overview'&&<Dashboard openPage={openPage} data={data} cities={cities} domains={domains} verification={verification} filteredOutlets={filteredOutlets} customerCount={customerCount} liveOutlets={liveOutlets} activeWorkspaces={activeWorkspaces} domainsActive={domainsActive} domainIssues={domainIssues} revenue={revenue} attention={attention} revenueRows={revenueRows}/>}
-    {!isAreaManager&&page==='outlets'&&<OutletDirectory outlets={filteredOutlets} allOutlets={data.o||[]} groups={data.groups||[]} search={outletSearch} setSearch={setOutletSearch} status={outletStatus} setStatus={setOutletStatus} city={outletCity} setCity={setOutletCity} loading={loading} onCreate={async payload=>{await admin.createOutlet(payload);await reload();notify('Outlet created and SaaS subscription assigned')}} onDashboard={()=>openPage('overview')} onOpen={x=>{setSelected360(x.id);openPage('outlet360')}} onAssign={async(outletId,groupId)=>{try{setLoading(true);await admin.assignOutletGroup(outletId,groupId||null);await reload();notify(groupId?'Outlet assigned to group':'Outlet removed from group')}catch(e){setError(e.message||'Unable to assign outlet group')}finally{setLoading(false)}}} />}
+    {!isAreaManager&&page==='outlets'&&<OutletDirectory outlets={outletPageData.items||[]} allOutlets={outletPageData.items||[]} total={outletPageData.totalCount||0} page={outletPageNumber} pageSize={outletPageSize} pageLoading={outletPageLoading} onPageChange={setOutletPageNumber} onPageSizeChange={size=>{setOutletPageSize(size);setOutletPageNumber(1)}} groups={data.groups||[]} search={outletSearch} setSearch={value=>{setOutletSearch(value);setOutletPageNumber(1)}} status={outletStatus} setStatus={value=>{setOutletStatus(value);setOutletPageNumber(1)}} city={outletCity} setCity={value=>{setOutletCity(value);setOutletPageNumber(1)}} loading={loading} onCreate={async payload=>{await admin.createOutlet(payload);await reload();const refreshed=await admin.outletsPage({search:outletSearch,status:outletStatus,city:outletCity,page:outletPageNumber,pageSize:outletPageSize});setOutletPageData(refreshed);notify('Outlet created and SaaS subscription assigned')}} onDashboard={()=>openPage('overview')} onOpen={x=>{setSelected360(x.id);openPage('outlet360')}} onAssign={async(outletId,groupId)=>{try{setLoading(true);await admin.assignOutletGroup(outletId,groupId||null);await reload();setOutletPageData(await admin.outletsPage({search:outletSearch,status:outletStatus,city:outletCity,page:outletPageNumber,pageSize:outletPageSize}));notify(groupId?'Outlet assigned to group':'Outlet removed from group')}catch(e){setError(e.message||'Unable to assign outlet group')}finally{setLoading(false)}}} />}
     {!isAreaManager&&page==='area-managers'&&<AreaManagers managers={data.areaManagers||[]} outlets={data.o||[]} form={managerForm} setForm={setManagerForm} loading={loading} onCreate={async()=>{try{setLoading(true);setError('');await admin.createAreaManager(managerForm);setManagerForm({firstName:'',lastName:'',email:'',mobileNumber:'',password:'',outletIds:[]});const managers=await admin.areaManagers();setData(prev=>({...prev,areaManagers:managers||[]}));notify('Area Manager created and outlets assigned')}catch(e){setError(e.message||'Unable to create Area Manager')}finally{setLoading(false)}}} onAssign={async(id,ids)=>{try{setLoading(true);await admin.assignAreaManagerOutlets(id,ids);const managers=await admin.areaManagers();setData(prev=>({...prev,areaManagers:managers||[]}));notify('Outlet assignments updated')}catch(e){setError(e.message||'Unable to update assignments')}finally{setLoading(false)}}} onStatus={async(id,active)=>{try{setLoading(true);await admin.setAreaManagerStatus(id,active);const managers=await admin.areaManagers();setData(prev=>({...prev,areaManagers:managers||[]}));notify(active?'Area Manager activated':'Area Manager deactivated')}catch(e){setError(e.message||'Unable to update status')}finally{setLoading(false)}}}/>}
      {!isAreaManager&&page==='groups'&&<OutletGroups groups={data.groups||[]} onSave={async(payload,id)=>{try{setLoading(true);if(id)await admin.updateGroup(id,payload);else await admin.createGroup(payload);await reload();notify(id?'Outlet group updated':'Outlet group created')}catch(e){setError(e.message||'Unable to save outlet group')}finally{setLoading(false)}}}/>} 
     {!isAreaManager&&page==='outlet360'&&<Outlet360 outletId={selected360} onBack={()=>openPage('outlets')}/>} 
@@ -326,13 +352,13 @@ function MetricCard({label,value,meta,tone='neutral',onClick}){
 }
 
 function Dashboard({openPage,data,cities,domains,verification,customerCount,liveOutlets,activeWorkspaces,domainsActive,domainIssues,revenue,attention,revenueRows}){
- const recent=(data.o||[]).slice(0,6);
+ const recent=(data.d?.recentOutlets||data.o||[]).slice(0,6);
  const cityLive=cities.filter(x=>x.isEnabled).length;
  return <section>
   <PageIntro eyebrow="COMMAND CENTER" title="Platform overview" text="A single control tower for your standalone SaaS estate. Start with what needs attention, then drill into outlets, onboarding, domains, finance or health." action={<button className="primaryBtn" onClick={()=>openPage('outlets')}><Icon name="building" size={15}/> Manage outlets</button>}/>
   <div className="metricGrid">
-   <MetricCard label="Total outlets" value={data.o?.length||0} meta={`${liveOutlets} Live · ${activeWorkspaces} setup`} tone="green" onClick={()=>openPage('outlets')}/>
-   <MetricCard label="Customers" value={customerCount} meta={`${data.us?.length||0} total platform users`} tone="blue" onClick={()=>openPage('outlets')}/>
+   <MetricCard label="Total outlets" value={data.d?.outlets??data.o?.length??0} meta={`${liveOutlets} Live · ${activeWorkspaces} setup`} tone="green" onClick={()=>openPage('outlets')}/>
+   <MetricCard label="Customers" value={customerCount} meta={`${data.d?.users??data.us?.length??0} total platform users`} tone="blue" onClick={()=>openPage('outlets')}/>
    <MetricCard label="Platform revenue" value={money(revenue.totalRevenue||0)} meta="Current recorded platform transactions" tone="purple" onClick={()=>openPage('finance')}/>
    <MetricCard label="Pending onboarding" value={verification.length} meta="Applications awaiting review" tone={verification.length?'amber':'green'} onClick={()=>openPage('onboarding')}/>
    <MetricCard label="Active domains" value={domainsActive} meta={`${domainIssues} need attention`} tone="teal" onClick={()=>openPage('domains')}/>
