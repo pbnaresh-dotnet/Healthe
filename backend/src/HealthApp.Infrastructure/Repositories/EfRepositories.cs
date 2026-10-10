@@ -64,7 +64,7 @@ public sealed class OutletRepository(HealthAppDbContext db) : EfRepository(db), 
 
     public async Task<PageResult<Outlet>> GetPageAsync(string? search, string? status, string? city, int page, int pageSize)
     {
-        page = Math.Max(1, page);
+        page = Math.Clamp(page, 1, 1_000_000);
         pageSize = Math.Clamp(pageSize, 1, 100);
         IQueryable<Outlet> query = Context.Outlets.AsNoTracking();
 
