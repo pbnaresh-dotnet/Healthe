@@ -7,6 +7,8 @@ namespace HealthApp.Api;
 /// Optional compatibility-preserving list filtering for API list endpoints.
 /// Query parameters are opt-in so existing clients that expect arrays are not broken.
 /// </summary>
+internal sealed record PagedList<T>(IReadOnlyList<T> Items, int TotalCount, int Page, int PageSize);
+
 internal static class ListQuery
 {
     public static IReadOnlyList<T> Apply<T>(
@@ -56,6 +58,8 @@ internal static class ListQuery
         if (!page.HasValue && !pageSize.HasValue) return query.ToArray();
         var currentPage = Math.Max(1, page ?? 1);
         var currentPageSize = Math.Clamp(pageSize ?? 50, 1, 200);
-        return query.Skip((currentPage - 1) * currentPageSize).Take(currentPageSize).ToArray();
+        var totalCount = query.Count();
+        var items = query.Skip((currentPage - 1) * currentPageSize).Take(currentPageSize).ToArray();
+        return new PagedList<T>(items, totalCount, currentPage, currentPageSize);
     }
 }
