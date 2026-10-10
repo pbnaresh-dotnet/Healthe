@@ -2172,87 +2172,18 @@ public sealed class AdminService(
     {
         var from = (request.FromDate ?? DateTime.UtcNow.Date.AddDays(-29)).Date;
         var to = (request.ToDate ?? DateTime.UtcNow.Date).Date;
-
         if (to < from)
             throw new ArgumentException("The finance report end date cannot be before the start date.");
 
-        var normalized = request with { FromDate = from, ToDate = to };
-        var rows = await finance.GetSubscriptionsAsync(normalized, cancellationToken);
-
-        var allAmounts = ToFinanceAmounts(rows);
-        var paidRows = rows.Where(x => x.IsPaid).ToList();
-        var paidAmounts = ToFinanceAmounts(paidRows);
-
-        var outletRows = rows
-            .GroupBy(x => new { x.OutletId, x.OutletName, x.City, x.OutletGroupId, x.GroupName })
-            .OrderBy(x => x.Key.OutletName)
-            .Select(x => new AdminFinanceOutletRowDto(
-                x.Key.OutletId,
-                x.Key.OutletName,
-                x.Key.City,
-                x.Key.OutletGroupId,
-                string.IsNullOrWhiteSpace(x.Key.GroupName) ? "Unassigned" : x.Key.GroupName,
-                x.Count(),
-                x.Count(r => r.IsPaid),
-                ToFinanceAmounts(x)))
-            .ToList();
-
-        var groupRows = rows
-            .GroupBy(x => new { x.OutletGroupId, x.GroupName })
-            .OrderBy(x => string.IsNullOrWhiteSpace(x.Key.GroupName) ? "Unassigned" : x.Key.GroupName)
-            .Select(x => new AdminFinanceGroupRowDto(
-                x.Key.OutletGroupId,
-                string.IsNullOrWhiteSpace(x.Key.GroupName) ? "Unassigned" : x.Key.GroupName,
-                x.Select(r => r.OutletId).Distinct().Count(),
-                x.Count(),
-                x.Count(r => r.IsPaid),
-                ToFinanceAmounts(x)))
-            .ToList();
-
-        var dailyRows = rows
-            .GroupBy(x => new { Date = x.StartDate.Date, x.OutletGroupId, x.GroupName })
-            .OrderBy(x => x.Key.Date)
-            .ThenBy(x => string.IsNullOrWhiteSpace(x.Key.GroupName) ? "Unassigned" : x.Key.GroupName)
-            .Select(x => new AdminFinanceDailyRowDto(
-                x.Key.Date,
-                x.Key.OutletGroupId,
-                string.IsNullOrWhiteSpace(x.Key.GroupName) ? "Unassigned" : x.Key.GroupName,
-                x.Count(),
-                x.Count(r => r.IsPaid),
-                ToFinanceAmounts(x)))
-            .ToList();
-
-        return new AdminFinanceReportDto(
-            from,
-            to,
-            new AdminFinanceReportTotalsDto(
-                rows.Count,
-                paidRows.Count,
-                rows.Count - paidRows.Count,
-                allAmounts,
-                paidAmounts),
-            outletRows,
-            groupRows,
-            dailyRows);
-    }
-
-    private static AdminFinanceAmountsDto ToFinanceAmounts(IEnumerable<AdminFinanceSubscriptionRow> rows)
-    {
-        var items = rows.ToList();
-        return new AdminFinanceAmountsDto(
-            items.Sum(x => x.GrossMealAmount),
-            items.Sum(x => x.SubscriptionDiscountAmount),
-            items.Sum(x => x.NetMealAmount),
-            items.Sum(x => x.DeliveryFee),
-            items.Sum(x => x.TotalCharged),
-            items.Sum(x => x.RestaurantTaxableAmount),
-            items.Sum(x => x.RestaurantGstAmount),
-            items.Sum(x => x.PlatformServiceFee),
-            items.Sum(x => x.PlatformServiceGst),
-            items.Sum(x => x.OutletCommissionAmount),
-            items.Sum(x => x.LateSkipFee),
-            items.Sum(x => x.OutletAmount),
-            items.Sum(x => x.PlatformServiceFee + x.OutletCommissionAmount + x.LateSkipFee));
+        var normalized = request with
+        {
+            FromDate = from,
+            ToDate = to,
+            Section = string.IsNullOrWhiteSpace(request.Section) ? "summary" : request.Section.Trim().ToLowerInvariant(),
+            Page = Math.Clamp(request.Page, 1, 1_000_000),
+            PageSize = Math.Clamp(request.PageSize, 1, 100)
+        };
+        return await finance.GetReportAsync(normalized, normalized.Section, normalized.Page, normalized.PageSize, cancellationToken);
     }
 
     public async Task<IReadOnlyList<OutletDto>> GetOutletsAsync()=>(await outlets.GetAllAsync()).Select(x=>new OutletDto(x.Id,x.Name,x.Slug,x.Subdomain,x.City,x.State,x.Pincode,x.Status.ToString(),x.BillingPlan.ToString(),x.LogoUrl??string.Empty,x.HeroImageUrl??string.Empty,(x.HealthHighlights??string.Empty).Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToList(),x.PrimaryColor,x.Status==OutletStatus.Active,0,x.Rating,x.ReviewCount,x.About,0,0,"","","",x.DeliveryCoverageMode.ToString(),x.ServiceRadiusKm,x.Branding?.FontFamily??"Inter",x.Branding?.ThemeStyle??"Fresh",x.Branding?.ButtonStyle??"Rounded",x.Branding?.CardStyle??"Soft",x.CustomPackagePricingMode,x.ShowPackagePriceToCustomer,x.ShowMealPriceToCustomer,x.ShowDeliveryFeeToCustomer,x.SupportsLargePortion,x.OutletGroupId)).ToList();
