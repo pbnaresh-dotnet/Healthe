@@ -1163,3 +1163,17 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
 .driverReportRows>div span{color:#657268}
 .driverReportPrint{margin-top:12px}
 @media(max-width:600px){.driverReportHeader{flex-direction:column}.driverReportControls{width:100%}.driverReportControls select{flex:1;max-width:none}.driverReportControls button{flex:1}.driverReportStats{grid-template-columns:repeat(2,minmax(0,1fr))}.driverReportRows>div{grid-template-columns:1fr 1fr;gap:7px}.driverReportRows>div b{grid-column:1/-1}}
+
+
+/* Consolidated customer-bag label: one printable label per DeliveryId. */
+.bagContents{display:flex;flex-direction:column;gap:5px;margin:10px 0;padding:8px 0;border-top:1px dashed #9ca3af;border-bottom:1px dashed #9ca3af}
+.bagContents>b{font-size:12px;margin-bottom:2px}
+.bagContents>div{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;font-size:11px}
+.bagContents>div span{font-weight:650}
+.bagContents>div small{font-size:10px;text-align:right;color:#52605a}
+.consolidatedBagLabel .labelBarcode{margin-top:8px}
+.consolidatedBagLabel .labelBarcode img{max-width:100%;height:auto}
+@media print{
+ .consolidatedBagLabel{break-inside:avoid;page-break-inside:avoid}
+ .bagContents{gap:3px;margin:6px 0;padding:6px 0}
+}
