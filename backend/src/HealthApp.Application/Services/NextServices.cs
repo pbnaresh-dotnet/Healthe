@@ -947,7 +947,9 @@ public sealed class DeliveryLabelService(
                     area?.Name??"",
                     area?.Pincode??"",
                     meal.MealPrice,
-                    delivery.DeliveryFee));
+                    delivery.DeliveryFee,
+                    delivery.Id,
+                    delivery.Status.ToString()));
             }
         }
 
