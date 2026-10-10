@@ -15,9 +15,21 @@ export const getTenantOutletSlug=()=>{
 };
 export async function resolveTenantFromHost(){
   if(TENANT_OUTLET_SLUG||!API_BASE||!HOSTNAME)return null;
-  const res=await fetch(`${API_BASE}/tenant/resolve?host=${encodeURIComponent(HOSTNAME)}`);
+  const correlationId=globalThis.crypto?.randomUUID?.()||`${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  let res;
+  const startedAt=globalThis.performance?.now?.()??Date.now();
+  try{
+    res=await fetch(API_BASE+'/tenant/resolve?host='+encodeURIComponent(HOSTNAME),{headers:{'X-Correlation-Id':correlationId}});
+  }catch(cause){
+    const durationMs=Math.round((globalThis.performance?.now?.()??Date.now())-startedAt);
+    if(import.meta.env.DEV)console.warn('[HealthApp API]',{method:'GET',route:'/tenant/resolve',status:0,durationMs,correlationId,error:'network-error'});
+    const error=new Error('Unable to reach the service. Please try again.');error.correlationId=correlationId;error.cause=cause;throw error;
+  }
+  const responseCorrelationId=res.headers.get('X-Correlation-Id')||correlationId;
+  const durationMs=Math.round((globalThis.performance?.now?.()??Date.now())-startedAt);
+  if(import.meta.env.DEV&&(res.status>=500||durationMs>=1000))console.warn('[HealthApp API]',{method:'GET',route:'/tenant/resolve',status:res.status,durationMs,correlationId:responseCorrelationId});
   if(res.status===404)return null;
-  if(!res.ok)throw new Error('Unable to resolve the outlet for this hostname.');
+  if(!res.ok){const error=new Error('Unable to resolve the outlet for this hostname.');error.status=res.status;error.correlationId=responseCorrelationId;throw error;}
   const outlet=await res.json();
   const slug=String(outlet?.slug||'').trim().toLowerCase();
   if(!slug)return null;
