@@ -6,6 +6,7 @@ namespace HealthApp.Infrastructure.Data;
 public sealed class HealthAppDbContext(DbContextOptions<HealthAppDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<AreaManagerOutletAssignment> AreaManagerOutletAssignments => Set<AreaManagerOutletAssignment>();
     public DbSet<Outlet> Outlets => Set<Outlet>();
     public DbSet<OutletGroup> OutletGroups => Set<OutletGroup>();
     public DbSet<OutletBranding> OutletBrandings => Set<OutletBranding>();
