@@ -44,7 +44,7 @@ function Features(){return <section className="section features" id="features"><
 
 function BrandControl({onGetStarted}){return <section className="section brandControl"><div className="controlVisual"><div className="siteFrame"><div className="siteTop"><span className="siteLogo">F</span><b>FitFood</b><span>Menu</span><span>Plans</span><span>About</span><button>Subscribe</button></div><div className="siteHero"><small>HEALTHY MEALS · YOUR BRAND</small><h3>Healthy meals.<br/><em>Made simple.</em></h3><p>Fresh meals, delivered to your schedule.</p></div><div className="siteCards"><span>Breakfast plans</span><span>Weekly subscriptions</span><span>Delivery areas</span></div></div></div><div className="controlCopy"><span className="eyebrow">YOUR BUSINESS, YOUR BRAND</span><h2>Broccoly powers the platform. Customers see your brand.</h2><p>Use your own logo, colours, customer-facing policies, domain and menu. Broccoly stays behind the scenes as your SaaS infrastructure.</p><div className="checkList"><span>✓ Custom domain or Broccoly subdomain</span><span>✓ Outlet-controlled customer terms & policies</span><span>✓ Outlet-specific pricing and delivery rules</span><span>✓ Separate customers and data per outlet</span></div><button className="secondary" onClick={onGetStarted}>View plans & get started →</button></div></section>}
 
-function Pricing({plans,loading,onChoose}){const[cycle,setCycle]=useState('Monthly');return <section className="section pricing" id="pricing"><div className="sectionIntro"><span className="eyebrow">PRICING</span><h2>Simple, transparent pricing</h2><p>Start with a plan and scale as your business grows. Your customer meal revenue remains your outlet's business.</p></div>{loading?<div className="loadingCard"><div className="spinner"/><b>Loading current plans…</b><span>Fetching the latest Broccoly subscription options.</span></div>:<><div className="billingToggle"><button className={cycle==='Monthly'?'active':''} onClick={()=>setCycle('Monthly')}>Monthly</button><button className={cycle==='Annual'?'active':''} onClick={()=>setCycle('Annual')}>Annual</button><span>{cycle==='Annual'?'Annual billing selected':'Save on annual billing'}</span></div><div className="plans">{plans.map((p,i)=>{const fee=cycle==='Annual'?p.annualFee:p.monthlyFee;return <article className={'plan '+(i===1?'featured':'')} key={p.id}>{i===1&&<span className="popular">MOST POPULAR</span>}<div className="planIcon">{i===0?'🌱':i===1?'📈':'⭐'}</div><h3>{p.name}</h3><p>{p.description||'Tools and capacity for your outlet.'}</p><div className="planPrice">{money(fee)}<small>/{cycle.toLowerCase()}</small></div>{cycle==='Monthly'?<div className="annual">{money(p.annualFee)} / year</div>:<div className="annual">Pay annually · save where offered</div>}<div className="planFacts"><span>✓ {p.includedActiveCustomers} included active customers</span><span>✓ {Number(p.customerTransactionFeePercent||0)}% customer transaction fee</span><span>✓ {money(p.additionalCustomerFee)} per additional customer</span></div><button className={i===1?'primary':'secondary'} onClick={()=>onChoose(p.id)}>Choose {p.name} →</button></article>})}</div></>}<div className="pricingNote"><b>One-time onboarding</b><span>₹{SETUP_FEE.toLocaleString('en-IN')} setup fee · Recurring SaaS billing starts after verification and activation.</span></div></section>}
+function Pricing({plans,loading,onChoose}){const[cycle,setCycle]=useState('SixMonths');return <section className="section pricing" id="pricing"><div className="sectionIntro"><span className="eyebrow">PRICING</span><h2>Simple, transparent pricing</h2><p>Start with a plan and scale as your business grows. Your customer meal revenue remains your outlet's business.</p></div>{loading?<div className="loadingCard"><div className="spinner"/><b>Loading current plans…</b><span>Fetching the latest Broccoly subscription options.</span></div>:<><div className="billingToggle subscriptionPeriodToggle"><button className={cycle==='SixMonths'?'active':''} onClick={()=>setCycle('SixMonths')}>6 Months · Save 10%</button><button className={cycle==='Annual'?'active':''} onClick={()=>setCycle('Annual')}>1 Year · Best value</button></div><div className="plans">{plans.map((p,i)=>{const fee=cycle==='Annual'?p.annualFee:Math.round(Number(p.monthlyFee||0)*6*0.9*100)/100;return <article className={'plan '+(i===1?'featured':'')} key={p.id}>{i===1&&<span className="popular">MOST POPULAR</span>}<div className="planIcon">{i===0?'🌱':i===1?'📈':'⭐'}</div><h3>{p.name}</h3><p>{p.description||'Tools and capacity for your outlet.'}</p><div className="planPrice">{money(fee)}<small>/{cycle==='Annual'?'year':'6 months'}</small></div><div className="annual">{cycle==='Annual'?'Annual commitment · best value':'6-month commitment · save 10%'}</div><div className="planFacts"><span>✓ {p.includedActiveCustomers} included active customers</span><span>✓ Core outlet and kitchen tools</span><span>✓ Features included in this plan</span></div><button className={i===1?'primary':'secondary'} onClick={()=>onChoose(p.id)}>Choose {p.name} →</button></article>})}</div></>}<div className="pricingNote"><b>One-time onboarding</b><span>₹{SETUP_FEE.toLocaleString('en-IN')} setup fee · Subscription billing starts after verification and activation.</span></div><div className="pricingNote"><b>Additional outlet charge</b><span>₹100 per week of package duration when a package is created. Charges are consolidated into a monthly invoice.</span></div></section>}
 
 function WhyBroccoly(){return <section className="section why"><div className="whyVisual"><div className="whyCard"><span>PRE-ORDERS</span><b>42 meals</b><small>planned before prep starts</small><div className="whyBars"><i/><i/><i/><i/></div></div><div className="whyOrb">B</div></div><div className="whyCopy"><span className="eyebrow">WHY CHOOSE BROCCOLY</span><h2>Built for meal businesses</h2><p>We understand the unique needs of meal-delivery and subscription businesses.</p><div className="whyGrid">{[['🚀','Launch Faster','Get your business online quickly without technical expertise.'],['▥','Focus on Your Food','We handle the technology so you can focus on great food and customer experience.'],['◆','Secure & Reliable','Enterprise-grade security and reliable infrastructure.'],['◉','Ongoing Support','Our team is here to help you succeed at every step.']].map(([icon,t,d])=><article key={t}><span>{icon}</span><b>{t}</b><small>{d}</small></article>)}</div></div></section>}
 
@@ -54,7 +54,7 @@ function StartOptions({onSubscribe,onDemo,onBack}){return <div className="regist
 
 function Registration({plans,initialPlan,onBack,onLogin}) {
  const [selectedPlan,setSelectedPlan]=useState(initialPlan||null);
- const [cycle,setCycle]=useState('Monthly');
+ const [cycle,setCycle]=useState('SixMonths');
  const [step,setStep]=useState(1);
  const [details,setDetails]=useState(EMPTY);
  const [cities,setCities]=useState([]);
@@ -68,7 +68,7 @@ function Registration({plans,initialPlan,onBack,onLogin}) {
 
  const cityOptions=useMemo(()=>cities||[],[cities]);
  const selected=selectedPlan;
- const fee=selected ? (cycle==='Annual' ? selected.annualFee : selected.monthlyFee) : 0;
+ const fee=selected ? (cycle==='Annual' ? selected.annualFee : Math.round(Number(selected.monthlyFee||0)*6*0.9*100)/100) : 0;
 
  const saveBusiness=e => {
   e.preventDefault();
@@ -137,9 +137,9 @@ function Registration({plans,initialPlan,onBack,onLogin}) {
     <h1>Choose your plan</h1>
     <p>You can change your SaaS plan later as your business grows.</p>
    </div>
-   <div className="cycleToggle">
-    <button className={cycle==='Monthly'?'active':''} onClick={()=>setCycle('Monthly')}>Monthly</button>
-    <button className={cycle==='Annual'?'active':''} onClick={()=>setCycle('Annual')}>Annual <small>Save with annual billing</small></button>
+   <div className="cycleToggle subscriptionPeriodToggle" role="group" aria-label="Subscription period">
+    <button type="button" className={cycle==='SixMonths'?'active':''} onClick={()=>setCycle('SixMonths')}>6 Months <small>Save 10%</small></button>
+    <button type="button" className={cycle==='Annual'?'active':''} onClick={()=>setCycle('Annual')}>1 Year <small>Best value</small></button>
    </div>
    <div className="registerPlans">
     {plans.map((p,i)=>(
@@ -147,14 +147,15 @@ function Registration({plans,initialPlan,onBack,onLogin}) {
       <div className="planIcon">{i===0?'🌱':i===1?'📈':'⭐'}</div>
       <h3>{p.name}</h3>
       <p>{p.description||'Tools and capacity for your outlet.'}</p>
-      <strong>{money(cycle==='Annual'?p.annualFee:p.monthlyFee)}<small>/{cycle.toLowerCase()}</small></strong>
-      <span>✓ {p.includedActiveCustomers} included customers</span>
-      <span>✓ {Number(p.customerTransactionFeePercent||0)}% customer transaction fee</span>
-      <span>✓ {money(p.additionalCustomerFee)} per additional customer</span>
+      <strong>{money(cycle==='Annual'?p.annualFee:Math.round(Number(p.monthlyFee||0)*6*0.9*100)/100)}<small>/{cycle==='Annual'?'year':'6 months'}</small></strong>
+      <span>✓ {p.includedActiveCustomers} included active customers</span>
+      <span>✓ Core outlet and kitchen tools</span>
+      <span>✓ Features included in this plan</span>
       <button type="button" className={selected?.id===p.id?'primary':'secondary'} onClick={e=>{e.stopPropagation();setSelectedPlan(p)}}>{selected?.id===p.id?'Selected':'Choose '+p.name}</button>
      </article>
     ))}
    </div>
+   <div className="registerChargeNote"><b>Additional outlet charge</b><span>Package creation fee: ₹100 per week of package duration, charged when a package is created and consolidated on your monthly invoice.</span></div>
    <div className="registerBottom">
     <div><b>One-time setup fee</b><span>{money(SETUP_FEE)} at the payment step</span></div>
     <button className="primary large" disabled={!selected} onClick={()=>setStep(2)}>Continue to business details →</button>
@@ -217,10 +218,11 @@ function Registration({plans,initialPlan,onBack,onLogin}) {
     <section className="summaryCard">
      <span className="eyebrow">SELECTED PLAN</span>
      <h3>{selected?.name}</h3>
-     <div className="line"><span>{cycle} subscription</span><b>{money(fee)}</b></div>
-     <div className="line"><span>One-time setup fee</span><b>{money(SETUP_FEE)}</b></div>
-     <div className="line"><span>Taxes</span><b>As applicable</b></div>
-     <div className="total"><span>Total today</span><strong>{money(SETUP_FEE)}</strong></div>
+     <div className="line"><span>{cycle==='Annual'?'1 year':'6 months'} subscription</span><b>{money(fee)}</b></div>
+     <div className="line"><span>Subscription billing</span><b>After verification & activation</b></div>
+     <div className="line"><span>One-time setup fee due today</span><b>{money(SETUP_FEE)}</b></div>
+     <div className="line"><span>Applicable taxes</span><b>As configured</b></div>
+     <div className="total"><span>Pay today</span><strong>{money(SETUP_FEE)}</strong></div>
     </section>
     <section className="summaryCard">
      <div className="secure">SECURE CHECKOUT · {String(import.meta.env.VITE_CASHFREE_MODE||'sandbox').toUpperCase()}</div>
@@ -233,7 +235,7 @@ function Registration({plans,initialPlan,onBack,onLogin}) {
      <div className="infoBox"><b>Secure Cashfree checkout</b><span>Card, UPI and other supported payment methods are handled by Cashfree. Broccoly never receives or stores your card credentials.</span></div>
      <div className="registerBottom">
       <button className="secondary" onClick={()=>setStep(2)} disabled={busy}>← Edit details</button>
-      <button className="primary large" disabled={busy} onClick={pay}>{busy?'Opening secure checkout…':'Pay '+money(SETUP_FEE)+' securely & continue'}</button>
+      <button className="primary large" disabled={busy} onClick={pay}>{busy?'Opening secure checkout…':'Pay setup fee '+money(SETUP_FEE)+' securely'}</button>
      </div>
     </section>
    </div>
