@@ -7,7 +7,8 @@ export default function SaaSBilling({isAreaManager=false,onError=()=>{},notify=(
  const [period,setPeriod]=useState(todayPeriod());
  const [dueDay,setDueDay]=useState('15');
  const [taxRate,setTaxRate]=useState('18');
- const [status,setStatus]=useState('');\n const [allPeriods,setAllPeriods]=useState(false);
+ const [status,setStatus]=useState('');
+ const [allPeriods,setAllPeriods]=useState(false);
  const [invoices,setInvoices]=useState([]);
  const [busy,setBusy]=useState(false);
  const [selected,setSelected]=useState(null);
