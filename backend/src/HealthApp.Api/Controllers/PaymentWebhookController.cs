@@ -21,6 +21,14 @@ public sealed class PaymentWebhookController(IPaymentService payments) : Control
             .ToDictionary(x => x.Key, x => x.Value.ToString(), StringComparer.OrdinalIgnoreCase);
 
         var result = await payments.HandleWebhookAsync(rawBody, headers, cancellationToken);
+        if (string.Equals(result.Status, "AlreadyProcessing", StringComparison.Ordinal))
+        {
+            // Ask the provider to retry rather than acknowledging delivery while the active
+            // worker still owns the lease; this also covers an active worker that later crashes.
+            Response.Headers.RetryAfter = "5";
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, result);
+        }
+
         return Ok(result);
     }
 }
