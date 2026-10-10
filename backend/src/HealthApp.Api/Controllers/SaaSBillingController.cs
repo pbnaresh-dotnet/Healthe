@@ -136,6 +136,69 @@ WHERE s.Status='Active' AND o.Status IN (1,3) AND s.StartDate<@next AND (s.Billi
         }catch{await tx.RollbackAsync(ct);throw;}
     }
 
+
+    [AllowAnonymous]
+    [HttpPost("cashfree/payment-link-webhook")]
+    [IgnoreAntiforgeryToken]
+    [RequestSizeLimit(1_000_000)]
+    public async Task<IActionResult> CashfreePaymentLinkWebhook(CancellationToken ct)
+    {
+        Request.EnableBuffering();
+        using var bodyReader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true);
+        var rawBody = await bodyReader.ReadToEndAsync(ct);
+        var signature = Request.Headers["x-webhook-signature"].ToString();
+        var timestamp = Request.Headers["x-webhook-timestamp"].ToString();
+        var secret = configuration["Cashfree:ClientSecret"] ?? "";
+        if (!configuration.GetValue<bool>("Cashfree:Enabled") || string.IsNullOrWhiteSpace(secret) || string.IsNullOrWhiteSpace(signature) || string.IsNullOrWhiteSpace(timestamp)) return Unauthorized();
+        string expected;
+        using (var hmac = new System.Security.Cryptography.HMACSHA256(Encoding.UTF8.GetBytes(secret))) expected = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(timestamp + rawBody)));
+        try { if (!System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(Convert.FromBase64String(expected), Convert.FromBase64String(signature))) return Unauthorized(); } catch (FormatException) { return Unauthorized(); }
+        string? providerLinkId=null; string? linkStatus=null; decimal? amountPaid=null; string? currency=null; string? providerPaymentId=null;
+        try {
+            using var doc=JsonDocument.Parse(rawBody); var root=doc.RootElement;
+            var data=root.TryGetProperty("data",out var d)&&d.ValueKind==JsonValueKind.Object?d:root;
+            providerLinkId=ReadJsonString(data,"link_id")??ReadJsonString(data,"cf_link_id");
+            linkStatus=ReadJsonString(data,"link_status")??ReadJsonString(data,"status");
+            amountPaid=ReadJsonDecimal(data,"link_amount_paid")??ReadJsonDecimal(data,"amount_paid");
+            currency=ReadJsonString(data,"link_currency")??ReadJsonString(data,"currency");
+            providerPaymentId=ReadJsonString(data,"link_payment_id")??ReadJsonString(data,"cf_payment_id")??ReadJsonString(data,"payment_id");
+        } catch(JsonException){return BadRequest(new{message="Invalid Cashfree payment-link webhook payload."});}
+        if(string.IsNullOrWhiteSpace(providerLinkId))return BadRequest(new{message="Payment link ID is missing."});
+        if(!string.Equals(linkStatus,"PAID",StringComparison.OrdinalIgnoreCase))return Ok(new{processed=false,status=linkStatus??"UNKNOWN"});
+        if(amountPaid is null or <=0)return BadRequest(new{message="Paid amount is missing or invalid."});
+        await using var conn=db.Database.GetDbConnection();if(conn.State!=ConnectionState.Open)await conn.OpenAsync(ct);
+        await using var tx=await conn.BeginTransactionAsync(ct);
+        try {
+            Guid invoiceId,linkId;decimal invoiceTotal,invoicePaid;string invoiceNumber,invoiceCurrency;
+            await using(var lookup=conn.CreateCommand()){
+                lookup.Transaction=tx;lookup.CommandText=@"SELECT l.Id,l.InvoiceId,i.TotalAmount,i.AmountPaid,i.InvoiceNumber,i.Currency FROM dbo.SaaSInvoicePaymentLinks l WITH (UPDLOCK,HOLDLOCK) JOIN dbo.SaaSInvoices i ON i.Id=l.InvoiceId WHERE l.Provider='Cashfree' AND l.ProviderLinkId=@providerLinkId";
+                Add(lookup,"@providerLinkId",providerLinkId);await using var r=await lookup.ExecuteReaderAsync(ct);
+                if(!await r.ReadAsync(ct))return NotFound(new{message="Payment link is not registered."});
+                linkId=r.GetGuid(0);invoiceId=r.GetGuid(1);invoiceTotal=r.GetDecimal(2);invoicePaid=r.GetDecimal(3);invoiceNumber=r.GetString(4);invoiceCurrency=r.GetString(5);
+            }
+            if(!string.IsNullOrWhiteSpace(currency)&&!string.Equals(currency,invoiceCurrency,StringComparison.OrdinalIgnoreCase))return Conflict(new{message="Payment-link currency does not match invoice."});
+            var amount=decimal.Round(amountPaid.Value,2,MidpointRounding.AwayFromZero);
+            if(amount>invoiceTotal-invoicePaid)return Conflict(new{message="Reported payment exceeds invoice balance; manual reconciliation is required."});
+            var key="cashfree-link-"+providerLinkId;
+            await using(var exists=conn.CreateCommand()){
+                exists.Transaction=tx;exists.CommandText="SELECT Id FROM dbo.SaaSInvoicePayments WHERE InvoiceId=@invoice AND IdempotencyKey=@key";Add(exists,"@invoice",invoiceId);Add(exists,"@key",key);
+                if(await exists.ExecuteScalarAsync(ct) is Guid existingPayment){await tx.CommitAsync(ct);return Ok(new{processed=true,duplicate=true,paymentId=existingPayment});}
+            }
+            var now=DateTime.UtcNow;var paymentId=Guid.NewGuid();
+            await using(var insert=conn.CreateCommand()){
+                insert.Transaction=tx;insert.CommandText=@"INSERT dbo.SaaSInvoicePayments(Id,InvoiceId,Amount,Method,Reference,Notes,ReceivedAtUtc,RecordedByUserId,Provider,ProviderVerified,IdempotencyKey,CreatedAtUtc) VALUES(@id,@invoice,@amount,'OnlineReconciled',@reference,@notes,@received,@actor,'Cashfree',1,@key,@now)";
+                Add(insert,"@id",paymentId);Add(insert,"@invoice",invoiceId);Add(insert,"@amount",amount);Add(insert,"@reference",providerPaymentId??providerLinkId);Add(insert,"@notes","Verified Cashfree payment-link webhook. Provider link: "+providerLinkId);Add(insert,"@received",now);Add(insert,"@actor",Guid.Empty);Add(insert,"@key",key);Add(insert,"@now",now);await insert.ExecuteNonQueryAsync(ct);
+            }
+            var newPaid=invoicePaid+amount;var balance=invoiceTotal-newPaid;var status=balance==0?"Paid":"PartiallyPaid";
+            await using(var update=conn.CreateCommand()){update.Transaction=tx;update.CommandText="UPDATE dbo.SaaSInvoices SET AmountPaid=@paid,BalanceDue=@balance,Status=@status WHERE Id=@id";Add(update,"@paid",newPaid);Add(update,"@balance",balance);Add(update,"@status",status);Add(update,"@id",invoiceId);await update.ExecuteNonQueryAsync(ct);}
+            await using(var updateLink=conn.CreateCommand()){updateLink.Transaction=tx;updateLink.CommandText="UPDATE dbo.SaaSInvoicePaymentLinks SET Status='Paid' WHERE Id=@id";Add(updateLink,"@id",linkId);await updateLink.ExecuteNonQueryAsync(ct);}
+            await Audit(conn,tx,invoiceId,"CashfreePaymentLinkPaid",new{paymentId,providerLinkId,providerPaymentId,invoiceNumber,amount,newPaid,balance},null,ct);
+            await tx.CommitAsync(ct);return Ok(new{processed=true,paymentId,invoiceId,invoiceNumber,amountPaid=newPaid,balanceDue=balance,status});
+        } catch { await tx.RollbackAsync(ct);throw; }
+    }
+    private static string? ReadJsonString(JsonElement element,string property)=>element.TryGetProperty(property,out var value)&&value.ValueKind==JsonValueKind.String?value.GetString():null;
+    private static decimal? ReadJsonDecimal(JsonElement element,string property){if(!element.TryGetProperty(property,out var value))return null;if(value.ValueKind==JsonValueKind.Number&&value.TryGetDecimal(out var number))return number;return value.ValueKind==JsonValueKind.String&&decimal.TryParse(value.GetString(),NumberStyles.Number,CultureInfo.InvariantCulture,out var parsed)?parsed:null;}
+
     [HttpGet("payments/{paymentId:guid}/receipt")]
     public async Task<IActionResult> Receipt(Guid paymentId,CancellationToken ct)
     {
