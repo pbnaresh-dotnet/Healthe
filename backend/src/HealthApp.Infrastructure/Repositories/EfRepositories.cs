@@ -49,6 +49,36 @@ public sealed class UserRepository(HealthAppDbContext db) : EfRepository(db), IU
 public sealed class OutletRepository(HealthAppDbContext db) : EfRepository(db), IOutletRepository
 {
     public async Task<IReadOnlyList<Outlet>> GetAllAsync() => await Context.Outlets.AsNoTracking().Include(x => x.Branding).OrderBy(x => x.Name).ToListAsync();
+
+    public async Task<PageResult<Outlet>> GetPageAsync(string? search, string? status, string? city, int page, int pageSize)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        IQueryable<Outlet> query = Context.Outlets.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(x => x.Name.Contains(term) || x.Slug.Contains(term) ||
+                x.Subdomain.Contains(term) || x.City.Contains(term) || x.State.Contains(term));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<OutletStatus>(status.Trim(), true, out var parsedStatus))
+            query = query.Where(x => x.Status == parsedStatus);
+
+        if (!string.IsNullOrWhiteSpace(city))
+        {
+            var cityTerm = city.Trim();
+            query = query.Where(x => x.City == cityTerm);
+        }
+
+        var total = await query.CountAsync();
+        var items = await query.Include(x => x.Branding)
+            .OrderBy(x => x.Name).ThenBy(x => x.Id)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .ToListAsync();
+        return new PageResult<Outlet>(items, total, page, pageSize);
+    }
     public Task<Outlet?> GetByIdAsync(Guid id) => Context.Outlets.Include(x => x.Branding).FirstOrDefaultAsync(x => x.Id == id);
     public Task<Outlet?> GetBySlugAsync(string slug) => Context.Outlets.Include(x => x.Branding).FirstOrDefaultAsync(x => x.Slug == slug.Trim().ToLower());
     public Task<Outlet?> GetBySubdomainAsync(string subdomain) => Context.Outlets.Include(x => x.Branding).FirstOrDefaultAsync(x => x.Subdomain == subdomain.Trim().ToLower());
