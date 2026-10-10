@@ -67,7 +67,7 @@ BEGIN
         CONSTRAINT FK_SaaSInvoicePayments_Invoices FOREIGN KEY(InvoiceId) REFERENCES dbo.SaaSInvoices(Id)
     );
     CREATE INDEX IX_SaaSInvoicePayments_Invoice_Received ON dbo.SaaSInvoicePayments(InvoiceId,ReceivedAtUtc);
-    CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Invoice_Idempotency ON dbo.SaaSInvoicePayments(InvoiceId,IdempotencyKey);
+    CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Invoice_Idempotency ON dbo.SaaSInvoicePayments(InvoiceId,IdempotencyKey) WHERE IdempotencyKey <> '';
     CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Provider_Reference ON dbo.SaaSInvoicePayments(Provider,Reference) WHERE Reference <> '';
 END;
 IF OBJECT_ID('dbo.SaaSBillingAudit','U') IS NULL
