@@ -661,7 +661,7 @@ function KitchenPage({data,date,setDate,refresh,onMarkFoodReady}) {
  const markFoodReady=async deliveryId=>{
   if(!onMarkFoodReady)return;
   setReadyBusy(deliveryId);
-  try{await onMarkFoodReady(deliveryId);await refresh(date)}finally{setReadyBusy('')}
+  try{await onMarkFoodReady(deliveryId);await refresh(date)}catch(e){window.alert(e?.message||'Unable to mark delivery Food Ready.')}finally{setReadyBusy('')}
  };
  const toggleSlot=value=>setPrintSlots(x=>x.includes(value)?x.filter(v=>v!==value):[...x,value]);
  const doPrint=mode=>{
