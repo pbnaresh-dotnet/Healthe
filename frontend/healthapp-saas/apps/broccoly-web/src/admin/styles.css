@@ -621,3 +621,6 @@ button,input,select,textarea{min-width:0;max-width:100%}img,svg,video,canvas{max
 .paginationBar>div{display:flex;gap:8px}
 .paginationBar .secondaryBtn:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:560px){.paginationBar{align-items:flex-start;flex-direction:column}.paginationBar>div{width:100%}.paginationBar .secondaryBtn{flex:1}}
+
+.paginationBar .pageSizeField{display:inline-flex;align-items:center;gap:6px;color:var(--muted,#64748b);font-size:12px}
+.paginationBar .pageSizeField select{min-height:34px;border:1px solid var(--line,#dbe2ea);border-radius:8px;background:var(--surface,#fff);padding:4px 8px;color:inherit}
