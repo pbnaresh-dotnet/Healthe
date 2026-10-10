@@ -9,6 +9,7 @@ internal static class HealthAppModelBuilder
     {
         b.HasDefaultSchema("dbo");
         ConfigureUser(b.Entity<User>());
+        ConfigureAreaManagerOutletAssignment(b.Entity<AreaManagerOutletAssignment>());
         ConfigureOutlet(b.Entity<Outlet>());
         ConfigureOutletGroup(b.Entity<OutletGroup>());
         ConfigureOutletBranding(b.Entity<OutletBranding>());
@@ -81,6 +82,18 @@ internal static class HealthAppModelBuilder
         b.Entity<OutletOnboardingApplication>().HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
         b.Entity<OutletOnboardingApplication>().HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
     }
+    private static void ConfigureAreaManagerOutletAssignment(EntityTypeBuilder<AreaManagerOutletAssignment> e)
+    {
+        e.ToTable("AreaManagerOutletAssignments");
+        e.HasKey(x => x.Id);
+        e.Property(x => x.AssignedAtUtc).IsRequired();
+        e.HasIndex(x => new { x.AreaManagerUserId, x.OutletId }).IsUnique();
+        e.HasIndex(x => x.OutletId);
+        e.HasOne<User>().WithMany().HasForeignKey(x => x.AreaManagerUserId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<Outlet>().WithMany().HasForeignKey(x => x.OutletId).OnDelete(DeleteBehavior.NoAction);
+        e.HasOne<User>().WithMany().HasForeignKey(x => x.AssignedByUserId).OnDelete(DeleteBehavior.NoAction);
+    }
+
     private static void ConfigureUser(EntityTypeBuilder<User> e)
     {
         e.ToTable("Users");
