@@ -6,7 +6,7 @@ namespace HealthApp.Infrastructure.Data;
 
 public static class DatabaseSeeder
 {
-    public static async Task SeedAsync(HealthAppDbContext db, IPasswordService passwords, CancellationToken ct = default)
+    public static async Task SeedAsync(HealthAppDbContext db, IPasswordService passwords, CancellationToken ct = default, bool seedDemoData = true)
     {
         await SeedCatalogAsync(db, ct);
         await EnsureServiceCitiesAsync(db, ct);
@@ -15,6 +15,25 @@ public static class DatabaseSeeder
             await EnsureExistingRecipeCatalogLinksAsync(db, ct);
             await EnsureExistingOutletMenuSlotsAsync(db, ct);
             await EnsureRegionalOutletCatalogAsync(db, passwords, ct);
+            return;
+        }
+        if (!seedDemoData)
+        {
+            await EnsureSaaSPlansAsync(db, ct);
+            await EnsureMasterCityAreasAsync(db, ct);
+            if (!await db.Users.AnyAsync(x => x.Email == "admin@healthapp.test", ct))
+            {
+                db.Users.Add(new User
+                {
+                    Id = Guid.NewGuid(),
+                    Email = "admin@healthapp.test",
+                    PasswordHash = passwords.Hash("demo"),
+                    FirstName = "HealthApp",
+                    LastName = "Admin",
+                    Role = UserRole.SuperAdmin
+                });
+            }
+            await db.SaveChangesAsync(ct);
             return;
         }
         var free = new SaaSPlan {
@@ -365,6 +384,59 @@ public static class DatabaseSeeder
         }
         await db.SaveChangesAsync(ct);
         await EnsureRegionalOutletCatalogAsync(db, passwords, ct);
+    }
+
+
+    private static async Task EnsureSaaSPlansAsync(HealthAppDbContext db, CancellationToken ct)
+    {
+        var plans = new[]
+        {
+            new SaaSPlan { Id=Guid.NewGuid(), Name="Free", MonthlyFee=0, AnnualFee=0, IncludedActiveCustomers=10, AdditionalCustomerFee=0, CustomerTransactionFeePercent=3m, Description="Free plan for up to 10 active customers." },
+            new SaaSPlan { Id=Guid.NewGuid(), Name="Basic", MonthlyFee=999, AnnualFee=9990, IncludedActiveCustomers=50, AdditionalCustomerFee=15, CustomerTransactionFeePercent=2m, Description="For small meal businesses." },
+            new SaaSPlan { Id=Guid.NewGuid(), Name="Growth", MonthlyFee=2499, AnnualFee=24990, IncludedActiveCustomers=150, AdditionalCustomerFee=12, CustomerTransactionFeePercent=1.25m, Description="For growing meal subscription outlets." },
+            new SaaSPlan { Id=Guid.NewGuid(), Name="Professional", MonthlyFee=4999, AnnualFee=49990, IncludedActiveCustomers=500, AdditionalCustomerFee=8, CustomerTransactionFeePercent=.75m, Description="For established meal subscription outlets." }
+        };
+
+        var existingNames = await db.SaaSPlans.Select(x => x.Name).ToListAsync(ct);
+        foreach (var plan in plans)
+            if (!existingNames.Contains(plan.Name, StringComparer.OrdinalIgnoreCase))
+                db.SaaSPlans.Add(plan);
+    }
+
+    private static async Task EnsureMasterCityAreasAsync(HealthAppDbContext db, CancellationToken ct)
+    {
+        var specs = new[]
+        {
+            ("Bengaluru", "Karnataka", "Indiranagar", "560038", 12.9784, 77.6408),
+            ("Bengaluru", "Karnataka", "Koramangala", "560034", 12.9352, 77.6245),
+            ("Bengaluru", "Karnataka", "HSR Layout", "560102", 12.9116, 77.6389),
+            ("Bengaluru", "Karnataka", "Whitefield", "560066", 12.9698, 77.7499),
+            ("Bengaluru", "Karnataka", "Jayanagar", "560041", 12.9250, 77.5938),
+            ("Bengaluru", "Karnataka", "Malleshwaram", "560003", 13.0035, 77.5700),
+            ("Mumbai", "Maharashtra", "Bandra", "400050", 19.0607, 72.8362),
+            ("Mumbai", "Maharashtra", "Andheri", "400053", 19.1197, 72.8468),
+            ("Chennai", "Tamil Nadu", "T. Nagar", "600017", 13.0418, 80.2337),
+            ("New Delhi", "Delhi", "Connaught Place", "110001", 28.6315, 77.2167),
+            ("Hyderabad", "Telangana", "Madhapur", "500081", 17.4483, 78.3915)
+        };
+
+        var existing = await db.CityAreas.ToListAsync(ct);
+        foreach (var spec in specs)
+        {
+            if (existing.Any(x => x.City == spec.Item1 && x.Name == spec.Item3))
+                continue;
+
+            db.CityAreas.Add(new CityArea
+            {
+                Id = Guid.NewGuid(),
+                City = spec.Item1,
+                State = spec.Item2,
+                Name = spec.Item3,
+                Pincode = spec.Item4,
+                Latitude = spec.Item5,
+                Longitude = spec.Item6
+            });
+        }
     }
 
     private static async Task EnsureServiceCitiesAsync(HealthAppDbContext db, CancellationToken ct)
