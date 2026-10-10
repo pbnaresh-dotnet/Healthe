@@ -103,7 +103,7 @@ public sealed class OutletOnboardingService(
             SaaSPlanId = plan.Id,
             PlanName = plan.Name,
             BillingCycle = cycle,
-            SubscriptionFee = cycle == "Annual" ? plan.AnnualFee : plan.MonthlyFee,
+            SubscriptionFee = cycle == "Annual" ? plan.AnnualFee : Math.Round(plan.MonthlyFee * 6m * 0.90m, 2, MidpointRounding.AwayFromZero),
             SetupFee = SetupFee,
             PaymentStatus = "Pending",
             PaymentReference = "",
@@ -134,7 +134,7 @@ public sealed class OutletOnboardingService(
             SetupFee = SetupFee,
             TransactionFeePercent = plan.CustomerTransactionFeePercent,
             StartDate = now.Date,
-            RenewalDate = now.Date.AddMonths(cycle == "Annual" ? 12 : 1),
+            RenewalDate = now.Date.AddMonths(cycle == "Annual" ? 12 : 6),
             Status = "Pending"
         };
 
@@ -550,7 +550,7 @@ public sealed class OutletOnboardingService(
     }
 
     private static string NormalizeCycle(string? value) =>
-        string.Equals(value, "Annual", StringComparison.OrdinalIgnoreCase) ? "Annual" : "Monthly";
+        string.Equals(value, "Annual", StringComparison.OrdinalIgnoreCase) ? "Annual" : "SixMonths";
 
     private static BillingPlan MapBillingPlan(string name) =>
         name.Trim().ToLowerInvariant() switch
