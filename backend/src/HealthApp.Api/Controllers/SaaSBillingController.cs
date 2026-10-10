@@ -78,7 +78,7 @@ WHERE s.Status='Active' AND o.Status IN (1,3) AND s.StartDate<@next AND (s.Billi
                 var discount=includesSetup?Math.Min(gross,x.discountAmount):0m;
                 var subtotal=Math.Max(0m,gross-discount);
                 // SaaS tax is not inferred here. The configured finance/tax policy must determine the applicable tax rate.
-                var taxRate=IsSuperAdmin?request.TaxRatePercent:(configuration.GetValue<decimal?>("Finance:SaaSBillingTaxRatePercent")??18m);
+                var configuredTaxRate=configuration.GetValue<decimal?>("Finance:SaaSBillingTaxRatePercent")??18m; var taxRate=IsSuperAdmin?(request.TaxRatePercent??configuredTaxRate):configuredTaxRate;
                 if(taxRate<0||taxRate>100){await tx.RollbackAsync(ct);return BadRequest(new {message="Tax rate must be between 0 and 100."});}
                 var tax=decimal.Round(subtotal*taxRate/100m,2,MidpointRounding.AwayFromZero);
                 var total=decimal.Round(subtotal+tax,2,MidpointRounding.AwayFromZero);
@@ -161,5 +161,5 @@ WHERE s.Status='Active' AND o.Status IN (1,3) AND s.StartDate<@next AND (s.Billi
         await using var cmd=conn.CreateCommand();cmd.CommandText="SELECT Action,DetailJson,ActorUserId,OccurredAtUtc FROM dbo.SaaSBillingAudit WHERE InvoiceId=@id ORDER BY OccurredAtUtc DESC";Add(cmd,"@id",id);var list=new List<object>();await using var r=await cmd.ExecuteReaderAsync(ct);while(await r.ReadAsync(ct))list.Add(new{action=r.GetString(0),detailJson=r.GetString(1),actorUserId=r.GetGuid(2),occurredAtUtc=r.GetDateTime(3)});return list;
     }
 }
-public sealed class GenerateSaaSInvoicesRequest { public string? BillingPeriod {get;set;} public int DueDay {get;set;}=15; public decimal TaxRatePercent {get;set;} public string? FinancePolicyVersion {get;set;} }
+public sealed class GenerateSaaSInvoicesRequest { public string? BillingPeriod {get;set;} public int DueDay {get;set;}=15; public decimal? TaxRatePercent {get;set;} public string? FinancePolicyVersion {get;set;} }
 public sealed class RecordSaaSPaymentRequest { public decimal Amount {get;set;} public string Method {get;set;}="Cash"; public string? Reference {get;set;} public string? Notes {get;set;} public DateTime? ReceivedAtUtc {get;set;} public bool OnlinePaymentVerified {get;set;} public string? Provider {get;set;} public string? IdempotencyKey {get;set;} }
