@@ -130,17 +130,22 @@ WHERE s.Status='Active' AND o.Status IN (1,3) AND s.StartDate<@next AND (s.Billi
     }
 
     [HttpGet("invoices/{id:guid}")]
-    public async Task<IActionResult> Detail(Guid id,CancellationToken ct)
+    public async Task<IActionResult> Detail(Guid id, [FromQuery] int paymentPage = 1, [FromQuery] int auditPage = 1, CancellationToken ct = default)
     {
+        paymentPage = Math.Clamp(paymentPage, 1, 1_000_000);
+        auditPage = Math.Clamp(auditPage, 1, 1_000_000);
+        const int historyPageSize = 10;
         var scope=IsSuperAdmin?"":" AND EXISTS(SELECT 1 FROM dbo.AreaManagerOutletAssignments a WHERE a.OutletId=i.OutletId AND a.AreaManagerUserId=@actor)";
         await using var conn=db.Database.GetDbConnection();if(conn.State!=ConnectionState.Open)await conn.OpenAsync(ct);
         await using var cmd=conn.CreateCommand();cmd.CommandText=$@"SELECT i.Id,i.InvoiceNumber,i.OutletId,o.Name,i.BillingPeriod,i.IssueDateUtc,i.DueDateUtc,i.Currency,i.Subtotal,i.DiscountAmount,i.TaxRatePercent,i.TaxAmount,i.TotalAmount,i.AmountPaid,i.BalanceDue,i.Status,i.SnapshotJson,i.SnapshotSha256 FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE i.Id=@id{scope}";
         Add(cmd,"@id",id);if(!IsSuperAdmin)Add(cmd,"@actor",ActorId??Guid.Empty);
         object? invoice=null; string snapshot="";string hash="";
         await using(var r=await cmd.ExecuteReaderAsync(ct)){if(!await r.ReadAsync(ct))return NotFound();snapshot=r.GetString(16);hash=r.GetString(17);invoice=new{id=r.GetGuid(0),invoiceNumber=r.GetString(1),outletId=r.GetGuid(2),outletName=r.GetString(3),billingPeriod=r.GetString(4),issueDateUtc=r.GetDateTime(5),dueDateUtc=r.GetDateTime(6),currency=r.GetString(7),subtotal=r.GetDecimal(8),discountAmount=r.GetDecimal(9),taxRatePercent=r.GetDecimal(10),taxAmount=r.GetDecimal(11),totalAmount=r.GetDecimal(12),amountPaid=r.GetDecimal(13),balanceDue=r.GetDecimal(14),status=r.GetString(15),snapshotJson=snapshot,snapshotSha256=hash};}
-        var payments=await ReadPayments(conn,id,ct);
-        var audit=await ReadAudit(conn,id,ct);
-        return Ok(new{invoice,payments,audit});
+        var payments=await ReadPayments(conn,id,paymentPage,historyPageSize,ct);
+        var audit=await ReadAudit(conn,id,auditPage,historyPageSize,ct);
+        return Ok(new{invoice,
+            payments=new{items=payments.Items,totalCount=payments.TotalCount,page=paymentPage,pageSize=historyPageSize,totalPages=(int)Math.Ceiling(payments.TotalCount/(double)historyPageSize)},
+            audit=new{items=audit.Items,totalCount=audit.TotalCount,page=auditPage,pageSize=historyPageSize,totalPages=(int)Math.Ceiling(audit.TotalCount/(double)historyPageSize)}});
     }
 
     [HttpPost("invoices/{id:guid}/payments")]
@@ -304,11 +309,52 @@ FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE i.Id=@id{sco
         await using var cmd=conn.CreateCommand();cmd.Transaction=tx;cmd.CommandText="INSERT dbo.SaaSBillingAudit(Id,InvoiceId,Action,DetailJson,ActorUserId,OccurredAtUtc) VALUES(@id,@invoice,@action,@detail,@actor,@at)";
         Add(cmd,"@id",Guid.NewGuid());Add(cmd,"@invoice",invoice);Add(cmd,"@action",action);Add(cmd,"@detail",JsonSerializer.Serialize(detail));Add(cmd,"@actor",actorId??Guid.Empty);Add(cmd,"@at",DateTime.UtcNow);await cmd.ExecuteNonQueryAsync(ct);
     }
-    private static async Task<List<object>> ReadPayments(System.Data.Common.DbConnection conn,Guid id,CancellationToken ct){
-        await using var cmd=conn.CreateCommand();cmd.CommandText="SELECT Id,Amount,Method,Reference,Notes,ReceivedAtUtc,RecordedByUserId,Provider,ProviderVerified FROM dbo.SaaSInvoicePayments WHERE InvoiceId=@id ORDER BY ReceivedAtUtc";Add(cmd,"@id",id);var list=new List<object>();await using var r=await cmd.ExecuteReaderAsync(ct);while(await r.ReadAsync(ct))list.Add(new{id=r.GetGuid(0),amount=r.GetDecimal(1),method=r.GetString(2),reference=r.GetString(3),notes=r.GetString(4),receivedAtUtc=r.GetDateTime(5),recordedByUserId=r.GetGuid(6),provider=r.GetString(7),providerVerified=r.GetBoolean(8),receiptUrl=$"/api/saas-billing/payments/{r.GetGuid(0)}/receipt"});return list;
+    private static async Task<(List<object> Items, int TotalCount)> ReadPayments(System.Data.Common.DbConnection conn, Guid id, int page, int pageSize, CancellationToken ct)
+    {
+        int totalCount;
+        await using (var count = conn.CreateCommand())
+        {
+            count.CommandText = "SELECT COUNT_BIG(1) FROM dbo.SaaSInvoicePayments WHERE InvoiceId=@id";
+            Add(count, "@id", id);
+            totalCount = checked((int)Convert.ToInt64(await count.ExecuteScalarAsync(ct)));
+        }
+        var items = new List<object>();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"SELECT Id,Amount,Method,Reference,Notes,ReceivedAtUtc,RecordedByUserId,Provider,ProviderVerified
+FROM dbo.SaaSInvoicePayments WHERE InvoiceId=@id
+ORDER BY ReceivedAtUtc DESC,Id DESC OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY";
+        Add(cmd, "@id", id); Add(cmd, "@offset", (page - 1) * pageSize); Add(cmd, "@pageSize", pageSize);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var paymentId = reader.GetGuid(0);
+            items.Add(new { id = paymentId, amount = reader.GetDecimal(1), method = reader.GetString(2),
+                reference = reader.GetString(3), notes = reader.GetString(4), receivedAtUtc = reader.GetDateTime(5),
+                recordedByUserId = reader.GetGuid(6), provider = reader.GetString(7), providerVerified = reader.GetBoolean(8),
+                receiptUrl = $"/api/saas-billing/payments/{paymentId}/receipt" });
+        }
+        return (items, totalCount);
     }
-    private static async Task<List<object>> ReadAudit(System.Data.Common.DbConnection conn,Guid id,CancellationToken ct){
-        await using var cmd=conn.CreateCommand();cmd.CommandText="SELECT Action,DetailJson,ActorUserId,OccurredAtUtc FROM dbo.SaaSBillingAudit WHERE InvoiceId=@id ORDER BY OccurredAtUtc DESC";Add(cmd,"@id",id);var list=new List<object>();await using var r=await cmd.ExecuteReaderAsync(ct);while(await r.ReadAsync(ct))list.Add(new{action=r.GetString(0),detailJson=r.GetString(1),actorUserId=r.GetGuid(2),occurredAtUtc=r.GetDateTime(3)});return list;
+
+    private static async Task<(List<object> Items, int TotalCount)> ReadAudit(System.Data.Common.DbConnection conn, Guid id, int page, int pageSize, CancellationToken ct)
+    {
+        int totalCount;
+        await using (var count = conn.CreateCommand())
+        {
+            count.CommandText = "SELECT COUNT_BIG(1) FROM dbo.SaaSBillingAudit WHERE InvoiceId=@id";
+            Add(count, "@id", id);
+            totalCount = checked((int)Convert.ToInt64(await count.ExecuteScalarAsync(ct)));
+        }
+        var items = new List<object>();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"SELECT Action,DetailJson,ActorUserId,OccurredAtUtc
+FROM dbo.SaaSBillingAudit WHERE InvoiceId=@id
+ORDER BY OccurredAtUtc DESC,Id DESC OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY";
+        Add(cmd, "@id", id); Add(cmd, "@offset", (page - 1) * pageSize); Add(cmd, "@pageSize", pageSize);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            items.Add(new { action = reader.GetString(0), detailJson = reader.GetString(1), actorUserId = reader.GetGuid(2), occurredAtUtc = reader.GetDateTime(3) });
+        return (items, totalCount);
     }
 }
 public sealed class GenerateSaaSInvoicesRequest { public string? BillingPeriod {get;set;} public int DueDay {get;set;}=15; public decimal? TaxRatePercent {get;set;} public string? FinancePolicyVersion {get;set;} }
