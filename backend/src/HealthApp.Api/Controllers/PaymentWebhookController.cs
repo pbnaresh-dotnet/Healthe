@@ -25,7 +25,7 @@ public sealed class PaymentWebhookController(IPaymentService payments) : Control
         {
             // Ask the provider to retry rather than acknowledging delivery while the active
             // worker still owns the lease; this also covers an active worker that later crashes.
-            Response.Headers.RetryAfter = "5";
+            Response.Headers["Retry-After"] = "5";
             return StatusCode(StatusCodes.Status503ServiceUnavailable, result);
         }
 
