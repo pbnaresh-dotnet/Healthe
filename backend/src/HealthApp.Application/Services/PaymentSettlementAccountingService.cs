@@ -78,9 +78,6 @@ public sealed class PaymentSettlementAccountingService(
         return settlement;
     }
 
-    public Task<IReadOnlyList<PaymentGatewaySettlement>> GetUnreconciledAsync(Guid? outletId = null, CancellationToken cancellationToken = default)
-        => settlements.GetUnreconciledAsync(outletId);
-
     public async Task<PaymentSettlementImportResultDto> ImportCsvAsync(
         string provider,
         Stream csv,
