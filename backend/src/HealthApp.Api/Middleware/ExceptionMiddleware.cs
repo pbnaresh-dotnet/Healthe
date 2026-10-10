@@ -132,9 +132,9 @@ public sealed class ExceptionMiddleware(
         var validationDetails = context.Items.TryGetValue("HealthApp.ModelValidationErrors", out var validationValue)
             ? validationValue?.ToString()
             : null;
-        var message = string.IsNullOrWhiteSpace(validationDetails)
-            ? $"Request returned HTTP {statusCode}."
-            : $"Request returned HTTP {statusCode}. Validation: {validationDetails}";
+        var message = diagnosticsPolicy.Current.DetailedLoggingEnabled && !string.IsNullOrWhiteSpace(validationDetails)
+            ? $"Request returned HTTP {statusCode}. Validation: {validationDetails}"
+            : $"Request returned HTTP {statusCode}.";
         var errorCode = !string.IsNullOrWhiteSpace(validationDetails)
             ? "MODEL_VALIDATION"
             : $"HTTP_{statusCode}";
@@ -157,7 +157,7 @@ public sealed class ExceptionMiddleware(
                 hostEnvironment.EnvironmentName));
     }
 
-    private static ApplicationErrorLogEntry BuildEntry(
+    private ApplicationErrorLogEntry BuildEntry(
         HttpContext context,
         string severity,
         string errorCode,
@@ -180,7 +180,10 @@ public sealed class ExceptionMiddleware(
             : (Guid?)null;
 
         var role = context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
-        var host = context.Request.Host.Host ?? "";
+        var detailed = diagnosticsPolicy.Current.DetailedLoggingEnabled;
+        var host = detailed ? context.Request.Host.Host ?? "" : "";
+        var clientIp = detailed ? context.Connection.RemoteIpAddress?.ToString() ?? "" : "";
+        var userAgent = detailed ? context.Request.Headers.UserAgent.ToString() : "";
         var path = context.Request.Path.Value ?? "/";
         var fingerprint = Fingerprint(errorCode, path, exceptionType, message);
 
@@ -205,8 +208,8 @@ public sealed class ExceptionMiddleware(
             role,
             tenantSlug,
             host,
-            context.Connection.RemoteIpAddress?.ToString() ?? "",
-            context.Request.Headers.UserAgent.ToString(),
+            clientIp,
+            userAgent,
             fingerprint);
     }
 
