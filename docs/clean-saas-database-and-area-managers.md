@@ -73,3 +73,18 @@ Super Admin may leave payment pending or select **Mark amount as paid** and reco
 
 
 For outlets created without marking payment received, the outlet and owner account remain pending/inactive. Once payment is actually received, `POST /api/admin/outlets/{outletId}/mark-paid` records the manual payment and activates the subscription, outlet and owner login. This endpoint is available for backend integration; the current embedded UI supports marking paid during creation, but does not yet expose a separate follow-up payment action in the outlet directory.
+
+
+## SaaS Billing & Collections
+
+The embedded admin console now includes **Finance & Reports → SaaS Billing** for Super Admin and Area Managers. Super Admin can bill all eligible outlets; Area Managers are scoped server-side to outlets assigned through `AreaManagerOutletAssignments`.
+
+- `GET /api/saas-billing/invoices` lists invoices and balances, with period/status filters.
+- `POST /api/saas-billing/generate` issues one invoice per eligible outlet and billing period. Existing non-void invoices are skipped.
+- `GET /api/saas-billing/invoices/{id}` returns the immutable invoice snapshot, payments and audit history.
+- `POST /api/saas-billing/invoices/{id}/payments` records cash, UPI, bank transfer, other or explicitly provider-reconciled online payments. Partial payments update the outstanding balance.
+- `GET /api/saas-billing/payments/{paymentId}/receipt` provides a printable collection receipt.
+
+The idempotent SQL Server initializer creates `SaaSInvoices`, `SaaSInvoicePayments`, and `SaaSBillingAudit`. Issued snapshots include a SHA-256 hash and finance-policy version. See `backend/docs/financial/saas-billing-v1.3.7.md` for the charge, discount, tax, payment and outstanding production-validation rules.
+
+**Limitations:** this feature has not been built or integration-tested. The online method records a verified external reconciliation; it does not initiate gateway checkout or validate a signed webhook. Tax is stored as an aggregate amount and the current printable receipt is not a statutory GST invoice. Complete tax-component resolution, ledger postings, credit notes/refunds and production tests before using this as the statutory accounting system.
