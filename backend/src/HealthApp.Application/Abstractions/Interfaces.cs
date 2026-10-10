@@ -11,7 +11,9 @@ public interface ICustomerAllergyRepository { Task<IReadOnlyList<CustomerAllergy
 public interface ICatalogService { Task<IReadOnlyList<IngredientDto>> GetIngredientsAsync(); Task<IReadOnlyList<AllergenDto>> GetAllergensAsync(); }
 public interface IAllergySafetyService { Task<IReadOnlyList<AllergyWarningDto>> GetWarningsAsync(Guid customerId, IReadOnlyCollection<Recipe> recipes); Task EnsureConfirmedAsync(Guid customerId, IReadOnlyCollection<Recipe> recipes, IReadOnlyCollection<Guid>? confirmedRecipeIds); }
 
-public interface IUserRepository { Task<User?> FindByEmailAsync(string email); Task<User?> FindByEmailAsync(string email, Guid outletId); Task<IReadOnlyList<User>> FindTenantUsersByEmailAsync(string email); Task<User?> FindByMobileAsync(string mobileNumber, Guid? outletId = null); Task<User?> FindByIdAsync(Guid id); Task AddAsync(User user); Task UpdateAsync(User user); Task<IReadOnlyList<User>> GetAllAsync(); }
+public sealed record PageResult<T>(IReadOnlyList<T> Items, int TotalCount, int Page, int PageSize);
+
+public interface IUserRepository { Task<User?> FindByEmailAsync(string email); Task<User?> FindByEmailAsync(string email, Guid outletId); Task<IReadOnlyList<User>> FindTenantUsersByEmailAsync(string email); Task<User?> FindByMobileAsync(string mobileNumber, Guid? outletId = null); Task<User?> FindByIdAsync(Guid id); Task AddAsync(User user); Task UpdateAsync(User user); Task<IReadOnlyList<User>> GetAllAsync(); Task<PageResult<User>> GetOutletCustomersPageAsync(Guid outletId, string? search, int page, int pageSize); }
 public interface IOutletBrandingRepository
 {
     Task<OutletBranding?> GetByOutletAsync(Guid outletId);
