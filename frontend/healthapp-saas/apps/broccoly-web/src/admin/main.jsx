@@ -126,12 +126,12 @@ function App(){
    }
    if(page==='health'){const us=await admin.users();if(!cancelled)setData(prev=>({...prev,us:us||[]}));}
     if(['area-managers','domains','finance','health'].includes(page)){
-    const requests=[admin.outlets()];
+    const requests=[page==='finance'?admin.outletsPage({page:1,pageSize:100}):admin.outlets()];
     if(page==='area-managers')requests.push(admin.areaManagers());
     if(page==='finance')requests.push(admin.groups());
     const results=await Promise.allSettled(requests);
     if(!cancelled){
-     if(results[0].status==='fulfilled')setData(prev=>({...prev,o:results[0].value||[]}));
+     if(results[0].status==='fulfilled')setData(prev=>({...prev,o:page==='finance'?(results[0].value?.items||[]):(results[0].value||[])}));
      else setError(results[0].reason?.message||'Unable to load outlet lookup data.');
      if(page==='area-managers'&&results[1]){if(results[1].status==='fulfilled')setData(prev=>({...prev,areaManagers:results[1].value||[]}));else setError(results[1].reason?.message||'Unable to load Area Managers.');}
      if(page==='finance'&&results[1]){if(results[1].status==='fulfilled')setData(prev=>({...prev,groups:results[1].value||[]}));else setError(results[1].reason?.message||'Unable to load outlet groups.');}
@@ -545,7 +545,7 @@ function Finance({report,filters,setFilters,groups,outlets,onApply,loading,onFin
  const moneyValue=v=>money(v||0);
  const set=(key,value)=>setFilters(x=>({...x,[key]:value}));
  return <section className="financeControl">
-  <PageIntro eyebrow="FINANCE & GST CONTROL CENTER" title="Financial command center" text="Review customer collections, outlet settlements, restaurant GST and HealthApp fees from the tenant subscription ledger. Filters stay tenant-aware and financial responsibilities remain separate." action={<div className="financePageActions"><button className="secondaryBtn" onClick={onFinanceRules}><Icon name="clipboard" size={15}/>Rules & help</button><button className="secondaryBtn" onClick={()=>onApply(filters)} disabled={loading}><Icon name="refresh" size={15}/>{loading?'Refreshing…':'Refresh report'}</button></div>}/>
+  <PageIntro eyebrow="FINANCE & GST CONTROL CENTER" title="Financial command center" text="Review customer collections, outlet settlements, restaurant GST and HealthApp fees from the tenant subscription ledger. Filters stay tenant-aware and financial responsibilities remain separate." action={<div className="financePageActions"><button className="secondaryBtn" onClick={onFinanceRules}><Icon name="clipboard" size={15}/>Rules & help</button><button className="secondaryBtn" onClick={()=>onApply(filters,tab,1)} disabled={loading}><Icon name="refresh" size={15}/>{loading?'Refreshing…':'Refresh report'}</button></div>}/>
   <section className="card financeFilterCard">
    <div className="cardHead"><div><span className="eyebrow">REPORT FILTERS</span><h2>Control the reporting window</h2><p>Dates use subscription start dates for cohort and daily subscription reporting.</p></div></div>
    <div className="financeFilters">
@@ -554,7 +554,7 @@ function Finance({report,filters,setFilters,groups,outlets,onApply,loading,onFin
     <label><span>Outlet group</span><select value={filters.outletGroupId||''} onChange={e=>set('outletGroupId',e.target.value)}><option value="">All groups</option>{groups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
     <label><span>Outlet</span><select value={filters.outletId||''} onChange={e=>set('outletId',e.target.value)}><option value="">All outlets</option>{outlets.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
     <label><span>City</span><select value={filters.city||''} onChange={e=>set('city',e.target.value)}><option value="">All cities</option>{cities.map(city=><option key={city} value={city}>{city}</option>)}</select></label>
-    <div className="financeFilterActions"><button className="primaryBtn" onClick={()=>onApply(filters)} disabled={loading}>{loading?'Running report…':'Apply filters'}</button><button className="secondaryBtn" onClick={()=>{const next={fromDate:filters.fromDate,toDate:filters.toDate,outletGroupId:'',outletId:'',city:'',mealPlanId:''};setFilters(next);onApply(next)}} disabled={loading}>Clear scope</button></div>
+    <div className="financeFilterActions"><button className="primaryBtn" onClick={()=>onApply(filters,tab,1)} disabled={loading}>{loading?'Running report…':'Apply filters'}</button><button className="secondaryBtn" onClick={()=>{const next={fromDate:filters.fromDate,toDate:filters.toDate,outletGroupId:'',outletId:'',city:'',mealPlanId:''};setFilters(next);onApply(next,tab,1)}} disabled={loading}>Clear scope</button></div>
    </div>
   </section>
   {!report?<section className="card financeEmpty"><b>{loading?'Building the finance report…':'No finance report loaded'}</b><span>{loading?'Querying the tenant subscription ledger.':'Choose the reporting window and apply the filters.'}</span></section>:
