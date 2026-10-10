@@ -192,7 +192,6 @@ public sealed class PlatformTransactionRepository(HealthAppDbContext db) : EfRep
         Context.PlatformTransactions.Update(transaction);
         await SaveAsync();
     }
-    public async Task<IReadOnlyList<PlatformTransaction>> GetAllAsync() => await Context.PlatformTransactions.AsNoTracking().OrderByDescending(x => x.CreatedAt).ToListAsync();
     public async Task<PlatformRevenueDto> GetRevenueSummaryAsync()
     {
         var summary = await Context.PlatformTransactions.AsNoTracking()
@@ -210,6 +209,31 @@ public sealed class PlatformTransactionRepository(HealthAppDbContext db) : EfRep
             .FirstOrDefaultAsync();
         return summary ?? new PlatformRevenueDto(0m, 0m, 0m, 0m, 0m, 0m);
     }
+    public async Task<(decimal GrossAmount, decimal PlatformFee)> GetOutletSummaryAsync(Guid outletId, DateTime fromUtc)
+    {
+        var summary = await Context.PlatformTransactions.AsNoTracking()
+            .Where(x => x.OutletId == outletId && x.CreatedAt >= fromUtc)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                GrossAmount = g.Sum(x => x.GrossAmount),
+                PlatformFee = g.Sum(x => x.PlatformFee)
+            })
+            .FirstOrDefaultAsync();
+        return summary is null ? (0m, 0m) : (summary.GrossAmount, summary.PlatformFee);
+    }
+
+    public Task<bool> ExistsForSubscriptionAsync(Guid subscriptionId, string type) =>
+        Context.PlatformTransactions.AsNoTracking().AnyAsync(x => x.SubscriptionId == subscriptionId && x.Type == type);
+
+    public async Task<IReadOnlyList<PlatformTransaction>> GetPendingLateSkipFeesAsync(Guid customerId, Guid outletId) =>
+        await Context.PlatformTransactions
+            .Where(x => x.CustomerId == customerId && x.OutletId == outletId && x.Type == "LateSkipFee" && x.Status == "Pending")
+            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).ToListAsync();
+
+    public Task<PlatformTransaction?> GetRecoveryTransactionAsync(Guid subscriptionId) =>
+        Context.PlatformTransactions.FirstOrDefaultAsync(x => x.SubscriptionId == subscriptionId && x.Type == "LateSkipFeeRecovery" && x.Status != "Paid");
+
     public Task<bool> ExistsByReferenceAsync(string referenceId) => Context.PlatformTransactions.AnyAsync(x => x.ReferenceId == referenceId);
 }
 
