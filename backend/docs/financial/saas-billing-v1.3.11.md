@@ -10,7 +10,7 @@
 
 - A paid Cashfree payment-link webhook must include the provider's actual payment transaction ID. The payment-link ID identifies the payment request, not the money movement, and must not be used as a substitute when the payment ID is missing.
 - Invoice-scoped idempotency for the payment link remains in place. Before a new collection is inserted, the webhook also checks the provider + payment transaction reference against existing SaaS collections under update/serializable key-range locking.
-- If the provider transaction reference was already allocated to the same invoice, the callback is acknowledged as a duplicate and no second payment row or balance change is created.
+- If the provider transaction reference was already allocated to the same invoice with the same amount, the callback is acknowledged as a duplicate and no second payment row or balance change is created. If the reference exists with a different amount, it is treated as a reconciliation conflict.
 - If that provider reference is already allocated to a different invoice, the callback is rejected for manual reconciliation. The conflict is audited and the invoice ledger is not changed.
 - The unique database index on (Provider, Reference) for non-manual, non-empty references remains the final integrity barrier across concurrent requests. The application check improves deterministic handling; it does not replace the unique index.
 
