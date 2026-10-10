@@ -892,6 +892,22 @@ public sealed class PaymentTransactionRepository(HealthAppDbContext db) : EfRepo
         return affected == 1;
     }
 
+    // Atomic lease: only one request may verify/fulfil a provider order at a time.
+    // A crashed worker becomes reclaimable after the lease expires.
+    public async Task<bool> TryClaimWebhookAsync(Guid paymentId, DateTime utcNow, DateTime staleClaimBeforeUtc)
+    {
+        var affected = await Context.PaymentTransactions
+            .Where(x => x.Id == paymentId &&
+                        (x.ProcessingStatus != "WebhookProcessing" ||
+                         x.LastAttemptAtUtc == null ||
+                         x.LastAttemptAtUtc <= staleClaimBeforeUtc))
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.ProcessingStatus, "WebhookProcessing")
+                .SetProperty(x => x.LastAttemptAtUtc, utcNow));
+
+        return affected == 1;
+    }
+
     public async Task AddAsync(PaymentTransaction payment)
     {
         Context.PaymentTransactions.Add(payment);
