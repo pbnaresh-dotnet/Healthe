@@ -19,6 +19,7 @@ export default function SaaSBilling({isAreaManager=false,onError=()=>{},notify=(
  const [filterText,setFilterText]=useState('');
  const reload=async()=>{try{setBusy(true);const rows=await admin.saasInvoices({period:allPeriods?'':period,status});setInvoices(rows||[])}catch(e){onError(e.message||'Unable to load invoices')}finally{setBusy(false)}};
  useEffect(()=>{reload()},[period,status,allPeriods]);
+ useEffect(()=>{let mounted=true;admin.saasBillingSettings().then(settings=>{if(mounted&&settings&&settings.taxRatePercent!==undefined)setTaxRate(String(settings.taxRatePercent))}).catch(()=>{});return()=>{mounted=false}},[]);
  const totals=useMemo(()=>invoices.reduce((a,x)=>({invoiced:a.invoiced+Number(x.totalAmount||0),paid:a.paid+Number(x.amountPaid||0),due:a.due+Number(x.balanceDue||0)}),{invoiced:0,paid:0,due:0}),[invoices]);
  const visible=invoices.filter(x=>!filterText||[x.invoiceNumber,x.outletName,x.city,x.status].join(' ').toLowerCase().includes(filterText.toLowerCase()));
  const generate=async()=>{try{setBusy(true);const r=await admin.generateSaaSInvoices({billingPeriod:period,dueDay:Number(dueDay),taxRatePercent:Number(taxRate)});notify(`Invoices issued: ${r.created}; already existed: ${r.skipped}`);await reload()}catch(e){onError(e.message||'Unable to generate invoices')}finally{setBusy(false)}};
