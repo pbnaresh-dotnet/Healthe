@@ -1,0 +1,51 @@
+import React,{useEffect,useMemo,useState} from 'react';
+import {admin,money,API_URL} from '@healthapp/shared';
+
+const todayPeriod=()=>new Date().toISOString().slice(0,7);
+const dateText=v=>v?new Date(v).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'—';
+export default function SaaSBilling({isAreaManager=false,onError=()=>{},notify=()=>{}}){
+ const [period,setPeriod]=useState(todayPeriod());
+ const [dueDay,setDueDay]=useState('15');
+ const [taxRate,setTaxRate]=useState('0');
+ const [status,setStatus]=useState('');
+ const [invoices,setInvoices]=useState([]);
+ const [busy,setBusy]=useState(false);
+ const [selected,setSelected]=useState(null);
+ const [payment,setPayment]=useState({amount:'',method:'Cash',reference:'',notes:'',onlinePaymentVerified:false});
+ const [details,setDetails]=useState(null);
+ const [filterText,setFilterText]=useState('');
+ const reload=async()=>{try{setBusy(true);const rows=await admin.saasInvoices({period,status});setInvoices(rows||[])}catch(e){onError(e.message||'Unable to load invoices')}finally{setBusy(false)}};
+ useEffect(()=>{reload()},[period,status]);
+ const totals=useMemo(()=>invoices.reduce((a,x)=>({invoiced:a.invoiced+Number(x.totalAmount||0),paid:a.paid+Number(x.amountPaid||0),due:a.due+Number(x.balanceDue||0)}),{invoiced:0,paid:0,due:0}),[invoices]);
+ const visible=invoices.filter(x=>!filterText||[x.invoiceNumber,x.outletName,x.city,x.status].join(' ').toLowerCase().includes(filterText.toLowerCase()));
+ const generate=async()=>{try{setBusy(true);const r=await admin.generateSaaSInvoices({billingPeriod:period,dueDay:Number(dueDay),taxRatePercent:Number(taxRate),financePolicyVersion:'SAAS-BILLING-1.0'});notify(`Invoices issued: ${r.created}; already existed: ${r.skipped}`);await reload()}catch(e){onError(e.message||'Unable to generate invoices')}finally{setBusy(false)}};
+ const openDetails=async x=>{try{setBusy(true);const d=await admin.saasInvoice(x.id);setDetails(d);setSelected(d.invoice);setPayment({amount:String(d.invoice.balanceDue),method:'Cash',reference:'',notes:'',onlinePaymentVerified:false})}catch(e){onError(e.message||'Unable to load invoice')}finally{setBusy(false)}};
+ const record=async e=>{e.preventDefault();if(!selected)return;try{setBusy(true);await admin.recordSaaSPayment(selected.id,{amount:Number(payment.amount),method:payment.method,reference:payment.reference,notes:payment.notes,onlinePaymentVerified:payment.onlinePaymentVerified,provider:'Cashfree'});notify('Payment recorded against invoice');setDetails(await admin.saasInvoice(selected.id));await reload()}catch(e){onError(e.message||'Unable to record payment')}finally{setBusy(false)}};
+ const receipt=async url=>{try{const token=localStorage.getItem('ha_token');const response=await fetch((API_URL?new URL(API_URL).origin:'')+url,{headers:token?{Authorization:`Bearer ${token}`}:{}});if(!response.ok)throw new Error('Unable to open receipt');const blob=await response.blob();const objectUrl=URL.createObjectURL(blob);window.open(objectUrl,'_blank','noopener');setTimeout(()=>URL.revokeObjectURL(objectUrl),60000)}catch(e){onError(e.message)}};
+ return <section className="saasBilling">
+  <div className="pageIntro"><div><span className="eyebrow">FINANCE & COLLECTIONS</span><h1>SaaS Billing & Collections</h1><p>{isAreaManager?'Invoices and collections for outlets assigned to your area.':'Raise recurring SaaS dues, issue immutable invoices and record outlet payments.'}</p></div><button className="secondaryBtn" type="button" onClick={reload} disabled={busy}>Refresh</button></div>
+  <div className="metricGrid">
+   <div className="metricCard"><div className="metricTop">Invoiced in period</div><b>{money(totals.invoiced)}</b></div>
+   <div className="metricCard"><div className="metricTop">Payments received</div><b>{money(totals.paid)}</b></div>
+   <div className="metricCard"><div className="metricTop">Outstanding balance</div><b>{money(totals.due)}</b></div>
+  </div>
+  <div className="card billingGenerate"><div><span className="eyebrow">BILLING RUN</span><h2>Generate period invoices</h2><p>Creates invoices for eligible active subscriptions. Existing outlet/period invoices are skipped to prevent duplicate billing.</p></div>
+   <div className="billingControls"><label>Billing period<input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/></label><label>Due day<input type="number" min="1" max="28" value={dueDay} onChange={e=>setDueDay(e.target.value)}/></label><label>Tax rate (%)<input type="number" min="0" max="100" step="0.01" value={taxRate} onChange={e=>setTaxRate(e.target.value)}/></label><button className="primaryBtn" type="button" onClick={generate} disabled={busy||!period||Number(dueDay)<1||Number(dueDay)>28}>Generate invoices</button></div>
+   <small className="muted">Tax is not inferred automatically. Enter only the rate approved for this SaaS charge under the current finance policy. The rate and calculation are preserved in each invoice snapshot.</small>
+  </div>
+  <div className="card">
+   <div className="billingTableHead"><div><h2>Invoice register</h2><p>{visible.length} invoice(s) · {period}</p></div><div className="billingFilters"><input aria-label="Search invoices" placeholder="Search outlet or invoice" value={filterText} onChange={e=>setFilterText(e.target.value)}/><select aria-label="Invoice status" value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option><option value="Issued">Issued</option><option value="PartiallyPaid">Partially paid</option><option value="Paid">Paid</option><option value="Overdue">Overdue</option><option value="Voided">Voided</option></select></div></div>
+   {busy&&<div className="muted">Working…</div>}
+   <div className="tableWrap"><table><thead><tr><th>Invoice / Outlet</th><th>Period</th><th>Due date</th><th>Total</th><th>Received</th><th>Balance</th><th>Status</th><th></th></tr></thead><tbody>{visible.map(x=><tr key={x.id}><td><b>{x.invoiceNumber}</b><small>{x.outletName} · {x.city}</small></td><td>{x.billingPeriod}</td><td>{dateText(x.dueDateUtc)}</td><td>{money(x.totalAmount)}</td><td>{money(x.amountPaid)}</td><td><b>{money(x.balanceDue)}</b></td><td><span className={`statusPill status-${String(x.status).toLowerCase()}`}>{x.status}</span></td><td><button className="secondaryBtn" type="button" onClick={()=>openDetails(x)}>View / collect</button></td></tr>)}</tbody></table></div>
+   {!visible.length&&!busy&&<div className="emptyState">No invoices for this period. Generate invoices when the subscription dues are ready.</div>}
+  </div>
+  {details&&selected&&<div className="billingOverlay" role="dialog" aria-modal="true" aria-label="Invoice details"><div className="billingModal">
+   <div className="billingModalHead"><div><span className="eyebrow">INVOICE DETAILS</span><h2>{selected.invoiceNumber}</h2><p>{selected.outletName} · {selected.billingPeriod}</p></div><button className="secondaryBtn" type="button" onClick={()=>{setDetails(null);setSelected(null)}}>Close</button></div>
+   <div className="invoiceAmounts"><div><span>Total</span><b>{money(selected.totalAmount)}</b></div><div><span>Received</span><b>{money(selected.amountPaid)}</b></div><div><span>Outstanding</span><b>{money(selected.balanceDue)}</b></div></div>
+   <h3>Immutable invoice snapshot</h3><p className="muted">SHA-256: <code>{selected.snapshotSha256}</code></p><details><summary>View calculation snapshot</summary><pre className="snapshotPre">{JSON.stringify(JSON.parse(selected.snapshotJson||'{}'),null,2)}</pre></details>
+   <h3>Payment history</h3>{(details.payments||[]).length?<div className="paymentHistory">{details.payments.map(p=><div key={p.id}><div><b>{money(p.amount)} · {p.method}</b><small>{dateText(p.receivedAtUtc)} · {p.reference||'No reference'}</small></div><button className="secondaryBtn" type="button" onClick={()=>receipt(p.receiptUrl)}>Receipt</button></div>)}</div>:<p className="muted">No payments recorded yet.</p>}
+   {Number(selected.balanceDue)>0&&selected.status!=='Voided'&&<form className="recordPayment" onSubmit={record}><h3>Record payment received</h3><div className="billingControls"><label>Amount received<input type="number" min="0.01" max={selected.balanceDue} step="0.01" required value={payment.amount} onChange={e=>setPayment({...payment,amount:e.target.value})}/></label><label>Method<select value={payment.method} onChange={e=>setPayment({...payment,method:e.target.value})}><option value="Cash">Cash</option><option value="UPI">UPI</option><option value="BankTransfer">Bank transfer</option><option value="Other">Other</option><option value="OnlineReconciled">Online (provider reconciled)</option></select></label><label>Reference / receipt no.<input value={payment.reference} onChange={e=>setPayment({...payment,reference:e.target.value})} required={payment.method!=='Cash'}/></label><label>Notes<input value={payment.notes} onChange={e=>setPayment({...payment,notes:e.target.value})} placeholder="Optional receipt / reconciliation notes"/></label></div>{payment.method==='OnlineReconciled'&&<label className="verifyOnline"><input type="checkbox" checked={payment.onlinePaymentVerified} onChange={e=>setPayment({...payment,onlinePaymentVerified:e.target.checked})}/> I verified this payment in the payment provider dashboard</label>}<button className="primaryBtn" disabled={busy}>Record received payment</button><small className="muted">Partial payments are supported. Online payments require explicit provider reconciliation; this screen does not initiate or confirm a gateway charge.</small></form>}
+   <h3>Audit history</h3><div className="auditList">{(details.audit||[]).map((a,i)=><div key={i}><b>{a.action}</b><small>{dateText(a.occurredAtUtc)} · actor {a.actorUserId}</small><pre>{a.detailJson}</pre></div>)}</div>
+  </div></div>}
+ </section>;
+}
