@@ -27,7 +27,7 @@ public sealed class SaaSBillingController(HealthAppDbContext db, IConfiguration 
     public IActionResult Settings() => Ok(new
     {
         taxRatePercent = configuration.GetValue<decimal?>("Finance:SaaSBillingTaxRatePercent") ?? 18m,
-        financePolicyVersion = configuration["Finance:SaaSBillingPolicyVersion"] ?? "FINANCE-CALCULATION-POLICY@1.3.11"
+        financePolicyVersion = configuration["Finance:SaaSBillingPolicyVersion"] ?? "FINANCE-CALCULATION-POLICY@1.3.12"
     });
 
     [HttpGet("invoices")]
@@ -84,7 +84,7 @@ i.Currency,i.Subtotal,i.DiscountAmount,i.TaxAmount,i.TotalAmount,i.AmountPaid,i.
         var period=request.BillingPeriod!;
         var start=DateTime.SpecifyKind(DateTime.ParseExact(period+"-01","yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture),DateTimeKind.Utc);
         var next=start.AddMonths(1);
-        var financePolicyVersion=configuration["Finance:SaaSBillingPolicyVersion"]??"FINANCE-CALCULATION-POLICY@1.3.11";
+        var financePolicyVersion=configuration["Finance:SaaSBillingPolicyVersion"]??"FINANCE-CALCULATION-POLICY@1.3.12";
         await using var conn=db.Database.GetDbConnection();
         if(conn.State!=ConnectionState.Open) await conn.OpenAsync(ct);
         await using var tx=await conn.BeginTransactionAsync(ct);
