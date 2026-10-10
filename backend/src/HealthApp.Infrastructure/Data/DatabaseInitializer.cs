@@ -100,7 +100,7 @@ BEGIN
     ALTER TABLE dbo.SaaSInvoicePayments ADD IdempotencyKey nvarchar(100) NOT NULL CONSTRAINT DF_SaaSInvoicePayments_IdempotencyKey DEFAULT '' WITH VALUES;
 END;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_SaaSInvoicePayments_Invoice_Idempotency' AND object_id=OBJECT_ID('dbo.SaaSInvoicePayments'))
-    CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Invoice_Idempotency ON dbo.SaaSInvoicePayments(InvoiceId,IdempotencyKey);
+    CREATE UNIQUE INDEX UX_SaaSInvoicePayments_Invoice_Idempotency ON dbo.SaaSInvoicePayments(InvoiceId,IdempotencyKey) WHERE IdempotencyKey <> '';
 ", cancellationToken);
 
         // Outlet groups are a platform-level tenant classification used by Super Admin reports.
