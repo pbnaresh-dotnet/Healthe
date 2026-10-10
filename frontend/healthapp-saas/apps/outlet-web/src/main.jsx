@@ -768,6 +768,34 @@ function DeliveryRoutesPage({plan,drivers,labels=[],date,mealSlot,setDate,setMea
  const slotWindow=slotName==='Afternoon'?'12:00–14:00':slotName==='Evening'?'17:00–19:00':slotName==='Morning'?'07:00–09:00':'20:00–22:00';
  const points=plan?.points||[];
  const unassigned=points.filter(p=>!assigned.has(p.addressId));
+ const deliveryRouteLookup=useMemo(()=>{
+  const map=new Map();
+  (plan?.routes||[]).forEach(route=>(route.stops||[]).forEach(stop=>{
+   (stop.deliveryIds||[]).forEach(id=>map.set(String(id),{route,stop}));
+  }));
+  return map;
+ },[plan]);
+ const routeLabelGroups=useMemo(()=>{
+  const grouped=new Map();
+  (labels||[]).filter(l=>Number(l.mealSlot)===Number(mealSlot)&&l.deliveryId&&String(l.deliveryStatus||'').toLowerCase()==='foodready').forEach(l=>{
+   const key=String(l.deliveryId),current=grouped.get(key)||{...l,deliveryId:key,items:[],itemCount:0};
+   current.items.push({selectionId:l.selectionId,name:l.mealName,category:l.category,portionSize:l.portionSize,itemStatus:l.itemStatus});
+   current.itemCount++;
+   grouped.set(key,current);
+  });
+  return [...grouped.values()].map(item=>{
+   const assignedDelivery=deliveryRouteLookup.get(String(item.deliveryId));
+   return {...item,route:assignedDelivery?.route||null,stop:assignedDelivery?.stop||null,
+    routeSequence:Number(item.routeSequence||assignedDelivery?.stop?.stopSequence||0),
+    routeName:assignedDelivery?.route?.driverName||item.routeName||''};
+  }).filter(item=>item.route||item.routeId||item.routeSequence>0)
+   .sort((a,b)=>(a.routeSequence||9999)-(b.routeSequence||9999)||String(a.customerName||'').localeCompare(String(b.customerName||'')));
+ },[labels,mealSlot,deliveryRouteLookup]);
+ const mealStickerRows=useMemo(()=>routeLabelGroups.flatMap(group=>group.items
+  .filter(item=>!/(goodie|extra|juice|snack)/i.test(String(item.category||'')))
+  .map((item,index)=>({...item,deliveryId:group.deliveryId,customerName:group.customerName,customerPhone:group.customerPhone,address:group.address,addressLabel:group.addressLabel,areaName:group.areaName,pincode:group.pincode,mealSlotName:group.mealSlotName,deliveryWindow:group.deliveryWindow,logoUrl:group.logoUrl,outletName:group.outletName,routeSequence:group.routeSequence,key:(item.selectionId||index)+'-'+group.deliveryId}))),[routeLabelGroups]);
+ const printRouteLabels=mode=>{if(!routeLabelGroups.length)return;if(mode==='meal'&&!mealStickerRows.length)return;setLabelPrintMode(mode)};
+ useEffect(()=>{if(!labelPrintMode)return;const timer=setTimeout(()=>{window.print();setLabelPrintMode('')},120);return()=>clearTimeout(timer)},[labelPrintMode]);
 
  const [manualMode,setManualMode]=useState(false);
  const [manualAssignments,setManualAssignments]=useState({});
@@ -787,6 +815,10 @@ function DeliveryRoutesPage({plan,drivers,labels=[],date,mealSlot,setDate,setMea
    <div className="panelHead routeDriverHead"><div><h3>Drivers</h3><p>Select active drivers created under Team. You can let the planner distribute stops or assign them manually.</p></div><span className="count">{selectedDriverIds.length} selected · {drivers.length} active</span></div>
    <div className="driverPicker">{drivers.map(d=><label key={d.id} className={selectedDriverIds.includes(d.id)?'driverChoice checked':'driverChoice'}><input type="checkbox" checked={selectedDriverIds.includes(d.id)} onChange={e=>setSelectedDriverIds(e.target.checked?[...selectedDriverIds,d.id]:selectedDriverIds.filter(x=>x!==d.id))} disabled={manualMode}/><span><b>{d.name}</b><small>{d.email}</small></span></label>)}</div>
    {!drivers.length&&<div className="notice"><b>No drivers yet.</b><span>Add an in-house driver, then calculate the route.</span></div>}
+  </section>
+  <section className="panel routeLabelActions no-print">
+   <div className="panelHead"><div><h3>Print delivery & meal stickers</h3><p>Print one barcode bag label per Delivery ID and one sticker per meal item. Goodies such as juice and snacks are excluded from individual meal stickers.</p></div><span className="pill">{routeLabelGroups.length} ready delivery bag(s)</span></div>
+   {!routeLabelGroups.length?<div className="notice">No Food Ready deliveries with a planned route for this window yet. Finish kitchen preparation and calculate routes first.</div>:<div className="routeLabelButtons"><button type="button" className="primary" onClick={()=>printRouteLabels('delivery')}>Print delivery labels ({routeLabelGroups.length})</button><button type="button" className="secondary" onClick={()=>printRouteLabels('meal')} disabled={!mealStickerRows.length}>Print meal stickers ({mealStickerRows.length})</button></div>}
   </section>
   {!plan?<Empty title="No route plan loaded" text="Select a date and delivery window to load delivery points."/>:<>
    {manualMode&&<section className="panel manualAssignmentPanel">
@@ -822,6 +854,27 @@ function DeliveryRoutesPage({plan,drivers,labels=[],date,mealSlot,setDate,setMea
     </div>
    </section>
   </>}
+  <section className={labelPrintMode?'labelPrintArea printTarget':'labelPrintArea'}>
+   <div className="labelsPrintHeader"><div className="healthLogo printLogo">H</div><div><b>{plan?.outletName||routeLabelGroups[0]?.outletName||'Outlet'}</b><span>{labelPrintMode==='meal'?'Meal stickers':'Delivery bag labels'} · {new Date(date+'T00:00:00').toLocaleDateString()} · {slotName}</span></div></div>
+   {labelPrintMode==='delivery'&&<div className="labelGrid routeDeliveryLabelGrid">{routeLabelGroups.map(l=><article className="labelCard consolidatedBagLabel" key={l.deliveryId}>
+    <div className="labelTop"><div className="labelOutletBrand">{l.logoUrl?<img src={img(l.logoUrl)} alt=""/>:<div className="outletLogo">{(l.outletName||'O')[0]}</div>}<b>{l.outletName||plan?.outletName||'Outlet'}</b></div><span>BAG LABEL</span></div>
+    <div className="labelCustomerCompact"><span>{l.addressLabel||'DELIVERY'}</span><b>{l.customerName}</b></div>
+    <div className="labelSequence">DELIVERY STOP <strong>{String(l.routeSequence||'—').padStart(2,'0')}</strong></div>
+    <div className="labelMetaRow"><span>{l.mealSlotName||slotName}</span><b>{l.deliveryWindow||slotWindow}</b></div>
+    <div className="labelAddressCompact"><b>{l.address}</b><span>{[l.areaName,l.pincode].filter(Boolean).join(' · ')}</span>{l.customerPhone&&<span>☎ {l.customerPhone}</span>}</div>
+    <div className="bagContents"><b>Bag contents · {l.itemCount} item(s)</b>{l.items.map((item,index)=><div key={item.selectionId||index}><span>{item.name}</span><small>{item.category} · {item.portionSize}</small></div>)}</div>
+    <div className="labelBarcode"><img alt={'Delivery barcode '+l.deliveryId} src={'https://bwipjs-api.metafloor.com/?bcid=code128&scale=2&height=14&includetext&text='+encodeURIComponent(String(l.deliveryId))}/><small>DELIVERY ID · {l.deliveryId}</small></div>
+    <div className="labelFooterCompact"><span>Scan once per bag</span><b>#{String(l.deliveryId).slice(0,6).toUpperCase()}</b></div>
+   </article>)}</div>}
+   {labelPrintMode==='meal'&&<div className="labelGrid mealStickerGrid">{mealStickerRows.map((item,index)=><article className="labelCard mealStickerCard" key={item.key||index}>
+    <div className="labelTop"><div className="labelOutletBrand">{item.logoUrl?<img src={img(item.logoUrl)} alt=""/>:<div className="outletLogo">{(item.outletName||'O')[0]}</div>}<b>{item.outletName||plan?.outletName||'Outlet'}</b></div><span>MEAL STICKER</span></div>
+    <div className="mealStickerCustomer"><span>PREPARED FOR</span><b>{item.customerName||'Customer'}</b></div>
+    <div className="mealStickerName">{item.name}</div>
+    <div className="mealStickerMeta"><span>{item.category||'Meal'} · {item.portionSize||'Regular'}</span><b>{item.mealSlotName||slotName} · {item.deliveryWindow||slotWindow}</b></div>
+    <div className="mealStickerAddress">{item.address}</div>
+    <div className="mealStickerFooter"><span>Delivery ID: {item.deliveryId}</span><b>Stop {item.routeSequence||'—'}</b></div>
+   </article>)}</div>}
+  </section>
  </div>
 }
 function Page({title,text,content}){return <div className="page"><div className="pageHead"><div><h1>{title}</h1><p>{text}</p></div></div><section className="panel">{content}</section></div>}
