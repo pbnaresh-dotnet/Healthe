@@ -2274,11 +2274,27 @@ public sealed class AdminService(
         return new PageResult<OutletDto>(items, result.TotalCount, result.Page, result.PageSize);
     }
     public async Task<IReadOnlyList<UserDto>> GetUsersAsync()=>(await users.GetAllAsync()).Select(x=>new UserDto(x.Id,x.Email,x.FirstName,x.LastName,x.Role.ToString(),x.OutletId)).ToList();
-    public async Task<object> GetDashboardAsync()=>new {
-        outlets=(await outlets.GetAllAsync()).Count,
-        users=(await users.GetAllAsync()).Count,
-        revenue=(await GetRevenueAsync()).TotalRevenue
-    };
+    public async Task<object> GetDashboardAsync()
+    {
+        // Aggregate counts in SQL; return only a small preview for the dashboard.
+        var outletCount = await outlets.CountAsync();
+        var liveOutletCount = await outlets.CountAsync(OutletStatus.Live);
+        var activeWorkspaceCount = await outlets.CountAsync(OutletStatus.Active);
+        var userCount = await users.CountAsync();
+        var customerCount = await users.CountAsync(UserRole.Customer);
+        var recent = await GetOutletsPageAsync(null, null, null, 1, 6);
+        var revenue = await GetRevenueAsync();
+        return new
+        {
+            outlets = outletCount,
+            liveOutlets = liveOutletCount,
+            activeWorkspaces = activeWorkspaceCount,
+            users = userCount,
+            customers = customerCount,
+            recentOutlets = recent.Items,
+            revenue = revenue.TotalRevenue
+        };
+    }
     public async Task<ApplicationErrorPageDto> GetErrorsAsync(ApplicationErrorQueryRequest request)
     {
         var normalized = request with
