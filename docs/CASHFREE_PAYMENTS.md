@@ -58,3 +58,15 @@ Use the Cashfree Sandbox environment first. After the end-to-end flow is verifie
 - configure the production webhook URL,
 - verify the live webhook is reaching the API,
 - run a low-value live transaction before enabling normal customer traffic.
+
+## SaaS invoice payment links
+
+SaaS invoice payment links are separate from customer meal/package checkout. The embedded Super Admin app creates a Cashfree Payment Link for the invoice's current outstanding balance and emails it to the active Outlet Admin address when requested.
+
+- Configure `Cashfree__Enabled=true`, `Cashfree__ClientId`, `Cashfree__ClientSecret`, and `Cashfree__Environment` on the API server. SMTP must also be configured with `Email__Enabled=true` and secret-backed `Email__Host`, `Email__Username`, `Email__Password`, and `Email__FromAddress`.
+- Set `Cashfree__SaaSPaymentLinkWebhookUrl=https://api.broccoly.in/api/saas-billing/cashfree/payment-link-webhook` in server-side configuration.
+- Configure a Cashfree payment-link webhook in the Cashfree dashboard to that URL. Keep the existing general payment webhook at `https://api.broccoly.in/api/payments/webhook` for the existing customer/onboarding gateway flows.
+- The API validates Cashfree webhook signatures and posts a successful payment to the invoice collection ledger idempotently. Never mark an invoice paid from a browser redirect alone.
+- A link expires after the selected validity window (default seven days, max 30). If email fails, the admin sees the failure and can copy/send the generated link manually.
+
+Use the Sandbox environment to validate link creation, email delivery, successful/failed/expired webhook events, duplicate callbacks and invoice balance reconciliation before switching to Production.
