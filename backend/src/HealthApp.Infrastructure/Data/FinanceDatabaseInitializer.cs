@@ -768,6 +768,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion137Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion138Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion139Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion1310Async(db, document, cancellationToken);
             return;
         }
 
@@ -843,6 +844,7 @@ WHERE NOT EXISTS
         await SeedFinancePolicyVersion137Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion138Async(db, document, cancellationToken);
         await SeedFinancePolicyVersion139Async(db, document, cancellationToken);
+        await SeedFinancePolicyVersion1310Async(db, document, cancellationToken);
     }
 
     private static async Task SeedFinancePolicyVersion11Async(
@@ -2363,6 +2365,74 @@ WHERE NOT EXISTS
             ChangeSummary = "Require exact registered payment-link amount matching before webhook collection posting.",
             ChangeReason = "Prevent inconsistent provider amounts from being posted as valid invoice collections.",
             SourceCodeReference = "SAAS-BILLING-WEBHOOK-AMOUNT-VALIDATION-1.3.9",
+            ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
+            PreviousVersionId = previous.Id,
+            CreatedAtUtc = now,
+            PublishedAtUtc = now
+        };
+        db.FinancePolicyDocumentVersions.Add(version);
+        foreach (var section in updated)
+            db.FinancePolicyDocumentSections.Add(new FinancePolicyDocumentSection
+            {
+                Id = Guid.NewGuid(),
+                FinancePolicyDocumentVersionId = version.Id,
+                SectionCode = section.SectionCode,
+                Title = section.Title,
+                DisplayOrder = section.DisplayOrder,
+                ContentMarkdown = section.Content,
+                CreatedAtUtc = now
+            });
+        document.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+
+
+    private static async Task SeedFinancePolicyVersion1310Async(
+        HealthAppDbContext db,
+        FinancePolicyDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (await db.FinancePolicyDocumentVersions.AnyAsync(
+            x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.10",
+            cancellationToken))
+            return;
+
+        var previous = await db.FinancePolicyDocumentVersions
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentId == document.Id && x.Version == "1.3.9")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (previous is null) return;
+
+        var sections = await db.FinancePolicyDocumentSections
+            .AsNoTracking()
+            .Where(x => x.FinancePolicyDocumentVersionId == previous.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ToListAsync(cancellationToken);
+        var updated = sections.Select(x => new
+        {
+            x.SectionCode, x.Title, x.DisplayOrder,
+            Content = x.SectionCode switch
+            {
+                "payment-settlement" => x.ContentMarkdown + " Policy v1.3.10: manual collection amounts are rounded to two decimal places using midpoint-away-from-zero before both positive-amount and outstanding-balance validation. Values that round below INR 0.01 are rejected, preventing zero-value payment rows and ensuring the accepted amount is the amount persisted and allocated.",
+                "governance" => x.ContentMarkdown + " Policy v1.3.10: provider payment-link callbacks acquire update/serializable locks for both the registered link and invoice while checking idempotency, outstanding balance and posting the collection. This serializes different payment links against the same invoice so concurrent callbacks cannot independently allocate against the same stale balance.",
+                "audit-trace" => x.ContentMarkdown + " Policy v1.3.10: recorded payment amount, invoice allocation and audit amount use the same rounded monetary value. Rejected zero-after-rounding or over-balance attempts do not create payment rows. Concurrent webhook posting remains transactional and idempotency-guarded.",
+                _ => x.ContentMarkdown
+            }
+        }).ToList();
+        var canonical = string.Join("\n---\n",
+            updated.OrderBy(x => x.DisplayOrder).Select(x => $"{x.SectionCode.Trim()}\n{x.Title.Trim()}\n{x.Content.Trim()}"));
+        var now = DateTime.UtcNow;
+        var version = new FinancePolicyDocumentVersion
+        {
+            Id = Guid.NewGuid(),
+            FinancePolicyDocumentId = document.Id,
+            Version = "1.3.10",
+            Status = FinancePolicyPublicationStatus.Published,
+            EffectiveFromUtc = new DateTime(2026, 10, 10, 0, 0, 0, DateTimeKind.Utc),
+            ChangeSummary = "Validate rounded manual receipt amounts and serialize concurrent payment-link webhook postings.",
+            ChangeReason = "Ensure invoice balances remain correct for sub-cent input and concurrent provider callbacks.",
+            SourceCodeReference = "SAAS-BILLING-COLLECTION-AMOUNT-AND-CONCURRENCY-1.3.10",
             ContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant(),
             PreviousVersionId = previous.Id,
             CreatedAtUtc = now,
