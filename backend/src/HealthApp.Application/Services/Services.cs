@@ -2038,6 +2038,8 @@ public sealed class AdminService(
         var tenantDeliveries = await deliveries.GetByOutletAsync(outletId);
         var domainsForOutlet = await domains.GetByOutletAsync(outletId);
         var billing = await outletSubscriptions.GetAnyByOutletAsync(outletId);
+        var todayUtc = DateTime.UtcNow.Date;
+        var monthCutoff = todayUtc.AddDays(-30);
         var transactionSummary = await transactions.GetOutletSummaryAsync(outletId, monthCutoff);
         var tenantMealPlans = await mealPlans.GetByOutletAsync(outletId);
         var tenantRecipes = await recipes.GetByOutletAsync(outletId);
@@ -2053,8 +2055,6 @@ public sealed class AdminService(
         var pendingSubscriptions = tenantSubscriptions.Count(x => string.Equals(x.Status.ToString(), "Pending", StringComparison.OrdinalIgnoreCase));
         var cancelledSubscriptions = tenantSubscriptions.Count(x => string.Equals(x.Status.ToString(), "Cancelled", StringComparison.OrdinalIgnoreCase));
 
-        var todayUtc = DateTime.UtcNow.Date;
-        var monthCutoff = todayUtc.AddDays(-30);
         var recentOrders = tenantOrders.Where(x => x.DeliveryDate >= monthCutoff).Take(10).ToList();
         var recentDeliveries = tenantDeliveries.Where(x => x.ScheduledDate >= monthCutoff).Take(10).ToList();
 
