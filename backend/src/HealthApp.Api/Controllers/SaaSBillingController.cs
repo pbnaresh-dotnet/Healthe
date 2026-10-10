@@ -8,9 +8,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using HealthApp.Application.Abstractions;
-using System.Net;
-using System.Globalization;
 
 namespace HealthApp.Api.Controllers;
 
@@ -140,126 +137,6 @@ WHERE s.Status='Active' AND o.Status IN (1,3) AND s.StartDate<@next AND (s.Billi
     }
 
 
-    [HttpPost("invoices/{id:guid}/payment-link")]
-    public async Task<IActionResult> GeneratePaymentLink(Guid id, [FromBody] GenerateSaaSPaymentLinkRequest request, CancellationToken ct)
-    {
-        var scope = IsSuperAdmin ? "" : " AND EXISTS(SELECT 1 FROM dbo.AreaManagerOutletAssignments a WHERE a.OutletId=i.OutletId AND a.AreaManagerUserId=@actor)";
-        await using var conn = db.Database.GetDbConnection();
-        if (conn.State != ConnectionState.Open) await conn.OpenAsync(ct);
-        string invoiceNumber, outletName, outletEmail, city, period, currency, status;
-        decimal balance;
-        DateTime dueDate;
-        await using (var cmd = conn.CreateCommand())
-        {
-            cmd.CommandText = $@"SELECT i.InvoiceNumber,o.Name,
-(SELECT TOP(1) u.Email FROM dbo.Users u WHERE u.OutletId=o.Id AND u.Role=1 AND u.IsActive=1 ORDER BY u.Id),
-o.City,i.BillingPeriod,i.Currency,i.BalanceDue,i.DueDateUtc,i.Status
-FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId
-WHERE i.Id=@id{scope}";
-            Add(cmd, "@id", id);
-            if (!IsSuperAdmin) Add(cmd, "@actor", ActorId ?? Guid.Empty);
-            await using var r = await cmd.ExecuteReaderAsync(ct);
-            if (!await r.ReadAsync(ct)) return NotFound(new { message = "Invoice not found or not assigned to your area." });
-            invoiceNumber = r.GetString(0); outletName = r.GetString(1); outletEmail = r.IsDBNull(2) ? "" : r.GetString(2);
-            city = r.GetString(3); period = r.GetString(4); currency = r.GetString(5); balance = r.GetDecimal(6);
-            dueDate = r.GetDateTime(7); status = r.GetString(8);
-        }
-        if (status == "Voided" || balance <= 0) return Conflict(new { message = "Only invoices with an outstanding balance can have a payment link." });
-        if (string.IsNullOrWhiteSpace(outletEmail) || !System.Net.Mail.MailAddress.TryCreate(outletEmail, out _))
-            return BadRequest(new { message = "No valid active Outlet Admin email was found. Update the outlet account email first." });
-
-        var enabled = configuration.GetValue<bool>("Cashfree:Enabled");
-        var clientId = configuration["Cashfree:ClientId"] ?? "";
-        var secret = configuration["Cashfree:ClientSecret"] ?? "";
-        var apiVersion = configuration["Cashfree:ApiVersion"] ?? "2025-01-01";
-        var environment = configuration["Cashfree:Environment"] ?? "Sandbox";
-        var baseUrl = configuration["Cashfree:BaseUrl"];
-        if (string.IsNullOrWhiteSpace(baseUrl))
-            baseUrl = environment.Equals("Production", StringComparison.OrdinalIgnoreCase) ? "https://api.cashfree.com" : "https://sandbox.cashfree.com";
-        if (!enabled || string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(secret))
-            return StatusCode(503, new { message = "Cashfree payment links are not configured. Configure Cashfree credentials and enable payments." });
-
-        var linkId = "saas-" + id.ToString("N")[..12] + "-" + Guid.NewGuid().ToString("N")[..8];
-        var expiry = DateTime.UtcNow.AddDays(Math.Clamp(request.ValidForDays, 1, 30));
-        var returnUrl = configuration["Cashfree:SaaSInvoiceReturnUrl"];
-        if (string.IsNullOrWhiteSpace(returnUrl)) returnUrl = "https://broccoly.in/payment";
-        var payload = JsonSerializer.Serialize(new {
-            link_id = linkId,
-            link_amount = decimal.Round(balance, 2, MidpointRounding.AwayFromZero),
-            link_currency = currency,
-            link_purpose = $"Broccoly SaaS invoice {invoiceNumber}",
-            customer_details = new { customer_name = outletName, customer_email = outletEmail, customer_phone = "" },
-            link_notify = new { send_sms = false, send_email = false },
-            link_meta = new { return_url = returnUrl, notify_url = configuration["Cashfree:WebhookUrl"] },
-            link_expiry_time = expiry.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture)
-        });
-        var client = httpClientFactory.CreateClient();
-        using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(new Uri(baseUrl.TrimEnd('/') + "/"), "pg/links"));
-        message.Headers.TryAddWithoutValidation("x-api-version", apiVersion);
-        message.Headers.TryAddWithoutValidation("x-client-id", clientId);
-        message.Headers.TryAddWithoutValidation("x-client-secret", secret);
-        message.Headers.TryAddWithoutValidation("x-idempotency-key", linkId);
-        message.Content = new StringContent(payload, Encoding.UTF8, "application/json");
-        using var response = await client.SendAsync(message, ct);
-        var responseBody = await response.Content.ReadAsStringAsync(ct);
-        if (!response.IsSuccessStatusCode)
-        {
-            var safeMessage = "Cashfree could not create the payment link.";
-            try { using var doc = JsonDocument.Parse(responseBody); if (doc.RootElement.TryGetProperty("message", out var msg)) safeMessage = msg.GetString() ?? safeMessage; } catch { }
-            return StatusCode(502, new { message = safeMessage });
-        }
-        string? paymentUrl = null; string providerLinkId = linkId;
-        using (var doc = JsonDocument.Parse(responseBody))
-        {
-            if (doc.RootElement.TryGetProperty("link_url", out var url)) paymentUrl = url.GetString();
-            if (doc.RootElement.TryGetProperty("link_id", out var providerId)) providerLinkId = providerId.GetString() ?? linkId;
-        }
-        if (string.IsNullOrWhiteSpace(paymentUrl)) return StatusCode(502, new { message = "Cashfree did not return a payment URL." });
-
-        var linkRecordId = Guid.NewGuid();
-        await using (var insert = conn.CreateCommand())
-        {
-            insert.CommandText = @"INSERT dbo.SaaSInvoicePaymentLinks(Id,InvoiceId,Provider,ProviderLinkId,PaymentUrl,Amount,Currency,RecipientEmail,ExpiresAtUtc,Status,CreatedByUserId,CreatedAtUtc,EmailSentAtUtc,EmailError)
-VALUES(@id,@invoice,'Cashfree',@providerId,@url,@amount,@currency,@email,@expiry,'Created',@actor,@now,NULL,'')";
-            Add(insert, "@id", linkRecordId); Add(insert, "@invoice", id); Add(insert, "@providerId", providerLinkId); Add(insert, "@url", paymentUrl);
-            Add(insert, "@amount", balance); Add(insert, "@currency", currency); Add(insert, "@email", outletEmail); Add(insert, "@expiry", expiry);
-            Add(insert, "@actor", ActorId ?? Guid.Empty); Add(insert, "@now", DateTime.UtcNow);
-            await insert.ExecuteNonQueryAsync(ct);
-        }
-        await using (var audit = conn.CreateCommand())
-        {
-            audit.CommandText = "INSERT dbo.SaaSBillingAudit(Id,InvoiceId,Action,DetailJson,ActorUserId,OccurredAtUtc) VALUES(@id,@invoice,'PaymentLinkCreated',@detail,@actor,@at)";
-            Add(audit, "@id", Guid.NewGuid()); Add(audit, "@invoice", id);
-            Add(audit, "@detail", JsonSerializer.Serialize(new { linkRecordId, providerLinkId, amount = balance, currency, recipient = outletEmail, expiry, sentByEmail = request.SendEmail }));
-            Add(audit, "@actor", ActorId ?? Guid.Empty); Add(audit, "@at", DateTime.UtcNow);
-            await audit.ExecuteNonQueryAsync(ct);
-        }
-        var emailSent = false;
-        string? emailError = null;
-        if (request.SendEmail)
-        {
-            var safe = WebUtility.HtmlEncode;
-            var html = $"<!doctype html><html><body style='font-family:Arial,sans-serif;color:#173b24;line-height:1.6'><div style='max-width:640px;margin:20px auto;padding:24px;border:1px solid #e2e8e2;border-radius:16px'><h1>Broccoly SaaS invoice</h1><p>Hello {safe(outletName)},</p><p>Your SaaS invoice is ready. Please review the details and use the secure payment link below to pay the outstanding amount.</p><table style='width:100%;border-collapse:collapse'><tr><td style='padding:10px;border-bottom:1px solid #ddd'>Invoice</td><td style='padding:10px;border-bottom:1px solid #ddd'><b>{safe(invoiceNumber)}</b></td></tr><tr><td style='padding:10px;border-bottom:1px solid #ddd'>Billing period</td><td style='padding:10px;border-bottom:1px solid #ddd'>{safe(period)}</td></tr><tr><td style='padding:10px;border-bottom:1px solid #ddd'>Outlet</td><td style='padding:10px;border-bottom:1px solid #ddd'>{safe(outletName)} · {safe(city)}</td></tr><tr><td style='padding:10px;border-bottom:1px solid #ddd'>Amount due</td><td style='padding:10px;border-bottom:1px solid #ddd'><b>{safe(currency)} {balance:N2}</b></td></tr><tr><td style='padding:10px;border-bottom:1px solid #ddd'>Due date</td><td style='padding:10px;border-bottom:1px solid #ddd'>{dueDate:dd MMM yyyy} UTC</td></tr></table><p style='margin:28px 0'><a href='{safe(paymentUrl)}' style='display:inline-block;background:#14532d;color:white;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:bold'>Pay invoice securely</a></p><p>If the button does not work, copy this link into your browser: <a href='{safe(paymentUrl)}'>{safe(paymentUrl)}</a></p><p style='font-size:12px;color:#64748b'>Payment link expires {expiry:dd MMM yyyy HH:mm} UTC. This email is a payment request, not proof of payment.</p><p>Broccoly support · support@broccoly.in</p></div></body></html>";
-            var textBody = $"Broccoly SaaS invoice {invoiceNumber}\nOutlet: {outletName}\nPeriod: {period}\nAmount due: {currency} {balance:N2}\nDue date: {dueDate:dd MMM yyyy} UTC\nPay securely: {paymentUrl}\nExpires: {expiry:dd MMM yyyy HH:mm} UTC";
-            try
-            {
-                await email.SendAsync(new EmailMessage(outletEmail, $"Payment due: Broccoly SaaS invoice {invoiceNumber}", textBody, html), ct);
-                emailSent = true;
-                await using var mark = conn.CreateCommand();
-                mark.CommandText = "UPDATE dbo.SaaSInvoicePaymentLinks SET Status='EmailSent',EmailSentAtUtc=@at WHERE Id=@id";
-                Add(mark, "@at", DateTime.UtcNow); Add(mark, "@id", linkRecordId); await mark.ExecuteNonQueryAsync(ct);
-            }
-            catch (Exception ex)
-            {
-                emailError = ex.Message.Length > 500 ? ex.Message[..500] : ex.Message;
-                await using var mark = conn.CreateCommand();
-                mark.CommandText = "UPDATE dbo.SaaSInvoicePaymentLinks SET Status='EmailFailed',EmailError=@error WHERE Id=@id";
-                Add(mark, "@error", emailError); Add(mark, "@id", linkRecordId); await mark.ExecuteNonQueryAsync(ct);
-            }
-        }
-        return Ok(new { linkRecordId, invoiceId = id, invoiceNumber, outletName, outletEmail, amount = balance, currency, paymentUrl, expiresAtUtc = expiry, emailRequested = request.SendEmail, emailSent, emailError });
-    }
-
     [HttpGet("payments/{paymentId:guid}/receipt")]
     public async Task<IActionResult> Receipt(Guid paymentId,CancellationToken ct)
     {
@@ -287,5 +164,3 @@ VALUES(@id,@invoice,'Cashfree',@providerId,@url,@amount,@currency,@email,@expiry
 }
 public sealed class GenerateSaaSInvoicesRequest { public string? BillingPeriod {get;set;} public int DueDay {get;set;}=15; public decimal? TaxRatePercent {get;set;} public string? FinancePolicyVersion {get;set;} }
 public sealed class RecordSaaSPaymentRequest { public decimal Amount {get;set;} public string Method {get;set;}="Cash"; public string? Reference {get;set;} public string? Notes {get;set;} public DateTime? ReceivedAtUtc {get;set;} public bool OnlinePaymentVerified {get;set;} public string? Provider {get;set;} public string? IdempotencyKey {get;set;} }
-
-public sealed class GenerateSaaSPaymentLinkRequest { public bool SendEmail { get; set; } = true; public int ValidForDays { get; set; } = 7; }
