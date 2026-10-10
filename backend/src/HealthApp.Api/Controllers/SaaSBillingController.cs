@@ -146,15 +146,23 @@ WHERE s.Status='Active' AND o.Status IN (1,3) AND s.StartDate<@next AND (s.Billi
     {
         var scope=IsSuperAdmin?"":" AND EXISTS(SELECT 1 FROM dbo.AreaManagerOutletAssignments a WHERE a.OutletId=i.OutletId AND a.AreaManagerUserId=@actor)";
         await using var conn=db.Database.GetDbConnection(); if(conn.State!=ConnectionState.Open)await conn.OpenAsync(ct);
-        string invoiceNumber,outletName,outletEmail,city,period,currency;decimal balance;DateTime dueDate;string invoiceStatus;
+        string invoiceNumber,outletName,outletEmail,outletPhone,city,period,currency;decimal balance;DateTime dueDate;string invoiceStatus;
         await using(var cmd=conn.CreateCommand()){
-            cmd.CommandText=$@"SELECT i.InvoiceNumber,o.Name,(SELECT TOP(1) u.Email FROM dbo.Users u WHERE u.OutletId=o.Id AND u.Role=1 AND u.IsActive=1 ORDER BY u.Id),o.City,i.BillingPeriod,i.Currency,i.BalanceDue,i.DueDateUtc,i.Status FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE i.Id=@id{scope}";
+            cmd.CommandText=$@"SELECT i.InvoiceNumber,o.Name,
+(SELECT TOP(1) u.Email FROM dbo.Users u WHERE u.OutletId=o.Id AND u.Role=1 AND u.IsActive=1 ORDER BY u.Id),
+(SELECT TOP(1) u.MobileNumber FROM dbo.Users u WHERE u.OutletId=o.Id AND u.Role=1 AND u.IsActive=1 ORDER BY u.Id),
+o.City,i.BillingPeriod,i.Currency,i.BalanceDue,i.DueDateUtc,i.Status
+FROM dbo.SaaSInvoices i JOIN dbo.Outlets o ON o.Id=i.OutletId WHERE i.Id=@id{scope}";
             Add(cmd,"@id",id);if(!IsSuperAdmin)Add(cmd,"@actor",ActorId??Guid.Empty);
             await using var r=await cmd.ExecuteReaderAsync(ct);if(!await r.ReadAsync(ct))return NotFound(new{message="Invoice not found or not assigned to your area."});
-            invoiceNumber=r.GetString(0);outletName=r.GetString(1);outletEmail=r.IsDBNull(2)?"":r.GetString(2);city=r.GetString(3);period=r.GetString(4);currency=r.GetString(5);balance=r.GetDecimal(6);dueDate=r.GetDateTime(7);invoiceStatus=r.GetString(8);
+            invoiceNumber=r.GetString(0);outletName=r.GetString(1);outletEmail=r.IsDBNull(2)?"":r.GetString(2);outletPhone=r.IsDBNull(3)?"":r.GetString(3);city=r.GetString(4);period=r.GetString(5);currency=r.GetString(6);balance=r.GetDecimal(7);dueDate=r.GetDateTime(8);invoiceStatus=r.GetString(9);
         }
         if(invoiceStatus=="Voided"||balance<=0)return Conflict(new{message="Only invoices with an outstanding balance can have a payment link."});
         if(string.IsNullOrWhiteSpace(outletEmail)||!System.Net.Mail.MailAddress.TryCreate(outletEmail,out _))return BadRequest(new{message="No valid active Outlet Admin email was found."});
+        var phoneDigits=new string(outletPhone.Where(char.IsDigit).ToArray());
+        if(phoneDigits.Length==12&&phoneDigits.StartsWith("91",StringComparison.Ordinal))phoneDigits=phoneDigits[2..];
+        if(phoneDigits.Length==11&&phoneDigits.StartsWith("0",StringComparison.Ordinal))phoneDigits=phoneDigits[1..];
+        if(phoneDigits.Length!=10)return BadRequest(new{message="Add a valid 10-digit mobile number to the active Outlet Admin account before generating a Cashfree payment link."});
         var enabled=configuration.GetValue<bool>("Cashfree:Enabled");var clientId=configuration["Cashfree:ClientId"]??"";var secret=configuration["Cashfree:ClientSecret"]??"";
         if(!enabled||string.IsNullOrWhiteSpace(clientId)||string.IsNullOrWhiteSpace(secret))return StatusCode(503,new{message="Cashfree payment links are not configured."});
         var environment=configuration["Cashfree:Environment"]??"Sandbox";var baseUrl=configuration["Cashfree:BaseUrl"];
@@ -163,7 +171,7 @@ WHERE s.Status='Active' AND o.Status IN (1,3) AND s.StartDate<@next AND (s.Billi
         var expiry=DateTime.UtcNow.AddDays(Math.Clamp(request.ValidForDays,1,30));
         var returnUrl=configuration["Cashfree:SaaSInvoiceReturnUrl"]??"https://broccoly.in/payment";
         var notifyUrl=configuration["Cashfree:SaaSPaymentLinkWebhookUrl"]??"https://api.broccoly.in/api/saas-billing/cashfree/payment-link-webhook";
-        var payload=JsonSerializer.Serialize(new{link_id=providerLinkId,link_amount=decimal.Round(balance,2,MidpointRounding.AwayFromZero),link_currency=currency,link_purpose=$"Broccoly SaaS invoice {invoiceNumber}",customer_details=new{customer_name=outletName,customer_email=outletEmail,customer_phone=""},link_notify=new{send_sms=false,send_email=false},link_meta=new{return_url=returnUrl,notify_url=notifyUrl},link_expiry_time=expiry.ToString("yyyy-MM-dd'T'HH:mm:sszzz",CultureInfo.InvariantCulture)});
+        var payload=JsonSerializer.Serialize(new{link_id=providerLinkId,link_amount=decimal.Round(balance,2,MidpointRounding.AwayFromZero),link_currency=currency,link_purpose=$"Broccoly SaaS invoice {invoiceNumber}",customer_details=new{customer_name=outletName,customer_email=outletEmail,customer_phone=phoneDigits},link_notify=new{send_sms=false,send_email=false},link_meta=new{return_url=returnUrl,notify_url=notifyUrl},link_expiry_time=expiry.ToString("yyyy-MM-dd'T'HH:mm:sszzz",CultureInfo.InvariantCulture)});
         using var message=new HttpRequestMessage(HttpMethod.Post,new Uri(new Uri(baseUrl.TrimEnd('/')+"/"),"pg/links"));
         message.Headers.TryAddWithoutValidation("x-api-version",apiVersion);message.Headers.TryAddWithoutValidation("x-client-id",clientId);message.Headers.TryAddWithoutValidation("x-client-secret",secret);message.Headers.TryAddWithoutValidation("x-idempotency-key",providerLinkId);message.Content=new StringContent(payload,Encoding.UTF8,"application/json");
         using var response=await httpClientFactory.CreateClient().SendAsync(message,ct);var responseBody=await response.Content.ReadAsStringAsync(ct);
