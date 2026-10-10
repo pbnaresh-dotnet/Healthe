@@ -1624,6 +1624,13 @@ public sealed class OutletService(ICurrentUser current,IOutletRepository outlets
     public async Task<IReadOnlyList<RecipeDto>> GetRecipesAsync(string? category) => current.OutletId is not Guid id
         ? []
         : (await recipes.GetByOutletAndCategoryAsync(id, category)).Select(Map).ToList();
+    public async Task<PageResult<RecipeDto>> GetRecipesPageAsync(string? category, string? search, int page, int pageSize)
+    {
+        if (current.OutletId is not Guid id)
+            return new PageResult<RecipeDto>(Array.Empty<RecipeDto>(), 0, Math.Max(1, page), Math.Clamp(pageSize, 1, 100));
+        var result = await recipes.GetByOutletPageAsync(id, category, search, page, pageSize);
+        return new PageResult<RecipeDto>(result.Items.Select(Map).ToList(), result.TotalCount, result.Page, result.PageSize);
+    }
     public async Task<RecipeDto?> CreateRecipeAsync(CreateRecipeRequest r) {
         if(current.OutletId is not Guid id)return null;
         var cat=Enum.TryParse<RecipeCategory>(r.Category,true,out var c)?c:RecipeCategory.Veg;
