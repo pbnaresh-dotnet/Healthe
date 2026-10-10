@@ -2038,7 +2038,7 @@ public sealed class AdminService(
         var tenantDeliveries = await deliveries.GetByOutletAsync(outletId);
         var domainsForOutlet = await domains.GetByOutletAsync(outletId);
         var billing = await outletSubscriptions.GetAnyByOutletAsync(outletId);
-        var allTransactions = await transactions.GetAllAsync();
+        var transactionSummary = await transactions.GetOutletSummaryAsync(outletId, monthCutoff);
         var tenantMealPlans = await mealPlans.GetByOutletAsync(outletId);
         var tenantRecipes = await recipes.GetByOutletAsync(outletId);
         var tenantMenuItems = await menu.GetByOutletAsync(outletId);
@@ -2058,12 +2058,8 @@ public sealed class AdminService(
         var recentOrders = tenantOrders.Where(x => x.DeliveryDate >= monthCutoff).Take(10).ToList();
         var recentDeliveries = tenantDeliveries.Where(x => x.ScheduledDate >= monthCutoff).Take(10).ToList();
 
-        var tenantTransactions = allTransactions
-            .Where(x => x.OutletId == outletId && x.CreatedAt >= monthCutoff)
-            .ToList();
-
-        var revenue30 = tenantTransactions.Sum(x => x.GrossAmount);
-        var platformRevenue30 = tenantTransactions.Sum(x => x.PlatformFee);
+        var revenue30 = transactionSummary.GrossAmount;
+        var platformRevenue30 = transactionSummary.PlatformFee;
         var subscriptionGst30 = tenantSubscriptions.Where(x => x.StartDate >= monthCutoff).Sum(x => x.RestaurantGstAmount);
         var subscriptionPlatformFee30 = tenantSubscriptions.Where(x => x.StartDate >= monthCutoff).Sum(x => x.PlatformServiceFee);
 
