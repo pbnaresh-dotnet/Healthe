@@ -596,13 +596,33 @@ public sealed class PaymentService(
             current.OutletId != subscription.OutletId)
             return null;
 
-        if (payment.Status is not "Paid" &&
-            !string.IsNullOrWhiteSpace(payment.ProviderOrderId))
+        if (!string.IsNullOrWhiteSpace(payment.ProviderOrderId))
         {
-            var wasPaid = payment.Status == "Paid";
-            await RefreshFromGatewayAsync(payment, CancellationToken.None);
-            if (!wasPaid && payment.Status == "Paid")
-                await CompleteCustomerPaymentAsync(payment.Id);
+            var now = DateTime.UtcNow;
+            if (await payments.TryClaimPaymentProcessingAsync(payment.Id, now, now.AddMinutes(-5)))
+            {
+                payment.ProcessingStatus = "WebhookProcessing";
+                payment.LastAttemptAtUtc = now;
+                try
+                {
+                    if (payment.Status != "Paid")
+                        await RefreshFromGatewayAsync(payment, CancellationToken.None, preserveWebhookClaim: true);
+
+                    // The same atomic lease protects status polling and webhooks from fulfilling
+                    // the same payment concurrently. Paid retries also repair interrupted fulfilment.
+                    if (payment.Status == "Paid")
+                        await CompleteCustomerPaymentAsync(payment.Id);
+
+                    payment.ProcessingStatus = payment.Status == "Paid" ? "PaymentVerified" : "WebhookProcessed";
+                    await payments.UpdateAsync(payment);
+                }
+                catch
+                {
+                    payment.ProcessingStatus = "WebhookProcessingFailed";
+                    await payments.UpdateAsync(payment);
+                    throw;
+                }
+            }
         }
 
         return Map(payment);
@@ -627,7 +647,7 @@ public sealed class PaymentService(
             return new PaymentWebhookResultDto(true, "UnknownOrder");
 
         var now = DateTime.UtcNow;
-        if (!await payments.TryClaimWebhookAsync(payment.Id, now, now.AddMinutes(-5)))
+        if (!await payments.TryClaimPaymentProcessingAsync(payment.Id, now, now.AddMinutes(-5)))
             return new PaymentWebhookResultDto(true, "AlreadyProcessing", payment.Id);
 
         // ExecuteUpdateAsync claims the row atomically, so align this tracked instance with
