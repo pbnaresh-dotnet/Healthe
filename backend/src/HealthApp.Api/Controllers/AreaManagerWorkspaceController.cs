@@ -23,7 +23,7 @@ public sealed class AreaManagerWorkspaceController(HealthAppDbContext db) : Cont
             .Join(db.Outlets, a => a.OutletId, o => o.Id, (a, o) => new
             {
                 o.Id, o.Name, o.City, o.State, o.Status, o.Slug,
-                o.MobileNumber, o.ContactEmail, a.AssignedAtUtc
+                a.AssignedAtUtc
             })
             .OrderBy(x => x.City).ThenBy(x => x.Name)
             .ToListAsync(cancellationToken);
