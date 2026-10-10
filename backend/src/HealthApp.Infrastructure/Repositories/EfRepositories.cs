@@ -756,14 +756,13 @@ public sealed class PaymentSettlementReconciliationExceptionRepository(HealthApp
     }
 
     private IQueryable<PaymentSettlementReconciliationException> OpenQuery(string? provider, Guid? outletId) =>
-        from ex in Context.PaymentSettlementReconciliationExceptions.AsNoTracking()
-        join payment in Context.PaymentTransactions.AsNoTracking()
-            on new { Provider = ex.Provider, ProviderPaymentId = ex.ProviderPaymentId }
-            equals new { Provider = payment.Provider, ProviderPaymentId = payment.ProviderPaymentId }
-        where ex.Status == "Open"
-           && (string.IsNullOrWhiteSpace(provider) || ex.Provider == provider)
-           && (!outletId.HasValue || payment.OutletId == outletId)
-        select ex;
+        Context.PaymentSettlementReconciliationExceptions.AsNoTracking()
+            .Where(ex => ex.Status == "Open"
+                && (string.IsNullOrWhiteSpace(provider) || ex.Provider == provider)
+                && (!outletId.HasValue || Context.PaymentTransactions.AsNoTracking().Any(payment =>
+                    payment.Provider == ex.Provider
+                    && payment.ProviderPaymentId == ex.ProviderPaymentId
+                    && payment.OutletId == outletId)));
 
     public Task<PaymentSettlementReconciliationException?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         Context.PaymentSettlementReconciliationExceptions.FirstOrDefaultAsync(x => x.Id == id && x.Status == "Open", cancellationToken);
