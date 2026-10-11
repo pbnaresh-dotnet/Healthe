@@ -4,12 +4,18 @@ import{admin}from'@healthapp/shared';
 export default function ApplicationErrorMonitor({outlets=[]}){
  const[monitor,setMonitor]=useState({items:[],totalCount:0,page:1,pageSize:50,summary:{totalCount:0,unresolvedCount:0,last24HoursCount:0,byOutlet:[]}});
  const[filters,setFilters]=useState({outletId:'',severity:'',statusCode:'',resolved:'false',search:''});
+ const[appliedFilters,setAppliedFilters]=useState({outletId:'',severity:'',statusCode:'',resolved:'false',search:''});
  const[selected,setSelected]=useState(null);
  const[resolutionNotes,setResolutionNotes]=useState('');
  const[loading,setLoading]=useState(false);
+ const[page,setPage]=useState(1);
+ const[pageSize,setPageSize]=useState(50);
  const[error,setError]=useState('');
+ const[diagnostics,setDiagnostics]=useState({requestLoggingEnabled:true,detailedLoggingEnabled:false,slowRequestThresholdMs:1000});
+ const[settingsBusy,setSettingsBusy]=useState(false);
+ const[settingsMessage,setSettingsMessage]=useState('');
 
- const load=async(next=filters)=>{
+ const load=async(next=appliedFilters,nextPage=page)=>{
    try{
      setLoading(true);setError('');
      const result=await admin.errors({
@@ -18,16 +24,18 @@ export default function ApplicationErrorMonitor({outlets=[]}){
        statusCode:next.statusCode||undefined,
        resolved:next.resolved===''?undefined:next.resolved,
        search:next.search||undefined,
-       page:1,
-       pageSize:50
+       page:nextPage,
+       pageSize
      });
      setMonitor(result||{items:[],totalCount:0,page:1,pageSize:50,summary:{totalCount:0,unresolvedCount:0,last24HoursCount:0,byOutlet:[]}});
    }catch(e){setError(e.message||'Unable to load application errors')}finally{setLoading(false)}
  };
 
- useEffect(()=>{load()},[outlets.length]);
+ useEffect(()=>{load(appliedFilters,page)},[appliedFilters,page,pageSize]);
+ useEffect(()=>{let active=true;admin.diagnosticsSettings().then(value=>{if(active&&value)setDiagnostics({requestLoggingEnabled:!!value.requestLoggingEnabled,detailedLoggingEnabled:!!value.detailedLoggingEnabled,slowRequestThresholdMs:Number(value.slowRequestThresholdMs||1000)})}).catch(e=>{if(active)setSettingsMessage(e.message||'Unable to load diagnostics settings')});return()=>{active=false}},[]);
+ const saveDiagnostics=async()=>{try{setSettingsBusy(true);setSettingsMessage('');const value=await admin.updateDiagnosticsSettings(diagnostics);setDiagnostics({requestLoggingEnabled:!!value.requestLoggingEnabled,detailedLoggingEnabled:!!value.detailedLoggingEnabled,slowRequestThresholdMs:Number(value.slowRequestThresholdMs||1000)});setSettingsMessage('Diagnostics settings saved. Detailed exception information is sensitive; enable it only while investigating and turn it off afterwards.')}catch(e){setSettingsMessage(e.message||'Unable to save diagnostics settings')}finally{setSettingsBusy(false)}};
 
- const apply=next=>{setFilters(next);load(next)};
+ const apply=next=>{setFilters(next);setAppliedFilters(next);setPage(1)};
  const open=async id=>{
    try{setLoading(true);setError('');setSelected(await admin.error(id));setResolutionNotes('')}
    catch(e){setError(e.message||'Unable to load error details')}
@@ -39,7 +47,7 @@ export default function ApplicationErrorMonitor({outlets=[]}){
      setLoading(true);setError('');
      const item=await admin.resolveError(selected.id,resolutionNotes);
      setSelected(item);
-     await load();
+     await load(appliedFilters,page);
    }catch(e){setError(e.message||'Unable to resolve error')}finally{setLoading(false)}
  };
 
@@ -49,6 +57,16 @@ export default function ApplicationErrorMonitor({outlets=[]}){
      <div className="errorMonitorBadge">{monitor.summary?.unresolvedCount??0} unresolved</div>
    </div>
    {error&&<div className="errorBanner">⚠ {error}<button type="button" onClick={()=>setError('')}>×</button></div>}
+   <div className="diagnosticsSettings card">
+     <div><span className="eyebrow">REQUEST DIAGNOSTICS</span><h3>Logging policy</h3><p>Applies to all API routes and all web apps using the shared API client. Request logs exclude request bodies, query strings and credentials.</p></div>
+     <div className="diagnosticsSettingsControls">
+       <label><input type="checkbox" checked={diagnostics.requestLoggingEnabled} onChange={e=>setDiagnostics(v=>({...v,requestLoggingEnabled:e.target.checked}))}/> Enable request logs</label>
+       <label><input type="checkbox" checked={diagnostics.detailedLoggingEnabled} onChange={e=>setDiagnostics(v=>({...v,detailedLoggingEnabled:e.target.checked}))}/> Enable detailed exception logs</label>
+       <label>Slow request threshold (ms)<input type="number" min="100" max="120000" step="100" value={diagnostics.slowRequestThresholdMs} onChange={e=>setDiagnostics(v=>({...v,slowRequestThresholdMs:Number(e.target.value)}))}/></label>
+       <button type="button" className="errorRefreshBtn" disabled={settingsBusy||diagnostics.slowRequestThresholdMs<100||diagnostics.slowRequestThresholdMs>120000} onClick={saveDiagnostics}>{settingsBusy?'Saving…':'Save logging policy'}</button>
+     </div>
+     {settingsMessage&&<p className="diagnosticsSettingsMessage" role="status">{settingsMessage}</p>}
+   </div>
    <div className="errorSummaryStats">
      <div><span>Matching</span><b>{monitor.summary?.totalCount??0}</b></div>
      <div><span>Last 24 hours</span><b>{monitor.summary?.last24HoursCount??0}</b></div>
@@ -78,7 +96,7 @@ export default function ApplicationErrorMonitor({outlets=[]}){
      </button>)}
      {!(monitor.items||[]).length&&<div className="empty">No errors match the current filters.</div>}
    </div>
-   <small className="errorMonitorFooter">Showing up to 50 most recent records. Total matching records: {monitor.totalCount??0}.</small>
+   <div className="financePager errorPager"><label>Rows per page <select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1)}}><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option><option value={200}>200</option></select></label><span>{monitor.totalCount?((page-1)*pageSize+1)+'–'+Math.min(page*pageSize,monitor.totalCount)+' of '+monitor.totalCount:'0 results'}</span><div><button type="button" className="errorRefreshBtn" disabled={loading||page<=1} onClick={()=>setPage(p=>Math.max(1,p-1))}>Previous</button><button type="button" className="errorRefreshBtn" disabled={loading||page*pageSize>=(monitor.totalCount||0)} onClick={()=>setPage(p=>p+1)}>Next</button></div></div>
 
    {selected&&<div className="errorDetailBackdrop"><div className="errorDetailModal">
      <div className="errorDetailHead"><div><span className="eyebrow">ERROR DETAIL</span><h2>{selected.errorCode}</h2><p>{new Date(selected.occurredAtUtc).toLocaleString()} · {selected.severity} · HTTP {selected.statusCode}</p></div><button type="button" onClick={()=>setSelected(null)}>×</button></div>
