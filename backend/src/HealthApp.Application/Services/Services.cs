@@ -2186,8 +2186,9 @@ public sealed class AdminService(
     public async Task<PageResult<OutletDto>> GetOutletsPageAsync(string? search, string? status, string? city, int page, int pageSize)
     {
         if (!string.IsNullOrWhiteSpace(status) &&
+            !string.Equals(status.Trim(), "NotLive", StringComparison.OrdinalIgnoreCase) &&
             (!Enum.TryParse<OutletStatus>(status.Trim(), true, out var parsedStatus) || !Enum.IsDefined(typeof(OutletStatus), parsedStatus)))
-            throw new ArgumentException("Unsupported outlet status. Use Pending, Active, Suspended or Live.");
+            throw new ArgumentException("Unsupported outlet status. Use NotLive, Pending, Active, Suspended or Live.");
 
         var result = await outlets.GetPageAsync(search, status, city, page, pageSize);
         var items = result.Items.Select(x => new OutletDto(

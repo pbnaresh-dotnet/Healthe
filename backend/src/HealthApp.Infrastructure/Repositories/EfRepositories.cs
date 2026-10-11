@@ -76,8 +76,13 @@ public sealed class OutletRepository(HealthAppDbContext db) : EfRepository(db), 
                 x.Subdomain.Contains(term) || x.City.Contains(term) || x.State.Contains(term));
         }
 
-        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<OutletStatus>(status.Trim(), true, out var parsedStatus))
-            query = query.Where(x => x.Status == parsedStatus);
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (string.Equals(status.Trim(), "NotLive", StringComparison.OrdinalIgnoreCase))
+                query = query.Where(x => x.Status != OutletStatus.Live);
+            else if (Enum.TryParse<OutletStatus>(status.Trim(), true, out var parsedStatus))
+                query = query.Where(x => x.Status == parsedStatus);
+        }
 
         if (!string.IsNullOrWhiteSpace(city))
         {
