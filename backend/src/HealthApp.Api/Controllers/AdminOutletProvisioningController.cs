@@ -98,7 +98,7 @@ public sealed class AdminOutletProvisioningController(
             City = city,
             State = state,
             Pincode = pincode,
-            Status = request.MarkAsPaid ? OutletStatus.Live : OutletStatus.Pending,
+            Status = request.MarkAsPaid ? OutletStatus.Active : OutletStatus.Pending,
             BillingPlan = MapBillingPlan(plan.Name),
             About = "",
             DeliveryDays = "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday",
@@ -265,7 +265,8 @@ public sealed class AdminOutletProvisioningController(
             MarkedPaidAtUtc = now
         });
         subscription.Status = "Active";
-        outlet.Status = OutletStatus.Live;
+        // Payment activates the subscription and account, but must not bypass the outlet launch checklist.
+        outlet.Status = OutletStatus.Active;
         var owner = await db.Users.FirstOrDefaultAsync(x => x.OutletId == outletId && x.Role == UserRole.OutletAdmin, cancellationToken);
         if (owner is not null) owner.IsActive = true;
         await db.SaveChangesAsync(cancellationToken);
